@@ -1,0 +1,501 @@
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Person, Store, Zone } from "./types.js";
+import { SEED_COLLECTIONS } from "./seed-collections.js";
+
+const DEFAULT_COMPANY_ID = "company-primary";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = process.env.STOCRANT_DATA_DIR
+  ? join(process.env.STOCRANT_DATA_DIR, "data")
+  : join(__dirname, "..", "data");
+
+export interface StoreData {
+  stores: Store[];
+  zones: Zone[];
+  people: Person[];
+  /** Generic module collections (HR / Stores / Warehouse / Admin). */
+  collections: Record<string, unknown[]>;
+}
+
+const STORE_FILE = join(DATA_DIR, "stocrant.json");
+const MIGRATION_BACKUP_FILE = join(DATA_DIR, "stocrant.pre-v2-backup.json");
+
+/** Default demo data so STOCRANT is usable out of the box. */
+export const SEED_DATA: StoreData = {
+  stores: [
+    {
+      id: "st-001",
+      companyId: DEFAULT_COMPANY_ID,
+      name: "Downtown Plaza",
+      kind: "restaurant",
+      address: "12 Main Street",
+      city: "Seoul",
+      totalArea: 320,
+      floorCount: 1,
+      status: "open",
+      createdAt: "2026-01-05T00:00:00Z",
+      updatedAt: "2026-02-01T00:00:00Z",
+    },
+    {
+      id: "st-002",
+      companyId: DEFAULT_COMPANY_ID,
+      name: "Gangnam Branch",
+      kind: "restaurant",
+      address: "45 Yeonhui-ro",
+      city: "Seoul",
+      totalArea: 480,
+      floorCount: 1,
+      status: "open",
+      createdAt: "2026-01-05T00:00:00Z",
+      updatedAt: "2026-02-01T00:00:00Z",
+    },
+    {
+      id: "st-003",
+      companyId: DEFAULT_COMPANY_ID,
+      name: "Tech Office HQ",
+      kind: "office",
+      address: "8 Digital Square",
+      city: "Seoul",
+      totalArea: 640,
+      floorCount: 5,
+      status: "open-limited",
+      createdAt: "2026-03-01T00:00:00Z",
+      updatedAt: "2026-03-10T00:00:00Z",
+    },
+  ],
+  zones: [
+    { id: "z-001", storeId: "st-001", name: "Dining Floor", kind: "dining", area: 240, capacity: 96 },
+    { id: "z-002", storeId: "st-001", name: "Bar & Counter", kind: "counter", area: 40, capacity: 24 },
+    { id: "z-003", storeId: "st-001", name: "Kitchen & Back Hall", kind: "back", area: 40, capacity: 12 },
+    { id: "z-004", storeId: "st-002", name: "Main Dining", kind: "dining", area: 320, capacity: 140 },
+    { id: "z-005", storeId: "st-002", name: "Smoking & Lounge", kind: "floor", area: 80, capacity: 40 },
+    { id: "z-006", storeId: "st-003", name: "Open Plan Desks", kind: "floor", area: 240, capacity: 120 },
+    { id: "z-007", storeId: "st-003", name: "Conference Rooms", kind: "back", area: 120, capacity: 40 },
+    { id: "z-008", storeId: "st-003", name: "Break Room", kind: "back", area: 60, capacity: 24 },
+  ],
+  people: [
+    { id: "p-001", name: "Kim Minji", role: "Service Manager", storeId: "st-001", zoneId: "z-001", status: "active", hireDate: "2025-11-03", createdAt: "2025-11-03T00:00:00Z", email: "minji@example.com", phone: "010-1234-0001" },
+    { id: "p-002", name: "Lee Jihoon", role: "Captain", storeId: "st-001", zoneId: "z-001", status: "active", hireDate: "2025-11-03", createdAt: "2025-11-03T00:00:00Z", email: "jihoon@example.com", phone: "010-1234-0002" },
+    { id: "p-003", name: "Park Soojin", role: "Cook", storeId: "st-001", zoneId: "z-003", status: "leave", hireDate: "2026-01-12", createdAt: "2026-01-12T00:00:00Z" },
+    { id: "p-004", name: "Choi Hyunwoo", role: "Service Lead", storeId: "st-002", zoneId: "z-004", status: "active", hireDate: "2026-01-05", createdAt: "2026-01-05T00:00:00Z" },
+    { id: "p-005", name: "Jung Yuna", role: "Captain", storeId: "st-002", zoneId: "z-004", status: "active", hireDate: "2026-02-01", createdAt: "2026-02-01T00:00:00Z" },
+    { id: "p-006", name: "Han Seo", role: "Admin", storeId: "st-003", zoneId: "z-006", status: "active", hireDate: "2026-01-15", createdAt: "2026-01-15T00:00:00Z" },
+    { id: "p-007", name: "Yoon Taeho", role: "Engineer", storeId: "st-003", zoneId: "z-006", status: "active", hireDate: "2026-02-20", createdAt: "2026-02-20T00:00:00Z" },
+    { id: "p-008", name: "Kang Mira", role: "Team Lead", storeId: "st-003", zoneId: "z-007", status: "active", hireDate: "2025-12-01", createdAt: "2025-12-01T00:00:00Z" },
+  ],
+  collections: structuredClone(SEED_COLLECTIONS),
+};
+
+function ensureDir() {
+  mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function defaultCompany() {
+  return {
+    id: DEFAULT_COMPANY_ID,
+    name: "STOCRANT Operations",
+    tradeName: "STOCRANT",
+    industry: "mixed",
+    country: "South Korea",
+    currency: "KRW",
+    status: "active",
+  };
+}
+
+/**
+ * Adds the company hierarchy to data created by earlier STOCRANT versions.
+ * Existing locations are retained and attached to a primary company; nothing
+ * is deleted during this migration.
+ */
+function migrateCompanyHierarchy(data: StoreData): boolean {
+  let changed = false;
+  if (!data.collections) {
+    data.collections = structuredClone(SEED_COLLECTIONS);
+    changed = true;
+  }
+  const companies = data.collections.companies as Array<Record<string, unknown>> | undefined;
+  if (!Array.isArray(companies) || companies.length === 0) {
+    data.collections.companies = [defaultCompany()];
+    changed = true;
+  }
+  for (const location of data.stores) {
+    if (!location.companyId) {
+      location.companyId = DEFAULT_COMPANY_ID;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+type Row = Record<string, unknown>;
+
+function collectionRows(data: StoreData, name: string): Row[] {
+  const current = data.collections[name];
+  if (!Array.isArray(current)) {
+    data.collections[name] = [];
+  }
+  return data.collections[name] as Row[];
+}
+
+function systemRoles(): Row[] {
+  return [
+    {
+      id: "role-main-manager",
+      name: "Main Manager",
+      permissions: ["*"],
+      isSystem: true,
+      dataClassification: "system",
+      description: "Full administration, approval and export authority.",
+    },
+    {
+      id: "role-manager",
+      name: "Manager",
+      permissions: [
+        "organizations.view", "locations.view", "locations.create", "locations.edit",
+        "hr.view", "hr.create", "hr.edit", "operations.*", "inventory.*",
+        "finance.view", "finance.create", "finance.edit", "approvals.view", "approvals.approve",
+      ],
+      isSystem: true,
+      dataClassification: "system",
+      description: "Runs assigned business areas and can approve configured work.",
+    },
+    {
+      id: "role-employee",
+      name: "Employee",
+      permissions: ["organizations.view", "locations.view", "hr.view", "operations.view", "operations.create", "operations.edit", "inventory.view"],
+      ownRecordsOnly: true,
+      isSystem: true,
+      dataClassification: "system",
+      description: "Limited to assigned locations and own operational records.",
+    },
+  ];
+}
+
+function mapLegacyTask(task: Row): Row {
+  const statusMap: Record<string, string> = {
+    todo: "Planned",
+    "in-progress": "In Progress",
+    review: "Awaiting Approval",
+    done: "Completed",
+  };
+  return {
+    id: `legacy-${String(task.id ?? nextCollectionId("workItems"))}`,
+    title: task.title ?? "Untitled work",
+    assignee: task.assignee ?? "",
+    priority: task.priority ?? "Medium",
+    status: statusMap[String(task.status)] ?? "Planned",
+    dueDate: task.dueDate ?? "",
+    progress: typeof task.progress === "number" ? task.progress : 0,
+    workflow: task.project ?? "General",
+    comments: "Imported from legacy tasks.",
+    attachments: "",
+    source: "legacy",
+    dataClassification: "demo",
+  };
+}
+
+function mapLegacyInventory(item: Row): Row {
+  const qty = typeof item.qty === "number" ? item.qty : 0;
+  return {
+    id: `legacy-${String(item.id ?? nextCollectionId("inventoryItems"))}`,
+    sku: item.sku ?? "",
+    name: item.product ?? item.name ?? "Unnamed item",
+    unit: "unit",
+    stockLocation: item.warehouse ?? "Unassigned",
+    openingStock: qty,
+    reorderPoint: typeof item.reorderPoint === "number" ? item.reorderPoint : 0,
+    allowNegative: false,
+    source: "legacy",
+    dataClassification: "demo",
+  };
+}
+
+/**
+ * Version 2 evolves a local single-user workspace into a real authenticated
+ * business workspace. It only adds collections/fields; no existing business
+ * arrays are removed or overwritten.
+ */
+function migrateSecureWorkspace(data: StoreData): boolean {
+  let changed = false;
+  const required = [
+    "accessRoles", "accessUsers", "sessions", "approvalRules", "approvalRequests", "auditLog",
+    "locationUpdates", "workItems", "workActivity", "inventoryItems", "inventoryMovements",
+    "financeAccounts", "financeTransactions", "workspaceSettings",
+  ];
+  for (const name of required) {
+    if (!Array.isArray(data.collections[name])) {
+      data.collections[name] = [];
+      changed = true;
+    }
+  }
+
+  const roles = collectionRows(data, "accessRoles");
+  for (const role of systemRoles()) {
+    if (!roles.some((row) => row.id === role.id)) {
+      roles.push(role);
+      changed = true;
+    }
+  }
+
+  const settings = collectionRows(data, "workspaceSettings");
+  if (!settings.some((row) => row.id === "workspace-settings")) {
+    settings.push({
+      id: "workspace-settings",
+      schemaVersion: 2,
+      demoDataSeparated: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    changed = true;
+  }
+
+  for (const company of collectionRows(data, "companies")) {
+    if (!company.organizationType) {
+      company.organizationType = typeof company.industry === "string" && ["restaurant", "retail"].includes(company.industry)
+        ? company.industry === "retail" ? "store" : "restaurant"
+        : "mixed";
+      changed = true;
+    }
+  }
+
+  for (const location of data.stores) {
+    const row = location as unknown as Row;
+    if (!row.dataClassification) {
+      row.dataClassification = "demo";
+      changed = true;
+    }
+  }
+  for (const person of data.people) {
+    const row = person as unknown as Row;
+    if (!row.dataClassification) {
+      row.dataClassification = "demo";
+      changed = true;
+    }
+  }
+
+  const workItems = collectionRows(data, "workItems");
+  if (workItems.length === 0) {
+    const legacyTasks = collectionRows(data, "tasks");
+    if (legacyTasks.length) {
+      workItems.push(...legacyTasks.map(mapLegacyTask));
+      changed = true;
+    }
+  }
+
+  const inventoryItems = collectionRows(data, "inventoryItems");
+  if (inventoryItems.length === 0) {
+    const legacyInventory = collectionRows(data, "inventory");
+    if (legacyInventory.length) {
+      inventoryItems.push(...legacyInventory.map(mapLegacyInventory));
+      changed = true;
+    }
+  }
+
+  const accounts = collectionRows(data, "financeAccounts");
+  if (accounts.length === 0) {
+    accounts.push({ id: "account-operating", name: "Operating account", type: "bank", currency: "KRW", openingBalance: 0, dataClassification: "demo" });
+    changed = true;
+  }
+
+  return changed;
+}
+
+function read(): StoreData {
+  ensureDir();
+  try {
+    if (!existsSync(STORE_FILE)) {
+      const seeded = structuredClone(SEED_DATA);
+      migrateCompanyHierarchy(seeded);
+      migrateSecureWorkspace(seeded);
+      write(seeded);
+      return seeded;
+    }
+    const raw = readFileSync(STORE_FILE, "utf8");
+    const parsed = JSON.parse(raw) as StoreData;
+    if (!parsed.stores || !parsed.zones || !parsed.people) return structuredClone(SEED_DATA);
+    const hierarchyChanged = migrateCompanyHierarchy(parsed);
+    const workspaceChanged = migrateSecureWorkspace(parsed);
+    if (hierarchyChanged || workspaceChanged) {
+      // Capture the on-disk original before its first v2 migration. The backup
+      // stays beside the JSON store and is ignored by Git with the data folder.
+      if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
+      write(parsed);
+    }
+    return parsed;
+  } catch (error) {
+    console.error("STOCRANT: failed to read store file, falling back to seed data:", error);
+    return structuredClone(SEED_DATA);
+  }
+}
+
+function write(data: StoreData) {
+  ensureDir();
+  const tmp = `${STORE_FILE}.tmp`;
+  writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
+  try {
+    renameSync(tmp, STORE_FILE);
+  } catch (error) {
+    rmSync(tmp, { force: true });
+    throw error;
+  }
+}
+
+
+
+let cache: StoreData | null = null;
+
+export function getStore(): StoreData {
+  if (!cache) cache = read();
+  return cache;
+}
+
+export function saveStore(data: StoreData) {
+  write(data);
+  cache = data;
+}
+
+/** Returns a usable company id for locations created by legacy API clients. */
+export function getPrimaryCompanyId(): string {
+  const data = getStore();
+  const companies = data.collections?.companies as Array<Record<string, unknown>> | undefined;
+  const existingId = companies?.find((company) => typeof company.id === "string")?.id;
+  if (typeof existingId === "string") return existingId;
+  if (!data.collections) data.collections = {};
+  data.collections.companies = [defaultCompany()];
+  saveStore(data);
+  return DEFAULT_COMPANY_ID;
+}
+
+/** Generic collection access for HR / Stores / Warehouse / Admin entities. */
+export function getCollection(name: string): unknown[] {
+  const data = getStore();
+  if (!data.collections) data.collections = structuredClone(SEED_COLLECTIONS);
+  if (!data.collections[name]) data.collections[name] = [];
+  return data.collections[name];
+}
+
+export function saveCollection(name: string, items: unknown[]) {
+  const data = getStore();
+  if (!data.collections) data.collections = {};
+  data.collections[name] = items;
+  saveStore(data);
+}
+
+export function nextCollectionId(name: string): string {
+  const items = getCollection(name);
+  return `${name}-${Date.now().toString(36)}-${items.length + 1}`;
+}
+
+export function upsertStore(store: Store) {
+  const data = getStore();
+  const idx = data.stores.findIndex((s) => s.id === store.id);
+  if (idx >= 0) {
+    data.stores[idx] = { ...data.stores[idx], ...store, updatedAt: new Date().toISOString() };
+  } else {
+    data.stores.push({ ...store, createdAt: store.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() });
+  }
+  saveStore(data);
+  return data.stores[data.stores.length - 1];
+}
+
+export function upsertZone(zone: Zone) {
+  const data = getStore();
+  const idx = data.zones.findIndex((z) => z.id === zone.id);
+  if (idx >= 0) {
+    data.zones[idx] = { ...data.zones[idx], ...zone };
+  } else {
+    data.zones.push(zone);
+  }
+  saveStore(data);
+  return data.zones[data.zones.length - 1];
+}
+
+export function upsertPerson(person: Person) {
+  const data = getStore();
+  const idx = data.people.findIndex((p) => p.id === person.id);
+  if (idx >= 0) {
+    data.people[idx] = { ...data.people[idx], ...person };
+  } else {
+    data.people.push({ ...person, createdAt: new Date().toISOString() });
+  }
+  saveStore(data);
+  return data.people[data.people.length - 1];
+}
+
+export function deleteZone(id: string) {
+  const data = getStore();
+  const before = data.zones.length;
+  data.zones = data.zones.filter((z) => z.id !== id);
+  if (data.zones.length < before) saveStore(data);
+  return data.zones.length;
+}
+
+export function deletePerson(id: string) {
+  const data = getStore();
+  const before = data.people.length;
+  data.people = data.people.filter((p) => p.id !== id);
+  if (data.people.length < before) saveStore(data);
+  return data.people.length;
+}
+
+export function deleteStore(id: string) {
+  const data = getStore();
+  data.stores = data.stores.filter((s) => s.id !== id);
+  data.zones = data.zones.filter((z) => z.storeId !== id);
+  data.people = data.people.filter((p) => p.storeId !== id);
+  saveStore(data);
+  return data.stores.length;
+}
+
+/** Generic collection helpers used by the metadata-driven CRUD engine. */
+export type CollectionRow = Record<string, unknown> & { id?: string };
+
+function rows(name: string): CollectionRow[] {
+  return getCollection(name) as CollectionRow[];
+}
+
+export function listCollection(name: string): CollectionRow[] {
+  return rows(name);
+}
+
+export function getCollectionItem(name: string, id: string): CollectionRow | undefined {
+  return rows(name).find((row) => row.id === id);
+}
+
+export function upsertCollectionItem(
+  name: string,
+  item: CollectionRow,
+): CollectionRow {
+  const data = getStore();
+  if (!data.collections) data.collections = {};
+  const list = (data.collections[name] ?? []) as CollectionRow[];
+  const id = typeof item.id === "string" && item.id ? item.id : nextCollectionId(name);
+  const now = new Date().toISOString();
+  const idx = list.findIndex((row) => row.id === id);
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], ...item, id, updatedAt: now };
+    data.collections[name] = list;
+    saveStore(data);
+    return list[idx];
+  }
+  const created: CollectionRow = { ...item, id, createdAt: now, updatedAt: now };
+  data.collections[name] = [...list, created];
+  saveStore(data);
+  return created;
+}
+
+export function deleteCollectionItem(name: string, id: string): number {
+  const data = getStore();
+  if (!data.collections) data.collections = {};
+  const list = (data.collections[name] ?? []) as CollectionRow[];
+  data.collections[name] = list.filter((row) => row.id !== id);
+  saveStore(data);
+  return data.collections[name].length;
+}
+
+export function resetTestCache() {
+  cache = null;
+}
+

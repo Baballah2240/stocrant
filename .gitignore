@@ -1,0 +1,22 @@
+# Dependencies and generated output
+node_modules/
+dist/
+
+# Runtime data: keep business records and personally identifiable data out of Git.
+data/
+
+# Local logs and command output
+*.log
+*.pid
+*-output.txt
+*-build.log
+*-err.log
+*-rc.txt
+validation-*.log
+
+# Local environment / editor files
+.env
+.env.*
+!.env.example
+.vscode/
+*.local

@@ -1,0 +1,18 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+// Frontend dev server for STOCRANT. Proxies /api to the Express backend
+// launched by `npm run dev:api` (port 3000).
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    host: true,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
+  },
+});

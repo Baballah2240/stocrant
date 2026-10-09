@@ -1,0 +1,38 @@
+{
+  "name": "stocrant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "STOCRANT - business management for companies, locations, workforce, HR and operations.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "build": "tsc -p server/tsconfig.build.json",
+    "build:frontend": "node ./node_modules/vite/bin/vite.js build",
+    "build:full": "npm run build:frontend && npm run build",
+    "dev:api": "npm run build && node dist/index.js",
+    "dev:frontend": "node ./node_modules/vite/bin/vite.js",
+    "dev": "node ./node_modules/concurrently/dist/bin/concurrently.js \"npm run dev:api\" \"npm run dev:frontend\"",
+    "start": "npm run build:full && node dist/index.js",
+    "typecheck": "tsc --noEmit -p server/tsconfig.json",
+    "test": "npm run build && node --test dist/routes.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-router-dom": "^6.30.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.14",
+    "@types/react": "^19.1.1",
+    "@types/react-dom": "^19.1.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^8.2.2",
+    "typescript": "~6.0.3",
+    "vite": "^5.4.11"
+  }
+}

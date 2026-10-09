@@ -1,0 +1,30 @@
+# Render production deployment for STOCRANT.
+#
+# This is a single Node.js web service: Express serves both the React SPA and
+# its /api routes. The attached disk retains JSON-backed business data across
+# service restarts and deployments.
+services:
+  - type: web
+    name: stocrant-web
+    runtime: node
+    region: ohio
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npm run build:full
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    domains:
+      - www.mohbaba.online
+    disk:
+      name: stocrant-data
+      mountPath: /var/lib/stocrant
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STOCRANT_DATA_DIR
+        value: /var/lib/stocrant
+      - key: STOCRANT_SESSION_SECRET
+        sync: false
+      - key: STOCRANT_SETUP_KEY
+        sync: false
