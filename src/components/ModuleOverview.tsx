@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { useMeta } from "../meta-context";
+import { useSession } from "../session-context";
 import BackButton from "./BackButton";
 import type { ModuleKey } from "../types";
 
@@ -10,6 +11,9 @@ interface ModuleOverviewProps {
 
 export default function ModuleOverview({ module }: ModuleOverviewProps) {
   const { modules, entities, loading } = useMeta();
+  const { user } = useSession();
+  const canAddCompany = module === "organization" && user?.roleId === "role-main-manager"
+    && user.permissions.some((permission) => ["*", "organizations.*", "organizations.create"].includes(permission));
 
   const moduleInfo = modules?.[module];
   const moduleEntities = useMemo(
@@ -34,6 +38,11 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
             {module} module from one place
           </p>
         </div>
+        {canAddCompany && (
+          <NavLink className="primary-link" to="/organization/companies/new">
+            Add company
+          </NavLink>
+        )}
       </div>
 
       {moduleEntities.length === 0 ? (

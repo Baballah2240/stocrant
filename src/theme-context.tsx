@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { notifyAction } from "./action-feedback";
 
 export type ThemeMode = "light" | "dark";
 
@@ -42,7 +43,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   const setTheme = useCallback((mode: ThemeMode) => setThemeState(mode), []);
-  const toggle = useCallback(() => setThemeState((t) => (t === "light" ? "dark" : "light")), []);
+  const toggle = useCallback(() => {
+    const next = theme === "light" ? "dark" : "light";
+    setThemeState(next);
+    notifyAction(`${next === "light" ? "Light" : "Dark"} mode enabled.`);
+  }, [theme]);
 
   const value = useMemo(() => ({ theme, toggle, setTheme }), [theme, toggle, setTheme]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

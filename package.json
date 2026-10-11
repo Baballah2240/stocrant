@@ -14,14 +14,29 @@
     "dev": "node ./node_modules/concurrently/dist/bin/concurrently.js \"npm run dev:api\" \"npm run dev:frontend\"",
     "start": "npm run build:full && node dist/index.js",
     "typecheck": "tsc --noEmit -p server/tsconfig.json",
-    "test": "npm run build && node --test dist/routes.test.js"
+    "test": "npm run build && node --test dist/routes.test.js && node scripts/verify-storage.mjs",
+    "admin:reset": "node scripts/reset-admin.mjs",
+    "setup:reset": "node scripts/reset-first-time-setup.mjs",
+    "mobile:build": "node ./node_modules/vite/bin/vite.js build && npx cap sync",
+    "mobile:android": "npm run mobile:build && npx cap open android",
+    "mobile:ios": "npm run mobile:build && npx cap open ios",
+    "mobile:apk": "npm run mobile:build && powershell -ExecutionPolicy Bypass -File ./build-apk.ps1",
+    "mobile:apk:lan": "powershell -ExecutionPolicy Bypass -File ./build-mobile-lan.ps1",
+    "mobile:add:android": "npx cap add android",
+    "mobile:add:ios": "npx cap add ios",
+    "check:data": "node scripts/check-data.mjs",
+    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run build:frontend"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/ios": "^7.6.9",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-router-dom": "^6.30.0",
+    "react-router-dom": "^7.18.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -30,9 +45,12 @@
     "@types/node": "^24.0.14",
     "@types/react": "^19.1.1",
     "@types/react-dom": "^19.1.1",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^8.2.2",
     "typescript": "~6.0.3",
-    "vite": "^5.4.11"
+    "vite": "^8.3.4"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }

@@ -1,6 +1,6 @@
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore } from "./storage.js";
-import { can, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
+import { can, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
 import { createNotification, listNotifications } from "./notifications.js";
 
 export type Row = Record<string, unknown> & { id: string };
@@ -90,6 +90,7 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
 }
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
+  if (sectionForCollection(collection) === "hr" && !can(user, "hr", action)) throw new Error("Only the Main Manager has permission to manage HR records.");
   const data = getStore();
   const list = rows(collection);
   const now = timestamp();
@@ -97,6 +98,8 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
     if (!targetId) throw new Error("A record id is required.");
     const existing = list.find((row) => row.id === targetId);
     if (!existing) throw new Error("Record not found.");
+    // Own-records roles must not reach records outside their scope by id.
+    if (!isWithinScope(user, existing)) throw new Error("Record not found.");
     data.collections[collection] = list.filter((row) => row.id !== targetId);
     saveStore(data);
     audit(user, `${collection}.deleted`, { collection, targetId, section: sectionForCollection(collection) });
@@ -105,6 +108,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
 
   const existing = targetId ? list.find((row) => row.id === targetId) : undefined;
   if (targetId && !existing) throw new Error("Record not found.");
+  if (existing && !isWithinScope(user, existing)) throw new Error("Record not found.");
   const item: Row = existing
     ? { ...existing, ...payload, id: existing.id, updatedAt: now, updatedBy: user.id, updatedByName: user.name }
     : {
@@ -119,6 +123,10 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
       dataClassification: payload.dataClassification ?? "company",
     };
   data.collections[collection] = existing ? list.map((row) => row.id === item.id ? item : row) : [...list, item];
+  if (collection === "inventoryItems") {
+    const changedFields = Object.keys(payload).filter((key) => JSON.stringify(existing?.[key]) !== JSON.stringify(item[key]));
+    data.collections.inventoryHistory = [...rows("inventoryHistory"), { id: rowId("inventoryHistory"), inventoryItemId: item.id, organizationId: item.organizationId, actor: user.name, actorId: user.id, occurredAt: now, action, changedFields }];
+  }
   saveStore(data);
   if (collection === "employees") updateEmployeeHistory(user, item, existing ? "updated" : "hired");
   if (collection === "workItems") updateWorkActivity(user, item, existing ? "Work item updated." : "Work item created.");
@@ -136,6 +144,12 @@ export function mutateCollection(
   const section = sectionForCollection(collection);
   const permissionAction: PermissionAction = action;
   if (!can(user, section, permissionAction)) throw new Error(`You do not have permission to ${action} ${section}.`);
+  const current = targetId ? rows(collection).find(row => row.id === targetId) : undefined;
+  if (targetId && (!current || !isWithinScope(user, current))) throw new Error("Record not found.");
+  if (action !== "delete" && !isWithinScope(user, { ...current, ...payload, createdBy: current?.createdBy ?? user.id })) throw new Error("You do not have permission to use this record scope.");
+  if (action === "create" && payload.id && rows(collection).some(row => row.id === payload.id)) throw new Error("A record with this id already exists.");
+  payload = { ...payload };
+  for (const field of ["createdAt", "createdBy", "createdByName", "updatedAt", "updatedBy", "updatedByName", "__proto__", "constructor", "prototype"]) delete payload[field];
   if (requiresApproval(section, action)) {
     const request: ApprovalRequest = {
       id: rowId("approvalRequests"),
@@ -231,13 +245,16 @@ function notifyPendingApproval(user: AuthenticatedUser, request: ApprovalRequest
 
 export function approveRequest(user: AuthenticatedUser, requestId: string, approve: boolean, note?: string): ApprovalRequest {
   if (!can(user, "approvals", "approve")) throw new Error("You do not have permission to approve requests.");
-  const data = getStore();
+  let data = getStore();
   const list = rows("approvalRequests") as ApprovalRequest[];
   const request = list.find((row) => row.id === requestId);
   if (!request) throw new Error("Approval request not found.");
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
   if (request.requestedBy === user.id) throw new Error("A requester cannot approve their own request.");
-  if (approve) applyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId);
+  if (approve) {
+    applyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId);
+    data = getStore();
+  }
   const updated: ApprovalRequest = {
     ...request,
     status: approve ? "approved" : "rejected",
@@ -252,28 +269,28 @@ export function approveRequest(user: AuthenticatedUser, requestId: string, appro
   return updated;
 }
 
-export function financeSummary() {
-  const accounts = rows("financeAccounts");
-  const transactions = rows("financeTransactions");
+export function financeSummary(user?: AuthenticatedUser) {
+  const accounts = rows("financeAccounts").filter(row => !user || isWithinScope(user, row));
+  const transactions = rows("financeTransactions").filter(row => !user || isWithinScope(user, row));
   const balances = accounts.map((account) => {
     const opening = Number(account.openingBalance ?? 0);
     const movement = transactions
-      .filter((transaction) => transaction.accountId === account.id && transaction.status !== "cancelled")
+      .filter((transaction) => transaction.accountId === account.id && transaction.status === "paid")
       .reduce((sum, transaction) => {
         const amount = Number(transaction.amount ?? 0);
         return sum + (transaction.direction === "in" ? amount : transaction.direction === "out" ? -amount : 0);
       }, 0);
     return { ...account, balance: opening + movement };
   });
-  const income = transactions.filter((row) => row.type === "income" && row.status !== "cancelled").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-  const expenses = transactions.filter((row) => row.type === "expense" && row.status !== "cancelled").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-  const salaries = transactions.filter((row) => row.type === "payroll" && row.status !== "cancelled").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+  const income = transactions.filter((row) => row.type === "income" && row.status === "paid").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+  const expenses = transactions.filter((row) => row.type === "expense" && row.status === "paid").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+  const salaries = transactions.filter((row) => row.type === "payroll" && row.status === "paid").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
   return { accounts: balances, income, expenses, salaries, net: income - expenses - salaries, transactions };
 }
 
-export function inventorySummary() {
-  const items = rows("inventoryItems");
-  const movements = rows("inventoryMovements");
+export function inventorySummary(user?: AuthenticatedUser) {
+  const items = rows("inventoryItems").filter(row => !user || isWithinScope(user, row));
+  const movements = rows("inventoryMovements").filter(row => !user || isWithinScope(user, row));
   const stock = items.map((item) => {
     const opening = Number(item.openingStock ?? 0);
     const totals = movements.filter((movement) => movement.inventoryItemId === item.id).reduce(

@@ -32,6 +32,29 @@ npm run dev:frontend # Vite dev server on http://localhost:5173 (proxies /api ->
 Open **http://localhost:5173** — Vite serves the app and proxies `/api` to the
 Express backend on port 3000.
 
+## Mobile apps (Android + iOS)
+
+Native shells built with Capacitor around the same React bundle as the website —
+one codebase, so permissions, audit trail and data are identical on both.
+
+```bash
+npm install
+npm run mobile:build        # build the web bundle, copy into both native shells
+```
+
+**Android** — build on any OS. `android/build-apk.bat` produces an installable
+debug APK (needs `JAVA_HOME` set to a JDK 21); use `npm run mobile:apk`, or open
+`android/` in Android Studio via `npm run mobile:android`.
+
+**iOS** — must be built on macOS with Xcode. The `ios/` project is committed and
+ready; run `npm run mobile:build` then `npm run mobile:ios`.
+
+Point the packaged app at your deployment with `VITE_API_BASE_URL=…` at build
+time, or per device in **Access & Settings → Mobile app**. Full details,
+including how role-based access applies to mobile users, are in
+**[MOBILE.md](MOBILE.md)**.
+
+
 ## Core business hierarchy
 
 ```text
@@ -51,12 +74,12 @@ Company → Locations → Areas / zones → Workforce assignments
 ## Production
 
 ```bash
-npm run build:full   # vite build -> dist/, then tsc -> dist/
+npm run build:full   # vite build -> dist/web/, then tsc -> dist/
 npm run start        # build:full, then node dist/index.js
 ```
 
 In production a single Node process serves both the API and the built frontend:
-`GET /` returns `dist/index.html`, `/assets/*` are served statically, and
+`GET /` returns `dist/web/index.html`, `/assets/*` are served statically, and
 non-`/api` GET routes fall back to the SPA shell. API routes live under `/api/*`.
 
 To run the server without rebuilding:
@@ -133,8 +156,8 @@ HTTPS verification steps.
 | `npm run dev:api`         | Build server and run `dist/index.js`                      |
 | `npm run dev:frontend`    | Vite dev server with `/api` proxy                         |
 | `npm run build`           | Compile server TypeScript to `dist/`                      |
-| `npm run build:frontend`  | Vite production build to `dist/`                          |
-| `npm run build:full`      | Frontend build then server build (both into `dist/`)      |
+| `npm run build:frontend`  | Vite production build to `dist/web/`                          |
+| `npm run build:full`      | Frontend into `dist/web/`; server into `dist/`      |
 | `npm run start`           | `build:full` then serve                                   |
 | `npm test`                | Build server, run `node --test dist/routes.test.js`       |
 | `npm run typecheck`       | `tsc --noEmit` for the server                             |

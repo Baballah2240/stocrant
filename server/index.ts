@@ -6,6 +6,14 @@ import { createApp } from "./app.js";
 const port = Number(process.env.PORT) || 3000;
 const app = createApp();
 const server = createServer(app);
+server.requestTimeout = 30_000;
+server.headersTimeout = 15_000;
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    server.close(() => process.exit(0));
+    setTimeout(() => { server.closeAllConnections(); process.exit(0); }, 10_000).unref();
+  });
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dataDir = process.env.STOCRANT_DATA_DIR

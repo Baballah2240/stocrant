@@ -1,0 +1,108 @@
+/* Shared STOCRANT identity: sky blue and mint green, with readable ink. */
+:root, html[data-theme="light"] {
+  --brand-blue: #b9e2ff;
+  --brand-green: #bcebd1;
+  --brand-blue-soft: #e8f5ff;
+  --brand-green-soft: #eaf8ef;
+  --brand-ink: #173e52;
+  --brand-link: #24627e;
+  --color-primary: #24627e;
+  --color-primary-soft: #e1f2fc;
+  --color-success: #28664b;
+  --color-success-soft: #eaf8ef;
+  --ios-bg: #e9efec;
+  --ios-cell: #f5f7f3;
+  --ios-fill: #e1e9e4;
+  --ios-label: #193b4b;
+  --ios-label-2: #526d79;
+  --ios-separator: #cedbd4;
+  --color-background: #e9efec;
+  --color-surface: #f5f7f3;
+  --color-neutral: #193b4b;
+  --color-border: #cedbd4;
+  --stocrant-green: #28664b;
+  --stocrant-green-strong: #22543f;
+  --stocrant-green-soft: #eaf8ef;
+  --stocrant-green-line: #c3e6d2;
+  --stocrant-canvas: #e9efec;
+}
+html[data-theme="dark"] {
+  --brand-blue: #a8d8f7;
+  --brand-green: #a9dec0;
+  --brand-blue-soft: #182e3c;
+  --brand-green-soft: #1b322b;
+  --brand-ink: #153846;
+  --brand-link: #a8d8f7;
+  --color-primary: #a8d8f7;
+  --color-primary-soft: #213b4c;
+  --color-success: #a9dec0;
+  --color-success-soft: #1b322b;
+  --ios-bg: #101d25;
+  --ios-cell: #182831;
+  --ios-label: #e8f4f7;
+  --ios-label-2: #adc4cf;
+  --ios-separator: #304751;
+  --color-background: #101d25;
+  --color-surface: #182831;
+  --color-neutral: #e8f4f7;
+  --color-border: #304751;
+  --stocrant-green: #a9dec0;
+  --stocrant-green-strong: #c5efd8;
+  --stocrant-green-soft: #1b322b;
+  --stocrant-green-line: #355549;
+  --stocrant-canvas: #101d25;
+}
+.mobile-layout { --color-primary: var(--brand-link); --color-primary-soft: var(--brand-blue-soft); }
+.public-site, html[data-theme="dark"] .public-site {
+  --site-bg: var(--ios-bg); --site-surface: var(--ios-cell);
+  --site-text: var(--ios-label); --site-muted: var(--ios-label-2);
+  --site-subtle: var(--ios-label-2); --site-border: var(--ios-separator);
+  --site-segment: var(--brand-blue-soft); --site-tint: var(--brand-green-soft);
+  --site-accent: var(--brand-link);
+}
+.ios-app button.primary, .auth-experience button.primary, .public-site button.primary,
+.primary-link, .public-site .public-actions .primary-link, .public-site .public-contact-card button.primary {
+  background: var(--brand-blue); border-color: var(--brand-blue); color: var(--brand-ink);
+}
+.ios-app button.primary:hover, .auth-experience button.primary:hover, .public-site button.primary:hover, .primary-link:hover {
+  background: var(--brand-green); border-color: var(--brand-green); color: var(--brand-ink);
+}
+.header-avatar, .profile-avatar { background: var(--brand-blue); color: var(--brand-ink); }
+.brand-logo rect { fill: var(--brand-blue); }
+.brand-logo path { stroke: var(--brand-ink); }
+.public-wordmark span { background: var(--brand-blue); color: var(--brand-ink); }
+.mobile-service-icon, .public-site .mobile-service-icon { background: var(--brand-blue-soft); color: var(--brand-link); }
+.mobile-shortcuts a:nth-child(2n) .mobile-service-icon,
+.public-feature-grid article:nth-child(2n) .mobile-service-icon,
+.public-demo-grid > div:nth-child(2n) { background: var(--brand-green-soft); color: var(--stocrant-green); }
+.mobile-shortcuts a:nth-child(2n + 1) .mobile-service-icon { background: var(--brand-blue-soft); color: var(--brand-link); }
+.public-hero, html[data-theme="dark"] .public-hero {
+  background: radial-gradient(ellipse at 90% 20%, color-mix(in srgb, var(--brand-blue) 20%, transparent), transparent 60%), radial-gradient(ellipse at 60% 90%, color-mix(in srgb, var(--brand-green) 15%, transparent), transparent 55%);
+}
+.about-hero, .mobile-people .mobile-attendance { background: linear-gradient(130deg, var(--brand-blue-soft), var(--brand-green-soft)); }
+.public-demo-attendance { background: var(--brand-green-soft); }
+.public-tour-check, .public-menu-toggle, .feature-expand-symbol { background: var(--brand-blue-soft); color: var(--brand-link); }
+.public-scroll-progress { background: linear-gradient(90deg, var(--brand-green), var(--brand-blue)); }
+.notification-filters button[aria-pressed=true] { background: var(--brand-blue-soft); color: var(--brand-link); }
+.nav-item.active, .mobile-bottom-nav a.active { color: var(--brand-link); }
+.workspace-website-link { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 9px 12px; border: 1px solid var(--ios-separator); border-radius: 12px; background: var(--brand-blue-soft); color: var(--brand-link); font-size: 12px; font-weight: 600; }
+.workspace-website-link .mobile-icon { width: 18px; height: 18px; }
+.finance-date-filters { margin-bottom: 14px; align-items: end; }
+.finance-date-filters label { display: grid; gap: 6px; font-size: 13px; min-width: 130px; }
+.action-toast-stack { position: fixed; right: 20px; bottom: max(20px, env(safe-area-inset-bottom)); z-index: 2000; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.action-toast { display: flex; align-items: center; gap: 11px; padding: 12px 14px; border-radius: 15px; border: 1px solid var(--stocrant-green-line); background: var(--ios-cell); color: var(--ios-label); box-shadow: 0 8px 32px #0002; pointer-events: auto; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.action-toast-icon { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; background: var(--brand-green-soft); color: var(--stocrant-green); font-weight: 700; }
+.action-toast--error { border-color: var(--color-danger); }
+.action-toast--error .action-toast-icon { color: var(--color-danger); background: var(--color-danger-soft); }
+.action-toast > span:nth-child(2) { flex: 1; }
+.action-toast button { background: transparent; border: 0; color: var(--ios-label-2); font-size: 23px; min-width: 38px; min-height: 38px; padding: 0; }
+@media (max-width: 700px) { .action-toast-stack { right: 16px; bottom: calc(90px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: no-preference) { .action-toast { animation: toast-enter 200ms ease both; } @keyframes toast-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } }
+@media (max-width: 700px) { .workspace-website-link { padding: 9px; } .workspace-website-link span { display: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-cursor-motion] .public-site .public-cursor-glow,
+  html[data-theme="dark"][data-cursor-motion] .public-site .public-cursor-glow,
+  html[data-cursor-motion] .auth-experience .public-cursor-glow {
+    background: radial-gradient(460px circle at var(--cursor-x) var(--cursor-y), color-mix(in srgb, var(--brand-blue) 14%, transparent), transparent 75%);
+  }
+}

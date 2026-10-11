@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "../session-context";
 import { api } from "../api";
-import { formatDate } from "../util";
+import { NavLink } from "react-router-dom";
+import { relativeLabel as formatDate } from "../util";
 import type { Notification, NotificationType } from "../types";
 
 interface NotificationBellProps {
@@ -9,6 +10,8 @@ interface NotificationBellProps {
 }
 
 function typeLabel(type: NotificationType): string {
+  if (type === "leave_request") return "Leave request";
+  if (type === "password_reset") return "Password reset";
   if (type === "overdue_work") return "Overdue";
   if (type === "low_stock") return "Low stock";
   if (type === "pending_approval") return "Approval";
@@ -17,6 +20,9 @@ function typeLabel(type: NotificationType): string {
 
 export function NotificationBell({ className = "" }: NotificationBellProps) {
   const { user } = useSession();
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -30,7 +36,7 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
       return;
     }
     let active = true;
-    api.notifications
+    const refresh = () => api.notifications
       .list()
       .then((data) => {
         if (!active) return;
@@ -42,10 +48,10 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
         if (!active) return;
         setError(err instanceof Error ? err.message : "Unable to load notifications.");
       });
-    return () => {
-      active = false;
-    };
-  }, [user?.id]);
+    void refresh();
+    const interval = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [user?.id, refreshKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -54,11 +60,14 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
         setOpen(false);
       }
     };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", escape);
     document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    return () => { document.removeEventListener("mousedown", handleMouseDown); document.removeEventListener("keydown", escape); };
   }, [open]);
 
   const markAsRead = async (id: string) => {
+    if (busy) return; setBusy(true);
     try {
       await api.notifications.markAsRead(id);
       setNotifications((prev) =>
@@ -66,18 +75,18 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
       );
       setUnreadCount((prev) => Math.max(prev - 1, 0));
     } catch {
-      // Keep the UI live if a per-item update races with a refresh.
-    }
+      setError("Could not mark notification as read. Try again.");
+    } finally { setBusy(false); }
   };
 
   const markAllRead = async () => {
-    try {
+    setBusy(true); try {
       await api.notifications.readAll();
       setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
       setUnreadCount(0);
     } catch {
-      // Ignore failures for the bulk action.
-    }
+      setError("Could not update notifications. Try again.");
+    } finally { setBusy(false); }
   };
 
   return (
@@ -85,10 +94,10 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
       <button
         type="button"
         className="notification-trigger"
-        aria-label="Notifications"
+        aria-label={`Notifications, ${unreadCount} unread`}
         aria-expanded={open}
         aria-controls="notifications-panel"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => { setOpen((value) => !value); setRefreshKey((value) => value + 1); }}
       >
         <svg
           viewBox="0 0 24 24"
@@ -113,23 +122,24 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
           aria-label="Notifications"
         >
           <div className="notification-panel__head">
-            <h2 className="notification-panel__title">Notifications</h2>
+            <h2 className="notification-panel__title">Notifications <small>{unreadCount} unread</small></h2><button type="button" aria-label="Close notifications" onClick={() => setOpen(false)}>Close</button>
             <button
               type="button"
               className="button-tiny button-ghost"
-              onClick={markAllRead}
+              disabled={busy || !unreadCount} onClick={markAllRead}
             >
               Mark all read
             </button>
           </div>
 
+          <div className="notification-filters"><button type="button" aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>All</button><button type="button" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>Unread</button><button type="button" onClick={() => setRefreshKey((value) => value + 1)}>Refresh</button></div>
           {error ? (
             <p className="notification-panel__empty">{error}</p>
-          ) : notifications.length === 0 ? (
+          ) : notifications.filter((notification) => !unreadOnly || !notification.read).length === 0 ? (
             <p className="notification-panel__empty">No notifications</p>
           ) : (
             <ul className="notification-list">
-              {[...notifications].reverse().map((notification) => (
+              {[...notifications].filter((notification) => !unreadOnly || !notification.read).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((notification) => (
                 <li
                   key={notification.id}
                   className={`notification-list__item${
@@ -154,14 +164,16 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
                     </p>
                   </div>
                   <div className="notification-list__actions">
-                    <button
+                    <NavLink to={notification.type === "leave_request" ? `/hr/leaveRequests/${encodeURIComponent(notification.target ?? "")}` : notification.type === "password_reset" ? `/admin?user=${encodeURIComponent(notification.target ?? "")}` : notification.type === "low_stock" ? "/inventory" : notification.type === "overdue_work" ? "/operations?view=overdue" : user?.roleId === "role-main-manager" ? "/admin" : "/operations"} onClick={() => setOpen(false)}>Open</NavLink>
+                    {!notification.read && <button
+                      disabled={busy}
                       type="button"
                       className="button-tiny button-ghost"
                       onClick={() => void markAsRead(notification.id)}
                       aria-label="Mark as read"
                     >
-                      Done
-                    </button>
+                      Mark read
+                    </button>}
                   </div>
                 </li>
               ))}

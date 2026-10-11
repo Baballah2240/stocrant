@@ -1,0 +1,26 @@
+<!-- STOCRANT launcher foreground: a white rounded tile with ledger lines,
+     echoing the brand mark used in the app header.
+     Adaptive icons are masked to a circle/shape and only the inner 72x72dp
+     safe zone is guaranteed visible, so the mark is kept inside 28-80. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+
+    <!-- Rounded tile -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,30L72,30A8,8 0 0 1 80,38L80,70A8,8 0 0 1 72,78L36,78A8,8 0 0 1 28,70L28,38A8,8 0 0 1 36,30Z" />
+
+    <!-- Ledger lines, cut out of the tile so the navy shows through -->
+    <path
+        android:fillColor="#0B1220"
+        android:pathData="M38,42L70,42A2,2 0 0 1 70,46L38,46A2,2 0 0 1 38,42Z" />
+    <path
+        android:fillColor="#0B1220"
+        android:pathData="M38,52L70,52A2,2 0 0 1 70,56L38,56A2,2 0 0 1 38,52Z" />
+    <path
+        android:fillColor="#0B1220"
+        android:pathData="M38,62L62,62A2,2 0 0 1 62,66L38,66A2,2 0 0 1 38,62Z" />
+</vector>

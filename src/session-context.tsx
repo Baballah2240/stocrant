@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { api } from "./api";
+import { api, mobileSession } from "./api";
 import type { AuthUser } from "./types";
 
 interface SessionContextValue {
@@ -44,17 +44,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const response = await api.auth.login({ email, password });
+    mobileSession.save(response.sessionToken);
     setUser(response.user);
     setSetupRequired(false);
   }, []);
   const setup = useCallback(async (input: { name: string; email: string; password: string; setupKey: string }) => {
     const response = await api.auth.setup(input);
+    mobileSession.save(response.sessionToken);
     setUser(response.user);
     setSetupRequired(false);
   }, []);
   const signOut = useCallback(async () => {
-    await api.auth.logout();
-    setUser(null);
+    try {
+      await api.auth.logout();
+    } finally {
+      mobileSession.clear();
+      setUser(null);
+    }
   }, []);
 
   const value = useMemo(() => ({ user, loading, setupRequired, error, signIn, setup, signOut, refresh }), [user, loading, setupRequired, error, signIn, setup, signOut, refresh]);

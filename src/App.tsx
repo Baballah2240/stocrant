@@ -11,7 +11,9 @@ import EntityForm from "./components/EntityForm";
 import ModuleOverview from "./components/ModuleOverview";
 import AboutPage from "./components/AboutPage";
 import AuthPage from "./components/AuthPage";
-import WorkspaceDashboard from "./components/WorkspaceDashboard";
+import ResponsiveHome from "./components/ResponsiveHome";
+import MobilePeople from "./components/MobilePeople";
+import MobileMore from "./components/MobileMore";
 import LocationsWorkspace from "./components/LocationsWorkspace";
 import OperationsWorkspace from "./components/OperationsWorkspace";
 import InventoryWorkspace from "./components/InventoryWorkspace";
@@ -20,6 +22,8 @@ import AccessWorkspace from "./components/AccessWorkspace";
 import HRWorkspace from "./components/HRWorkspace";
 import { useSession } from "./session-context";
 import { MetaProvider } from "./meta-context";
+import PublicWebsite from "./components/PublicWebsite";
+import { isNativeApp } from "./api";
 
 const router = createBrowserRouter([
   {
@@ -33,9 +37,13 @@ const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      { index: true, element: <WorkspaceDashboard /> },
+      { index: true, element: <ResponsiveHome /> },
 
       // ── Company locations ──
+      { path: "me/attendance", element: <MobilePeople /> },
+      { path: "me/leave", element: <MobilePeople /> },
+      { path: "me/files", element: <MobilePeople /> },
+      { path: "mobile-more", element: <MobileMore /> },
       { path: "locations", element: <LocationsWorkspace /> },
       { path: "stores", element: <StoreList /> }, // Legacy URL retained for bookmarks.
       { path: "places", element: <ZoneList /> },
@@ -66,6 +74,7 @@ const router = createBrowserRouter([
 
 export default function App() {
   const { user, loading } = useSession();
+  if (window.location.pathname === "/welcome" || (!loading && !user && window.location.pathname === "/" && !isNativeApp())) return <PublicWebsite />;
   if (loading) return <main className="auth-page"><p className="hint">Loading secure workspace…</p></main>;
   if (!user) return <AuthPage />;
   return <MetaProvider><RouterProvider router={router} /></MetaProvider>;

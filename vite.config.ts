@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 // launched by `npm run dev:api` (port 3000).
 export default defineConfig({
   plugins: [react()],
+  build: { outDir: "dist/web" },
   server: {
     port: 5173,
     host: true,

@@ -1,10 +1,14 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import type { Person, Store, Zone } from "./types.js";
 import { SEED_COLLECTIONS } from "./seed-collections.js";
 
 const DEFAULT_COMPANY_ID = "company-primary";
+if (process.env.NODE_TEST_CONTEXT && !process.env.STOCRANT_DATA_DIR?.includes("stocrant-test-data-")) {
+  throw new Error("API tests must initialize their isolated data directory before importing storage.");
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.STOCRANT_DATA_DIR
@@ -116,7 +120,7 @@ function migrateCompanyHierarchy(data: StoreData): boolean {
     changed = true;
   }
   const companies = data.collections.companies as Array<Record<string, unknown>> | undefined;
-  if (!Array.isArray(companies) || companies.length === 0) {
+  if (!Array.isArray(companies) || (companies.length === 0 && data.stores.length > 0)) {
     data.collections.companies = [defaultCompany()];
     changed = true;
   }
@@ -294,7 +298,7 @@ function migrateSecureWorkspace(data: StoreData): boolean {
   }
 
   const accounts = collectionRows(data, "financeAccounts");
-  if (accounts.length === 0) {
+  if (accounts.length === 0 && process.env.NODE_ENV !== "production") {
     accounts.push({ id: "account-operating", name: "Operating account", type: "bank", currency: "KRW", openingBalance: 0, dataClassification: "demo" });
     changed = true;
   }
@@ -306,7 +310,9 @@ function read(): StoreData {
   ensureDir();
   try {
     if (!existsSync(STORE_FILE)) {
-      const seeded = structuredClone(SEED_DATA);
+      const seeded: StoreData = process.env.NODE_ENV === "production"
+        ? { stores: [], zones: [], people: [], collections: Object.fromEntries(Object.keys(SEED_COLLECTIONS).map(name => [name, []])) }
+        : structuredClone(SEED_DATA);
       migrateCompanyHierarchy(seeded);
       migrateSecureWorkspace(seeded);
       write(seeded);
@@ -314,7 +320,7 @@ function read(): StoreData {
     }
     const raw = readFileSync(STORE_FILE, "utf8");
     const parsed = JSON.parse(raw) as StoreData;
-    if (!parsed.stores || !parsed.zones || !parsed.people) return structuredClone(SEED_DATA);
+    if (!Array.isArray(parsed.stores) || !Array.isArray(parsed.zones) || !Array.isArray(parsed.people) || (parsed.collections !== undefined && (!parsed.collections || typeof parsed.collections !== "object" || Array.isArray(parsed.collections)))) throw new Error("Invalid business data structure.");
     const hierarchyChanged = migrateCompanyHierarchy(parsed);
     const workspaceChanged = migrateSecureWorkspace(parsed);
     if (hierarchyChanged || workspaceChanged) {
@@ -325,15 +331,22 @@ function read(): StoreData {
     }
     return parsed;
   } catch (error) {
-    console.error("STOCRANT: failed to read store file, falling back to seed data:", error);
-    return structuredClone(SEED_DATA);
+    throw new Error("STOCRANT cannot read its business data. Restore a verified backup before starting; existing data has not been replaced.", { cause: error });
   }
 }
 
 function write(data: StoreData) {
   ensureDir();
+  // Keep a daily snapshot of the previous on-disk state before the first write.
+  // Backups remain private alongside the data, outside the web asset directory.
+  if (existsSync(STORE_FILE)) {
+    const backupDir = join(DATA_DIR, "backups");
+    mkdirSync(backupDir, { recursive: true });
+    const dailyBackup = join(backupDir, `stocrant-${new Date().toISOString().slice(0, 10)}.json`);
+    if (!existsSync(dailyBackup)) copyFileSync(STORE_FILE, dailyBackup);
+  }
   const tmp = `${STORE_FILE}.tmp`;
-  writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
+  writeFileSync(tmp, JSON.stringify(data, null, 2), { encoding: "utf8", flush: true });
   try {
     renameSync(tmp, STORE_FILE);
   } catch (error) {
@@ -384,8 +397,7 @@ export function saveCollection(name: string, items: unknown[]) {
 }
 
 export function nextCollectionId(name: string): string {
-  const items = getCollection(name);
-  return `${name}-${Date.now().toString(36)}-${items.length + 1}`;
+  return `${name}-${randomUUID()}`;
 }
 
 export function upsertStore(store: Store) {

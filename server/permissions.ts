@@ -21,7 +21,8 @@ function roleFor(user: AuthenticatedUser): RoleRow | undefined {
 }
 
 function permissionsFor(user: AuthenticatedUser): string[] {
-  const permissions = roleFor(user)?.permissions;
+  const account = (getCollection("accessUsers") as Record<string, unknown>[]).find((account) => account.id === user.id);
+  const permissions = Array.isArray(account?.permissions) ? account.permissions : roleFor(user)?.permissions;
   return Array.isArray(permissions) ? permissions.filter((permission): permission is string => typeof permission === "string") : [];
 }
 
@@ -31,8 +32,16 @@ export function sectionForCollection(collection: string): WorkspaceSection {
 
 export function can(user: AuthenticatedUser | undefined, section: WorkspaceSection, action: PermissionAction): boolean {
   if (!user) return false;
+  if (isMainManager(user)) return true;
+  if (["access", "audit"].includes(section)) return false;
+  if (section === "hr" && ["create", "edit", "delete", "approve"].includes(action) && !isMainManager(user)) return false;
   const permissions = permissionsFor(user);
   return permissions.includes("*") || permissions.includes(`${section}.*`) || permissions.includes(`${section}.${action}`);
+}
+
+/** The Main Manager is the sole account-administration override role. */
+export function isMainManager(user: AuthenticatedUser | undefined): boolean {
+  return user?.roleId === "role-main-manager";
 }
 
 export function requirePermission(section: WorkspaceSection, action: PermissionAction) {
@@ -52,6 +61,10 @@ export function canViewSalaryData(user: AuthenticatedUser | undefined) {
 }
 
 export function isWithinScope(user: AuthenticatedUser, row: Record<string, unknown>): boolean {
+  if (isMainManager(user)) return true;
+  const inventoryItem = row.inventoryItemId ? (getCollection("inventoryItems") as Record<string, unknown>[]).find((item) => item.id === row.inventoryItemId) : row;
+  if (Array.isArray(inventoryItem?.allowedEmployeeIds) && inventoryItem.allowedEmployeeIds.length && !isMainManager(user)
+    && !inventoryItem.allowedEmployeeIds.includes(user.employeeId ?? "")) return false;
   const role = roleFor(user);
   const roleOrganizations = Array.isArray(role?.organizationIds) ? role.organizationIds.filter((id): id is string => typeof id === "string") : [];
   const roleLocations = Array.isArray(role?.locationIds) ? role.locationIds.filter((id): id is string => typeof id === "string") : [];
@@ -61,8 +74,9 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   const locationId = row.locationId ?? row.storeId;
   if (organizationIds.length && (!organizationId || !organizationIds.includes(String(organizationId)))) return false;
   if (locationIds.length && (!locationId || !locationIds.includes(String(locationId)))) return false;
+  if (Array.isArray(inventoryItem?.allowedEmployeeIds) && inventoryItem.allowedEmployeeIds.includes(user.employeeId ?? "")) return true;
   if (!(user.ownRecordsOnly || role?.ownRecordsOnly === true)) return true;
-  const candidates = [row.employeeId, row.assigneeId, row.responsibleEmployeeId, row.assignee, row.email, row.employee]
+  const candidates = [row.employeeId, row.assigneeId, row.responsibleEmployeeId, row.assignee, row.email, row.employee, row.createdBy, row.createdById]
     .filter((value): value is string => typeof value === "string");
   return candidates.includes(user.id) || candidates.includes(user.employeeId ?? "") || candidates.includes(user.name) || candidates.includes(user.email);
 }

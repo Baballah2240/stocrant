@@ -20,3 +20,31 @@ validation-*.log
 !.env.example
 .vscode/
 *.local
+
+# ── Native mobile shells ───────────────────────────────────────────────
+# android/ and ios/ are build inputs, not outputs, and stay committed so both
+# platforms can be rebuilt. Only their generated artifacts are ignored below.
+
+# Android build output and local SDK paths
+android/app/build/
+android/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/local.properties
+android/.gradle/
+android/app/release/
+*.apk
+*.aab
+*.keystore
+
+# iOS build output and local dependency state
+ios/App/Pods/
+ios/App/build/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/capacitor.plugins.json
+*.xcuserstate
+xcuserdata/
+*.mobileprovision
+*.p8

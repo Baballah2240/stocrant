@@ -1,41 +1,8 @@
+import { NavLink } from "react-router-dom";
+import { useSession } from "../session-context";
 import BackButton from "./BackButton";
-
 export default function AboutPage() {
-  return (
-    <div className="page">
-      <div className="page-head">
-        <div>
-          <BackButton />
-          <h1 className="anim-rise">About</h1>
-          <p className="hint">STOCRANT &mdash; operations workspace for stores and restaurants.</p>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="field">
-          <p className="field-label">App</p>
-          <p className="field-value">STOCRANT v1.0.0</p>
-        </div>
-        <div className="field">
-          <p className="field-label">What it does</p>
-          <p className="field-value">
-            Manage people, spaces and stock: HR records, branches, warehouses,
-            inventory and finance &mdash; with server-enforced roles, approvals and
-            audit history.
-          </p>
-        </div>
-        <div className="field">
-          <p className="field-label">Stack</p>
-          <p className="field-value">React + TypeScript (Vite) · Express API · persistent JSON storage · secure server sessions.</p>
-        </div>
-        <div className="field">
-          <p className="field-label">Workspace setup</p>
-          <p className="field-value">
-            The first visit creates the Main Manager account with the server setup
-            key. Add employees and configure roles from Access &amp; Settings.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+ const { user } = useSession();
+ const features = [["Companies & locations", "Company profiles, locations and activity history in one place."], ["Workforce & HR", "Employee profiles, attendance, leave and employment records."], ["Operations", "Assignments, deadlines and progress for daily work."], ["Inventory", "Stock balances, employee access and movement history."], ["Finance", "Company accounts, payments, people and printable reports."], ["Access & accountability", "Main-admin permission controls and recorded changes."]];
+ return <div className="page about-page"><BackButton /><section className="card about-hero"><p className="eyebrow">One workspace for your business</p><h1>About STOCRANT</h1><p>Connect your companies, people, daily work and money in one place.</p><span className="badge">Version 1.0.0</span></section><section className="about-feature-grid">{features.map(([title, description]) => <article className="card" key={title}><h2>{title}</h2><p className="hint">{description}</p></article>)}</section><section className="card"><h2>Make the workspace yours</h2><p>Open your name in the header to update your personal details, profile photo or password. Use the notification bell to review work and alerts.</p><p>Search records by company and print inventory or financial reports from their sections.</p><div className="inline-actions"><NavLink className="primary-link" to="/">Open dashboard</NavLink>{user?.roleId === "role-main-manager" && <NavLink to="/admin">Manage access &amp; settings</NavLink>}</div></section></div>;
 }

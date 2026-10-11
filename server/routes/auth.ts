@@ -1,7 +1,9 @@
 import { Router } from "express";
+import type { Request } from "express";
 import { z } from "zod";
-import { clearSession, createSession, hashPassword, matchesSetupKey, publicUser, requireAuth, setupKeyConfigured, verifyPassword } from "../auth.js";
+import { clearSession, createSession, hashPassword, loginTimingPad, matchesSetupKey, publicUser, requireAuth, setupKeyConfigured, verifyPassword } from "../auth.js";
 import { createNotification } from "../notifications.js";
+import { blockedFor, clearFailures, recordFailure } from "../rate-limit.js";
 import { getCollection, getStore, nextCollectionId, saveStore } from "../storage.js";
 
 const router = Router();
@@ -11,6 +13,15 @@ const credentialsSchema = z.object({
 });
 
 type Account = Record<string, unknown> & { id: string; email: string; name: string; passwordHash: string; roleId: string; status: string };
+
+function authResponse(req: Request, account: Account, sessionToken: string) {
+  return {
+    user: publicUser(account),
+    // Browser sessions stay in HTTP-only cookies. A packaged WebView needs the
+    // same signed session in an Authorization header for cross-origin API calls.
+    ...(req.get("X-STOCRANT-NATIVE") === "1" ? { sessionToken } : {}),
+  };
+}
 
 function accounts() {
   return getCollection("accessUsers") as Account[];
@@ -48,13 +59,29 @@ router.post("/setup", async (req, res) => {
     { id: nextCollectionId("auditLog"), action: "access.main-manager-created", actorId: account.id, actorName: account.name, occurredAt: new Date().toISOString() },
   ];
   saveStore(data);
-  createSession(res, account);
-  res.status(201).json({ user: publicUser(account) });
+  const sessionToken = createSession(res, account);
+  res.status(201).json(authResponse(req, account, sessionToken));
 });
 
 function accountByEmail(email: string): Account | undefined {
   return accounts().find((candidate) => candidate.email.toLowerCase() === email.toLowerCase());
 }
+
+router.post("/forgot-password", (req, res) => {
+  const parsed = z.object({ email: z.string().trim().email().max(160) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Enter a valid email address." });
+  const key = `reset-request:${req.ip ?? "unknown"}`;
+  if (blockedFor(key)) return res.status(429).json({ error: "Too many reset requests. Try again in a few minutes." });
+  recordFailure(key);
+  const account = accountByEmail(parsed.data.email);
+  if (account?.status === "active") {
+    const recent = (getCollection("notifications") as Record<string, unknown>[]).some((notification) => notification.type === "password_reset" && notification.target === account.id && !notification.read && Date.parse(String(notification.createdAt)) > Date.now() - 15 * 60 * 1000);
+    if (!recent) for (const manager of accounts().filter((user) => user.roleId === "role-main-manager" && user.status === "active")) {
+      createNotification({ userId: manager.id, user: manager.name, type: "password_reset", severity: "warning", message: `${account.name} (${account.email}) requested a password reset. Verify their identity before setting a new password in Users.`, target: account.id });
+    }
+  }
+  res.json({ ok: true, message: "If this email has an active account, the main manager has been notified. Contact them to complete your password reset." });
+});
 
 function recordDeniedLoginAttempt(email: string): void {
   const target = accountByEmail(email);
@@ -71,13 +98,30 @@ function recordDeniedLoginAttempt(email: string): void {
 router.post("/login", async (req, res) => {
   const parsed = credentialsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
-  const account = accountByEmail(parsed.data.email);
-  if (!account || account.status !== "active" || !(await verifyPassword(parsed.data.password, account.passwordHash))) {
-    recordDeniedLoginAttempt(parsed.data.email);
+  const email = parsed.data.email.toLowerCase();
+  // Brute-force protection: per-IP and per-account failure windows.
+  const ipKey = `ip:${req.ip ?? "unknown"}`;
+  const accountKey = `acct:${email}`;
+  const wait = Math.max(blockedFor(ipKey), blockedFor(accountKey));
+  if (wait > 0) {
+    res.setHeader("Retry-After", String(wait));
+    return res.status(429).json({ error: "Too many sign-in attempts. Try again in a few minutes." });
+  }
+  const account = accountByEmail(email);
+  // Always run one scrypt verification (against a pad hash when the account is
+  // unknown) so response timing does not reveal whether the email exists.
+  const stored = account?.passwordHash ?? (await loginTimingPad());
+  const passwordOk = await verifyPassword(parsed.data.password, stored);
+  if (!account || account.status !== "active" || !passwordOk) {
+    recordFailure(ipKey);
+    recordFailure(accountKey);
+    recordDeniedLoginAttempt(email);
     return res.status(401).json({ error: "Email or password is incorrect." });
   }
-  createSession(res, account);
-  res.json({ user: publicUser(account) });
+  clearFailures(ipKey);
+  clearFailures(accountKey);
+  const sessionToken = createSession(res, account);
+  res.json(authResponse(req, account, sessionToken));
 });
 
 router.post("/logout", (req, res) => {
@@ -87,6 +131,41 @@ router.post("/logout", (req, res) => {
 
 router.get("/me", requireAuth, (req, res) => {
   res.json({ user: req.auth });
+});
+
+router.patch("/profile", requireAuth, async (req, res) => {
+  const parsed = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(160), phone: z.string().trim().max(40), bio: z.string().trim().max(1000).optional(), avatar: z.string().max(350000).refine((value) => value === "" || /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value), "Choose a JPG, PNG or WebP photo."), currentPassword: z.string().max(256).optional() }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
+  const existing = accounts().find((account) => account.id === req.auth!.id);
+  if (!existing) return res.status(404).json({ error: "Account not found." });
+  const email = parsed.data.email.toLowerCase();
+  if (email !== existing.email && !await verifyPassword(parsed.data.currentPassword ?? "", existing.passwordHash)) return res.status(400).json({ error: "Enter your current password to change your email." });
+  if (accounts().some((account) => account.id !== existing.id && account.email.toLowerCase() === email)) return res.status(409).json({ error: "That email is already in use." });
+  const { currentPassword: _password, ...details } = parsed.data;
+  const updated = { ...existing, ...details, email, updatedAt: new Date().toISOString() };
+  const data = getStore();
+  data.collections.accessUsers = accounts().map((account) => account.id === existing.id ? updated : account);
+  data.collections.auditLog = [...(getCollection("auditLog") as Record<string, unknown>[]), { id: nextCollectionId("auditLog"), action: "profile.updated", actorId: existing.id, actorName: updated.name, occurredAt: updated.updatedAt, changedFields: ["name", "email", "phone", "avatar", "bio"].filter((key) => existing[key] !== updated[key as keyof typeof updated]) }];
+  saveStore(data);
+  res.json({ user: publicUser(updated) });
+});
+
+router.post("/password", requireAuth, async (req, res) => {
+  const parsed = z.object({ currentPassword: z.string().min(1).max(256), newPassword: z.string().min(12).max(256) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Enter your current password and a new password of at least 12 characters." });
+  const key = `password:${req.auth!.id}`;
+  if (blockedFor(key)) return res.status(429).json({ error: "Too many attempts. Try again in a few minutes." });
+  const existing = accounts().find((account) => account.id === req.auth!.id);
+  if (!existing || !await verifyPassword(parsed.data.currentPassword, existing.passwordHash)) { recordFailure(key); return res.status(400).json({ error: "Your current password is incorrect." }); }
+  clearFailures(key);
+  const passwordHash = await hashPassword(parsed.data.newPassword);
+  const data = getStore();
+  data.collections.accessUsers = accounts().map((account) => account.id === existing.id ? { ...account, passwordHash, updatedAt: new Date().toISOString() } : account);
+  data.collections.sessions = (getCollection("sessions") as Record<string, unknown>[]).filter((session) => session.accountId !== existing.id);
+  data.collections.auditLog = [...(getCollection("auditLog") as Record<string, unknown>[]), { id: nextCollectionId("auditLog"), action: "profile.password-changed", actorId: existing.id, actorName: existing.name, occurredAt: new Date().toISOString() }];
+  saveStore(data);
+  clearSession(req, res);
+  res.json({ ok: true });
 });
 
 export default router;

@@ -127,6 +127,11 @@ export interface ModuleInfo {
 }
 
 export interface AuthUser {
+  position?: string;
+  description?: string;
+  bio?: string;
+  phone?: string;
+  avatar?: string;
   id: string;
   email: string;
   name: string;
@@ -153,7 +158,9 @@ export type NotificationType =
   | "overdue_work"
   | "low_stock"
   | "pending_approval"
-  | "unauthorized_access";
+  | "unauthorized_access"
+  | "password_reset"
+  | "leave_request";
 
 export type NotificationSeverity = "info" | "warning" | "critical";
 

@@ -1,19 +1,92 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { NavLink } from "react-router-dom";
 import { api } from "../api";
+import { formatDate, relativeLabel } from "../util";
+import type { CollectionItem, Notification } from "../types";
 
-interface Overview { organizations: number; locations: number; activeEmployees: number; work: { total: number; overdue: number }; inventory: { lowStockCount: number }; finance: { net: number }; pendingApprovals: number; }
+interface PersonalProfile { name: string; email: string; employeeCode?: unknown; jobTitle?: unknown; department?: unknown; location?: unknown; employmentStatus?: unknown; manager?: unknown; }
+interface Attendance { date?: unknown; status?: unknown; checkIn?: unknown; checkOut?: unknown; workMode?: unknown; hours?: unknown; }
+interface Shift { name?: unknown; start?: unknown; end?: unknown; days?: unknown; breakMinutes?: unknown; }
+interface PolicyUpdate { id: string; title: string; publishedAt: string; fileUrl: string; isNew: boolean; }
+interface Overview { organizations: number; locations: number; activeEmployees: number; work: { total: number; overdue: number }; inventory: { lowStockCount: number }; finance: { net: number }; pendingApprovals: number; personal: { registered: boolean; attendanceEnabled: boolean; profile: PersonalProfile; lastLoginAt?: unknown; attendance: Attendance | null; shift: Shift | null; leave: CollectionItem[]; pendingLeaveCount: number; work: CollectionItem[]; workCount: number; overdueWorkCount: number; notifications: Notification[]; unreadNotificationCount: number; policyUpdates: PolicyUpdate[]; newPolicyCount: number; }; }
 
 export default function WorkspaceDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { let active = true; api.workspace.overview().then((data) => active && setOverview(data)).catch((err: unknown) => active && setError(err instanceof Error ? err.message : "Could not load workspace.")); return () => { active = false; }; }, []);
-  if (error) return <div className="page"><p className="error">{error}</p></div>;
-  if (!overview) return <div className="page"><p className="hint">Loading your workspace…</p></div>;
+  const [clock, setClock] = useState(() => Date.now());
+  const [refreshing, setRefreshing] = useState(false);
+  const [attendanceSaving, setAttendanceSaving] = useState<"check-in" | "check-out" | null>(null);
+  const [attendanceError, setAttendanceError] = useState<string | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const pullStartY = useRef<number | null>(null);
+  const currentPullDistance = useRef(0);
+  const load = async () => {
+    try { setOverview(await api.workspace.overview()); setError(null); }
+    catch (err) { setError(err instanceof Error ? err.message : "Could not load workspace."); }
+  };
+  useEffect(() => { void load(); }, []);
+  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+
+  const refreshDashboard = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  };
+  const startPull = (event: TouchEvent<HTMLDivElement>) => {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+    if (scrollTop > 0) return;
+    pullStartY.current = event.touches[0]?.clientY ?? null;
+    currentPullDistance.current = 0;
+  };
+  const movePull = (event: TouchEvent<HTMLDivElement>) => {
+    if (pullStartY.current === null || refreshing) return;
+    const distance = Math.max(0, (event.touches[0]?.clientY ?? pullStartY.current) - pullStartY.current);
+    const limitedDistance = Math.min(distance, 96);
+    currentPullDistance.current = limitedDistance;
+    setPullDistance(limitedDistance);
+  };
+  const finishPull = () => {
+    const shouldRefresh = currentPullDistance.current >= 72;
+    pullStartY.current = null;
+    currentPullDistance.current = 0;
+    setPullDistance(0);
+    if (shouldRefresh) void refreshDashboard();
+  };
+  const updateAttendance = async (action: "check-in" | "check-out") => {
+    if (attendanceSaving) return;
+    setAttendanceSaving(action);
+    setAttendanceError(null);
+    try {
+      if (action === "check-in") await api.workspace.checkIn();
+      else await api.workspace.checkOut();
+      await load();
+    } catch (err) {
+      setAttendanceError(err instanceof Error ? err.message : "Could not update your attendance.");
+    } finally {
+      setAttendanceSaving(null);
+    }
+  };
+  if (error) return <div className="page"><p className="error">{error}</p><button onClick={() => void load()}>Try again</button></div>;
+  if (!overview) return <div className="page"><p className="hint">Loading your workday…</p></div>;
+  const { personal } = overview;
   const money = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(overview.finance.net);
-  return <div className="page"><div className="page-head"><div><h1 className="anim-rise">Daily workspace</h1><p className="hint">A clear view of the work, people, stock and money that need attention.</p></div></div><div className="dashboard-grid"><Metric label="Organizations" value={overview.organizations} to="/organizations" /><Metric label="Locations" value={overview.locations} to="/locations" /><Metric label="Active employees" value={overview.activeEmployees} to="/hr" /><Metric label="Open work" value={overview.work.total} to="/operations" /><Metric label="Overdue work" value={overview.work.overdue} tone="danger" to="/operations?view=overdue" /><Metric label="Low-stock alerts" value={overview.inventory.lowStockCount} tone="warning" to="/inventory" /><Metric label="Net recorded" value={money} to="/finance" /><Metric label="Approval inbox" value={overview.pendingApprovals} to="/access" /></div><section className="card workspace-callout"><h2>Start the day</h2><p className="hint">Review overdue work, record any stock movement, and process pending approvals before closing the day.</p><div className="inline-actions"><NavLink className="primary-link" to="/operations">Open daily work</NavLink><NavLink className="secondary-link" to="/access">Review approvals</NavLink></div></section></div>;
+  const profileTitle = [personal.profile.jobTitle, personal.profile.department].filter((value) => typeof value === "string" && value).join(" · ") || "Team member";
+  const checkedIn = typeof personal.attendance?.checkIn === "string" && personal.attendance.checkIn.length > 0;
+  const checkedOut = typeof personal.attendance?.checkOut === "string" && personal.attendance.checkOut.length > 0;
+  return <div className="page personal-dashboard" onTouchStart={startPull} onTouchMove={movePull} onTouchEnd={finishPull} onTouchCancel={finishPull}><div className={`dashboard-pull-indicator${pullDistance > 0 || refreshing ? " is-visible" : ""}${refreshing ? " is-refreshing" : ""}`} style={{ height: refreshing ? "38px" : `${pullDistance}px` }} aria-live="polite"><span>{refreshing ? "Updating your workday…" : pullDistance >= 72 ? "Release to update" : "Pull down to update"}</span></div><header className="personal-hero"><div><p className="eyebrow">My workday</p><h1>Good day, {personal.profile.name.split(" ")[0] || personal.profile.name}</h1><p>{profileTitle}</p></div>{personal.attendanceEnabled ? <div className="mobile-attendance-actions" aria-label="Attendance actions"><button type="button" className="mobile-check-in" onClick={() => void updateAttendance("check-in")} disabled={checkedIn || attendanceSaving !== null}>{attendanceSaving === "check-in" ? "Checking in…" : checkedIn ? "Checked in" : "Check in"}</button><button type="button" className="mobile-check-out" onClick={() => void updateAttendance("check-out")} disabled={!checkedIn || checkedOut || attendanceSaving !== null}>{attendanceSaving === "check-out" ? "Checking out…" : checkedOut ? "Checked out" : "Check out"}</button>{attendanceError && <span className="mobile-attendance-error" role="alert">{attendanceError}</span>}</div> : <p className="attendance-unavailable">Attendance is not required for the Main Manager account.</p>}</header><section className="profile-strip card"><div className="profile-avatar" aria-hidden="true">{initials(personal.profile.name)}</div><div className="profile-strip-details"><strong>{personal.profile.name}</strong><span>{personal.profile.email}</span><small>{stringValue(personal.profile.employeeCode, "Employee profile not linked")}{personal.profile.location ? ` · ${String(personal.profile.location)}` : ""}</small></div><div className="login-detail"><span>Signed in for</span><strong>{sessionElapsed(personal.lastLoginAt, clock)}</strong><small>Started {dateTime(personal.lastLoginAt)}</small></div></section><div className="personal-summary-grid"><SummaryCard label="My work" value={personal.workCount} detail={personal.overdueWorkCount ? `${personal.overdueWorkCount} overdue` : "Up to date"} to="/operations?view=mine" tone={personal.overdueWorkCount ? "danger" : undefined} /><SummaryCard label="My leave" value={personal.pendingLeaveCount} detail={personal.pendingLeaveCount ? "Waiting for decision" : "No pending requests"} to="/hr/leaveRequests" /><SummaryCard label="Updates" value={personal.unreadNotificationCount} detail={personal.unreadNotificationCount ? "Need your attention" : "All caught up"} to="/operations" tone={personal.unreadNotificationCount ? "warning" : undefined} /><SummaryCard label="Policies" value={personal.newPolicyCount} detail={personal.newPolicyCount ? "New since last sign-in" : "No new policies"} to="/hr/documents" /></div><div className="personal-dashboard-grid"><section className="card dashboard-section"><SectionHeading title="Today" linkTo="/hr/attendance" linkLabel="Attendance" /><div className="today-grid"><InfoBlock label="Attendance" value={personal.attendance ? titleCase(personal.attendance.status ?? "Recorded") : "Not recorded"} detail={attendanceDetail(personal.attendance)} /><InfoBlock label="Shift" value={personal.shift ? stringValue(personal.shift.name, "Scheduled shift") : "No shift assigned"} detail={personal.shift ? `${stringValue(personal.shift.start, "—")} – ${stringValue(personal.shift.end, "—")}` : "Contact your manager"} /><InfoBlock label="Leave" value={personal.pendingLeaveCount ? `${personal.pendingLeaveCount} pending` : "Clear"} detail={personal.leave[0] ? `${stringValue(personal.leave[0].type, "Leave")} · ${stringValue(personal.leave[0].status, "Submitted")}` : "No current request"} /></div><div className="today-checkout-row" style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}><button type="button" className="mobile-check-out" style={{ flex: "1 1 200px", minHeight: "48px", fontSize: "15px" }} onClick={() => void updateAttendance("check-out")} disabled={!checkedIn || checkedOut || attendanceSaving !== null}>{attendanceSaving === "check-out" ? "Checking out…" : checkedOut ? "✓ Checked out" : checkedIn ? "Check out now" : "Check out"}</button></div></section><section className="card dashboard-section"><SectionHeading title="My tasks" linkTo="/operations?view=mine" linkLabel="View all" />{personal.work.length ? <div className="dashboard-list">{personal.work.slice(0, 4).map((item) => <NavLink className="dashboard-row" key={item.id} to={`/operations/work/${item.id}`}><div><strong>{stringValue(item.title, stringValue(item.name, "Work item"))}</strong><span>{item.dueDate ? `Due ${relativeLabel(String(item.dueDate))}` : stringValue(item.assignee, "Assigned to you")}</span></div><span className={`work-status ${statusClass(item.status)}`}>{titleCase(item.status ?? "Open")}</span></NavLink>)}</div> : <EmptyState text="No assigned work right now." actionTo="/operations" actionLabel="Open operations" />}</section><section className="card dashboard-section"><SectionHeading title="Notifications" linkTo="/operations" linkLabel="Open" />{personal.notifications.length ? <div className="dashboard-list">{personal.notifications.slice(0, 4).map((notification) => <div className="dashboard-row notification-row" key={notification.id}><span className={`notification-dot ${notification.severity}`}></span><div><strong>{notification.message}</strong><span>{relativeLabel(notification.createdAt)}</span></div>{!notification.read && <span className="new-pill">New</span>}</div>)}</div> : <EmptyState text="You are all caught up." />}</section><section className="card dashboard-section" id="policies"><SectionHeading title="Policy updates" linkTo="/hr/documents" linkLabel="Open documents" />{personal.policyUpdates.length ? <div className="dashboard-list">{personal.policyUpdates.slice(0, 4).map((policy) => <PolicyRow key={policy.id} policy={policy} />)}</div> : <EmptyState text="No company policy updates since your last sign-in." actionTo="/hr/documents" actionLabel="Browse documents" />}</section></div><section className="manager-dashboard">{(overview.organizations > 0 || overview.locations > 0) && <><div className="section-kicker"><span>Workspace overview</span><p>Company-level metrics available to your role</p></div><div className="dashboard-grid"><Metric label="Organizations" value={overview.organizations} to="/organizations" /><Metric label="Locations" value={overview.locations} to="/locations" /><Metric label="Team members" value={overview.activeEmployees} to="/hr/employees" /><Metric label="All work" value={overview.work.total} to="/operations" tone={overview.work.overdue ? "danger" : undefined} /><Metric label="Low stock" value={overview.inventory.lowStockCount} to="/warehouse" tone={overview.inventory.lowStockCount ? "warning" : undefined} /><Metric label="Net finance" value={money} to="/finance" /><Metric label="Approvals" value={overview.pendingApprovals} to="/admin" tone={overview.pendingApprovals ? "warning" : undefined} /></div></>}</section></div>;
 }
 
-function Metric({ label, value, to, tone }: { label: string; value: string | number; to: string; tone?: "danger" | "warning" }) {
-  return <NavLink className="card metric-card hoverable" to={to}><span>{label}</span><strong className={tone ? `metric-${tone}` : ""}>{value}</strong><small>Open</small></NavLink>;
-}
+function SummaryCard({ label, value, detail, to, tone }: { label: string; value: number; detail: string; to: string; tone?: "danger" | "warning" }) { return <NavLink className="card personal-summary-card" to={to}><span>{label}</span><strong className={tone ? `metric-${tone}` : ""}>{value}</strong><small>{detail}</small></NavLink>; }
+function SectionHeading({ title, linkTo, linkLabel }: { title: string; linkTo: string; linkLabel: string }) { return <div className="section-heading"><h2>{title}</h2><NavLink to={linkTo}>{linkLabel}</NavLink></div>; }
+function InfoBlock({ label, value, detail }: { label: string; value: string; detail: string }) { return <div className="today-info"><span>{label}</span><strong>{value}</strong>{detail && <small>{detail}</small>}</div>; }
+function EmptyState({ text, actionTo, actionLabel }: { text: string; actionTo?: string; actionLabel?: string }) { return <div className="dashboard-empty"><p>{text}</p>{actionTo && actionLabel && <NavLink className="secondary-link" to={actionTo}>{actionLabel}</NavLink>}</div>; }
+function PolicyRow({ policy }: { policy: PolicyUpdate }) { const body = <><div><strong>{policy.title}</strong><span>{policy.publishedAt ? `Published ${formatDate(policy.publishedAt)}` : "Publication date not recorded"}</span></div>{policy.isNew && <span className="new-pill">New</span>}</>; return policy.fileUrl ? <a className="dashboard-row" href={policy.fileUrl} target="_blank" rel="noreferrer">{body}</a> : <div className="dashboard-row">{body}</div>; }
+function Metric({ label, value, to, tone }: { label: string; value: string | number; to: string; tone?: "danger" | "warning" }) { return <NavLink className="card metric-card hoverable" to={to}><span>{label}</span><strong className={tone ? `metric-${tone}` : ""}>{value}</strong><small>Open</small></NavLink>; }
+function initials(name: string) { return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "ST"; }
+function titleCase(value: unknown) { return String(value ?? "").split("-").join(" ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
+function stringValue(value: unknown, fallback = "—") { return typeof value === "string" && value.trim() ? value : fallback; }
+function dateTime(value: unknown) { if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return "Not available"; return new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }); }
+function sessionElapsed(value: unknown, now: number) { const started = typeof value === "string" ? Date.parse(value) : Number.NaN; if (Number.isNaN(started)) return "Not available"; const seconds = Math.max(0, Math.floor((now - started) / 1000)); const hours = Math.floor(seconds / 3600); const minutes = Math.floor((seconds % 3600) / 60); const remainingSeconds = seconds % 60; return [hours, minutes, remainingSeconds].map((part) => String(part).padStart(2, "0")).join(":"); }
+function attendanceDayLabel(value: unknown) { if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return ""; const [year, month, day] = value.split("-").map(Number); const date = new Date(year, (month || 1) - 1, day || 1); if (Number.isNaN(date.getTime())) return ""; const label = date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); return date.toDateString() === new Date().toDateString() ? `Today · ${label}` : label; }
+function attendanceDetail(attendance: Attendance | null) { if (!attendance) return "Record your work status with HR"; const checkIn = stringValue(attendance.checkIn, ""); const checkOut = stringValue(attendance.checkOut, ""); const times = [checkIn, checkOut].filter(Boolean).join(" – "); const details = [times, attendance.workMode ? titleCase(attendance.workMode) : "", attendance.hours ? `${attendance.hours}h` : ""].filter(Boolean).join(" · "); const day = attendanceDayLabel(attendance.date); return [day, details].filter(Boolean).join(" · "); }
+function statusClass(value: unknown) { return String(value ?? "").toLowerCase().split(" ").join("-"); }

@@ -24,6 +24,10 @@ services:
         value: production
       - key: STOCRANT_DATA_DIR
         value: /var/lib/stocrant
+      - key: STOCRANT_TIME_ZONE
+        value: Asia/Riyadh
+      - key: STOCRANT_TRUST_PROXY
+        value: "1"
       - key: STOCRANT_SESSION_SECRET
         sync: false
       - key: STOCRANT_SETUP_KEY

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">STOCRANT</string>
+    <string name="title_activity_main">STOCRANT</string>
+    <string name="package_name">com.stocrant.app</string>
+    <string name="custom_url_scheme">com.stocrant.app</string>
+</resources>

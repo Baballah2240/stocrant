@@ -91,6 +91,10 @@ export function createCollectionRouter(spec: EntitySpec): Router {
     if (!req.auth || !can(req.auth, section, "create")) return res.status(403).json({ error: "You do not have permission to create this record." });
     try {
       const input = validateEntity(spec, req.body);
+      if (spec.collection === "employees") {
+        const company = getCollectionItem("companies", String(input.organizationId ?? ""));
+        if (!company || !isWithinScope(req.auth, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company for this employee." });
+      }
       const result = mutateCollection(req.auth, spec.collection, "create", input);
       res.status(result.pending ? 202 : 201).json({ ...result, entity: spec.collection });
     } catch (err) {
@@ -105,6 +109,10 @@ export function createCollectionRouter(spec: EntitySpec): Router {
     if (!isWithinScope(req.auth, existing)) return res.status(404).json({ error: `${spec.singular} not found.` });
     try {
       const input = validateEntity(spec, { ...existing, ...req.body });
+      if (spec.collection === "employees" && (input.organizationId || req.body.organizationId !== undefined)) {
+        const company = getCollectionItem("companies", String(input.organizationId ?? ""));
+        if (!company || !isWithinScope(req.auth, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company for this employee." });
+      }
       const result = mutateCollection(req.auth, spec.collection, "edit", input, req.params.id as string);
       res.status(result.pending ? 202 : 200).json({ ...result, entity: spec.collection });
     } catch (err) {

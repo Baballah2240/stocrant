@@ -1,9 +1,13 @@
 import { TEST_DATA_DIR } from "./test-env.js";
+import { financeSummary, mutateCollection } from "./workspace.js";
+import { getStore, saveStore } from "./storage.js";
+import type { AuthenticatedUser } from "./auth.js";
 import { rmSync } from "node:fs";
 import { Server } from "node:http";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "./app.js";
+import { resetFailures } from "./rate-limit.js";
 import type { Notification } from "./types.js";
 
 let server: Server;
@@ -29,6 +33,7 @@ async function json<T>(response: Response): Promise<T> {
 }
 
 before(async () => {
+  resetFailures();
   server = createApp().listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -43,6 +48,8 @@ after(async () => {
 
 describe("STOCRANT secure workspace API", () => {
   it("keeps health public and all workspace data protected", async () => {
+    const serverSource = await fetch(base + "/auth.js");
+    assert.equal(serverSource.status, 404, "compiled server source must not be public");
     const health = await request("/health");
     assert.equal(health.status, 200);
     assert.equal((await json<{ ok: boolean }>(health)).ok, true);
@@ -83,6 +90,22 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal(badLogin.status, 401);
   });
 
+  it("keeps web and native sessions active while accepting the native bearer session", async () => {
+    const nativeLogin = await request("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-STOCRANT-NATIVE": "1" },
+      body: JSON.stringify({ email: "owner@example.test", password: "correct-horse-battery-staple" }),
+    });
+    assert.equal(nativeLogin.status, 200);
+    const native = await json<{ sessionToken?: string }>(nativeLogin);
+    assert.ok(native.sessionToken, "native login returns a bearer session");
+
+    const nativeOverview = await request("/workspace/overview", { headers: { Authorization: `Bearer ${native.sessionToken}` } });
+    assert.equal(nativeOverview.status, 200);
+    const webOverview = await request("/workspace/overview", {}, mainCookie);
+    assert.equal(webOverview.status, 200, "web session remains valid after native sign-in");
+  });
+
   it("enforces saved permissions instead of a client-selected role", async () => {
     const createManager = await request("/workspace/access/users", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
@@ -102,6 +125,193 @@ describe("STOCRANT secure workspace API", () => {
       body: JSON.stringify({ name: "Blocked", email: "blocked@example.test", password: "another-long-password", roleId: "role-employee" }),
     });
     assert.equal(forbidden.status, 403);
+  });
+
+  it("restricts access settings to main admin and applies employee permissions immediately", async () => {
+    for (const path of ["/workspace/access/users", "/workspace/access/roles", "/workspace/access/approval-rules", "/workspace/audit"]) {
+      assert.equal((await request(path, {}, managerCookie)).status, 403);
+      assert.equal((await request(path, {}, mainCookie)).status, 200);
+    }
+    const users = await json<{ items: { id: string; email: string }[] }>(await request("/workspace/access/users", {}, mainCookie));
+    const manager = users.items.find((user) => user.email === "manager@example.test")!;
+    const patch = (permissions: string[] | null) => request(`/workspace/access/users/${manager.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions }) }, mainCookie);
+    assert.equal((await patch(["inventory.view"])).status, 200);
+    assert.equal((await request("/workspace/work", {}, managerCookie)).status, 403);
+    assert.equal((await request("/workspace/inventory", {}, managerCookie)).status, 200);
+    assert.equal((await patch(["access.view"])).status, 400);
+    assert.equal((await patch(null)).status, 200);
+    assert.equal((await request("/workspace/work", {}, managerCookie)).status, 200);
+  });
+
+  it("allows only the main admin to manage employees and exposes company HR details", async () => {
+    const companyResponse = await request("/workspace/hr/companies", {}, mainCookie);
+    assert.equal(companyResponse.status, 200);
+    const data = await json<{ companies: { id: string }[]; employees: unknown[] }>(companyResponse);
+    assert.ok(Array.isArray(data.companies));
+    assert.ok(Array.isArray(data.employees));
+    const payload = { employeeCode: "HR-CONTROL", name: "HR control test", email: "hr-control@example.test", employmentType: "full-time", status: "active", hireDate: "2026-10-10", organizationId: data.companies[0]?.id ?? "" };
+    for (const organizationId of ["", "missing-company"]) {
+      const invalid = await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, organizationId }) }, mainCookie);
+      assert.equal(invalid.status, 400);
+    }
+    const create = await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, mainCookie);
+    assert.equal(create.status, 201);
+    const { item } = await json<{ item: { id: string } }>(create);
+    for (const [method, path] of [["POST", "/collections/employees"], ["PATCH", `/collections/employees/${item.id}`], ["DELETE", `/collections/employees/${item.id}`]]) {
+      const denied = await request(path, { method, headers: { "Content-Type": "application/json", "x-role": "role-main-manager" }, body: JSON.stringify(payload) }, managerCookie);
+      assert.equal(denied.status, 403);
+    }
+    assert.equal((await request(`/collections/employees/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobTitle: "Updated" }) }, mainCookie)).status, 200);
+    assert.equal((await request(`/collections/employees/${item.id}`, { method: "DELETE" }, mainCookie)).status, 200);
+  });
+
+  it("gives only the Main Manager an audited immediate account override and personal workday briefing", async () => {
+    const mainOverview = await request("/workspace/overview", {}, mainCookie);
+    assert.equal(mainOverview.status, 200);
+    const mainOverviewBody = await json<{ personal: { attendanceEnabled: boolean } }>(mainOverview);
+    assert.equal(mainOverviewBody.personal.attendanceEnabled, false);
+
+    const hrOverview = await request("/workspace/hr/overview", {}, mainCookie);
+    assert.equal(hrOverview.status, 200);
+    const hrOverviewBody = await json<{ today: string; metrics: { totalEmployees: number; activeEmployees: number; attendanceRecorded: number; pendingLeave: number }; attendance: unknown[]; leaveRequests: unknown[]; activity: unknown[] }>(hrOverview);
+    assert.match(hrOverviewBody.today, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(hrOverviewBody.metrics.totalEmployees >= hrOverviewBody.metrics.activeEmployees);
+    assert.equal(Array.isArray(hrOverviewBody.attendance), true);
+    assert.equal(Array.isArray(hrOverviewBody.leaveRequests), true);
+    assert.equal(Array.isArray(hrOverviewBody.activity), true);
+
+    const mainCheckIn = await request("/workspace/attendance/check-in", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+    });
+    assert.equal(mainCheckIn.status, 403);
+
+    const mainCheckOut = await request("/workspace/attendance/check-out", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+    });
+    assert.equal(mainCheckOut.status, 403);
+
+    // Give the existing Manager account access administration permissions. It
+    // must still not receive the Main Manager's direct-account override.
+    const grantAccess = await request("/workspace/access/roles/role-manager", {
+      method: "PATCH", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+      body: JSON.stringify({ permissions: ["organizations.view", "locations.view", "locations.create", "locations.edit", "hr.view", "hr.create", "hr.edit", "operations.*", "inventory.*", "finance.view", "finance.create", "finance.edit", "approvals.view", "approvals.approve", "access.view", "access.create", "access.edit"] }),
+    });
+    assert.equal(grantAccess.status, 200);
+
+    const employee = await request("/collections/employees", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+      body: JSON.stringify({ organizationId: "company-primary", employeeCode: "EMP-DASH", name: "Dashboard Employee", email: "dashboard.employee@example.test", department: "Operations", jobTitle: "Shift Lead", employmentType: "full-time", status: "active", hireDate: "2026-01-01", manager: "Main Manager" }),
+    });
+    assert.equal(employee.status, 201);
+    const employeeBody = await json<{ item: { id: string } }>(employee);
+
+    const policy = await request("/collections/documents", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+      body: JSON.stringify({ employee: "all", audience: "company-wide", type: "policy", title: "Mobile work and safety policy", issuedOn: "2026-10-09", fileUrl: "https://example.test/policies/mobile-work" }),
+    });
+    assert.equal(policy.status, 201);
+
+    const account = await request("/workspace/access/users", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+      body: JSON.stringify({ name: "Dashboard Employee", email: "dashboard.employee@example.test", password: "employee-original-password", roleId: "role-employee", employeeId: employeeBody.item.id, ownRecordsOnly: true }),
+    });
+    assert.equal(account.status, 201);
+    const accountBody = await json<{ item: { id: string } }>(account);
+
+    const employeeLogin = await request("/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "dashboard.employee@example.test", password: "employee-original-password" }),
+    });
+    assert.equal(employeeLogin.status, 200);
+    const employeeCookie = cookieFrom(employeeLogin);
+
+    const overview = await request("/workspace/overview", {}, employeeCookie);
+    assert.equal(overview.status, 200);
+    const overviewBody = await json<{ personal: { attendanceEnabled: boolean; profile: { name: string; jobTitle?: string }; lastLoginAt?: string; policyUpdates: Array<{ title: string; isNew: boolean }> } }>(overview);
+    assert.equal(overviewBody.personal.profile.name, "Dashboard Employee");
+    assert.equal(overviewBody.personal.profile.jobTitle, "Shift Lead");
+    assert.equal(overviewBody.personal.attendanceEnabled, true);
+    assert.ok(overviewBody.personal.lastLoginAt, "successful sign-ins must be visible on the personal dashboard");
+    assert.equal(overviewBody.personal.policyUpdates.some((item) => item.title === "Mobile work and safety policy" && item.isNew), true);
+
+    const checkOutBeforeCheckIn = await request("/workspace/attendance/check-out", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+    });
+    assert.equal(checkOutBeforeCheckIn.status, 409);
+
+    const checkIn = await request("/workspace/attendance/check-in", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+    });
+    assert.equal(checkIn.status, 201);
+    const checkInBody = await json<{ item: { id: string; employeeId: string; date: string; checkIn: string; checkOut?: string; status: string } }>(checkIn);
+    assert.equal(checkInBody.item.employeeId, employeeBody.item.id);
+    assert.match(checkInBody.item.date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.match(checkInBody.item.checkIn, /^\d{2}:\d{2}$/);
+    assert.equal(checkInBody.item.status, "present");
+
+    const duplicateCheckIn = await request("/workspace/attendance/check-in", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+    });
+    assert.equal(duplicateCheckIn.status, 409);
+
+    const checkOut = await request("/workspace/attendance/check-out", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+    });
+    assert.equal(checkOut.status, 200);
+    const checkOutBody = await json<{ item: { id: string; checkOut: string; hours: number } }>(checkOut);
+    assert.equal(checkOutBody.item.id, checkInBody.item.id);
+    assert.match(checkOutBody.item.checkOut, /^\d{2}:\d{2}$/);
+    assert.equal(typeof checkOutBody.item.hours, "number");
+
+    const checkedOutOverview = await request("/workspace/overview", {}, employeeCookie);
+    assert.equal(checkedOutOverview.status, 200);
+    const checkedOutOverviewBody = await json<{ personal: { attendance: { checkOut?: string } | null } }>(checkedOutOverview);
+    assert.equal(checkedOutOverviewBody.personal.attendance?.checkOut, checkOutBody.item.checkOut);
+
+    const duplicateCheckOut = await request("/workspace/attendance/check-out", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+    });
+    assert.equal(duplicateCheckOut.status, 409);
+
+    const managerCannotPromote = await request("/workspace/access/users", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: managerCookie },
+      body: JSON.stringify({ name: "Unauthorized Main Manager", email: "unauthorized.manager@example.test", password: "unauthorized-manager-password", roleId: "role-main-manager" }),
+    });
+    assert.equal(managerCannotPromote.status, 403);
+
+    const managerCannotOverride = await request(`/workspace/access/users/${accountBody.item.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json", Cookie: managerCookie },
+      body: JSON.stringify({ status: "inactive" }),
+    });
+    assert.equal(managerCannotOverride.status, 403);
+
+    const newPassword = "employee-replacement-password";
+    const override = await request(`/workspace/access/users/${accountBody.item.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+      body: JSON.stringify({ name: "Dashboard Employee Updated", email: "dashboard.employee.updated@example.test", roleId: "role-employee", employeeId: employeeBody.item.id, organizationIds: ["company-primary"], locationIds: ["st-001"], ownRecordsOnly: true, status: "active", password: newPassword }),
+    });
+    assert.equal(override.status, 200);
+    const overrideBody = await json<{ item: { name: string; email: string; passwordHash?: string } }>(override);
+    assert.equal(overrideBody.item.name, "Dashboard Employee Updated");
+    assert.equal(overrideBody.item.email, "dashboard.employee.updated@example.test");
+    assert.equal(overrideBody.item.passwordHash, undefined, "account responses must never return a password hash");
+
+    const revokedSession = await request("/workspace/overview", {}, employeeCookie);
+    assert.equal(revokedSession.status, 401, "a password reset must revoke the target's existing sessions");
+    const newLogin = await request("/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "dashboard.employee.updated@example.test", password: newPassword }),
+    });
+    assert.equal(newLogin.status, 200);
+
+    const auditResponse = await request("/workspace/audit", {}, mainCookie);
+    assert.equal(auditResponse.status, 200);
+    const auditBody = await json<{ items: Array<{ action: string; targetId?: string; changedFields?: string[]; sessionsRevoked?: boolean }> }>(auditResponse);
+    const auditEntry = auditBody.items.find((item) => item.action === "access.user-directly-updated" && item.targetId === accountBody.item.id);
+    assert.ok(auditEntry);
+    assert.deepEqual(auditEntry.changedFields?.sort(), ["email", "locationIds", "name", "password"].sort());
+    assert.equal(auditEntry.sessionsRevoked, true);
+    assert.equal(JSON.stringify(auditEntry).includes(newPassword), false, "audit records must never contain a password value");
   });
 
   it("queues sensitive changes for approval and applies them only after another approver decides", async () => {
@@ -138,7 +348,7 @@ describe("STOCRANT secure workspace API", () => {
   it("calculates inventory, rejects duplicate movements, and blocks negative stock", async () => {
     const itemResponse = await request("/workspace/inventory/items", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
-      body: JSON.stringify({ sku: "TEST-ITEM", name: "Test ingredient", unit: "kg", stockLocation: "Test warehouse", openingStock: 10, reorderPoint: 3 }),
+      body: JSON.stringify({ organizationId: "company-primary", itemType: "ingredient", sku: "TEST-ITEM", name: "Test ingredient", unit: "kg", stockLocation: "Test warehouse", openingStock: 10, reorderPoint: 3 }),
     });
     assert.equal(itemResponse.status, 201);
     const item = await json<{ item: { id: string } }>(itemResponse);
@@ -155,6 +365,30 @@ describe("STOCRANT secure workspace API", () => {
     const inventory = await request("/workspace/inventory", {}, mainCookie);
     const inventoryBody = await json<{ items: Array<{ id: string; available: number }> }>(inventory);
     assert.equal(inventoryBody.items.find((row) => row.id === item.item.id)?.available, 15);
+  });
+
+  it("enforces selected employee inventory access and records each editor and time", async () => {
+    const employeeResponse = await request("/collections/employees", {}, mainCookie);
+    const { items: employees } = await json<{ items: { id: string; organizationId: string }[] }>(employeeResponse);
+    const employee = employees.find((item) => item.organizationId === "company-primary");
+    assert.ok(employee);
+    const payload = { organizationId: "company-primary", itemType: "equipment", allowedEmployeeIds: [employee.id], sku: "ACCESS-TEST", name: "Restricted equipment", unit: "unit", stockLocation: "Main", openingStock: 2, reorderPoint: 1 };
+    const created = await request("/workspace/inventory/items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, mainCookie);
+    assert.equal(created.status, 201);
+    const { item } = await json<{ item: { id: string } }>(created);
+    const managerInventory = await json<{ items: { id: string }[]; history: { inventoryItemId: string }[] }>(await request("/workspace/inventory", {}, managerCookie));
+    assert.ok(!managerInventory.items.some((row) => row.id === item.id));
+    assert.ok(!managerInventory.history.some((row) => row.inventoryItemId === item.id));
+    const changes = { name: "Updated equipment", unit: "unit", stockLocation: "Main", itemType: "equipment", reorderPoint: 2, notes: "Reviewed" };
+    assert.equal((await request(`/workspace/inventory/items/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes) }, managerCookie)).status, 404);
+    assert.equal((await request("/workspace/inventory/movements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inventoryItemId: item.id, type: "incoming", quantity: 1, date: "2026-10-10", reason: "Blocked" }) }, managerCookie)).status, 404);
+    assert.equal((await request(`/workspace/inventory/items/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes) }, mainCookie)).status, 200);
+    const inventory = await json<{ history: { inventoryItemId: string; actorId: string; occurredAt: string; changedFields: string[] }[] }>(await request("/workspace/inventory", {}, mainCookie));
+    const edits = inventory.history.filter((row) => row.inventoryItemId === item.id);
+    assert.equal(edits.length, 2);
+    assert.equal(edits[1].actorId, mainUserId);
+    assert.ok(Number.isFinite(Date.parse(edits[1].occurredAt)));
+    assert.ok(edits[1].changedFields.includes("name"));
   });
 
   it("calculates finance balances and excludes internal transfers from income and expenses", async () => {
@@ -175,6 +409,192 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal(body.net, 15);
     assert.equal(body.accounts.find((account) => account.id === first.item.id)?.balance, 105);
     assert.equal(body.accounts.find((account) => account.id === second.item.id)?.balance, 10);
+  });
+
+  it("tracks company money directions and excludes pending payments from balances", async () => {
+    const created = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Company SAR", type: "bank", currency: "SAR", openingBalance: 100, organizationId: "company-primary" }) }, mainCookie);
+    assert.equal(created.status, 201);
+    const { item } = await json<{ item: { id: string } }>(created);
+    const movement = { type: "loan", direction: "in", accountId: item.id, amount: 50, date: "2026-10-11", status: "paid", personName: "Business lender", category: "Working capital" };
+    assert.equal((await request("/workspace/finance/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(movement) }, mainCookie)).status, 201);
+    assert.equal((await request("/workspace/finance/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...movement, type: "repayment", direction: "out", amount: 30, status: "pending" }) }, mainCookie)).status, 201);
+    const finance = await json<{ accounts: { id: string; balance: number }[]; transactions: { accountId: string; organizationId: string; personName: string }[] }>(await request("/workspace/finance", {}, mainCookie));
+    assert.equal(finance.accounts.find((account) => account.id === item.id)?.balance, 150);
+    const rows = finance.transactions.filter((row) => row.accountId === item.id);
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every((row) => row.organizationId === "company-primary" && row.personName === "Business lender"));
+    const foreign = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "USD destination", type: "bank", currency: "USD", openingBalance: 0 }) }, mainCookie);
+    const foreignItem = await json<{ item: { id: string } }>(foreign);
+    assert.equal((await request("/workspace/finance/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...movement, type: "transfer", destinationAccountId: foreignItem.item.id }) }, mainCookie)).status, 400);
+  });
+
+  it("stores finance movement times and rejects invalid dates or times", async () => {
+    const input = { type: "income", accountId: "account-operating", amount: 1, date: "2026-10-11", time: "14:30", status: "paid", reference: "DATE-TIME-CHECK" };
+    const send = (body: object) => request("/workspace/finance/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, mainCookie);
+    assert.equal((await send({ ...input, time: "25:00" })).status, 400);
+    assert.equal((await send({ ...input, date: "2026-02-30" })).status, 400);
+    const response = await send(input); assert.equal(response.status, 201);
+    const body = await json<{ item: { date: string; time: string } }>(response);
+    assert.equal(body.item.date, input.date); assert.equal(body.item.time, input.time);
+  });
+
+  it("lets users edit only their profile and verifies passwords before rotating sessions", async () => {
+    const credentials = { email: "profile@example.test", password: "profile-original-password" };
+    assert.equal((await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...credentials, name: "Profile User", roleId: "role-employee" }) }, mainCookie)).status, 201);
+    const login = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) });
+    const cookie = cookieFrom(login);
+    const profile = { name: "Updated Profile", email: credentials.email, phone: "+966555000000", avatar: "data:image/png;base64,aGVsbG8=" };
+    assert.equal((await request("/auth/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...profile, roleId: "role-main-manager" }) }, cookie)).status, 400);
+    const update = await request("/auth/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile) }, cookie);
+    assert.equal(update.status, 200);
+    const result = await json<{ user: { name: string; phone: string; avatar: string; roleId: string } }>(update);
+    assert.equal(result.user.name, profile.name);
+    assert.equal(result.user.phone, profile.phone);
+    assert.equal(result.user.avatar, profile.avatar);
+    assert.equal(result.user.roleId, "role-employee");
+    assert.equal((await request("/auth/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...profile, email: "changed-profile@example.test" }) }, cookie)).status, 400);
+    const change = (currentPassword: string) => request("/auth/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword: "profile-replacement-password" }) }, cookie);
+    assert.equal((await change("incorrect-password")).status, 400);
+    assert.equal((await change(credentials.password)).status, 200);
+    assert.equal((await request("/auth/me", {}, cookie)).status, 401);
+    assert.equal((await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) })).status, 401);
+    assert.equal((await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...credentials, password: "profile-replacement-password" }) })).status, 200);
+  });
+
+  it("sends password reset requests only to main managers without revealing accounts", async () => {
+    const send = (email: string) => request("/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+    const known = await send("manager@example.test");
+    assert.equal(known.status, 200);
+    const unknown = await send("nonexistent@example.test");
+    assert.equal(unknown.status, 200);
+    assert.deepEqual(await known.json(), await unknown.json());
+    const notifications = await json<{ items: Notification[] }>(await request("/notifications", {}, mainCookie));
+    const reset = notifications.items.filter((notification) => notification.type === "password_reset");
+    assert.equal(reset.length, 1);
+    assert.equal(reset[0].userId, mainUserId);
+    assert.ok(reset[0].target);
+    await send("manager@example.test");
+    const repeated = await json<{ items: Notification[] }>(await request("/notifications", {}, mainCookie));
+    assert.equal(repeated.items.filter((notification) => notification.type === "password_reset").length, 1);
+    const manager = await json<{ items: Notification[] }>(await request("/notifications", {}, managerCookie));
+    assert.ok(!manager.items.some((notification) => notification.type === "password_reset"));
+  });
+
+  it("supports mobile employee leave requests while protecting other employees and HR administration", async () => {
+    const employee = await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationId: "company-primary", employeeCode: "MOBILE-ESS", name: "Mobile Employee", email: "mobile-ess@example.test", employmentType: "full-time", status: "active", hireDate: "2026-10-11" }) }, mainCookie);
+    assert.equal(employee.status, 201);
+    const employeeBody = await json<{ item: { id: string } }>(employee);
+    const credentials = { email: "mobile-ess@example.test", password: "mobile-employee-password" };
+    assert.equal((await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...credentials, name: "Mobile Employee", roleId: "role-employee", employeeId: employeeBody.item.id, ownRecordsOnly: true }) }, mainCookie)).status, 201);
+    const login = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) });
+    const cookie = cookieFrom(login);
+    const form = { type: "annual", from: "2026-11-01", to: "2026-11-03", reason: "Family time" };
+    const leave = await request("/workspace/self-service/leave", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }, cookie);
+    assert.equal(leave.status, 201);
+    const body = await json<{ item: { id: string; employeeId: string; status: string; days: number } }>(leave);
+    assert.equal(body.item.employeeId, employeeBody.item.id);
+    assert.equal(body.item.status, "pending");
+    assert.equal(body.item.days, 3);
+    assert.equal((await request("/workspace/self-service/leave", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, employeeId: "someone-else", status: "approved" }) }, cookie)).status, 400);
+    assert.equal((await request("/workspace/self-service/leave", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }, cookie)).status, 409);
+    const own = await json<{ employee: { id: string }; leave: { id: string }[] }>(await request("/workspace/self-service", {}, cookie));
+    assert.equal(own.employee.id, employeeBody.item.id);
+    assert.equal(own.leave.length, 1);
+    assert.equal((await request(`/workspace/self-service/leave/${body.item.id}/cancel`, { method: "POST" }, managerCookie)).status, 404);
+    assert.equal((await request(`/workspace/self-service/leave/${body.item.id}/cancel`, { method: "POST" }, cookie)).status, 200);
+    assert.equal((await request(`/collections/employees/${employeeBody.item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Blocked" }) }, cookie)).status, 403);
+  });
+
+  it("allows account-based leave without HR permissions and denies the main admin", async () => {
+    const credentials = { email: "leave-only@example.test", password: "leave-only-password" };
+    assert.equal((await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...credentials, name: "Leave User", roleId: "role-employee", permissions: [] }) }, mainCookie)).status, 201);
+    const cookie = cookieFrom(await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) }));
+    const form = { type: "annual", from: "2026-12-01", to: "2026-12-02", reason: "Personal time" };
+    const send = (auth: string) => request("/workspace/self-service/leave", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }, auth);
+    assert.equal((await send(mainCookie)).status, 403);
+    const response = await send(cookie); assert.equal(response.status, 201);
+    const body = await json<{ item: { id: string; accountId: string; employeeId?: string } }>(response);
+    assert.ok(body.item.accountId); assert.equal(body.item.employeeId, undefined);
+    assert.equal((await send(cookie)).status, 409);
+    const own = await json<{ leave: { id: string }[] }>(await request("/workspace/self-service", {}, cookie));
+    assert.ok(own.leave.some(record => record.id === body.item.id));
+    assert.equal((await request(`/workspace/self-service/leave/${body.item.id}/cancel`, { method: "POST" }, managerCookie)).status, 404);
+    assert.equal((await request(`/workspace/self-service/leave/${body.item.id}/cancel`, { method: "POST" }, cookie)).status, 200);
+  });
+
+  it("allows an unlinked manager to check in and out using their own account", async () => {
+    const profileResponse = await request("/auth/me", {}, managerCookie);
+    const profile = await json<{ user: { id: string; position: string; description: string } }>(profileResponse);
+    assert.equal(profile.user.position, "Manager");
+    assert.ok(profile.user.description);
+    const checkIn = await request("/workspace/attendance/check-in", { method: "POST" }, managerCookie);
+    assert.equal(checkIn.status, 201);
+    const body = await json<{ item: { accountId: string; employeeId?: string } }>(checkIn);
+    assert.equal(body.item.accountId, profile.user.id);
+    assert.equal(body.item.employeeId, undefined);
+    assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, managerCookie)).status, 409);
+    assert.equal((await request("/workspace/attendance/check-out", { method: "POST" }, managerCookie)).status, 200);
+    assert.equal((await request("/workspace/attendance/check-out", { method: "POST" }, managerCookie)).status, 409);
+    assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, managerCookie)).status, 409);
+    const own = await json<{ attendance: { accountId: string }[] }>(await request("/workspace/self-service", {}, managerCookie));
+    assert.ok(own.attendance.some((record) => record.accountId === profile.user.id));
+    assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, mainCookie)).status, 403);
+    assert.equal((await request("/workspace/attendance/check-out", { method: "POST" }, mainCookie)).status, 403);
+  });
+
+  it("keeps financial totals and proposed mutations within the user company scope", async () => {
+    const response = await json<{ user: AuthenticatedUser }>(await request("/auth/me", {}, managerCookie));
+    const user = { ...response.user, organizationIds: ["scope-company-one"], locationIds: [], ownRecordsOnly: false };
+    const data = getStore();
+    data.collections.financeAccounts.push({ id: "scope-account-hidden", organizationId: "scope-company-two", openingBalance: 50000 });
+    data.collections.financeTransactions.push({ id: "scope-payment-hidden", accountId: "scope-account-hidden", organizationId: "scope-company-two", type: "income", direction: "in", amount: 50000, status: "paid" });
+    saveStore(data);
+    const summary = financeSummary(user);
+    assert.ok(!summary.accounts.some(account => account.id === "scope-account-hidden"));
+    assert.ok(!summary.transactions.some(item => item.id === "scope-payment-hidden"));
+    assert.equal(summary.income, 0);
+    assert.throws(() => mutateCollection(user, "workItems", "create", { title: "Out of scope", organizationId: "scope-company-two" }), /record scope/);
+  });
+
+  it("handles malformed cookies and request bodies without exposing server errors", async () => {
+    assert.equal((await request("/auth/status", { headers: { Cookie: "stocrant_session=%ZZ" } })).status, 200);
+    const invalid = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{bad" });
+    assert.equal(invalid.status, 400);
+    assert.equal((await json<{ error: string }>(invalid)).error, "Invalid request body.");
+  });
+
+  it("accepts website inquiries while restricting the inbox to the main admin", async () => {
+    const input = { name: "Website Visitor", email: "visitor@example.test", company: "Example", message: "Please tell me about STOCRANT for our team.", website: "" };
+    const send = (body: object) => request("/public/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    assert.equal((await send(input)).status, 201);
+    assert.equal((await send({ ...input, email: "invalid" })).status, 400);
+    assert.equal((await send({ ...input, website: "spam.example" })).status, 200);
+    assert.equal((await request("/public/inquiries")).status, 401);
+    assert.equal((await request("/public/inquiries", {}, managerCookie)).status, 403);
+    const inbox = await json<{ items: { email: string }[] }>(await request("/public/inquiries", {}, mainCookie));
+    assert.equal(inbox.items.filter(item => item.email === input.email).length, 1);
+    for (let attempt = 0; attempt < 8; attempt++) await send(input);
+    assert.equal((await send(input)).status, 429); resetFailures();
+  });
+
+  it("requires strong production secrets and blocks untrusted mutation origins", async () => {
+    const oldMode = process.env.NODE_ENV, oldSecret = process.env.STOCRANT_SESSION_SECRET;
+    try {
+      process.env.NODE_ENV = "production"; process.env.STOCRANT_SESSION_SECRET = "weak";
+      assert.throws(() => createApp(), /private random secret/);
+      process.env.STOCRANT_SESSION_SECRET = "test-production-secret-only-32-characters";
+      const prod = createApp().listen(0); await new Promise<void>(resolve => prod.once("listening", resolve));
+      const address = prod.address(); const origin = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
+      try {
+        const health = await fetch(origin + "/api/health");
+        assert.ok(health.headers.get("content-security-policy"));
+        assert.ok(health.headers.get("strict-transport-security"));
+        assert.equal((await fetch(origin + "/api/public/contact", { method: "POST", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: "{}" })).status, 403);
+      } finally { await new Promise<void>(resolve => prod.close(() => resolve())); }
+    } finally {
+      if (oldMode === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldMode;
+      if (oldSecret === undefined) delete process.env.STOCRANT_SESSION_SECRET; else process.env.STOCRANT_SESSION_SECRET = oldSecret;
+    }
   });
 
   it("prevents the last Main Manager from being deactivated", async () => {
@@ -212,7 +632,7 @@ describe("action-required notifications", () => {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: userCookie },
       body: JSON.stringify({
-        sku: "SN-OVER",
+        organizationId: "company-primary", itemType: "ingredient", sku: "SN-OVER",
         name: "Dry yeast",
         unit: "box",
         stockLocation: "Main",
@@ -278,6 +698,72 @@ describe("action-required notifications", () => {
     const foreignList = await request("/notifications", { headers: { Cookie: managerCookie } });
     const foreignItems = (await json<{ items: Notification[] }>(foreignList)).items;
     assert.equal(foreignItems.some((item) => list.items.some((owned) => owned.id === item.id)), false);
+  });
+});
+
+describe("hardened authentication and scoping", () => {
+  it("rejects sign-in attempts after repeated failures from one account", async () => {
+    const email = `brute+${Date.now()}@example.test`;
+    let locked = false;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const response = await request("/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: "wrong-password-entirely" }),
+      });
+      if (response.status === 429) {
+        assert.ok(response.headers.get("retry-after"), "429 must advertise Retry-After");
+        locked = true;
+        break;
+      }
+      assert.equal(response.status, 401);
+    }
+    assert.equal(locked, true, "repeated failures should trip the rate limiter");
+    // Every request in this suite comes from 127.0.0.1, so the per-IP counter
+    // must be cleared before later tests attempt their own sign-ins.
+    resetFailures();
+  });
+
+  it("keeps own-records roles from editing records outside their scope by id", async () => {
+    const employeeEmail = `scoped+${Date.now()}@example.test`;
+    const createEmployee = await request("/workspace/access/users", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+      body: JSON.stringify({ name: "Scoped Employee", email: employeeEmail, password: "a-very-long-employee-pass", roleId: "role-employee" }),
+    });
+    assert.equal(createEmployee.status, 201);
+    const login = await request("/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: employeeEmail, password: "a-very-long-employee-pass" }),
+    });
+    assert.equal(login.status, 200);
+    const employeeCookie = cookieFrom(login);
+
+    // A work item created by the Main Manager and assigned to nobody is out of
+    // scope for an own-records employee; direct edits by id must 404.
+    const ownedWork = await request("/workspace/work", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
+      body: JSON.stringify({ title: "Manager-owned task", dueDate: "2099-12-31", status: "Planned" }),
+    });
+    assert.equal(ownedWork.status, 201);
+    const workBody = await json<{ item: { id: string } }>(ownedWork);
+
+    const scopedEdit = await request(`/workspace/work/${workBody.item.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+      body: JSON.stringify({ status: "Completed" }),
+    });
+    assert.equal(scopedEdit.status, 404);
+
+    // Records the employee creates stay visible and editable to them.
+    const ownWork = await request("/workspace/work", {
+      method: "POST", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+      body: JSON.stringify({ title: "Employee-owned task", assignee: "Scoped Employee", dueDate: "2099-12-31", status: "Planned" }),
+    });
+    assert.equal(ownWork.status, 201);
+    const ownBody = await json<{ item: { id: string } }>(ownWork);
+    const ownEdit = await request(`/workspace/work/${ownBody.item.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
+      body: JSON.stringify({ status: "In Progress" }),
+    });
+    assert.equal(ownEdit.status, 200);
   });
 });
 

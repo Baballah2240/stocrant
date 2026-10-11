@@ -1,3 +1,4 @@
+import { notifyAction, actionMessage } from "./action-feedback";
 import type {
   CollectionItem,
   EntitySpec,
@@ -34,15 +35,119 @@ export type {
   MutationResult,
 } from "./types";
 
+/**
+ * API origin resolution.
+ *
+ * The browser build is served by the same Express process as the API, so a
+ * relative "/api" is correct and keeps credentials same-origin. A native
+ * WebView is served from capacitor:// or https://localhost, where "/api"
+ * resolves to nothing, so the origin must be supplied:
+ *
+ *   1. SERVER_URL saved from the in-app server settings (stored on device)
+ *   2. VITE_API_BASE_URL baked in at build time
+ *   3. "" → same-origin relative requests (browser / hosted deployment)
+ */
+const RUNTIME_OVERRIDE_KEY = "stocrant.serverUrl";
+const RUNTIME_SESSION_KEY = "stocrant.mobileSession";
+
+function buildTimeBase(): string {
+  const fromEnv = (import.meta.env?.VITE_API_BASE_URL ?? "").trim();
+  return fromEnv.replace(/\/+$/, "");
+}
+
+function readRuntimeOverride(): string {
+  try {
+    return (localStorage.getItem(RUNTIME_OVERRIDE_KEY) ?? "").trim().replace(/\/+$/, "");
+  } catch {
+    // Storage can be unavailable (private mode, locked-down WebView).
+    return "";
+  }
+}
+
+/** True when the app is packaged as a native app rather than a browser tab. */
+export function isNativeApp(): boolean {
+  return Boolean(
+    (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.(),
+  );
+}
+
+export const serverUrl = {
+  key: RUNTIME_OVERRIDE_KEY,
+  /** Origin the app is currently calling; "" means same-origin. */
+  current(): string {
+    return readRuntimeOverride() || buildTimeBase();
+  },
+  /** Persist a device-level override. Pass "" to fall back to build-time. */
+  save(origin: string): string {
+    const normalized = origin.trim().replace(/\/+$/, "");
+    try {
+      if (normalized) localStorage.setItem(RUNTIME_OVERRIDE_KEY, normalized);
+      else localStorage.removeItem(RUNTIME_OVERRIDE_KEY);
+    } catch {
+      // Ignore storage failures; the build-time value still applies.
+    }
+    return this.current();
+  },
+  clear(): void {
+    try {
+      localStorage.removeItem(RUNTIME_OVERRIDE_KEY);
+    } catch {
+      // Nothing to clear.
+    }
+  },
+};
+
+/**
+ * Browser users retain HTTP-only cookies. Native WebViews send this signed
+ * session value as a bearer credential to their configured STOCRANT server.
+ */
+export const mobileSession = {
+  current(): string {
+    if (!isNativeApp()) return "";
+    try {
+      return localStorage.getItem(RUNTIME_SESSION_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  },
+  save(token: string | undefined): void {
+    if (!isNativeApp() || !token) return;
+    try {
+      localStorage.setItem(RUNTIME_SESSION_KEY, token);
+    } catch {
+      // If storage is unavailable, the WebView can still try its cookie session.
+    }
+  },
+  clear(): void {
+    try {
+      localStorage.removeItem(RUNTIME_SESSION_KEY);
+    } catch {
+      // Nothing to clear.
+    }
+  },
+};
+
 const API = "/api";
+/** Resolved per call so a server change takes effect without a rebuild. */
+function apiBase(): string {
+  return `${serverUrl.current()}${API}`;
+}
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method || "GET").toUpperCase();
+  const action = !["GET", "HEAD"].includes(method) || path.startsWith("/workspace/export/");
   const headers = new Headers(init.headers);
-  if (!headers.has("Content-Type") && init.method !== "GET") {
-    headers.set("Content-Type", "application/json");
-  }
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-  const res = await fetch(API + path, { ...init, headers, credentials: "include" });
+  if (isNativeApp()) {
+    headers.set("X-STOCRANT-NATIVE", "1");
+    const token = mobileSession.current();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+  // The native shell loads from capacitor://, so it cannot rely on a
+  // same-origin policy for cookies; explicit credentials keep sessions alive.
+  let res: Response;
+  try { res = await fetch(apiBase() + path, { ...init, headers, credentials: "include" }); }
+  catch (error) { if (action) notifyAction("Could not complete the action. Check your connection and try again.", "error"); throw error; }
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
     try {
@@ -51,18 +156,33 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       // ignore non-JSON error bodies
     }
+    if (action) notifyAction(message, "error");
     throw new Error(message);
   }
-  return (await res.json()) as T;
+  const result = (await res.json()) as T;
+  if (action) {
+    let input: unknown;
+    try { input = typeof init.body === "string" ? JSON.parse(init.body) : undefined; } catch { /* No request metadata needed. */ }
+    notifyAction(res.status === 202 || (result && typeof result === "object" && "pending" in result && result.pending) ? "Submitted for approval." : actionMessage(path, method, input));
+  }
+  return result;
 }
 
 export const api = {
+  public: {
+    info: () => request<{ email: string; phone: string }>("/public/info"),
+    contact: (input: { name: string; email: string; company: string; message: string; website: string }) => request<{ ok: boolean }>("/public/contact", { method: "POST", body: JSON.stringify(input) }),
+    inquiries: () => request<{ items: CollectionItem[] }>("/public/inquiries"),
+  },
   health: () => request<{ ok: boolean; service: string }>("/health"),
 
   auth: {
+    forgotPassword: (email: string) => request<{ ok: boolean; message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+    updateProfile: (input: { name: string; email: string; phone: string; avatar: string; bio?: string; currentPassword?: string }) => request<{ user: AuthUser }>("/auth/profile", { method: "PATCH", body: JSON.stringify(input) }),
+    changePassword: (input: { currentPassword: string; newPassword: string }) => request<{ ok: boolean }>("/auth/password", { method: "POST", body: JSON.stringify(input) }),
     status: () => request<{ authenticated: boolean; setupRequired: boolean; setupKeyConfigured: boolean; user: AuthUser | null }>("/auth/status"),
-    setup: (input: { name: string; email: string; password: string; setupKey: string }) => request<{ user: AuthUser }>("/auth/setup", { method: "POST", body: JSON.stringify(input) }),
-    login: (input: { email: string; password: string }) => request<{ user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
+    setup: (input: { name: string; email: string; password: string; setupKey: string }) => request<{ user: AuthUser; sessionToken?: string }>("/auth/setup", { method: "POST", body: JSON.stringify(input) }),
+    login: (input: { email: string; password: string }) => request<{ user: AuthUser; sessionToken?: string }>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
     logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
     me: () => request<{ user: AuthUser }>("/auth/me"),
   },
@@ -151,19 +271,27 @@ export const api = {
   },
 
   workspace: {
-    overview: () => request<{ organizations: number; locations: number; activeEmployees: number; work: { total: number; overdue: number }; inventory: { lowStockCount: number }; finance: { net: number }; pendingApprovals: number }>("/workspace/overview"),
+    overview: () => request<{ organizations: number; locations: number; activeEmployees: number; work: { total: number; overdue: number }; inventory: { lowStockCount: number }; finance: { net: number }; pendingApprovals: number; personal: { registered: boolean; attendanceEnabled: boolean; profile: { name: string; email: string; [key: string]: unknown }; lastLoginAt?: unknown; attendance: Record<string, unknown> | null; shift: Record<string, unknown> | null; leave: CollectionItem[]; pendingLeaveCount: number; work: CollectionItem[]; workCount: number; overdueWorkCount: number; notifications: Notification[]; unreadNotificationCount: number; policyUpdates: { id: string; title: string; publishedAt: string; fileUrl: string; isNew: boolean }[]; newPolicyCount: number } }>("/workspace/overview"),
+    hrCompanies: () => request<{ companies: CollectionItem[]; employees: CollectionItem[] }>("/workspace/hr/companies"),
+    hrOverview: () => request<{ today: string; metrics: { totalEmployees: number; activeEmployees: number; onLeaveEmployees: number; presentEmployees: number; attendanceRecorded: number; pendingLeave: number; pendingApprovals: number }; attendance: CollectionItem[]; leaveRequests: CollectionItem[]; birthdays: CollectionItem[]; activity: CollectionItem[]; approvals: CollectionItem[] }>("/workspace/hr/overview"),
     exportCollection: (collection: string) => request<{ filename: string; csv: string }>(`/workspace/export/${encodeURIComponent(collection)}`),
-    locations: () => request<{ items: CollectionItem[] }>("/workspace/locations"),
+    locations: () => request<{ items: CollectionItem[]; companies: CollectionItem[] }>("/workspace/locations"),
     addLocationUpdate: (id: string, input: { note: string; status?: string }) => request<MutationResult>(`/workspace/locations/${id}/updates`, { method: "POST", body: JSON.stringify(input) }),
     birthdays: () => request<{ items: CollectionItem[] }>("/workspace/hr/birthdays"),
-    work: (view = "all") => request<{ items: CollectionItem[]; activity: CollectionItem[] }>(`/workspace/work?view=${encodeURIComponent(view)}`),
+    work: (view = "all") => request<{ companies: CollectionItem[]; items: CollectionItem[]; activity: CollectionItem[] }>(`/workspace/work?view=${encodeURIComponent(view)}`),
     createWork: (input: Record<string, unknown>) => request<MutationResult>("/workspace/work", { method: "POST", body: JSON.stringify(input) }),
     updateWork: (id: string, input: Record<string, unknown>) => request<MutationResult>(`/workspace/work/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
     addWorkActivity: (id: string, input: Record<string, unknown>) => request<MutationResult>(`/workspace/work/${id}/activity`, { method: "POST", body: JSON.stringify(input) }),
-    inventory: () => request<{ items: CollectionItem[]; movements: CollectionItem[]; lowStockCount: number }>("/workspace/inventory"),
+    selfService: () => request<{ employee: CollectionItem | null; attendance: CollectionItem[]; leave: CollectionItem[]; documents: CollectionItem[] }>("/workspace/self-service"),
+    requestLeave: (input: { type: string; from: string; to: string; reason: string }) => request<{ item: CollectionItem }>("/workspace/self-service/leave", { method: "POST", body: JSON.stringify(input) }),
+    cancelLeave: (id: string) => request<{ ok: boolean }>(`/workspace/self-service/leave/${id}/cancel`, { method: "POST" }),
+    checkIn: () => request<{ item: CollectionItem }>("/workspace/attendance/check-in", { method: "POST" }),
+    checkOut: () => request<{ item: CollectionItem }>("/workspace/attendance/check-out", { method: "POST" }),
+    inventory: () => request<{ items: CollectionItem[]; movements: CollectionItem[]; lowStockCount: number; companies: CollectionItem[]; employees: CollectionItem[]; history: CollectionItem[] }>("/workspace/inventory"),
     createInventoryItem: (input: Record<string, unknown>) => request<MutationResult>("/workspace/inventory/items", { method: "POST", body: JSON.stringify(input) }),
+    updateInventoryItem: (id: string, input: Record<string, unknown>) => request<MutationResult>(`/workspace/inventory/items/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
     createInventoryMovement: (input: Record<string, unknown>) => request<MutationResult>("/workspace/inventory/movements", { method: "POST", body: JSON.stringify(input) }),
-    finance: () => request<{ accounts: CollectionItem[]; transactions: CollectionItem[]; income: number; expenses: number; salaries: number; net: number }>("/workspace/finance"),
+    finance: () => request<{ companies: CollectionItem[]; people: CollectionItem[]; accounts: CollectionItem[]; transactions: CollectionItem[]; income: number; expenses: number; salaries: number; net: number }>("/workspace/finance"),
     createAccount: (input: Record<string, unknown>) => request<MutationResult>("/workspace/finance/accounts", { method: "POST", body: JSON.stringify(input) }),
     createTransaction: (input: Record<string, unknown>) => request<MutationResult & { items?: CollectionItem[] }>("/workspace/finance/transactions", { method: "POST", body: JSON.stringify(input) }),
     roles: () => request<{ items: CollectionItem[] }>("/workspace/access/roles"),

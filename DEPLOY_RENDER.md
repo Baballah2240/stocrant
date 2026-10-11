@@ -34,7 +34,7 @@ would disappear on restarts, deploys, or idle spin-downs.
 ## 1. Put the project in a private GitHub repository
 
 `data/` is intentionally ignored so local STOCRANT records are not uploaded to
-GitHub. A first production deployment creates the built-in demo data on the
+GitHub. A first production deployment starts with empty business records on the
 persistent disk.
 
 If this folder is not already a Git repository, use GitHub Desktop:
@@ -75,12 +75,19 @@ before going live.
 {"ok":true,"service":"stocrant"}
 ```
 
-The initial deployment is seeded with STOCRANT demo records. After deployment,
+The initial production deployment starts with empty business records. After deployment,
 open the service and create the first Main Manager with the private setup key.
 Company records written after that are retained on the attached disk across
 deploys.
 
 ## 3. Point the domain DNS to Render
+
+For Namecheap, open **Domain List → Manage → Advanced DNS → Host Records**
+for `mohbaba.online`. These records apply when Namecheap manages the domain's
+DNS. If custom nameservers are selected, make the changes at that DNS provider.
+Replace the parking CNAME for `www` and any conflicting URL Redirect record for
+`@` with the records below only after the deployed service passes its health
+check. Preserve mail and verification records.
 
 After Render creates the service, copy its assigned host, which resembles:
 

@@ -90,7 +90,9 @@ export type NotificationType =
   | "overdue_work"
   | "low_stock"
   | "pending_approval"
-  | "unauthorized_access";
+  | "unauthorized_access"
+  | "password_reset"
+  | "leave_request";
 
 export type NotificationSeverity = "info" | "warning" | "critical";
 
