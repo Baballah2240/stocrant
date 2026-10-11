@@ -9,7 +9,6 @@ import App from "./App";
 import ActionToasts from "./components/ActionToasts";
 import "./theme.css";
 import "./ui-refresh.css";
-import "./public-site.css";
 import "./auth-experience.css";
 import "./brand-palette.css";
 import "./mobile-polish.css";

@@ -32,7 +32,7 @@ export default function AuthPage() {
     finally { setBusy(false); }
   }
   return <div className="auth-experience auth-refined">
-    <header className="auth-page-nav"><a href="/welcome" className="auth-home-link">STOCRANT</a><div className="auth-appearance"><button type="button" onClick={() => setLanguage(language === "en" ? "ar" : "en")}>{language === "en" ? "العربية" : "English"}</button><button type="button" aria-label={t(theme === "light" ? "Dark mode" : "Light mode")} onClick={toggle}><MobileIcon name={theme === "light" ? "moon" : "sun"} /></button></div></header>
+    <header className="auth-page-nav"><a href="/" className="auth-home-link">STOCRANT</a><div className="auth-appearance"><button type="button" onClick={() => setLanguage(language === "en" ? "ar" : "en")}>{language === "en" ? "العربية" : "English"}</button><button type="button" aria-label={t(theme === "light" ? "Dark mode" : "Light mode")} onClick={toggle}><MobileIcon name={theme === "light" ? "moon" : "sun"} /></button></div></header>
     <main className="auth-page"><aside className="auth-welcome"><p className="eyebrow">STOCRANT</p><h2>{language === "ar" ? "أهلاً بك في مساحة عملك" : "Your workday starts here."}</h2><p className="auth-welcome-intro">{language === "ar" ? "إدارة الفريق والعمل وسجلات الشركة في مكان واحد." : "A shared home for your team, daily work and company records."}</p></aside>
     <section className="auth-card">
       <div className="auth-brand"><span className="brand-logo" aria-hidden="true"><MobileIcon name="work" /></span><div><strong>STOCRANT</strong><span>{language === "ar" ? "مساحة عملك" : "Your workspace"}</span></div></div>

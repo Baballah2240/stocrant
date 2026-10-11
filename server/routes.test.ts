@@ -569,18 +569,9 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal((await json<{ error: string }>(invalid)).error, "Invalid request body.");
   });
 
-  it("accepts website inquiries while restricting the inbox to the main admin", async () => {
-    const input = { name: "Website Visitor", email: "visitor@example.test", company: "Example", message: "Please tell me about STOCRANT for our team.", website: "" };
-    const send = (body: object) => request("/public/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    assert.equal((await send(input)).status, 201);
-    assert.equal((await send({ ...input, email: "invalid" })).status, 400);
-    assert.equal((await send({ ...input, website: "spam.example" })).status, 200);
-    assert.equal((await request("/public/inquiries")).status, 401);
-    assert.equal((await request("/public/inquiries", {}, managerCookie)).status, 403);
-    const inbox = await json<{ items: { email: string }[] }>(await request("/public/inquiries", {}, mainCookie));
-    assert.equal(inbox.items.filter(item => item.email === input.email).length, 1);
-    for (let attempt = 0; attempt < 8; attempt++) await send(input);
-    assert.equal((await send(input)).status, 429); resetFailures();
+  it("keeps the public website separate from the management API", async () => {
+    assert.equal((await request("/public/info", {}, mainCookie)).status, 404);
+    assert.equal((await request("/public/inquiries", {}, mainCookie)).status, 404);
   });
 
   it("requires strong production secrets and blocks untrusted mutation origins", async () => {
@@ -595,7 +586,7 @@ describe("STOCRANT secure workspace API", () => {
         const health = await fetch(origin + "/api/health");
         assert.ok(health.headers.get("content-security-policy"));
         assert.ok(health.headers.get("strict-transport-security"));
-        assert.equal((await fetch(origin + "/api/public/contact", { method: "POST", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: "{}" })).status, 403);
+        assert.equal((await fetch(origin + "/api/auth/login", { method: "POST", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: "{}" })).status, 403);
       } finally { await new Promise<void>(resolve => prod.close(() => resolve())); }
     } finally {
       if (oldMode === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldMode;

@@ -169,11 +169,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  public: {
-    info: () => request<{ email: string; phone: string }>("/public/info"),
-    contact: (input: { name: string; email: string; company: string; message: string; website: string }) => request<{ ok: boolean }>("/public/contact", { method: "POST", body: JSON.stringify(input) }),
-    inquiries: () => request<{ items: CollectionItem[] }>("/public/inquiries"),
-  },
   health: () => request<{ ok: boolean; service: string }>("/health"),
 
   auth: {

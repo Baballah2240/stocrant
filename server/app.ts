@@ -10,7 +10,6 @@ import occupancyRouter from "./routes/occupancy.js";
 import collectionsRouter from "./routes/collections.js";
 import authRouter from "./routes/auth.js";
 import workspaceRouter from "./routes/workspace.js";
-import publicRouter from "./routes/public.js";
 import {
   attachAuth,
   productionConfigurationError,
@@ -76,7 +75,6 @@ export function createApp() {
   });
 
   app.use("/api/auth", authRouter);
-  app.use("/api/public", publicRouter);
   app.use("/api", requireAuth);
   app.use("/api", (req, res, next) => {
     if (req.auth?.accountStatus && req.auth.accountStatus !== "active" && !req.path.startsWith("/notifications")) return res.status(403).json({ error: "Your registration requires Main Manager approval." });

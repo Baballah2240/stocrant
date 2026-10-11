@@ -1,5 +1,7 @@
 # STOCRANT
 
+The management web app and mobile app share this project's API and business data. The public marketing website is now a separate, independently buildable project in [`public-website/`](public-website/README.md). The management app opens directly to login and no longer hosts public website pages or a website contact inbox.
+
 Business management for companies with restaurants, retail stores, offices,
 warehouses and branches. Manage the organization hierarchy, locations,
 workforce and HR, payroll, inventory, finance and operations from one system.

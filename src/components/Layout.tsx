@@ -73,7 +73,7 @@ export default function Layout() {
         </div>
         <div className="topbar-spacer" />
         <NotificationBell />
-        <div className="topbar-actions"><a className="workspace-website-link" href="/welcome" aria-label="Visit STOCRANT website" title="Visit website"><MobileIcon name="home" /><span>{t("Website")}</span></a>
+        <div className="topbar-actions">
           <button className="header-profile" type="button" aria-haspopup="dialog" onClick={() => setProfileOpen(true)}><span className="header-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : user?.name.slice(0, 2).toUpperCase()}</span><span className="header-user-name">{user?.name}<small>{t("My profile")}</small></span></button>
           <button
             type="button"
@@ -100,7 +100,6 @@ export default function Layout() {
               </div>
               <p>{language === "ar" ? "يتم حفظ اختيارك على هذا الجهاز" : "Saved on this device"}</p>
             </section>
-            <NavLink to="/welcome" onClick={() => setMenuOpen(false)}><MobileIcon name="home" /><span>{t("Website")}</span></NavLink>
             <NavLink to={user?.roleId === "role-main-manager" ? "/admin" : "/mobile-more"} onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("Settings")}</span></NavLink>
             <button type="button" onClick={toggle}><MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{t(nextTheme === "dark" ? "Dark mode" : "Light mode")}</span></button>
             <button type="button" onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><MobileIcon name="profile" /><span>{t("My profile")}</span></button>

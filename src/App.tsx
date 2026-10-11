@@ -23,10 +23,9 @@ import AccessWorkspace from "./components/AccessWorkspace";
 import HRWorkspace from "./components/HRWorkspace";
 import { useSession } from "./session-context";
 import { MetaProvider } from "./meta-context";
-import PublicWebsite from "./components/PublicWebsite";
-import { isNativeApp } from "./api";
 
 const router = createBrowserRouter([
+  { path: "/welcome", element: <Navigate to="/" replace /> },
   {
     path: "/login",
     element: <Navigate to="/" replace />,
@@ -75,7 +74,6 @@ const router = createBrowserRouter([
 
 export default function App() {
   const { user, loading } = useSession();
-  if (window.location.pathname === "/welcome" || (!loading && !user && window.location.pathname === "/" && !isNativeApp())) return <PublicWebsite />;
   if (loading) return <main className="auth-page"><p className="hint">Loading secure workspace…</p></main>;
   if (!user) return <AuthPage />;
   if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;
