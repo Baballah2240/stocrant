@@ -1,0 +1,129 @@
+/* Frosted surfaces retain readable ink in both appearance modes. */
+.language-settings { padding: 12px 8px; background: color-mix(in srgb, var(--ios-bg) 65%, transparent); border: 1px solid var(--glass-border); border-radius: 17px; }
+.language-settings h3 { margin: 0 4px 10px; color: var(--ios-label); font-size: 13px; font-weight: 650; }
+.language-options { display: grid; gap: 7px; }
+.mobile-layout .language-options .language-option { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 46px; padding: 9px 7px; border: 1px solid transparent; border-radius: 12px; color: var(--ios-label); background: transparent; font-size: 12px; text-align: start; }
+.mobile-layout .language-options .language-option[aria-pressed="true"] { background: var(--brand-green-soft); color: var(--stocrant-green-strong); border-color: var(--stocrant-green-line); box-shadow: 0 2px 8px #173e5208; }
+.language-code { display: grid; place-items: center; min-width: 25px; height: 25px; background: var(--ios-cell); border-radius: 8px; font-size: 10px; font-weight: 700; }
+.language-selected { margin-inline-start: auto; width: 16px; height: 16px; flex-shrink: 0; }
+.language-selected svg { display: block; width: 100%; height: 100%; }
+html[data-theme="dark"] .mobile-layout .language-options button.language-option[aria-pressed="true"] { background: #254b3e; color: #c5efd8; border-color: #4c806b; }
+.language-settings > p { margin: 10px 4px 0; color: var(--ios-label-2); font-size: 10px; line-height: 1.6; }
+@media (hover: hover) { .mobile-layout .language-option:hover:not([aria-pressed="true"]) { background: var(--brand-blue-soft); } }
+.mobile-header-notifications .notification-trigger {
+  display: grid; place-items: center; width: 46px; height: 46px;
+  padding: 11px; border: 1px solid var(--glass-border); border-radius: 15px;
+  color: var(--brand-link); background: var(--brand-blue-soft);
+}
+.mobile-header-notifications .notification-trigger svg { width: 22px; height: 22px; }
+dialog.notification-panel,
+.mobile-drawer-notifications dialog.notification-panel {
+  position: fixed; inset: 0; margin: auto;
+  width: min(460px, calc(100vw - 28px)); max-width: none;
+  height: fit-content; max-height: calc(100dvh - 48px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding: 0; z-index: auto;
+}
+dialog.notification-panel[open] { animation: notification-pop-in 240ms cubic-bezier(.2,.8,.2,1); }
+dialog.notification-panel::backdrop { background: #071b2b66; -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px); animation: notification-backdrop-in 220ms ease-out; }
+@keyframes notification-pop-in { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes notification-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+html[dir="rtl"] body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+html[dir="rtl"] .mobile-account-drawer { inset: 0 0 0 auto; border-radius: 24px 0 0 24px; }
+html[dir="rtl"] .mobile-account-drawer[open] { animation-name: mobile-drawer-in-rtl; }
+@keyframes mobile-drawer-in-rtl { from { transform: translateX(100%); } to { transform: translateX(0); } }
+html[dir="rtl"] .mobile-drawer-controls > button, html[dir="rtl"] .mobile-drawer-controls > a,
+html[dir="rtl"] .notification-panel, html[dir="rtl"] .profile-panel { text-align: start; }
+html[dir="rtl"] .mobile-time-grid > div + div { border-left: 0; border-right: 1px solid var(--ios-separator); }
+html[dir="rtl"] h1, html[dir="rtl"] h2 { letter-spacing: 0; }
+@media (prefers-reduced-motion: reduce) {
+  dialog.notification-panel[open], dialog.notification-panel::backdrop { animation: none; }
+}
+:root {
+  --color-neutral-muted: #526d79;
+  --color-neutral-soft: #e1e9e4;
+  --glass-surface: color-mix(in srgb, var(--ios-cell) 88%, transparent);
+  --glass-border: color-mix(in srgb, var(--ios-separator) 72%, transparent);
+  --glass-shadow: 0 16px 44px #173e5214, inset 0 1px 0 #ffffff60;
+}
+html[data-theme="dark"] {
+  --glass-shadow: 0 16px 44px #0005, inset 0 1px 0 #ffffff0c;
+  --ios-fill: #253b46;
+  --ios-field: #1e333e;
+  --ios-hairline: #39505c;
+  --color-neutral-muted: #b5cbd5;
+  --color-neutral-soft: #253b46;
+  --color-danger: #ff9d97;
+  --color-danger-soft: #442c32;
+  --color-warning: #f2ce8d;
+  --color-warning-soft: #3a3325;
+}
+.ios-app .card, .profile-panel { color: var(--ios-label); }
+.ios-app .cell-sub, .ios-app .account-meta, .profile-panel .cell-sub, .profile-panel small, .ios-app .entity-sub { color: var(--ios-label-2); line-height: 1.55; overflow-wrap: anywhere; }
+.ios-app .form-field > span, .profile-panel .form-field > span { color: var(--ios-label); font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.profile-panel .profile-identity { padding: 18px; border: 1px solid var(--ios-separator); border-radius: 18px; background: var(--ios-bg); align-items: center; }
+.profile-identity > div { min-width: 0; display: grid; gap: 5px; }
+.profile-panel .profile-avatar { flex: 0 0 76px; border-radius: 50%; }
+.profile-panel .profile-position { padding: 14px 0; line-height: 1.6; }
+.profile-panel .form { gap: 18px; }
+.profile-panel .profile-remove-photo { justify-self: start; min-height: 36px; padding: 6px 10px; font-size: 12px; }
+.ios-app .account-summary, .ios-app .account-editor, .ios-app .timeline-row { padding: 16px; border-radius: 15px; border: 1px solid var(--ios-separator); background: var(--ios-cell); color: var(--ios-label); line-height: 1.6; }
+.ios-app .account-summary { flex-wrap: wrap; gap: 12px; }
+.ios-app .account-summary > div { min-width: 0; overflow-wrap: anywhere; }
+.ios-app .account-list { display: grid; gap: 14px; }
+html[data-theme="dark"] .ios-app button:not(.primary):not(.danger):not(.notification-trigger):not(.profile-avatar),
+html[data-theme="dark"] .profile-panel button:not(.primary):not(.profile-avatar) { background: #253b46; color: #e8f4f7; border-color: #3c5562; }
+html[data-theme="dark"] .ios-app button.primary,
+html[data-theme="dark"] .profile-panel button.primary,
+html[data-theme="dark"] .ios-app .primary-link { background: #438a77; border-color: #559e8c; color: #fff; }
+html[data-theme="dark"] .ios-app button.primary:hover:not(:disabled),
+html[data-theme="dark"] .profile-panel button.primary:hover:not(:disabled) { background: #357563; color: #fff; }
+html[data-theme="dark"] .ios-app button.danger { background: #713c43; color: #fff; border-color: #a45c65; }
+html[data-theme="dark"] .ios-app .tab-list button.active,
+html[data-theme="dark"] .profile-panel .tab-list button.active { background: #365463; color: #fff; }
+.mobile-layout .mobile-drawer-photo { padding: 0; background: transparent !important; border: 0; color: var(--brand-link) !important; }
+.ios-app .main {
+  background: radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--brand-blue) 18%, transparent), transparent 55%), radial-gradient(ellipse at 100% 70%, color-mix(in srgb, var(--brand-green) 12%, transparent), transparent 55%), var(--ios-bg);
+}
+.ios-app .topbar, .mobile-bottom-nav, .mobile-account-drawer,
+.notification-panel {
+  background: var(--glass-surface);
+  border-color: var(--glass-border);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+  box-shadow: var(--glass-shadow);
+}
+.ios-app .card, .ios-app .workspace-toolbar, .mobile-shortcuts a {
+  background: color-mix(in srgb, var(--ios-cell) 94%, transparent);
+  border-color: var(--glass-border);
+  box-shadow: 0 4px 18px #173e5206, inset 0 1px 0 #ffffff18;
+}
+.notification-panel { border-radius: 22px; overflow: auto; overscroll-behavior: contain; }
+.notification-panel__head { background: transparent; padding: 16px; gap: 10px; }
+.notification-panel__title { font-size: 19px; font-weight: 700; line-height: 1.35; letter-spacing: -.35px; }
+.notification-panel__title small { margin-top: 4px; color: var(--ios-label-2); font-size: 12px; line-height: 1.5; }
+.notification-filters { margin: 0 12px 12px; padding: 5px; border: 1px solid var(--glass-border); border-radius: 14px; background: color-mix(in srgb, var(--ios-bg) 65%, transparent); }
+.notification-filters button { flex: 1 1 auto; min-height: 40px; background: transparent; border-color: transparent; }
+.notification-filters button[aria-pressed="true"] { background: var(--brand-blue-soft); color: var(--brand-link); border-color: var(--glass-border); box-shadow: 0 2px 8px #173e520d; }
+.notification-list { padding: 0 10px 10px; display: grid; gap: 8px; }
+.notification-list__item { padding: 14px; border: 1px solid var(--glass-border); border-radius: 16px; background: color-mix(in srgb, var(--ios-cell) 40%, transparent); opacity: 1; }
+.notification-list__item--unread { background: color-mix(in srgb, var(--brand-blue-soft) 65%, transparent); border-inline-start: 3px solid var(--brand-link); }
+.notification-list__message { font-size: 14px; line-height: 1.65; letter-spacing: -.1px; margin: 9px 0 6px; overflow-wrap: anywhere; }
+.notification-list__meta { font-size: 11px; line-height: 1.5; margin: 0; }
+.notification-list__type, .notification-list__item--unread .notification-list__type { background: var(--brand-blue-soft); color: var(--brand-link); font-size: 10px; font-weight: 650; letter-spacing: .02em; border-radius: 7px; }
+.notification-list__item--read .notification-list__type { background: var(--ios-bg); color: var(--ios-label-2); }
+.notification-list__actions { align-self: end; gap: 8px; }
+.notification-panel button, .notification-list__actions a { transition: background-color 160ms ease, box-shadow 160ms ease; filter: none; }
+.notification-panel button:active:not(:disabled), .notification-list__actions a:active { background: var(--brand-green-soft); box-shadow: inset 0 1px 4px #173e5215; }
+.notification-panel button:disabled { opacity: .45; }
+.notification-panel__empty { padding: 24px 16px; font-size: 13px; line-height: 1.6; }
+.mobile-drawer-controls > a, .mobile-layout .mobile-drawer-controls > button, .mobile-drawer-notifications { background: color-mix(in srgb, var(--brand-blue-soft) 70%, transparent); border-color: var(--glass-border); }
+@media (hover: hover) and (pointer: fine) {
+  .notification-list__item:hover { background: color-mix(in srgb, var(--brand-green-soft) 75%, transparent); }
+  .notification-panel button:hover:not(:disabled), .notification-list__actions a:hover,
+  .mobile-drawer-controls > a:hover, .mobile-layout .mobile-drawer-controls > button:hover { background: var(--brand-green-soft); color: var(--stocrant-green); box-shadow: 0 3px 10px #173e520d; }
+}
+@media (prefers-reduced-motion: reduce) { .notification-panel button, .notification-list__actions a { transition: none; } }
+@media (prefers-reduced-transparency: reduce) {
+  .ios-app .topbar, .mobile-bottom-nav, .mobile-account-drawer, .notification-panel { background: var(--ios-cell); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .notification-list__item { background: var(--ios-cell); }
+}

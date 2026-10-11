@@ -177,6 +177,7 @@ export const api = {
   health: () => request<{ ok: boolean; service: string }>("/health"),
 
   auth: {
+    register: (input: { name: string; email: string; password: string }) => request<{ ok: boolean; message: string }>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
     forgotPassword: (email: string) => request<{ ok: boolean; message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
     updateProfile: (input: { name: string; email: string; phone: string; avatar: string; bio?: string; currentPassword?: string }) => request<{ user: AuthUser }>("/auth/profile", { method: "PATCH", body: JSON.stringify(input) }),
     changePassword: (input: { currentPassword: string; newPassword: string }) => request<{ ok: boolean }>("/auth/password", { method: "POST", body: JSON.stringify(input) }),
@@ -308,6 +309,9 @@ export const api = {
   },
 
   notifications: {
+    detail: (id: string) => request<{ item: Notification; details: Record<string, unknown>; canDecide: boolean; canReply: boolean }>(`/notifications/${encodeURIComponent(id)}`),
+    remove: (id: string) => request<{ success: boolean }>(`/notifications/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    respond: (id: string, action: "approve" | "reject" | "comment", comment: string) => request<{ success: boolean }>(`/notifications/${encodeURIComponent(id)}/respond`, { method: "POST", body: JSON.stringify({ action, comment }) }),
     list: () => request<{ items: Notification[] }>("/notifications"),
     readAll: () =>
       request<{ success: true; count: number }>("/notifications/read-all", { method: "POST" }),

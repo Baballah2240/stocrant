@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "./theme-context";
+import { LanguageProvider } from "./language-context";
 import { SessionProvider } from "./session-context";
 import { isNativeApp } from "./api";
 import CursorMotion from "./components/CursorMotion";
@@ -11,6 +12,10 @@ import "./ui-refresh.css";
 import "./public-site.css";
 import "./auth-experience.css";
 import "./brand-palette.css";
+import "./mobile-polish.css";
+import "./glass-theme.css";
+import "./settings-layout.css";
+import "./auth-notifications.css";
 
 // Native builds have no hover pointer and need safe-area padding; the CSS
 // keys off this attribute so the browser layout stays untouched.
@@ -22,12 +27,12 @@ if (isNativeApp()) {
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <ThemeProvider>
+    <LanguageProvider><ThemeProvider>
       <CursorMotion />
       <SessionProvider>
         <App />
         <ActionToasts />
       </SessionProvider>
-    </ThemeProvider>
+    </ThemeProvider></LanguageProvider>
   </StrictMode>,
 );

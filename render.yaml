@@ -9,7 +9,7 @@ services:
     runtime: node
     region: ohio
     plan: 0.5c-512mb
-    buildCommand: npm ci && npm run build:full
+    buildCommand: npm ci --include=dev && npm run build:full
     startCommand: node dist/index.js
     healthCheckPath: /api/health
     autoDeployTrigger: commit

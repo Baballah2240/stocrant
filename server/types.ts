@@ -87,6 +87,8 @@ export const STORE_STATUSES: StoreStatus[] = ["open", "open-limited", "closed"];
 
 /** Action-required notification emitted by the backend. */
 export type NotificationType =
+  | "registration_request"
+  | "message"
   | "overdue_work"
   | "low_stock"
   | "pending_approval"
@@ -97,6 +99,9 @@ export type NotificationType =
 export type NotificationSeverity = "info" | "warning" | "critical";
 
 export interface Notification {
+  response?: string;
+  senderId?: string;
+  decision?: "approved" | "rejected";
   id: string;
   /** Owner of the alert; null for system-level/unattributed events. */
   userId: string | null;

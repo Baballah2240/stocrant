@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import MobileIcon, { type MobileIconName } from "./MobileIcon";
 
 const details: Record<MobileIconName, string[]> = {
+  moon: [], sun: [],
   companies: ["Company profiles", "Locations and activity", "Company-specific records"],
   people: ["Employee profiles and positions", "Daily check-in and check-out", "Leave requests for admin review"],
   work: ["Assigned tasks and deadlines", "Progress and activity updates", "Views for your permitted work"],

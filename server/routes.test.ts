@@ -768,3 +768,59 @@ describe("hardened authentication and scoping", () => {
 });
 
 });
+
+describe("registration approval and notification replies", () => {
+  it("restricts pending accounts, protects requests, and delivers manager decisions", async () => {
+    resetFailures();
+    const post = (path: string, body: unknown, cookie?: string) => request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, cookie);
+    const ownerLogin = await post("/auth/login", { email: "owner@example.test", password: "correct-horse-battery-staple" });
+    const ownerCookie = cookieFrom(ownerLogin);
+    const email = `new-${Date.now()}@example.test`;
+    const credentials = { name: "Pending Applicant", email, password: "registration-test-password" };
+    assert.equal((await post("/auth/register", credentials)).status, 201);
+    const stored = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === email)!;
+    assert.equal(stored.status, "pending");
+    assert.match(String(stored.passwordHash), /^scrypt\$/);
+    assert.equal(stored.password, undefined);
+    const login = await post("/auth/login", { email, password: credentials.password });
+    const applicantCookie = cookieFrom(login);
+    assert.equal((await request("/workspace/overview", {}, applicantCookie)).status, 403);
+    assert.equal((await request("/collections/employees", {}, applicantCookie)).status, 403);
+    const notices = await json<{ items: Notification[] }>(await request("/notifications", {}, ownerCookie));
+    const registration = notices.items.find(item => item.type === "registration_request" && item.target === stored.id)!;
+    assert.ok(registration);
+    assert.equal((await request(`/notifications/${registration.id}`, {}, applicantCookie)).status, 404);
+    assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "approve" }, applicantCookie)).status, 403);
+    assert.equal((await request(`/notifications/${registration.id}`, { method: "DELETE" }, applicantCookie)).status, 404);
+    const detail = await json<{ details: Record<string, unknown>; canDecide: boolean }>(await request(`/notifications/${registration.id}`, {}, ownerCookie));
+    assert.equal(detail.canDecide, true);
+    assert.equal(detail.details.email, email);
+    assert.equal(detail.details.passwordHash, undefined);
+    assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "comment", comment: "Please confirm your department." }, ownerCookie)).status, 200);
+    let inbox = await json<{ items: Notification[] }>(await request("/notifications", {}, applicantCookie));
+    assert.ok(inbox.items.some(item => item.message.includes("Please confirm your department.")));
+    assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "approve", comment: "Welcome aboard." }, ownerCookie)).status, 200);
+    assert.equal((getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.id === stored.id)?.status, "active");
+    assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "reject" }, ownerCookie)).status, 409);
+    inbox = await json<{ items: Notification[] }>(await request("/notifications", {}, applicantCookie));
+    assert.ok(inbox.items.some(item => item.message.includes("Welcome aboard.")));
+    const reply = inbox.items.find(item => item.message.includes("Welcome aboard."))!;
+    assert.equal((await request(`/notifications/${reply.id}`, { method: "DELETE" }, applicantCookie)).status, 200);
+    const afterDelete = await json<{ items: Notification[] }>(await request("/notifications", {}, applicantCookie));
+    assert.ok(!afterDelete.items.some(item => item.id === reply.id));
+  });
+  it("keeps rejected applicants limited to their inbox and status", async () => {
+    resetFailures();
+    const post = (path: string, body: unknown, cookie?: string) => request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, cookie);
+    const ownerCookie = cookieFrom(await post("/auth/login", { email: "owner@example.test", password: "correct-horse-battery-staple" }));
+    const email = `reject-${Date.now()}@example.test`;
+    await post("/auth/register", { name: "Rejected Applicant", email, password: "registration-test-password" });
+    const account = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === email)!;
+    const notices = await json<{ items: Notification[] }>(await request("/notifications", {}, ownerCookie));
+    const notification = notices.items.find(item => item.type === "registration_request" && item.target === account.id)!;
+    assert.equal((await post(`/notifications/${notification.id}/respond`, { action: "reject", comment: "Contact HR for details." }, ownerCookie)).status, 200);
+    const cookie = cookieFrom(await post("/auth/login", { email, password: "registration-test-password" }));
+    assert.equal((await request("/workspace/overview", {}, cookie)).status, 403);
+    assert.equal((await request("/notifications", {}, cookie)).status, 200);
+  });
+});

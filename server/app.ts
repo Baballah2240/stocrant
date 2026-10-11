@@ -78,6 +78,10 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/public", publicRouter);
   app.use("/api", requireAuth);
+  app.use("/api", (req, res, next) => {
+    if (req.auth?.accountStatus && req.auth.accountStatus !== "active" && !req.path.startsWith("/notifications")) return res.status(403).json({ error: "Your registration requires Main Manager approval." });
+    next();
+  });
   app.use("/api/stores", storesRouter);
   app.use("/api/zones", zonesRouter);
   app.use("/api/people", peopleRouter);

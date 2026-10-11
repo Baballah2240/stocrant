@@ -11,6 +11,7 @@ import EntityForm from "./components/EntityForm";
 import ModuleOverview from "./components/ModuleOverview";
 import AboutPage from "./components/AboutPage";
 import AuthPage from "./components/AuthPage";
+import RegistrationStatus from "./components/RegistrationStatus";
 import ResponsiveHome from "./components/ResponsiveHome";
 import MobilePeople from "./components/MobilePeople";
 import MobileMore from "./components/MobileMore";
@@ -77,5 +78,6 @@ export default function App() {
   if (window.location.pathname === "/welcome" || (!loading && !user && window.location.pathname === "/" && !isNativeApp())) return <PublicWebsite />;
   if (loading) return <main className="auth-page"><p className="hint">Loading secure workspace…</p></main>;
   if (!user) return <AuthPage />;
+  if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;
   return <MetaProvider><RouterProvider router={router} /></MetaProvider>;
 }

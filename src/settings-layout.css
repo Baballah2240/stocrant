@@ -1,0 +1,38 @@
+.settings-page { gap: 20px; }
+.settings-page .page-head { margin-bottom: 0; align-items: center; }
+.settings-page .page-head .hint { max-width: 680px; line-height: 1.6; }
+.settings-page .settings-shell { padding: 0; overflow: hidden; margin-top: 0; border: 1px solid var(--ios-separator); }
+.settings-navigation { display: flex; gap: 6px; padding: 12px; overflow-x: auto; background: color-mix(in srgb, var(--ios-bg) 65%, var(--ios-cell)); border-bottom: 1px solid var(--ios-separator); }
+.settings-navigation button { flex-shrink: 0; min-height: 44px; padding: 11px 14px; background: transparent; color: var(--ios-label-2); border: 1px solid transparent; border-radius: 12px; text-align: start; font-size: 13px; }
+.settings-navigation button.active { background: var(--brand-blue-soft); color: var(--brand-link); border-color: var(--ios-separator); font-weight: 700; }
+.settings-content { padding: clamp(18px, 3vw, 30px); min-width: 0; }
+.settings-content-heading { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid var(--ios-separator); }
+.settings-content-heading .eyebrow { margin: 0 0 6px; }
+.settings-content-heading h2 { margin: 0 0 8px; font-size: 24px; }
+.settings-content-heading .hint { margin: 0; max-width: 640px; line-height: 1.65; }
+.settings-content .account-list { gap: 16px; }
+.settings-content .account-summary { border-radius: 15px; padding: 18px; gap: 16px; }
+.settings-content .account-summary .cell-sub { margin-top: 5px; }
+.settings-content .account-editor { padding: 22px; margin-top: 8px; background: var(--ios-bg); }
+.settings-content .form-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 18px 22px; }
+.settings-content .form-field { gap: 7px; }
+.settings-content input:not([type=checkbox]):not([type=radio]), .settings-content select, .settings-content textarea { width: 100%; min-height: 44px; }
+.settings-content .check-field { align-self: end; min-height: 44px; display: flex; align-items: center; gap: 10px; line-height: 1.5; }
+.settings-content .inline-form { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 18px; margin-bottom: 22px; border-radius: 15px; background: var(--ios-bg); }
+.settings-content .inline-form > .form-field { flex: 1 1 200px; }
+.settings-content .hr-link-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 14px; margin-bottom: 24px; }
+.settings-content .hr-record-link { min-height: 106px; padding: 18px; border: 1px solid var(--ios-separator); background: var(--ios-bg); }
+.settings-content .hr-record-link strong { display: block; font-size: 15px; margin-bottom: 6px; }
+.settings-content .hr-record-link span { display: block; color: var(--ios-label-2); font-size: 13px; line-height: 1.6; }
+.settings-content .approval-row { gap: 18px; padding: 18px 0; flex-wrap: wrap; }
+.settings-content .approval-row > div:first-child { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.settings-content .panel { max-width: 680px; }
+.settings-content .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.settings-page .access-override-note { padding: 14px 18px; border: 1px solid var(--stocrant-green-line); border-radius: 14px; background: var(--brand-green-soft); color: var(--stocrant-green-strong); font-size: 13px; line-height: 1.7; margin: 0; }
+@media (min-width: 1000px) {
+  .ios-app:not(.mobile-layout) .settings-shell { display: grid; grid-template-columns: 210px minmax(0, 1fr); }
+  .ios-app:not(.mobile-layout) .settings-navigation { display: flex; flex-direction: column; border-bottom: 0; border-inline-end: 1px solid var(--ios-separator); padding: 18px 12px; gap: 8px; overflow: visible; }
+  .ios-app:not(.mobile-layout) .settings-navigation button { width: 100%; }
+}
+@media (hover: hover) { .settings-navigation button:hover:not(.active) { background: var(--ios-fill); color: var(--ios-label); } .settings-content .hr-record-link:hover { border-color: var(--brand-link); background: var(--brand-blue-soft); } }
+html[data-theme="dark"] .ios-app .settings-navigation button.active { background: #304d5c; color: #d6efff; border-color: #456473; }

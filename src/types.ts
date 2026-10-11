@@ -127,6 +127,7 @@ export interface ModuleInfo {
 }
 
 export interface AuthUser {
+  accountStatus?: string;
   position?: string;
   description?: string;
   bio?: string;
@@ -155,6 +156,8 @@ export interface MutationResult {
 
 /** Action-required notifications surfaced to the authenticated user in the UI. */
 export type NotificationType =
+  | "registration_request"
+  | "message"
   | "overdue_work"
   | "low_stock"
   | "pending_approval"
@@ -165,6 +168,9 @@ export type NotificationType =
 export type NotificationSeverity = "info" | "warning" | "critical";
 
 export interface Notification {
+  response?: string;
+  senderId?: string;
+  decision?: "approved" | "rejected";
   id: string;
   userId: string | null;
   user: string;

@@ -9,6 +9,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const sessionSecret = process.env.STOCRANT_SESSION_SECRET || randomBytes(32).toString("hex");
 
 export interface AuthenticatedUser {
+  accountStatus?: string;
   id: string;
   email: string;
   name: string;
@@ -107,6 +108,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
   const role = (getCollection("accessRoles") as Array<Record<string, unknown>>).find((candidate) => candidate.id === account.roleId);
   const employee = (getCollection("employees") as Record<string, unknown>[]).find((employee) => employee.id === account.employeeId || String(employee.email ?? "").toLowerCase() === account.email.toLowerCase());
   return {
+    accountStatus: account.status,
     id: account.id,
     email: account.email,
     name: account.name,
@@ -120,7 +122,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     organizationIds: Array.isArray(account.organizationIds) ? account.organizationIds.filter((id): id is string => typeof id === "string") : [],
     locationIds: Array.isArray(account.locationIds) ? account.locationIds.filter((id): id is string => typeof id === "string") : [],
     ownRecordsOnly: account.ownRecordsOnly === true,
-    permissions: account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && !["*", "access.*", "audit.*"].includes(permission) && !permission.startsWith("access.") && !permission.startsWith("audit.")),
+    permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && !["*", "access.*", "audit.*"].includes(permission) && !permission.startsWith("access.") && !permission.startsWith("audit.")),
   };
 }
 
@@ -133,7 +135,7 @@ function sessionRows() {
 }
 
 function activeAccountById(id: string) {
-  return accountRows().find((account) => account.id === id && account.status === "active");
+  return accountRows().find((account) => account.id === id && ["active", "pending", "rejected"].includes(account.status));
 }
 
 export function authenticatedUser(req: Request): AuthenticatedUser | undefined {

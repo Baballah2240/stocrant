@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "../session-context";
 import { api } from "../api";
-import { NavLink } from "react-router-dom";
 import { relativeLabel as formatDate } from "../util";
 import type { Notification, NotificationType } from "../types";
+import type { ActionFeedback } from "../action-feedback";
+import { useLanguage } from "../language-context";
+
+type RecentActivity = { id: string; message: string; createdAt: string; read: boolean };
 
 interface NotificationBellProps {
   className?: string;
 }
 
 function typeLabel(type: NotificationType): string {
+  if (type === "registration_request") return "Registration";
+  if (type === "message") return "Message";
   if (type === "leave_request") return "Leave request";
   if (type === "password_reset") return "Password reset";
   if (type === "overdue_work") return "Overdue";
@@ -19,6 +24,8 @@ function typeLabel(type: NotificationType): string {
 }
 
 export function NotificationBell({ className = "" }: NotificationBellProps) {
+  const { language, t } = useLanguage();
+  const popupRef = useRef<HTMLDialogElement>(null);
   const { user } = useSession();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -26,7 +33,62 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activity, setActivity] = useState<RecentActivity[]>([]);
+  const activityKey = user ? `stocrant.activity.${user.id}` : "";
+  const totalUnread = unreadCount + activity.filter(item => !item.read).length;
+  function updateActivity(update: (items: RecentActivity[]) => RecentActivity[]) {
+    setActivity(items => {
+      const next = update(items);
+      try { if (activityKey) localStorage.setItem(activityKey, JSON.stringify(next)); } catch { /* Activity still works for this session. */ }
+      return next;
+    });
+  }
+  useEffect(() => {
+    let saved: RecentActivity[] = [];
+    try {
+      const value: unknown = JSON.parse(localStorage.getItem(activityKey) || "[]");
+      if (Array.isArray(value)) saved = value.filter(item => item && typeof item.id === "string" && typeof item.message === "string" && typeof item.createdAt === "string" && typeof item.read === "boolean").slice(0, 50);
+    } catch { /* Ignore unavailable or invalid device storage. */ }
+    setActivity(saved);
+    if (!activityKey) return;
+    const record = (event: Event) => {
+      const feedback = (event as CustomEvent<ActionFeedback>).detail;
+      if (!feedback || feedback.kind !== "success" || /^(Signed |Notification marked|All notifications marked)/.test(feedback.message)) return;
+      updateActivity(items => [{ id: crypto.randomUUID(), message: feedback.message, createdAt: new Date().toISOString(), read: false }, ...items].slice(0, 50));
+    };
+    window.addEventListener("stocrant:action", record);
+    return () => window.removeEventListener("stocrant:action", record);
+  }, [activityKey]);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Awaited<ReturnType<typeof api.notifications.detail>> | null>(null);
+  const [comment, setComment] = useState("");
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  async function showDetails(id: string) {
+    setDetailBusy(true); setDetailError(""); setComment("");
+    try { setSelected(await api.notifications.detail(id)); await markAsRead(id); }
+    catch (err) { setDetailError(err instanceof Error ? err.message : "Could not load notification."); }
+    finally { setDetailBusy(false); }
+  }
+  async function removeNotification(id: string) {
+    if (activity.some(item => item.id === id)) { updateActivity(items => items.filter(item => item.id !== id)); setSelected(null); return; }
+    setDetailBusy(true); setDetailError("");
+    try { await api.notifications.remove(id); setSelected(null); setNotifications(items => items.filter(item => item.id !== id)); setRefreshKey(value => value + 1); }
+    catch (err) { setDetailError(err instanceof Error ? err.message : "Could not delete notification."); }
+    finally { setDetailBusy(false); }
+  }
+  async function respond(action: "approve" | "reject" | "comment") {
+    if (!selected) return;
+    setDetailBusy(true); setDetailError("");
+    try { await api.notifications.respond(selected.item.id, action, comment); setSelected(await api.notifications.detail(selected.item.id)); setComment(""); setRefreshKey(value => value + 1); }
+    catch (err) { setDetailError(err instanceof Error ? err.message : "Could not send response."); }
+    finally { setDetailBusy(false); }
+  }
+  function showActivity(item: RecentActivity) {
+    setDetailError("");
+    setSelected({ item: { ...item, userId: user?.id ?? null, user: user?.name ?? "", type: "message", severity: "info", target: null }, details: {}, canDecide: false, canReply: false });
+    updateActivity(items => items.map(current => current.id === item.id ? { ...current, read: true } : current));
+  }
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,6 +117,7 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
 
   useEffect(() => {
     if (!open) return;
+    popupRef.current?.showModal();
     const handleMouseDown = (event: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
         setOpen(false);
@@ -94,10 +157,10 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
       <button
         type="button"
         className="notification-trigger"
-        aria-label={`Notifications, ${unreadCount} unread`}
+        aria-label={`Notifications, ${totalUnread} unread`}
         aria-expanded={open}
         aria-controls="notifications-panel"
-        onClick={() => { setOpen((value) => !value); setRefreshKey((value) => value + 1); }}
+        onClick={() => { setSelected(null); setDetailError(""); setOpen((value) => !value); setRefreshKey((value) => value + 1); }}
       >
         <svg
           viewBox="0 0 24 24"
@@ -111,32 +174,43 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
-        {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+        {totalUnread > 0 && <span className="notification-badge">{totalUnread > 99 ? "99+" : totalUnread}</span>}
       </button>
 
       {open && (
-        <div
+        <dialog ref={popupRef} onCancel={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false); }}
           className="notification-panel"
           id="notifications-panel"
           role="dialog"
           aria-label="Notifications"
         >
           <div className="notification-panel__head">
-            <h2 className="notification-panel__title">Notifications <small>{unreadCount} unread</small></h2><button type="button" aria-label="Close notifications" onClick={() => setOpen(false)}>Close</button>
+            <h2 className="notification-panel__title">{t("Notifications")} <small>{totalUnread} {language === "ar" ? "غير مقروء" : "unread"}</small></h2><button type="button" aria-label="Close notifications" onClick={() => setOpen(false)}>{t("Close")}</button>
             <button
               type="button"
               className="button-tiny button-ghost"
-              disabled={busy || !unreadCount} onClick={markAllRead}
+              disabled={busy || !totalUnread} onClick={() => { updateActivity(items => items.map(item => ({ ...item, read: true }))); if (unreadCount) void markAllRead(); }}
             >
               Mark all read
             </button>
           </div>
 
-          <div className="notification-filters"><button type="button" aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>All</button><button type="button" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>Unread</button><button type="button" onClick={() => setRefreshKey((value) => value + 1)}>Refresh</button></div>
+          <div className="notification-filters"><button type="button" aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>{t("All")}</button><button type="button" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>{t("Unread")}</button><button type="button" onClick={() => setRefreshKey((value) => value + 1)}>{t("Refresh")}</button></div>
+          {detailError && <p className="error" role="alert">{detailError}</p>}
+          {detailBusy && <p className="hint" role="status">{language === "ar" ? "جارٍ التحميل…" : "Please wait…"}</p>}
+          {selected ? <section className="notification-detail">
+            <button type="button" disabled={detailBusy} onClick={() => setSelected(null)}>{language === "ar" ? "العودة للإشعارات" : "Back to notifications"}</button>
+            <h3>{t(typeLabel(selected.item.type))}</h3><p className="notification-detail-message">{selected.item.message}</p><p className="notification-list__meta">{formatDate(selected.item.createdAt)}</p>
+            <dl>{Object.entries(selected.details).map(([field, value]) => <div key={field}><dt>{t(field.charAt(0).toUpperCase() + field.slice(1))}</dt><dd>{String(value)}</dd></div>)}</dl>
+            {selected.item.response && <p className="notification-response">{selected.item.response}</p>}
+            {selected.canReply && <div className="notification-reply"><label className="form-field"><span>{language === "ar" ? "تعليق للمرسل" : "Comment to sender"}</span><textarea rows={3} maxLength={2000} disabled={detailBusy} value={comment} onChange={event => setComment(event.target.value)} /></label><div className="inline-actions">{selected.canDecide && <><button className="primary" disabled={detailBusy} onClick={() => void respond("approve")}>{language === "ar" ? "موافقة" : "Approve"}</button><button className="danger" disabled={detailBusy} onClick={() => void respond("reject")}>{language === "ar" ? "رفض" : "Reject"}</button></>}<button disabled={detailBusy || !comment.trim()} onClick={() => void respond("comment")}>{language === "ar" ? "إرسال تعليق" : "Send comment"}</button></div></div>}
+            <button className="notification-delete" disabled={detailBusy} onClick={() => void removeNotification(selected.item.id)}>{language === "ar" ? "حذف الإشعار" : "Delete notification"}</button>
+          </section> : <>
+          {activity.filter(item => !unreadOnly || !item.read).length > 0 && <section className="notification-activity"><h3>{t("My recent changes")}</h3><p className="hint">{t("Saved on this device")}</p><ul className="notification-list">{activity.filter(item => !unreadOnly || !item.read).map(item => <li key={item.id} className={`notification-list__item notification-list__item--${item.read ? "read" : "unread"}`}><div className="notification-list__main"><span className="notification-list__type">{t("Activity")}</span><button className="notification-message-button" onClick={() => showActivity(item)}>{t(item.message)}</button><p className="notification-list__meta">{formatDate(item.createdAt)}</p></div>{!item.read && <div className="notification-list__actions"><button type="button" onClick={() => updateActivity(items => items.map(current => current.id === item.id ? { ...current, read: true } : current))}>{t("Mark read")}</button></div>}</li>)}</ul></section>}
           {error ? (
             <p className="notification-panel__empty">{error}</p>
           ) : notifications.filter((notification) => !unreadOnly || !notification.read).length === 0 ? (
-            <p className="notification-panel__empty">No notifications</p>
+            <p className="notification-panel__empty">{activity.some(item => !unreadOnly || !item.read) ? "No workspace alerts" : "No notifications"}</p>
           ) : (
             <ul className="notification-list">
               {[...notifications].filter((notification) => !unreadOnly || !notification.read).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((notification) => (
@@ -149,22 +223,17 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
                   <div className="notification-list__main">
                     <span
                       className="notification-list__type"
-                      style={{
-                        backgroundColor: notification.read
-                          ? "var(--color-neutral-soft)"
-                          : "var(--color-primary)",
-                        color: notification.read ? "var(--color-neutral-muted)" : "#fff",
-                      }}
                     >
-                      {typeLabel(notification.type)}
+                      {t(typeLabel(notification.type))}
                     </span>
-                    <p className="notification-list__message">{notification.message}</p>
+                    <button className="notification-message-button" disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{notification.message}</button>
                     <p className="notification-list__meta">
                       {formatDate(notification.createdAt)}
                     </p>
                   </div>
                   <div className="notification-list__actions">
-                    <NavLink to={notification.type === "leave_request" ? `/hr/leaveRequests/${encodeURIComponent(notification.target ?? "")}` : notification.type === "password_reset" ? `/admin?user=${encodeURIComponent(notification.target ?? "")}` : notification.type === "low_stock" ? "/inventory" : notification.type === "overdue_work" ? "/operations?view=overdue" : user?.roleId === "role-main-manager" ? "/admin" : "/operations"} onClick={() => setOpen(false)}>Open</NavLink>
+                    <button disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{language === "ar" ? "التفاصيل" : "Details"}</button>
+                    <button disabled={detailBusy} onClick={() => void removeNotification(notification.id)}>{language === "ar" ? "حذف" : "Delete"}</button>
                     {!notification.read && <button
                       disabled={busy}
                       type="button"
@@ -179,7 +248,8 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
               ))}
             </ul>
           )}
-        </div>
+          </>}
+        </dialog>
       )}
     </div>
   );

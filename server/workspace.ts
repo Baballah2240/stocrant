@@ -233,6 +233,9 @@ function fireMutationAlerts(
 }
 
 function notifyPendingApproval(user: AuthenticatedUser, request: ApprovalRequest): void {
+  for (const manager of rows("accessUsers").filter(row => row.roleId === "role-main-manager" && row.status === "active" && row.id !== user.id)) {
+    createNotification({ userId: manager.id, user: String(manager.name), type: "pending_approval", severity: "info", message: `${user.name} requested ${request.action} in ${request.section}.`, target: request.id });
+  }
   createNotification({
     userId: request.requestedBy,
     user: user.name,
