@@ -23,7 +23,12 @@ function typeLabel(type: NotificationType): string {
   return "Access";
 }
 
-export function NotificationBell({ className = "" }: NotificationBellProps) {
+export function NotificationBell(props: NotificationBellProps) {
+  const { user } = useSession();
+  return <UserNotifications key={user?.id ?? "signed-out"} {...props} />;
+}
+
+function UserNotifications({ className = "" }: NotificationBellProps) {
   const { language, t } = useLanguage();
   const popupRef = useRef<HTMLDialogElement>(null);
   const { user } = useSession();

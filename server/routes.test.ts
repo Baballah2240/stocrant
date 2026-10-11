@@ -339,6 +339,12 @@ describe("STOCRANT secure workspace API", () => {
       body: JSON.stringify({ decision: "approve" }),
     });
     assert.equal(approval.status, 200);
+    const requesterInbox = await json<{ items: Notification[] }>(await request("/notifications", {}, managerCookie));
+    const decision = requesterInbox.items.find(item => item.type === "message" && item.target === pending.request!.id);
+    assert.ok(decision);
+    assert.match(decision.message, /approved/);
+    const ownerInbox = await json<{ items: Notification[] }>(await request("/notifications", {}, mainCookie));
+    assert.ok(!ownerInbox.items.some(item => item.id === decision.id), "requester decisions stay in their own inbox");
 
     const afterApproval = await request("/workspace/work?view=all", {}, managerCookie);
     const afterItems = await json<{ items: Array<{ title: string }> }>(afterApproval);

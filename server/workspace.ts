@@ -269,6 +269,8 @@ export function approveRequest(user: AuthenticatedUser, requestId: string, appro
   data.collections.approvalRequests = list.map((row) => row.id === requestId ? updated : row);
   saveStore(data);
   audit(user, approve ? "approval.approved" : "approval.rejected", { approvalRequestId: requestId, section: request.section, action: request.action });
+  const requester = rows("accessUsers").find(row => row.id === request.requestedBy);
+  if (requester) createNotification({ userId: requester.id, user: String(requester.name), type: "message", severity: "info", message: `${user.name} ${approve ? "approved" : "rejected"} your ${request.action} request in ${request.section}.${note ? `\n${note}` : ""}`, target: request.id });
   return updated;
 }
 

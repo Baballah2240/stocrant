@@ -147,7 +147,7 @@ notificationsRouter.post("/:id/respond", (req, res) => {
     } catch (error) { return res.status(409).json({ error: error instanceof Error ? error.message : "Could not process the request." }); }
   } else audit(user, "notification.comment", { targetId: target.row.id, comment });
   const response = `${user.name}: ${action === "comment" ? "Comment" : action === "approve" ? "Approved" : "Rejected"}${comment ? ` — ${comment}` : ""}`;
-  createNotification({ userId: String(recipient.id), user: String(recipient.name), type: "message", severity: "info", message: `${item.message}\n${response}`, target: item.id });
+  if (target.collection !== "approvalRequests" || action === "comment") createNotification({ userId: String(recipient.id), user: String(recipient.name), type: "message", severity: "info", message: `${item.message}\n${response}`, target: item.id });
   saveNotificationStore(getNotificationStore().map(current => current.id === item.id ? { ...current, response, ...(action === "comment" ? {} : { decision: action === "approve" ? "approved" as const : "rejected" as const }), read: true } : current));
   res.json({ success: true });
 });
