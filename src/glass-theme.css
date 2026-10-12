@@ -70,8 +70,8 @@ html[data-theme="dark"] {
 .ios-app .account-summary { flex-wrap: wrap; gap: 12px; }
 .ios-app .account-summary > div { min-width: 0; overflow-wrap: anywhere; }
 .ios-app .account-list { display: grid; gap: 14px; }
-html[data-theme="dark"] .ios-app button:not(.primary):not(.danger):not(.notification-trigger):not(.profile-avatar),
-html[data-theme="dark"] .profile-panel button:not(.primary):not(.profile-avatar) { background: #253b46; color: #e8f4f7; border-color: #3c5562; }
+html[data-theme="dark"] .ios-app button:where(:not(.primary):not(.danger):not(.notification-trigger):not(.profile-avatar)),
+html[data-theme="dark"] .profile-panel button:where(:not(.primary):not(.profile-avatar)) { background: #253b46; color: #e8f4f7; border-color: #3c5562; }
 html[data-theme="dark"] .ios-app button.primary,
 html[data-theme="dark"] .profile-panel button.primary,
 html[data-theme="dark"] .ios-app .primary-link { background: #438a77; border-color: #559e8c; color: #fff; }
