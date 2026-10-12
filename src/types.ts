@@ -100,6 +100,7 @@ export type FieldType =
   | "password";
 
 export interface FieldSpec {
+  readOnly?: boolean;
   key: string;
   label: string;
   type: FieldType;

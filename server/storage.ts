@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import type { Person, Store, Zone } from "./types.js";
 import { SEED_COLLECTIONS } from "./seed-collections.js";
+import { newProductAwb } from "./product-awb.js";
 
 const DEFAULT_COMPANY_ID = "company-primary";
 if (process.env.NODE_TEST_CONTEXT && !process.env.STOCRANT_DATA_DIR?.includes("stocrant-test-data-")) {
@@ -223,6 +224,9 @@ function mapLegacyInventory(item: Row): Row {
  */
 function migrateSecureWorkspace(data: StoreData): boolean {
   let changed = false;
+  const products = [...collectionRows(data, "products"), ...collectionRows(data, "inventoryItems")];
+  const usedAwbs = new Set(products.map(row => String(row.awb ?? "")));
+  for (const product of products) if (!product.awb) { product.awb = newProductAwb(usedAwbs); changed = true; }
   const required = [
     "accessRoles", "accessUsers", "sessions", "approvalRules", "approvalRequests", "auditLog",
     "locationUpdates", "workItems", "workActivity", "inventoryItems", "inventoryMovements",

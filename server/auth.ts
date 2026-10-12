@@ -107,6 +107,8 @@ export async function verifyPassword(password: string, stored: string): Promise<
 export function publicUser(account: AccountRow): AuthenticatedUser {
   const role = (getCollection("accessRoles") as Array<Record<string, unknown>>).find((candidate) => candidate.id === account.roleId);
   const employee = (getCollection("employees") as Record<string, unknown>[]).find((employee) => employee.id === account.employeeId || String(employee.email ?? "").toLowerCase() === account.email.toLowerCase());
+  const assigned = Array.isArray(account.organizationIds) && account.organizationIds.length ? account.organizationIds : employee?.organizationId ? [employee.organizationId] : [];
+  const validCompanies = new Set((getCollection("companies") as Record<string, unknown>[]).map(company => company.id));
   return {
     accountStatus: account.status,
     id: account.id,
@@ -119,7 +121,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     bio: typeof account.bio === "string" ? account.bio : "",
     roleId: account.roleId,
     employeeId: typeof account.employeeId === "string" ? account.employeeId : undefined,
-    organizationIds: Array.isArray(account.organizationIds) ? account.organizationIds.filter((id): id is string => typeof id === "string") : [],
+    organizationIds: assigned.filter((id): id is string => typeof id === "string" && validCompanies.has(id)),
     locationIds: Array.isArray(account.locationIds) ? account.locationIds.filter((id): id is string => typeof id === "string") : [],
     ownRecordsOnly: account.ownRecordsOnly === true,
     permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && !["*", "access.*", "audit.*"].includes(permission) && !permission.startsWith("access.") && !permission.startsWith("audit.")),

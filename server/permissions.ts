@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { AuthenticatedUser } from "./auth.js";
-import { getCollection } from "./storage.js";
+import { getCollection, getStore } from "./storage.js";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve" | "export";
 export type WorkspaceSection = "organizations" | "locations" | "hr" | "operations" | "inventory" | "finance" | "access" | "approvals" | "audit";
@@ -68,12 +68,18 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   const role = roleFor(user);
   const roleOrganizations = Array.isArray(role?.organizationIds) ? role.organizationIds.filter((id): id is string => typeof id === "string") : [];
   const roleLocations = Array.isArray(role?.locationIds) ? role.locationIds.filter((id): id is string => typeof id === "string") : [];
-  const organizationIds = [...new Set([...roleOrganizations, ...user.organizationIds])];
-  const locationIds = [...new Set([...roleLocations, ...user.locationIds])];
-  const organizationId = row.organizationId ?? row.companyId;
+  const organizationIds = user.organizationIds;
+  if (organizationIds.length !== 1) return false;
+  const locationIds = user.locationIds.length ? user.locationIds : roleLocations;
   const locationId = row.locationId ?? row.storeId;
-  if (organizationIds.length && (!organizationId || !organizationIds.includes(String(organizationId)))) return false;
+  const location = getStore().stores.find(item => item.id === locationId || item.id === row.id);
+  const employee = row.employeeId ? (getCollection("employees") as Record<string, unknown>[]).find(item => item.id === row.employeeId) : undefined;
+  const companyRow = (getCollection("companies") as Record<string, unknown>[]).find(item => item.id === row.id);
+  const organizationId = row.organizationId ?? row.companyId ?? inventoryItem?.organizationId ?? location?.companyId ?? employee?.organizationId ?? companyRow?.id;
+  if (!organizationId || !organizationIds.includes(String(organizationId))) return false;
+  if (roleOrganizations.length && !roleOrganizations.includes(String(organizationId))) return false;
   if (locationIds.length && (!locationId || !locationIds.includes(String(locationId)))) return false;
+  if (companyRow) return true;
   if (Array.isArray(inventoryItem?.allowedEmployeeIds) && inventoryItem.allowedEmployeeIds.includes(user.employeeId ?? "")) return true;
   if (!(user.ownRecordsOnly || role?.ownRecordsOnly === true)) return true;
   const candidates = [row.employeeId, row.assigneeId, row.responsibleEmployeeId, row.assignee, row.email, row.employee, row.createdBy, row.createdById]

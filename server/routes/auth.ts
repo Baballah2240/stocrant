@@ -83,19 +83,24 @@ router.post("/forgot-password", (req, res) => {
   res.json({ ok: true, message: "If this email has an active account, the main manager has been notified. Contact them to complete your password reset." });
 });
 
+router.get("/companies", (_req, res) => {
+  res.json({ companies: (getCollection("companies") as Record<string, unknown>[]).filter(company => company.status !== "inactive").map(company => ({ id: String(company.id), name: String(company.name) })) });
+});
 router.post("/register", async (req, res) => {
-  const parsed = credentialsSchema.extend({ name: z.string().trim().min(2).max(120) }).strict().safeParse(req.body);
+  const parsed = credentialsSchema.extend({ name: z.string().trim().min(2).max(120), organizationId: z.string().trim().min(1) }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(issue => issue.message).join("; ") });
   const key = `registration:${req.ip ?? "unknown"}`;
   if (blockedFor(key)) return res.status(429).json({ error: "Too many registration requests. Try again later." });
   recordFailure(key);
   const managers = accounts().filter(account => account.status === "active" && account.roleId === "role-main-manager");
   if (!managers.length) return res.status(409).json({ error: "The workspace must be set up by its Main Manager first." });
+  const company = (getCollection("companies") as Record<string, unknown>[]).find(company => company.id === parsed.data.organizationId && company.status !== "inactive");
+  if (!company) return res.status(400).json({ error: "Choose an existing company." });
   const message = "Your request has been received. Sign in to check your approval status and messages.";
   if (accountByEmail(parsed.data.email)) return res.json({ ok: true, message });
   const passwordHash = await hashPassword(parsed.data.password);
   if (accountByEmail(parsed.data.email)) return res.json({ ok: true, message });
-  const account: Account = { id: nextCollectionId("accessUsers"), name: parsed.data.name, email: parsed.data.email.toLowerCase(), passwordHash, roleId: "role-employee", status: "pending", permissions: [], ownRecordsOnly: true, organizationIds: [], locationIds: [], dataClassification: "company", createdAt: new Date().toISOString() };
+  const account: Account = { id: nextCollectionId("accessUsers"), name: parsed.data.name, email: parsed.data.email.toLowerCase(), passwordHash, roleId: "role-employee", status: "pending", permissions: [], ownRecordsOnly: true, organizationIds: [company.id], locationIds: [], dataClassification: "company", createdAt: new Date().toISOString() };
   const data = getStore(); data.collections.accessUsers = [...accounts(), account]; saveStore(data);
   for (const manager of managers) createNotification({ userId: manager.id, user: manager.name, type: "registration_request", severity: "info", message: `${account.name} (${account.email}) requested an account.`, target: account.id });
   createNotification({ userId: account.id, user: account.name, type: "message", severity: "info", message: "Your registration is awaiting Main Manager approval. You cannot access business records yet.", target: null });

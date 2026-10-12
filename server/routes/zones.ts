@@ -32,6 +32,7 @@ router.post("/", requirePermission("locations", "create"), (req: Request, res: R
   if (requiresApproval("locations", "create")) return res.status(409).json({ error: "A Locations create approval rule is active. Submit this change through the approval-aware workspace flow." });
   const input = parseJson(zoneSchema, req.body, "zone");
   const zone: import("../types.js").Zone = { ...input, id: input.id || nextId("z") };
+  if (!isWithinScope(req.auth!, zone as unknown as Record<string, unknown>)) return res.status(403).json({ error: "Choose a location within your assigned company." });
   const created = upsertZone(zone);
   audit(req.auth, "locations.legacy-zone-created", { targetId: created.id });
   res.status(201).json({ zone: created });
@@ -42,6 +43,7 @@ router.patch("/:id", requirePermission("locations", "edit"), (req: Request, res:
   const existing = getStore().zones.find((z) => z.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing as unknown as Record<string, unknown>)) return res.status(404).json({ error: "Zone not found." });
   const input = parseJson(zoneSchema, req.body, "zone");
+  if (!isWithinScope(req.auth!, { ...existing, ...input } as unknown as Record<string, unknown>)) return res.status(403).json({ error: "The record must stay within your assigned company." });
   const updated = upsertZone({ ...existing, ...input });
   audit(req.auth, "locations.legacy-zone-updated", { targetId: updated.id });
   res.json({ zone: updated });

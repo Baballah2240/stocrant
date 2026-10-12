@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useSession } from "../session-context";
 import { useTheme } from "../theme-context";
@@ -18,6 +18,9 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [organizationId, setOrganizationId] = useState("");
+  useEffect(() => { void api.auth.companies().then(result => setCompanies(result.companies)).catch(() => setCompanies([])); }, []);
   const registering = !setupRequired && mode === "register";
   const forgot = !setupRequired && mode === "forgot";
   function changeMode(next: typeof mode) { setMode(next); setError(""); setNotice(""); setPassword(""); }
@@ -25,7 +28,7 @@ export default function AuthPage() {
     event.preventDefault(); setBusy(true); setError(""); setNotice("");
     try {
       if (setupRequired) await setup({ name, email, password, setupKey });
-      else if (registering) { const result = await api.auth.register({ name, email, password }); setNotice(result.message); setMode("login"); setPassword(""); }
+      else if (registering) { const result = await api.auth.register({ name, email, password, organizationId }); setNotice(result.message); setMode("login"); setPassword(""); }
       else if (forgot) setNotice((await api.auth.forgotPassword(email)).message);
       else await signIn(email, password);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to continue."); }
@@ -41,6 +44,7 @@ export default function AuthPage() {
       <p className="hint">{language === "ar" ? registering ? "يراجع المدير الرئيسي طلبك. سجّل الدخول لمتابعة الحالة والرسائل." : forgot ? "أرسل طلباً إلى المدير الرئيسي." : "ادخل بياناتك للمتابعة." : registering ? "Your Main Manager reviews each request. Sign in afterwards to check your status and messages." : forgot ? "Send a reset request to your Main Manager." : setupRequired ? "Create your first Main Manager account." : "Sign in to your company workspace."}</p>
       {error && <p className="error" role="alert">{error}</p>}{notice && <p className="alert alert--good" role="status">{notice}</p>}
       <form className="form" onSubmit={submit}>
+        {registering && <label className="form-field"><span>{language === "ar" ? "الشركة" : "Company"}</span><select required disabled={busy} value={organizationId} onChange={event => setOrganizationId(event.target.value)}><option value="">{language === "ar" ? "اختر شركتك" : "Choose your company"}</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select>{!companies.length && <small>{language === "ar" ? "يجب أن يضيف المدير الرئيسي شركة أولاً." : "The Main Manager needs to add a company before registration."}</small>}</label>}
         {(setupRequired || registering) && <label className="form-field"><span>{t("Full name")}</span><input required minLength={2} maxLength={120} autoComplete="name" disabled={busy} value={name} onChange={event => setName(event.target.value)} /></label>}
         <label className="form-field"><span>{t("Email")}</span><input required type="email" dir="ltr" autoComplete="email" autoCapitalize="none" spellCheck={false} disabled={busy} value={email} onChange={event => setEmail(event.target.value)} /></label>
         {!forgot && <label className="form-field"><span>{t("Password")}</span><div className="auth-password-field"><input required type={showPassword ? "text" : "password"} autoComplete={setupRequired || registering ? "new-password" : "current-password"} minLength={setupRequired || registering ? 12 : 1} maxLength={256} disabled={busy} value={password} onChange={event => setPassword(event.target.value)} /><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{language === "ar" ? showPassword ? "إخفاء" : "إظهار" : showPassword ? "Hide" : "Show"}</button></div>{(setupRequired || registering) && <small>{language === "ar" ? "استخدم ١٢ حرفاً على الأقل" : "Use at least 12 characters."}</small>}</label>}

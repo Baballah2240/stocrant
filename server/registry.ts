@@ -16,6 +16,7 @@ export type FieldType =
   | "password";
 
 export interface FieldSpec {
+  readOnly?: boolean;
   key: string;
   label: string;
   type: FieldType;
@@ -282,6 +283,8 @@ registry.push(
     collection: "products", label: "Products", singular: "Product",
     module: "stores", permission: "stores.products.read",
     fields: [
+        { key: "awb", label: "AWB number", type: "text", readOnly: true, placeholder: "Generated automatically" },
+        { key: "organizationId", label: "Company", type: "select", required: true },
       { key: "sku", label: "SKU", type: "text", required: true },
       { key: "name", label: "Name", type: "text", required: true },
       { key: "category", label: "Category", type: "text" },
@@ -292,7 +295,7 @@ registry.push(
       { key: "reorderPoint", label: "Reorder point", type: "number", min: 0 },
       { key: "status", label: "Status", type: "select", options: ["active", "discontinued", "out-of-stock"], required: true },
     ],
-    columns: ["sku", "name", "category", "cost", "price", "status"],
+      columns: ["awb", "sku", "name", "category", "cost", "price", "status"],
   },
   {
     collection: "sales", label: "Sales", singular: "Sale",

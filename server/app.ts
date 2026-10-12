@@ -78,6 +78,7 @@ export function createApp() {
   app.use("/api", requireAuth);
   app.use("/api", (req, res, next) => {
     if (req.auth?.accountStatus && req.auth.accountStatus !== "active" && !req.path.startsWith("/notifications")) return res.status(403).json({ error: "Your registration requires Main Manager approval." });
+    if (req.auth && req.auth.roleId !== "role-main-manager" && req.auth.organizationIds.length !== 1 && !req.path.startsWith("/notifications")) return res.status(403).json({ error: "The Main Manager must assign you to one company before you can access business records." });
     next();
   });
   app.use("/api/stores", storesRouter);

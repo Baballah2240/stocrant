@@ -79,5 +79,6 @@ export default function App() {
   if (loading) return <main className="auth-page"><p className="hint">Loading secure workspace…</p></main>;
   if (!user) return <AuthPage />;
   if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;
+  if (user.roleId !== "role-main-manager" && user.organizationIds.length !== 1) return <RegistrationStatus />;
   return <MetaProvider><RouterProvider router={router} /></MetaProvider>;
 }

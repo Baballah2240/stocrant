@@ -13,6 +13,11 @@ interface FieldProps {
 }
 
 function Field({ field, value, onChange }: FieldProps) {
+  const { user } = useSession();
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { if (field.key === "organizationId") void api.auth.companies().then(result => setCompanies(result.companies.filter(company => user?.roleId === "role-main-manager" || user?.organizationIds.includes(company.id)))).catch(() => setCompanies([])); }, [field.key, user]);
+  if (field.readOnly) return <label className="form-field"><span className="field-label">{field.label}</span><input readOnly value={value ?? ""} placeholder={field.placeholder} /><small>Assigned automatically when saved</small></label>;
+  if (field.key === "organizationId") return <label className="form-field"><span className="field-label">Company</span><select required={field.required} value={value ?? ""} onChange={event => onChange(field.key, event.target.value)}><option value="">Choose company</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>;
   const inputType: Record<string, string> = {
     text: "text",
     textarea: "textarea",

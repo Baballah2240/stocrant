@@ -104,6 +104,7 @@ function persistAttendance(user: NonNullable<import("express").Request["auth"]>,
 }
 
 function isCompanyPolicy(row: Row, user: NonNullable<import("express").Request["auth"]>) {
+  if (!isMainManager(user) && !user.organizationIds.includes(String(row.organizationId ?? row.companyId ?? ""))) return false;
   if (normalized(row.type) !== "policy") return false;
   const audience = normalized(row.employee ?? row.audience);
   return !audience || ["all", "all employees", "everyone", "company", "company-wide"].includes(audience) || matchesUser(row, user);
@@ -121,13 +122,13 @@ router.get("/overview", (req, res) => {
   const inventory = can(req.auth, "inventory", "view") ? inventorySummary(req.auth) : { items: [], lowStockCount: 0 };
   const finance = can(req.auth, "finance", "view") ? financeSummary(req.auth) : { accounts: [], income: 0, expenses: 0, salaries: 0, net: 0 };
   const pendingApprovals = can(req.auth, "approvals", "view") ? rows("approvalRequests").filter((row) => row.status === "pending").length : 0;
-  const employee = rows("employees").find((item) => matchesUser(item, user));
+  const employee = rows("employees").find((item) => isWithinScope(user, item) && matchesUser(item, user));
   const personalWork = can(req.auth, "operations", "view")
     ? rows("workItems").filter((item) => isWithinScope(user, item) && matchesUser(item, user)).sort((a, b) => String(a.dueDate ?? "").localeCompare(String(b.dueDate ?? "")))
     : [];
-  const personalLeave = rows("leaveRequests").filter((item) => matchesUser(item, user)).sort((a, b) => String(b.updatedAt ?? b.from ?? "").localeCompare(String(a.updatedAt ?? a.from ?? "")));
+  const personalLeave = rows("leaveRequests").filter((item) => isWithinScope(user, item) && matchesUser(item, user)).sort((a, b) => String(b.updatedAt ?? b.from ?? "").localeCompare(String(a.updatedAt ?? a.from ?? "")));
   const todayAttendance = rows("attendance").filter((item) => item.date === dateStamp(new Date()) && (item.accountId ? item.accountId === user.id : matchesUser(item, user))).sort((a, b) => newestAt(b).localeCompare(newestAt(a)))[0];
-  const nextShift = rows("shifts").find((item) => matchesUser(item, user));
+  const nextShift = rows("shifts").find((item) => isWithinScope(user, item) && matchesUser(item, user));
   const notifications = listNotifications(user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const account = rows("accessUsers").find((item) => item.id === user.id);
   const previousLoginAt = typeof account?.previousLoginAt === "string" ? account.previousLoginAt : undefined;
@@ -197,7 +198,7 @@ router.get("/overview", (req, res) => {
 router.get("/self-service", (req, res) => {
   const user = req.auth!;
   const employee = employeeFor(user);
-  const own = (row: Row) => row.accountId ? row.accountId === user.id : row.employeeId ? row.employeeId === employee?.id : matchesUser(row, user);
+  const own = (row: Row) => isWithinScope(user, row) && (row.accountId ? row.accountId === user.id : row.employeeId ? row.employeeId === employee?.id : matchesUser(row, user));
   res.json({
     employee: employee ? redactRecord("employees", employee, user) : null,
     attendance: rows("attendance").filter(own).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 90),
@@ -586,7 +587,10 @@ router.post("/access/users", requirePermission("access", "create"), async (req, 
   if (rows("accessUsers").some((user) => String(user.email).toLowerCase() === parsed.data.email.toLowerCase())) return res.status(409).json({ error: "An account with that email already exists." });
   if (!rows("accessRoles").some((role) => role.id === parsed.data.roleId)) return res.status(400).json({ error: "Choose a valid role." });
   if (parsed.data.employeeId) { const employee = rows("employees").find((row) => row.id === parsed.data.employeeId); if (!employee) return res.status(400).json({ error: "Choose an existing employee." }); if (employee.organizationId) parsed.data.organizationIds = [String(employee.organizationId)]; }
-  const account = { id: nextCollectionId("accessUsers"), ...parsed.data, email: parsed.data.email.toLowerCase(), passwordHash: await hashPassword(parsed.data.password), status: "active", createdAt: new Date().toISOString(), dataClassification: "company" };
+  if (parsed.data.roleId !== "role-main-manager" && (parsed.data.organizationIds.length !== 1 || !rows("companies").some(company => company.id === parsed.data.organizationIds[0]))) return res.status(400).json({ error: "Assign this user to one existing company." });
+  if (parsed.data.locationIds.some(id => !getStore().stores.some(location => location.id === id && parsed.data.organizationIds.includes(location.companyId)))) return res.status(400).json({ error: "Choose locations from the assigned company." });
+  const { password: accountPassword, ...accountInput } = parsed.data;
+  const account = { id: nextCollectionId("accessUsers"), ...accountInput, email: parsed.data.email.toLowerCase(), passwordHash: await hashPassword(accountPassword), status: "active", createdAt: new Date().toISOString(), dataClassification: "company" };
   const data = getStore();
   data.collections.accessUsers = [...rows("accessUsers"), account];
   saveStore(data);
@@ -606,7 +610,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     organizationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),
     locationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),
     ownRecordsOnly: z.boolean().optional(),
-    status: z.enum(["active", "inactive"]).optional(),
+    status: z.enum(["active", "inactive", "pending", "rejected"]).optional(),
   }).strict().refine((value) => Object.keys(value).length > 0, "Provide at least one account change.").safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   const users = rows("accessUsers");
@@ -624,6 +628,11 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     updatedAt: new Date().toISOString(),
   };
   if (password) next.passwordHash = await hashPassword(password);
+  if (next.roleId !== "role-main-manager") {
+    const companies = Array.isArray(next.organizationIds) ? next.organizationIds : [];
+    if (companies.length !== 1 || !rows("companies").some(company => company.id === companies[0])) return res.status(400).json({ error: "Assign this user to one existing company." });
+    if (next.employeeId) { const employee = rows("employees").find(employee => employee.id === next.employeeId); if (!employee || (employee.organizationId ?? employee.companyId) !== companies[0]) return res.status(400).json({ error: "Choose an employee from the assigned company." }); }
+  }
   const wasManager = existing.roleId === "role-main-manager" && existing.status === "active";
   const remainsManager = next.roleId === "role-main-manager" && next.status === "active";
   if (wasManager && !remainsManager && users.filter((user) => user.roleId === "role-main-manager" && user.status === "active").length <= 1) return res.status(400).json({ error: "The last Main Manager cannot be removed or deactivated." });
@@ -645,7 +654,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
   res.json({ item: safe });
 });
 
-router.get("/approvals", requirePermission("approvals", "view"), (_req, res) => res.json({ items: rows("approvalRequests") }));
+router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => isWithinScope(req.auth!, row)) }));
 router.post("/approvals/:id", requirePermission("approvals", "approve"), (req, res) => {
   const parsed = z.object({ decision: z.enum(["approve", "reject"]), note: z.string().max(2000).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose approve or reject." });

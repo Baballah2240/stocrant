@@ -172,7 +172,8 @@ export const api = {
   health: () => request<{ ok: boolean; service: string }>("/health"),
 
   auth: {
-    register: (input: { name: string; email: string; password: string }) => request<{ ok: boolean; message: string }>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
+    companies: () => request<{ companies: { id: string; name: string }[] }>("/auth/companies"),
+    register: (input: { name: string; email: string; password: string; organizationId: string }) => request<{ ok: boolean; message: string }>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
     forgotPassword: (email: string) => request<{ ok: boolean; message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
     updateProfile: (input: { name: string; email: string; phone: string; avatar: string; bio?: string; currentPassword?: string }) => request<{ user: AuthUser }>("/auth/profile", { method: "PATCH", body: JSON.stringify(input) }),
     changePassword: (input: { currentPassword: string; newPassword: string }) => request<{ ok: boolean }>("/auth/password", { method: "POST", body: JSON.stringify(input) }),

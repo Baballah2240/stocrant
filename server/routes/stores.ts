@@ -34,6 +34,7 @@ router.post("/", requirePermission("locations", "create"), (req: Request, res: R
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+  if (!isWithinScope(req.auth!, store as unknown as Record<string, unknown>)) return res.status(403).json({ error: "Choose a location within your assigned company." });
   const created = upsertStore(store);
   audit(req.auth, "locations.legacy-created", { targetId: created.id });
   res.status(201).json({ store: created });
@@ -44,6 +45,7 @@ router.patch("/:id", requirePermission("locations", "edit"), (req: Request, res:
   const existing = getStore().stores.find((s) => s.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing as unknown as Record<string, unknown>)) return res.status(404).json({ error: "Store not found." });
   const input = parseJson(storeSchema, req.body, "store");
+  if (!isWithinScope(req.auth!, { ...existing, ...input } as unknown as Record<string, unknown>)) return res.status(403).json({ error: "The record must stay within your assigned company." });
   const updated = upsertStore({ ...existing, ...input });
   audit(req.auth, "locations.legacy-updated", { targetId: updated.id });
   res.json({ store: updated });

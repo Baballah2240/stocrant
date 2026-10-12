@@ -1,7 +1,8 @@
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore } from "./storage.js";
-import { can, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
+import { can, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
 import { createNotification, listNotifications } from "./notifications.js";
+import { newProductAwb } from "./product-awb.js";
 
 export type Row = Record<string, unknown> & { id: string };
 export type MutationAction = "create" | "edit" | "delete";
@@ -123,6 +124,10 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
       dataClassification: payload.dataClassification ?? "company",
     };
   data.collections[collection] = existing ? list.map((row) => row.id === item.id ? item : row) : [...list, item];
+  if (["products", "inventoryItems"].includes(collection)) {
+    const used = new Set([...rows("products"), ...rows("inventoryItems")].map(row => String(row.awb ?? "")));
+    item.awb = existing?.awb || newProductAwb(used);
+  }
   if (collection === "inventoryItems") {
     const changedFields = Object.keys(payload).filter((key) => JSON.stringify(existing?.[key]) !== JSON.stringify(item[key]));
     data.collections.inventoryHistory = [...rows("inventoryHistory"), { id: rowId("inventoryHistory"), inventoryItemId: item.id, organizationId: item.organizationId, actor: user.name, actorId: user.id, occurredAt: now, action, changedFields }];
@@ -145,6 +150,8 @@ export function mutateCollection(
   const permissionAction: PermissionAction = action;
   if (!can(user, section, permissionAction)) throw new Error(`You do not have permission to ${action} ${section}.`);
   const current = targetId ? rows(collection).find(row => row.id === targetId) : undefined;
+  if (action === "create" && !isMainManager(user) && !payload.organizationId && !payload.companyId && user.organizationIds.length === 1) payload = { ...payload, organizationId: user.organizationIds[0] };
+  if (["products", "inventoryItems"].includes(collection) && action !== "delete" && !rows("companies").some(company => company.id === (payload.organizationId ?? current?.organizationId))) throw new Error("Choose an existing company for this product.");
   if (targetId && (!current || !isWithinScope(user, current))) throw new Error("Record not found.");
   if (action !== "delete" && !isWithinScope(user, { ...current, ...payload, createdBy: current?.createdBy ?? user.id })) throw new Error("You do not have permission to use this record scope.");
   if (action === "create" && payload.id && rows(collection).some(row => row.id === payload.id)) throw new Error("A record with this id already exists.");
@@ -160,6 +167,7 @@ export function mutateCollection(
       targetId,
       payload,
       requestedBy: user.id,
+      organizationId: payload.organizationId ?? current?.organizationId ?? user.organizationIds[0],
       requestedByName: user.name,
       requestedAt: timestamp(),
       dataClassification: "company",
@@ -252,6 +260,7 @@ export function approveRequest(user: AuthenticatedUser, requestId: string, appro
   const list = rows("approvalRequests") as ApprovalRequest[];
   const request = list.find((row) => row.id === requestId);
   if (!request) throw new Error("Approval request not found.");
+  if (!isWithinScope(user, request)) throw new Error("Approval request not found.");
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
   if (request.requestedBy === user.id) throw new Error("A requester cannot approve their own request.");
   if (approve) {

@@ -23,6 +23,13 @@ function cookieFrom(response: Response) {
 }
 
 function request(path: string, init: RequestInit = {}, cookie?: string) {
+  // General account/product fixtures belong to the seeded primary company.
+  if (init.method === "POST" && typeof init.body === "string" && ["/workspace/access/users", "/collections/products"].includes(path)) {
+    const input = JSON.parse(init.body);
+    if (path === "/workspace/access/users" && !input.employeeId && input.organizationIds === undefined) input.organizationIds = ["company-primary"];
+    if (path === "/collections/products" && input.organizationId === undefined) input.organizationId = "company-primary";
+    init = { ...init, body: JSON.stringify(input) };
+  }
   const headers = new Headers(init.headers);
   if (cookie) headers.set("Cookie", cookie);
   return fetch(`${base}/api${path}`, { ...init, headers });
@@ -207,7 +214,7 @@ describe("STOCRANT secure workspace API", () => {
 
     const policy = await request("/collections/documents", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
-      body: JSON.stringify({ employee: "all", audience: "company-wide", type: "policy", title: "Mobile work and safety policy", issuedOn: "2026-10-09", fileUrl: "https://example.test/policies/mobile-work" }),
+      body: JSON.stringify({ organizationId: "company-primary", employee: "all", audience: "company-wide", type: "policy", title: "Mobile work and safety policy", issuedOn: "2026-10-09", fileUrl: "https://example.test/policies/mobile-work" }),
     });
     assert.equal(policy.status, 201);
 
@@ -782,13 +789,59 @@ describe("hardened authentication and scoping", () => {
 });
 
 describe("registration approval and notification replies", () => {
+  it("assigns unique immutable AWBs and blocks access outside the assigned company", async () => {
+    resetFailures();
+    const data = getStore();
+    data.collections.companies.push({ id: "company-boundary-two", name: "Second Company", status: "active" });
+    for (const rule of data.collections.approvalRules as Record<string, unknown>[]) if (rule.section === "operations") rule.active = false;
+    saveStore(data);
+    const product = (organizationId: string, sku: string) => ({ organizationId, sku, name: sku, unit: "each", price: 10, status: "active", awb: "FORGED" });
+    const create = (body: unknown) => request("/collections/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, mainCookie);
+    const firstResponse = await create(product("company-primary", "AWB-TEST-A"));
+    const secondResponse = await create(product("company-boundary-two", "AWB-TEST-B"));
+    assert.equal(firstResponse.status, 201, await firstResponse.clone().text()); assert.equal(secondResponse.status, 201, await secondResponse.clone().text());
+    const first = (await json<{ item: { id: string; awb: string } }>(firstResponse)).item;
+    const second = (await json<{ item: { id: string; awb: string } }>(secondResponse)).item;
+    assert.match(first.awb, /^AWB-\d{12}$/); assert.notEqual(first.awb, second.awb);
+    const update = await request(`/collections/products/${first.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product("company-primary", "AWB-TEST-A"), awb: second.awb }) }, mainCookie);
+    assert.equal(update.status, 200);
+    assert.equal((await json<{ item: { awb: string } }>(update)).item.awb, first.awb);
+    const role = (getStore().collections.accessRoles as Record<string, unknown>[]).find(row => row.id === "role-manager")!;
+    const before = role.organizationIds;
+    role.organizationIds = ["company-primary", "company-boundary-two"]; saveStore(getStore());
+    const listed = await json<{ items: { id: string }[] }>(await request("/collections/products", {}, managerCookie));
+    assert.ok(listed.items.some(item => item.id === first.id));
+    assert.ok(!listed.items.some(item => item.id === second.id));
+    assert.equal((await request(`/collections/products/${second.id}`, {}, managerCookie)).status, 404);
+    assert.equal((await request(`/collections/products/${second.id}`, { method: "DELETE" }, managerCookie)).status, 404);
+    const denied = await request("/collections/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(product("company-boundary-two", "BLOCKED-AWB")) }, managerCookie);
+    assert.equal(denied.status, 403);
+    role.organizationIds = before; saveStore(getStore());
+  });
+  it("requires a valid company for registration and admin-created accounts", async () => {
+    resetFailures();
+    const body = { name: "Company User", email: "company-user@example.test", password: "company-user-test-password" };
+    const register = (input: unknown) => request("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    assert.equal((await register(body)).status, 400);
+    assert.equal((await register({ ...body, organizationId: "missing-company" })).status, 400);
+    assert.equal((await register({ ...body, organizationId: "company-boundary-two" })).status, 201);
+    const account = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === body.email)!;
+    assert.deepEqual(account.organizationIds, ["company-boundary-two"]);
+    const invalid = await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, email: "unassigned-test@example.test", roleId: "role-manager", organizationIds: [] }) }, mainCookie);
+    assert.equal(invalid.status, 400);
+    const valid = await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, email: "assigned-admin-created@example.test", roleId: "role-manager", organizationIds: ["company-boundary-two"] }) }, mainCookie);
+    assert.equal(valid.status, 201);
+    const saved = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === "assigned-admin-created@example.test")!;
+    assert.equal(saved.password, undefined);
+    assert.match(String(saved.passwordHash), /^scrypt\$/);
+  });
   it("restricts pending accounts, protects requests, and delivers manager decisions", async () => {
     resetFailures();
     const post = (path: string, body: unknown, cookie?: string) => request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, cookie);
     const ownerLogin = await post("/auth/login", { email: "owner@example.test", password: "correct-horse-battery-staple" });
     const ownerCookie = cookieFrom(ownerLogin);
     const email = `new-${Date.now()}@example.test`;
-    const credentials = { name: "Pending Applicant", email, password: "registration-test-password" };
+    const credentials = { name: "Pending Applicant", email, password: "registration-test-password", organizationId: "company-primary" };
     assert.equal((await post("/auth/register", credentials)).status, 201);
     const stored = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === email)!;
     assert.equal(stored.status, "pending");
@@ -826,7 +879,7 @@ describe("registration approval and notification replies", () => {
     const post = (path: string, body: unknown, cookie?: string) => request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, cookie);
     const ownerCookie = cookieFrom(await post("/auth/login", { email: "owner@example.test", password: "correct-horse-battery-staple" }));
     const email = `reject-${Date.now()}@example.test`;
-    await post("/auth/register", { name: "Rejected Applicant", email, password: "registration-test-password" });
+    await post("/auth/register", { name: "Rejected Applicant", email, password: "registration-test-password", organizationId: "company-primary" });
     const account = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === email)!;
     const notices = await json<{ items: Notification[] }>(await request("/notifications", {}, ownerCookie));
     const notification = notices.items.find(item => item.type === "registration_request" && item.target === account.id)!;

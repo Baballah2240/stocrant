@@ -105,7 +105,7 @@ notificationsRouter.get("/:id", (req, res) => {
   const target = requestTarget(item);
   const manager = req.auth?.roleId === "role-main-manager" && req.auth.accountStatus === "active";
   const details: Record<string, unknown> = {};
-  if (manager && target) for (const field of ["name", "email", "type", "from", "to", "days", "reason", "status", "section", "action", "collection", "requestedByName", "createdAt", "requestedAt", "decisionNote"]) {
+  if (manager && target) for (const field of ["name", "email", "organizationIds", "type", "from", "to", "days", "reason", "status", "section", "action", "collection", "requestedByName", "createdAt", "requestedAt", "decisionNote"]) {
     if (target.row[field] !== undefined) details[field] = target.row[field];
   }
   res.json({ item, details, canDecide: Boolean(manager && target?.row.status === "pending" && ["registration_request", "leave_request", "pending_approval"].includes(item.type)), canReply: Boolean(manager && target) });
@@ -133,6 +133,7 @@ notificationsRouter.post("/:id/respond", (req, res) => {
   const recipient = (getCollection("accessUsers") as Record<string, unknown>[]).find(row => row.id === recipientId);
   if (!recipient) return res.status(409).json({ error: "The sender account is no longer available." });
   if (action !== "comment") {
+    if (item.type === "registration_request" && action === "approve" && (!Array.isArray(target.row.organizationIds) || target.row.organizationIds.length !== 1 || !(getCollection("companies") as Record<string, unknown>[]).some(company => company.id === (target.row.organizationIds as unknown[])[0]))) return res.status(400).json({ error: "Assign the applicant to one existing company before approval." });
     if (!["registration_request", "leave_request", "pending_approval"].includes(item.type) || target.row.status !== "pending") return res.status(409).json({ error: "This request cannot be decided or has already been processed." });
     if (recipientId === user.id) return res.status(403).json({ error: "You cannot decide your own request." });
     const status = action === "approve" ? "approved" : "rejected";

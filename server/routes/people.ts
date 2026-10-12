@@ -40,6 +40,7 @@ router.post("/", requirePermission("hr", "create"), (req: Request, res: Response
     storeId: input.storeId,
     createdAt: new Date().toISOString(),
   };
+  if (!isWithinScope(req.auth!, person as unknown as Record<string, unknown>)) return res.status(403).json({ error: "Choose a location within your assigned company." });
   const created = upsertPerson(person);
   audit(req.auth, "hr.legacy-person-created", { targetId: created.id });
   res.status(201).json({ person: created });
@@ -50,6 +51,7 @@ router.patch("/:id", requirePermission("hr", "edit"), (req: Request, res: Respon
   const existing = getStore().people.find((p) => p.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing as unknown as Record<string, unknown>)) return res.status(404).json({ error: "Person not found." });
   const input = parseJson(personSchema, req.body, "person");
+  if (!isWithinScope(req.auth!, { ...existing, ...input } as unknown as Record<string, unknown>)) return res.status(403).json({ error: "The record must stay within your assigned company." });
   const updated = upsertPerson({ ...existing, ...input });
   audit(req.auth, "hr.legacy-person-updated", { targetId: updated.id });
   res.json({ person: updated });

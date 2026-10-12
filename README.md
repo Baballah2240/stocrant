@@ -6,6 +6,8 @@ The management web app and mobile app share this project's API and business data
 
 **Attendance:** employees and managers can record up to three non-overlapping check-in/check-out sessions each day in the configured business timezone. Sessions and total hours are kept in a single daily record. Older single-session records are preserved and count as the first session. The Main Manager account remains excluded from attendance.
 
+**Products and account companies:** products and inventory items receive a unique random `AWB-` identifier automatically; edits preserve it. Existing items without an identifier are filled additively during migration. Registration and non-Main-Manager accounts require exactly one existing company. The Main Manager retains cross-company administration. Users without a valid company assignment must be assigned through Access & Settings before they can access business records. Roles may restrict the assigned company further but cannot grant access to other companies. The registration company selector exposes only company IDs and names, and all business data access remains authenticated and company-scoped.
+
 Business management for companies with restaurants, retail stores, offices,
 warehouses and branches. Manage the organization hierarchy, locations,
 workforce and HR, payroll, inventory, finance and operations from one system.
