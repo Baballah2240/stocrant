@@ -12,6 +12,7 @@ import ModuleOverview from "./components/ModuleOverview";
 import AboutPage from "./components/AboutPage";
 import AuthPage from "./components/AuthPage";
 import RegistrationStatus from "./components/RegistrationStatus";
+import LockSettings from "./components/LockSettings";
 import ResponsiveHome from "./components/ResponsiveHome";
 import MobilePeople from "./components/MobilePeople";
 import MobileMore from "./components/MobileMore";
@@ -44,6 +45,7 @@ const router = createBrowserRouter([
       { path: "me/leave", element: <MobilePeople /> },
       { path: "me/files", element: <MobilePeople /> },
       { path: "mobile-more", element: <MobileMore /> },
+      { path: "security", element: <div className="page"><LockSettings /></div> },
       { path: "locations", element: <LocationsWorkspace /> },
       { path: "stores", element: <StoreList /> }, // Legacy URL retained for bookmarks.
       { path: "places", element: <ZoneList /> },

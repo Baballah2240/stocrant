@@ -25,6 +25,7 @@ const navItems: NavEntry[] = [
   { to: "/warehouse", label: "Inventory", icon: "inventory", section: "inventory" },
   { to: "/finance", label: "Finance", icon: "finance", section: "finance" },
   { to: "/admin", label: "Access & Settings", icon: "settings", section: "access" },
+  { to: "/security", label: "App lock", icon: "settings" },
 ];
 
 const aboutItem: NavEntry = {
@@ -92,6 +93,7 @@ export default function Layout() {
           <header className="mobile-drawer-heading"><h2 id="mobile-menu-title">{t("My account")}</h2><button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>×</button></header>
           <div className="mobile-drawer-identity"><button className="mobile-drawer-photo" type="button" aria-label="Open my profile" onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><span className="mobile-drawer-avatar">{user?.avatar ? <img src={user.avatar} alt="Your profile" /> : <MobileIcon name="profile" />}</span><span>{t("My profile")}</span></button><strong>{user?.name}</strong></div>
           <nav className="mobile-drawer-controls" aria-label="Account controls">
+            <NavLink to="/security" onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{language === "ar" ? "قفل التطبيق" : "App lock"}</span></NavLink>
             <section className="language-settings" aria-labelledby="language-heading">
               <h3 id="language-heading">{language === "ar" ? "اللغة" : "Language"}</h3>
               <div className="language-options" role="group" aria-label={language === "ar" ? "لغة التطبيق" : "App language"}>

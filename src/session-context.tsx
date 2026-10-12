@@ -4,6 +4,7 @@ import { api, mobileSession } from "./api";
 import type { AuthUser } from "./types";
 
 interface SessionContextValue {
+  signedInThisSession: boolean;
   user: AuthUser | null;
   loading: boolean;
   setupRequired: boolean;
@@ -15,7 +16,7 @@ interface SessionContextValue {
 }
 
 const SessionContext = createContext<SessionContextValue>({
-  user: null, loading: true, setupRequired: false, error: null,
+  user: null, loading: true, setupRequired: false, error: null, signedInThisSession: false,
   signIn: async () => {}, setup: async () => {}, signOut: async () => {}, refresh: async () => {},
 });
 
@@ -24,6 +25,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signedInThisSession, setSignedInThisSession] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -46,12 +48,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const response = await api.auth.login({ email, password });
     mobileSession.save(response.sessionToken);
     setUser(response.user);
+    setSignedInThisSession(true);
     setSetupRequired(false);
   }, []);
   const setup = useCallback(async (input: { name: string; email: string; password: string; setupKey: string }) => {
     const response = await api.auth.setup(input);
     mobileSession.save(response.sessionToken);
     setUser(response.user);
+    setSignedInThisSession(true);
     setSetupRequired(false);
   }, []);
   const signOut = useCallback(async () => {
@@ -60,10 +64,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } finally {
       mobileSession.clear();
       setUser(null);
+      setSignedInThisSession(false);
     }
   }, []);
 
-  const value = useMemo(() => ({ user, loading, setupRequired, error, signIn, setup, signOut, refresh }), [user, loading, setupRequired, error, signIn, setup, signOut, refresh]);
+  const value = useMemo(() => ({ user, loading, setupRequired, error, signIn, setup, signOut, refresh, signedInThisSession }), [user, loading, setupRequired, error, signIn, setup, signOut, refresh, signedInThisSession]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

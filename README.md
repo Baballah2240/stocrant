@@ -2,6 +2,8 @@
 
 The management web app and mobile app share this project's API and business data. The public marketing website is now a separate, independently buildable project in [`public-website/`](public-website/README.md). The management app opens directly to login and no longer hosts public website pages or a website contact inbox.
 
+**App lock:** every account can open **App lock** from the navigation or Settings. The default inactivity timeout is 5 minutes, configurable from 1 to 60 minutes per account/device. Restored sessions open locked. Web unlock asks only for the existing account password and uses the normal rate-limited sign-in endpoint. Native mobile can enable strong fingerprint/Face ID authentication after confirming the account password and device biometric prompt. Passwords and biometric data are not saved for this feature. The mobile app can also lock immediately when backgrounded. This is a device privacy lock for the workspace UI; normal server authorization and session expiration continue to apply. Biometric unlock requires a valid server session. Run `npm run test:lock` for timing boundary and clock rollback checks.
+
 Business management for companies with restaurants, retail stores, offices,
 warehouses and branches. Manage the organization hierarchy, locations,
 workforce and HR, payroll, inventory, finance and operations from one system.

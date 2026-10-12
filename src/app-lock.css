@@ -1,0 +1,18 @@
+.app-lock-screen { min-height: 100dvh; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 20% 15%, var(--brand-blue-soft), transparent 60%), var(--ios-bg); color: var(--ios-label); }
+.app-lock-card { width: min(100%, 410px); padding: 30px; border: 1px solid var(--ios-separator); border-radius: 26px; background: var(--ios-cell); box-shadow: var(--glass-shadow); text-align: center; }
+.app-lock-card h1 { font-size: 27px; margin: 10px 0; }
+.app-lock-card > p { overflow-wrap: anywhere; line-height: 1.65; }
+.app-lock-icon { width: 48px; height: 48px; color: var(--brand-link); margin-bottom: 12px; }
+.app-lock-card .form { text-align: start; display: grid; gap: 16px; margin-top: 24px; }
+.app-lock-card input { width: 100%; min-height: 48px; font-size: 16px; background: var(--ios-bg); color: var(--ios-label); }
+.app-lock-card button { min-height: 46px; border-radius: 13px; }
+.app-lock-card button.primary { background: #326c61; color: #fff; }
+.app-lock-biometric { width: 100%; margin-top: 14px; background: var(--brand-blue-soft); color: var(--brand-link); }
+.app-lock-signout { margin-top: 18px; background: transparent; color: var(--ios-label-2); }
+.app-lock-settings { max-width: 680px; }
+.app-lock-settings .form-field { margin: 18px 0; max-width: 430px; }
+.app-lock-settings select, .app-lock-settings input[type=password] { width: 100%; min-height: 46px; font-size: 16px; }
+.app-lock-settings .check-field { display: flex; gap: 10px; align-items: center; min-height: 44px; }
+.app-lock-now { margin-top: 22px; }
+html[data-theme="dark"] .app-lock-card button.primary { background: #357563; color: #fff; }
+@media (max-width: 380px) { .app-lock-card { padding: 24px 18px; } }

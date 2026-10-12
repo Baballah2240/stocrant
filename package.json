@@ -25,10 +25,13 @@
     "mobile:add:android": "npx cap add android",
     "mobile:add:ios": "npx cap add ios",
     "check:data": "node scripts/check-data.mjs",
-    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run build:frontend"
+    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run build:frontend",
+    "test:lock": "node scripts/test-app-lock.mjs"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "9.1.2",
     "@capacitor/android": "^7.6.9",
+    "@capacitor/app": "7.1.2",
     "@capacitor/cli": "^7.6.9",
     "@capacitor/core": "^7.6.9",
     "@capacitor/ios": "^7.6.9",

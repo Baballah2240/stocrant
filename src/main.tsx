@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "./theme-context";
 import { LanguageProvider } from "./language-context";
 import { SessionProvider } from "./session-context";
+import { AppLockProvider } from "./app-lock-context";
 import { isNativeApp } from "./api";
 import CursorMotion from "./components/CursorMotion";
 import App from "./App";
@@ -15,6 +16,7 @@ import "./mobile-polish.css";
 import "./glass-theme.css";
 import "./settings-layout.css";
 import "./auth-notifications.css";
+import "./app-lock.css";
 
 // Native builds have no hover pointer and need safe-area padding; the CSS
 // keys off this attribute so the browser layout stays untouched.
@@ -29,8 +31,10 @@ createRoot(document.getElementById("root") as HTMLElement).render(
     <LanguageProvider><ThemeProvider>
       <CursorMotion />
       <SessionProvider>
+        <AppLockProvider>
         <App />
         <ActionToasts />
+        </AppLockProvider>
       </SessionProvider>
     </ThemeProvider></LanguageProvider>
   </StrictMode>,
