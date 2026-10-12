@@ -59,6 +59,13 @@ function attendanceTimeInMinutes(value: unknown) {
   return (hours * 60) + minutes;
 }
 
+type AttendanceSession = { checkIn: string; checkOut?: string; hours: number };
+function attendanceSessions(row?: Row): AttendanceSession[] {
+  if (Array.isArray(row?.sessions)) return row.sessions as AttendanceSession[];
+  if (typeof row?.checkIn === "string") return [{ checkIn: row.checkIn, ...(typeof row.checkOut === "string" ? { checkOut: row.checkOut } : {}), hours: Number(row.hours) || 0 }];
+  return [];
+}
+
 function employeeFor(user: NonNullable<import("express").Request["auth"]>) {
   const employees = rows("employees");
   if (user.employeeId) {
@@ -164,6 +171,8 @@ router.get("/overview", (req, res) => {
         checkOut: todayAttendance.checkOut,
         workMode: todayAttendance.workMode,
         hours: todayAttendance.hours,
+        sessions: attendanceSessions(todayAttendance),
+        sessionCount: attendanceSessions(todayAttendance).length,
       } : null,
       shift: nextShift ? {
         name: nextShift.name,
@@ -230,12 +239,12 @@ router.post("/attendance/check-in", (req, res) => {
   const now = new Date();
   const date = dateStamp(now);
   const existing = attendanceForEmployee(user, employee, date);
-  if (Boolean(existing?.checkOut)) {
-    return res.status(409).json({ error: "You have already checked out today." });
-  }
-  if (Boolean(existing?.checkIn)) {
+  const sessions = attendanceSessions(existing);
+  if (sessions.some(session => !session.checkOut)) {
     return res.status(409).json({ error: "You have already checked in today." });
   }
+  if (sessions.length >= 3) return res.status(409).json({ error: "You have completed the maximum of three attendance sessions today." });
+  sessions.push({ checkIn: timeStamp(now), hours: 0 });
 
   const item = persistAttendance(user, {
     employee: String(employee.name ?? user.name),
@@ -246,7 +255,8 @@ router.post("/attendance/check-in", (req, res) => {
     email: String(employee.email ?? user.email),
     date,
     checkIn: timeStamp(now),
-    checkOut: existing?.checkOut,
+    checkOut: undefined,
+    sessions,
     workMode: existing?.workMode ?? "office",
     status: "present",
     hours: existing?.hours ?? 0,
@@ -263,15 +273,18 @@ router.post("/attendance/check-out", (req, res) => {
   const now = new Date();
   const date = dateStamp(now);
   const existing = attendanceForEmployee(user, employee, date);
-  const checkInMinutes = attendanceTimeInMinutes(existing?.checkIn);
+  const sessions = attendanceSessions(existing);
+  const current = sessions[sessions.length - 1];
+  const checkInMinutes = attendanceTimeInMinutes(current?.checkIn);
   if (!existing || checkInMinutes === undefined) return res.status(409).json({ error: "Check in before checking out." });
-  if (Boolean(existing.checkOut)) {
+  if (Boolean(current.checkOut)) {
     return res.status(409).json({ error: "You have already checked out today." });
   }
 
   const checkOut = timeStamp(now);
   const workedMinutes = (attendanceTimeInMinutes(checkOut) ?? checkInMinutes) - checkInMinutes;
   if (workedMinutes < 0) return res.status(409).json({ error: "Check-out time must be after check-in time." });
+  const completed = sessions.map((session, index) => index === sessions.length - 1 ? { ...session, checkOut, hours: Number((workedMinutes / 60).toFixed(2)) } : session);
   const item = persistAttendance(user, {
     ...existing,
     employee: String(employee.name ?? user.name),
@@ -280,7 +293,8 @@ router.post("/attendance/check-out", (req, res) => {
     date,
     checkOut,
     status: "present",
-    hours: Number((workedMinutes / 60).toFixed(2)),
+    sessions: completed,
+    hours: Number(completed.reduce((sum, session) => sum + session.hours, 0).toFixed(2)),
   }, existing);
   audit(user, "attendance.checked-out", { collection: "attendance", targetId: item.id, employeeId: employee.id, date, hours: item.hours });
   res.json({ item });

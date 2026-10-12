@@ -1,0 +1,22 @@
+.ios-app button.attendance-checkout,
+html[data-theme="dark"] .ios-app button.attendance-checkout,
+.ios-app button.mobile-check-out,
+html[data-theme="dark"] .ios-app button.mobile-check-out {
+  background: #994b36; border-color: #994b36; color: #fff;
+  box-shadow: none;
+}
+.ios-app button.attendance-checkout:hover:not(:disabled),
+html[data-theme="dark"] .ios-app button.attendance-checkout:hover:not(:disabled),
+.ios-app button.mobile-check-out:hover:not(:disabled),
+html[data-theme="dark"] .ios-app button.mobile-check-out:hover:not(:disabled) { background: #7d3d2c; border-color: #7d3d2c; color: #fff; }
+.attendance-session-count { flex-basis: 100%; font-size: 12px; text-align: end; color: var(--ios-label-2); }
+@media (prefers-reduced-motion: no-preference) {
+  .ios-app .card, .ios-app .entity-card, .ios-app .metric-card,
+  .ios-app .hr-metric-card, .ios-app .personal-summary-card, .ios-app .panel,
+  .auth-card { animation: workspace-card-enter 320ms cubic-bezier(.2,.7,.2,1) both; }
+  .ios-app .card:nth-child(2), .ios-app .entity-card:nth-child(2) { animation-delay: 35ms; }
+  .ios-app .card:nth-child(3), .ios-app .entity-card:nth-child(3) { animation-delay: 65ms; }
+  .ios-app .card:nth-child(4), .ios-app .entity-card:nth-child(4) { animation-delay: 90ms; }
+  @keyframes workspace-card-enter { from { opacity: .3; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+}
+@media print { .ios-app .card, .ios-app .entity-card, .ios-app .metric-card, .ios-app .hr-metric-card, .ios-app .panel { animation: none; } }

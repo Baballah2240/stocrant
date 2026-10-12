@@ -272,6 +272,21 @@ describe("STOCRANT secure workspace API", () => {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: employeeCookie },
     });
     assert.equal(duplicateCheckOut.status, 409);
+    for (let session = 2; session <= 3; session++) {
+      const nextIn = await request("/workspace/attendance/check-in", { method: "POST" }, employeeCookie);
+      assert.equal(nextIn.status, 200);
+      const nextInBody = await json<{ item: { id: string; sessions: { checkIn: string; checkOut?: string; hours: number }[] } }>(nextIn);
+      assert.equal(nextInBody.item.id, checkInBody.item.id, "sessions stay in the same daily record");
+      assert.equal(nextInBody.item.sessions.length, session);
+      assert.equal(nextInBody.item.sessions[session - 1].checkOut, undefined);
+      assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, employeeCookie)).status, 409, "cannot overlap sessions");
+      const nextOut = await request("/workspace/attendance/check-out", { method: "POST" }, employeeCookie);
+      assert.equal(nextOut.status, 200);
+      const nextOutBody = await json<{ item: { hours: number; sessions: { checkOut: string; hours: number }[] } }>(nextOut);
+      assert.ok(nextOutBody.item.sessions.every(item => item.checkOut));
+      assert.equal(nextOutBody.item.hours, Number(nextOutBody.item.sessions.reduce((sum, item) => sum + item.hours, 0).toFixed(2)));
+    }
+    assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, employeeCookie)).status, 409, "fourth daily session is refused");
 
     const managerCannotPromote = await request("/workspace/access/users", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: managerCookie },
@@ -541,7 +556,7 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, managerCookie)).status, 409);
     assert.equal((await request("/workspace/attendance/check-out", { method: "POST" }, managerCookie)).status, 200);
     assert.equal((await request("/workspace/attendance/check-out", { method: "POST" }, managerCookie)).status, 409);
-    assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, managerCookie)).status, 409);
+    assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, managerCookie)).status, 200);
     const own = await json<{ attendance: { accountId: string }[] }>(await request("/workspace/self-service", {}, managerCookie));
     assert.ok(own.attendance.some((record) => record.accountId === profile.user.id));
     assert.equal((await request("/workspace/attendance/check-in", { method: "POST" }, mainCookie)).status, 403);
