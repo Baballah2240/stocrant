@@ -52,6 +52,8 @@ router.post("/setup", async (req, res) => {
     dataClassification: "company",
     createdAt: new Date().toISOString(),
   };
+  // Password hashing yields; another setup request may have completed meanwhile.
+  if (accounts().length > 0) return res.status(409).json({ error: "A Main Manager has already been configured." });
   const data = getStore();
   data.collections.accessUsers = [account];
   data.collections.auditLog = [
@@ -136,7 +138,8 @@ router.post("/login", async (req, res) => {
   // unknown) so response timing does not reveal whether the email exists.
   const stored = account?.passwordHash ?? (await loginTimingPad());
   const passwordOk = await verifyPassword(parsed.data.password, stored);
-  if (!account || !["active", "pending", "rejected"].includes(account.status) || !passwordOk) {
+  const currentAccount = account && accounts().find(current => current.id === account.id);
+  if (!currentAccount || currentAccount.passwordHash !== stored || !["active", "pending", "rejected"].includes(currentAccount.status) || !passwordOk) {
     recordFailure(ipKey);
     recordFailure(accountKey);
     recordDeniedLoginAttempt(email);
@@ -144,8 +147,8 @@ router.post("/login", async (req, res) => {
   }
   clearFailures(ipKey);
   clearFailures(accountKey);
-  const sessionToken = createSession(res, account);
-  res.json(authResponse(req, account, sessionToken));
+  const sessionToken = createSession(res, currentAccount);
+  res.json(authResponse(req, currentAccount, sessionToken));
 });
 
 router.post("/logout", (req, res) => {
@@ -166,7 +169,9 @@ router.patch("/profile", requireAuth, async (req, res) => {
   if (email !== existing.email && !await verifyPassword(parsed.data.currentPassword ?? "", existing.passwordHash)) return res.status(400).json({ error: "Enter your current password to change your email." });
   if (accounts().some((account) => account.id !== existing.id && account.email.toLowerCase() === email)) return res.status(409).json({ error: "That email is already in use." });
   const { currentPassword: _password, ...details } = parsed.data;
-  const updated = { ...existing, ...details, email, updatedAt: new Date().toISOString() };
+  const current = accounts().find(account => account.id === existing.id);
+  if (!current || current.passwordHash !== existing.passwordHash || current.status !== existing.status) return res.status(409).json({ error: "Your account changed. Sign in again before updating your profile." });
+  const updated = { ...current, ...details, email, updatedAt: new Date().toISOString() };
   const data = getStore();
   data.collections.accessUsers = accounts().map((account) => account.id === existing.id ? updated : account);
   data.collections.auditLog = [...(getCollection("auditLog") as Record<string, unknown>[]), { id: nextCollectionId("auditLog"), action: "profile.updated", actorId: existing.id, actorName: updated.name, occurredAt: updated.updatedAt, changedFields: ["name", "email", "phone", "avatar", "bio"].filter((key) => existing[key] !== updated[key as keyof typeof updated]) }];
@@ -183,6 +188,8 @@ router.post("/password", requireAuth, async (req, res) => {
   if (!existing || !await verifyPassword(parsed.data.currentPassword, existing.passwordHash)) { recordFailure(key); return res.status(400).json({ error: "Your current password is incorrect." }); }
   clearFailures(key);
   const passwordHash = await hashPassword(parsed.data.newPassword);
+  const current = accounts().find(account => account.id === existing.id);
+  if (!current || current.passwordHash !== existing.passwordHash || current.status !== existing.status) return res.status(409).json({ error: "Your account changed. Sign in again before changing your password." });
   const data = getStore();
   data.collections.accessUsers = accounts().map((account) => account.id === existing.id ? { ...account, passwordHash, updatedAt: new Date().toISOString() } : account);
   data.collections.sessions = (getCollection("sessions") as Record<string, unknown>[]).filter((session) => session.accountId !== existing.id);

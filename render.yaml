@@ -12,7 +12,8 @@ services:
     buildCommand: npm ci --include=dev && npm run build:full
     startCommand: node dist/index.js
     healthCheckPath: /api/health
-    autoDeployTrigger: commit
+    autoDeployTrigger: checksPass
+    numInstances: 1
     domains:
       - www.mohbaba.online
     disk:

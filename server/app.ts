@@ -69,6 +69,7 @@ export function createApp() {
     next();
   });
   app.use(attachAuth);
+  app.use("/api", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, service: "stocrant" });

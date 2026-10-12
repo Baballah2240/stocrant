@@ -1,6 +1,6 @@
 import MobileIcon, { type MobileIconName } from "./MobileIcon";
 import { useMobile } from "../use-mobile";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import ProfilePanel from "./ProfilePanel";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import BackButton from "./BackButton";
@@ -126,7 +126,7 @@ export default function Layout() {
           </div>
         </aside>
         {profileOpen && <ProfilePanel initialPhoto={profilePhoto} onClose={() => { setProfileOpen(false); setProfilePhoto(undefined); }} />}<main className="main" id="main-content">
-          <Outlet />
+          <Suspense fallback={<p className="hint" role="status">{language === "ar" ? "جارٍ التحميل…" : "Loading…"}</p>}><Outlet /></Suspense>
         </main>
       </div>
     </div>

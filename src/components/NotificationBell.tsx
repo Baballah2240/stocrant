@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSession } from "../session-context";
 import { api } from "../api";
 import { relativeLabel as formatDate } from "../util";
@@ -33,6 +33,8 @@ export function NotificationBell(props: NotificationBellProps) {
 function UserNotifications({ className = "" }: NotificationBellProps) {
   const { language, t } = useLanguage();
   const popupRef = useRef<HTMLDialogElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const listScrollPosition = useRef(0);
   const { user } = useSession();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -71,7 +73,11 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
   const [comment, setComment] = useState("");
   const [detailBusy, setDetailBusy] = useState(false);
   const [detailError, setDetailError] = useState("");
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo({ top: selected ? 0 : listScrollPosition.current, behavior: "instant" });
+  }, [selected?.item.id, open, unreadOnly]);
   async function showDetails(id: string) {
+    listScrollPosition.current = scrollRef.current?.scrollTop ?? 0;
     setDetailBusy(true); setDetailError(""); setComment("");
     try { setSelected(await api.notifications.detail(id)); await markAsRead(id); }
     catch (err) { setDetailError(err instanceof Error ? err.message : "Could not load notification."); }
@@ -92,6 +98,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
     finally { setDetailBusy(false); }
   }
   function showActivity(item: RecentActivity) {
+    listScrollPosition.current = scrollRef.current?.scrollTop ?? 0;
     setDetailError("");
     setSelected({ item: { ...item, userId: user?.id ?? null, user: user?.name ?? "", type: "message", severity: "info", target: null }, details: {}, canDecide: false, canReply: false });
     updateActivity(items => items.map(current => current.id === item.id ? { ...current, read: true } : current));
@@ -203,6 +210,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
           </div>
 
           <div className="notification-filters"><button type="button" aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>{t("All")}</button><button type="button" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>{t("Unread")}</button><button type="button" onClick={() => setRefreshKey((value) => value + 1)}>{t("Refresh")}</button></div>
+          <div className="notification-panel__scroll" ref={scrollRef} tabIndex={0} role="region" aria-label={t("Notifications")}>
           {detailError && <p className="error" role="alert">{detailError}</p>}
           {detailBusy && <p className="hint" role="status">{language === "ar" ? "جارٍ التحميل…" : "Please wait…"}</p>}
           {selected ? <section className="notification-detail">
@@ -264,6 +272,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
             </ul>
           )}
           </>}
+          </div>
         </dialog>
       )}
     </div>

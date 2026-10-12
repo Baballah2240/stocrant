@@ -1,3 +1,4 @@
+import ChoiceSelect from "./ChoiceSelect";
 import { useEffect, useState } from "react";
 import { api, type Zone, type ZoneKind, type Store } from "../api";
 
@@ -126,8 +127,8 @@ export default function ZoneList() {
         <form className="form" onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="form-field"><label className="field-label">Name</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Store</label><select value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-            <div className="form-field"><label className="field-label">Kind</label><select value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</select></div>
+            <div className="form-field"><label className="field-label">Store</label><ChoiceSelect value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">Kind</label><ChoiceSelect value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</ChoiceSelect></div>
             <div className="form-field"><label className="field-label">Area (m&sup2;)</label><input type="number" value={form.area} onChange={(e) => handleChange("area", Number(e.target.value))} /></div>
             <div className="form-field"><label className="field-label">Capacity</label><input type="number" value={form.capacity} onChange={(e) => handleChange("capacity", Number(e.target.value))} /></div>
             <div className="form-field"><label className="field-label">Notes</label><input type="text" value={form.notes} onChange={(e) => handleChange("notes", e.target.value)} /></div>

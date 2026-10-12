@@ -1,0 +1,56 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
+import { randomBytes } from "node:crypto";
+
+// Run against an isolated production-mode store; never touch business records.
+const temporaryRoot = resolve(tmpdir());
+const testDirectory = mkdtempSync(join(temporaryRoot, "stocrant-production-check-"));
+process.env.NODE_ENV = "production";
+process.env.STOCRANT_DATA_DIR = testDirectory;
+process.env.STOCRANT_SESSION_SECRET = randomBytes(48).toString("hex");
+process.env.STOCRANT_SETUP_KEY = randomBytes(24).toString("hex");
+process.env.STOCRANT_ALLOWED_ORIGINS = "";
+const { createApp } = await import("../dist/app.js");
+const server = createApp().listen(0, "127.0.0.1");
+try {
+  await new Promise(resolve => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const health = await fetch(`${base}/api/health`);
+  assert.equal(health.status, 200);
+  assert.equal((await health.json()).ok, true);
+  assert.equal(health.headers.get("cache-control"), "no-store");
+  assert.match(health.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+  assert.match(health.headers.get("strict-transport-security"), /max-age=31536000/);
+  assert.equal(health.headers.get("x-powered-by"), null);
+  const page = await fetch(`${base}/finance`);
+  assert.equal(page.status, 200);
+  assert.equal(page.headers.get("cache-control"), "no-cache");
+  const html = await page.text();
+  const asset = html.match(/src="(\/assets\/[^" ]+\.js)"/)?.[1];
+  assert.ok(asset, "production SPA must reference a built script");
+  const script = await fetch(base + asset);
+  assert.equal(script.status, 200);
+  assert.match(script.headers.get("cache-control"), /immutable/);
+  assert.equal((await fetch(`${base}/missing-script.js`)).status, 404);
+  assert.equal((await fetch(`${base}/app.js`)).status, 404);
+  assert.equal((await fetch(`${base}/data/stocrant.json`)).status, 404);
+  const status = await (await fetch(`${base}/api/auth/status`)).json();
+  assert.equal(status.setupRequired, true);
+  const denied = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://untrusted.example" }, body: "{}" });
+  assert.equal(denied.status, 403);
+  const setup = await fetch(`${base}/api/auth/setup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Production Test Manager", email: "production-check@example.test", password: randomBytes(24).toString("hex"), setupKey: process.env.STOCRANT_SETUP_KEY }) });
+  assert.equal(setup.status, 201);
+  assert.match(setup.headers.get("set-cookie"), /HttpOnly/);
+  assert.match(setup.headers.get("set-cookie"), /Secure/);
+  const cookie = setup.headers.get("set-cookie").split(";")[0];
+  const unknown = await fetch(`${base}/api/not-a-route`, { headers: { Cookie: cookie } });
+  assert.equal(unknown.status, 404);
+  assert.match(unknown.headers.get("content-type"), /application\/json/);
+  console.log("Production smoke checks passed: built SPA, security headers, secure sessions, private data, trusted origins, and cache policy.");
+} finally {
+  await new Promise(resolve => server.close(resolve));
+  if (!resolve(testDirectory).startsWith(temporaryRoot + sep) || !testDirectory.includes("stocrant-production-check-")) throw new Error("Refusing to clean an unexpected test directory.");
+  rmSync(testDirectory, { recursive: true, force: true });
+}

@@ -1,3 +1,4 @@
+import ChoiceSelect from "./ChoiceSelect";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type CollectionItem, type Store, type StoreKind, type StoreStatus } from "../api";
@@ -150,13 +151,13 @@ export default function StoreList() {
         <form className="form" onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="form-field"><label className="field-label">Name</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Company</label><select required value={form.companyId} onChange={(e) => handleChange("companyId", e.target.value)}>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name ?? company.id)}</option>)}</select></div>
-            <div className="form-field"><label className="field-label">Kind</label><select value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</select></div>
+            <div className="form-field"><label className="field-label">Company</label><ChoiceSelect required value={form.companyId} onChange={(e) => handleChange("companyId", e.target.value)}>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name ?? company.id)}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">Kind</label><ChoiceSelect value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</ChoiceSelect></div>
             <div className="form-field"><label className="field-label">Address</label><input type="text" value={form.address} onChange={(e) => handleChange("address", e.target.value)} /></div>
             <div className="form-field"><label className="field-label">City</label><input type="text" value={form.city} onChange={(e) => handleChange("city", e.target.value)} /></div>
             <div className="form-field"><label className="field-label">Area (m&sup2;)</label><input type="number" value={form.totalArea} onChange={(e) => handleChange("totalArea", Number(e.target.value))} /></div>
             <div className="form-field"><label className="field-label">Floor count</label><input type="number" value={form.floorCount} onChange={(e) => handleChange("floorCount", Number(e.target.value))} /></div>
-            <div className="form-field"><label className="field-label">Status</label><select value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
+            <div className="form-field"><label className="field-label">Status</label><ChoiceSelect value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</ChoiceSelect></div>
             <div className="form-field"><label className="field-label">Responsible employee</label><input type="text" value={form.responsibleEmployee ?? ""} onChange={(e) => handleChange("responsibleEmployee", e.target.value)} /></div>
             <div className="form-field"><label className="field-label">Map link</label><input type="url" value={form.mapLink ?? ""} onChange={(e) => handleChange("mapLink", e.target.value)} placeholder="https://maps.example/..." /></div>
             <div className="form-field field--full"><label className="field-label">Notes</label><textarea value={form.notes ?? ""} onChange={(e) => handleChange("notes", e.target.value)} rows={3} /></div>

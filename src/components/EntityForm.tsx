@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import ChoiceSelect from "./ChoiceSelect";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMeta } from "../meta-context";
 import { useSession } from "../session-context";
@@ -17,7 +18,7 @@ function Field({ field, value, onChange }: FieldProps) {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => { if (field.key === "organizationId") void api.auth.companies().then(result => setCompanies(result.companies.filter(company => user?.roleId === "role-main-manager" || user?.organizationIds.includes(company.id)))).catch(() => setCompanies([])); }, [field.key, user]);
   if (field.readOnly) return <label className="form-field"><span className="field-label">{field.label}</span><input readOnly value={value ?? ""} placeholder={field.placeholder} /><small>Assigned automatically when saved</small></label>;
-  if (field.key === "organizationId") return <label className="form-field"><span className="field-label">Company</span><select required={field.required} value={value ?? ""} onChange={event => onChange(field.key, event.target.value)}><option value="">Choose company</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>;
+  if (field.key === "organizationId") return <label className="form-field"><span className="field-label">Company</span><ChoiceSelect required={field.required} value={value ?? ""} onChange={event => onChange(field.key, event.target.value)}><option value="">Choose company</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</ChoiceSelect></label>;
   const inputType: Record<string, string> = {
     text: "text",
     textarea: "textarea",
@@ -51,14 +52,14 @@ function Field({ field, value, onChange }: FieldProps) {
         {field.required ? <span className="required" aria-hidden="true">*</span> : null}
       </label>
       {field.type === "select" ? (
-        <select id={`field-${field.key}`} required={field.required} value={value ?? ""} onChange={(e) => onChange(field.key, e.target.value)}>
+        <ChoiceSelect id={`field-${field.key}`} required={field.required} value={value ?? ""} onChange={(e) => onChange(field.key, e.target.value)}>
           <option value="">Choose&hellip;</option>
           {field.options?.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
             </option>
           ))}
-        </select>
+        </ChoiceSelect>
       ) : field.type === "textarea" ? (
         <textarea
           id={`field-${field.key}`}
@@ -226,7 +227,7 @@ export default function EntityForm() {
       <form className="form entity-form" onSubmit={handleSubmit}>
         {employeeGroups ? employeeGroups.map((group) => {
           const fields = spec.fields.filter((field) => group.keys.includes(field.key));
-          return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{group.title}</h2><p>{group.description}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">Company <span className="required" aria-hidden="true">*</span></label><select id="employee-company" required disabled={companiesLoading || submitting} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? "Loading companies…" : "Choose a company"}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</select>{!companiesLoading && !companies.length && <p className="hint">Add a company in Organizations before adding an employee.</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>;
+          return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{group.title}</h2><p>{group.description}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">Company <span className="required" aria-hidden="true">*</span></label><ChoiceSelect id="employee-company" required disabled={companiesLoading || submitting} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? "Loading companies…" : "Choose a company"}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</ChoiceSelect>{!companiesLoading && !companies.length && <p className="hint">Add a company in Organizations before adding an employee.</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>;
         }) : <section className="card"><div className="form-grid">{spec.fields.map((field) => <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>}
         <div className="card entity-form-actions-card">
           <div className="form-actions">

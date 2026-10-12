@@ -8,6 +8,7 @@ import { isNativeApp } from "./api";
 import CursorMotion from "./components/CursorMotion";
 import App from "./App";
 import ActionToasts from "./components/ActionToasts";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./theme.css";
 import "./ui-refresh.css";
 import "./auth-experience.css";
@@ -21,6 +22,8 @@ import "./attendance-motion.css";
 import "./choice-controls.css";
 import "./mobile-drawer.css";
 import "./mobile-navigation.css";
+import "./notification-scroll.css";
+import "./choice-picker.css";
 
 // Native builds have no hover pointer and need safe-area padding; the CSS
 // keys off this attribute so the browser layout stays untouched.
@@ -34,12 +37,12 @@ createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <LanguageProvider><ThemeProvider>
       <CursorMotion />
-      <SessionProvider>
+      <ErrorBoundary><SessionProvider>
         <AppLockProvider>
         <App />
         <ActionToasts />
         </AppLockProvider>
-      </SessionProvider>
+      </SessionProvider></ErrorBoundary>
     </ThemeProvider></LanguageProvider>
   </StrictMode>,
 );

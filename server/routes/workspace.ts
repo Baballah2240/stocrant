@@ -591,6 +591,7 @@ router.post("/access/users", requirePermission("access", "create"), async (req, 
   if (parsed.data.locationIds.some(id => !getStore().stores.some(location => location.id === id && parsed.data.organizationIds.includes(location.companyId)))) return res.status(400).json({ error: "Choose locations from the assigned company." });
   const { password: accountPassword, ...accountInput } = parsed.data;
   const account = { id: nextCollectionId("accessUsers"), ...accountInput, email: parsed.data.email.toLowerCase(), passwordHash: await hashPassword(accountPassword), status: "active", createdAt: new Date().toISOString(), dataClassification: "company" };
+  if (rows("accessUsers").some(user => normalized(user.email) === account.email)) return res.status(409).json({ error: "An account with that email already exists." });
   const data = getStore();
   data.collections.accessUsers = [...rows("accessUsers"), account];
   saveStore(data);
@@ -613,6 +614,8 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     status: z.enum(["active", "inactive", "pending", "rejected"]).optional(),
   }).strict().refine((value) => Object.keys(value).length > 0, "Provide at least one account change.").safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
+  // Finish asynchronous hashing before reading the account snapshot for this write.
+  const passwordHash = parsed.data.password ? await hashPassword(parsed.data.password) : undefined;
   const users = rows("accessUsers");
   const existing = users.find((user) => user.id === req.params.id);
   if (!existing) return res.status(404).json({ error: "User not found." });
@@ -627,10 +630,11 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     id: existing.id,
     updatedAt: new Date().toISOString(),
   };
-  if (password) next.passwordHash = await hashPassword(password);
+  if (passwordHash) next.passwordHash = passwordHash;
   if (next.roleId !== "role-main-manager") {
     const companies = Array.isArray(next.organizationIds) ? next.organizationIds : [];
     if (companies.length !== 1 || !rows("companies").some(company => company.id === companies[0])) return res.status(400).json({ error: "Assign this user to one existing company." });
+    if (Array.isArray(next.locationIds) && next.locationIds.some(id => !getStore().stores.some(location => location.id === id && companies.includes(location.companyId)))) return res.status(400).json({ error: "Choose locations from the assigned company." });
     if (next.employeeId) { const employee = rows("employees").find(employee => employee.id === next.employeeId); if (!employee || (employee.organizationId ?? employee.companyId) !== companies[0]) return res.status(400).json({ error: "Choose an employee from the assigned company." }); }
   }
   const wasManager = existing.roleId === "role-main-manager" && existing.status === "active";

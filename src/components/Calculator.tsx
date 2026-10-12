@@ -1,3 +1,4 @@
+import ChoiceSelect from "./ChoiceSelect";
 import { useEffect, useState } from "react";
 import { api, type Store } from "../api";
 
@@ -53,7 +54,7 @@ export default function Calculator() {
       <section className="card">
         <form className="form" onSubmit={handleSubmit}>
           <div className="form-grid">
-            <div className="form-field"><label className="field-label">Store</label><select value={storeId} onChange={(e) => setStoreId(e.target.value)}><option value="">Choose a store&hellip;</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+            <div className="form-field"><label className="field-label">Store</label><ChoiceSelect value={storeId} onChange={(e) => setStoreId(e.target.value)}><option value="">Choose a store&hellip;</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</ChoiceSelect></div>
             <div className="form-field"><label className="field-label">Headcount</label><input type="number" value={headCount} onChange={(e) => setHeadCount(e.target.value)} placeholder="e.g. 45" /></div>
           </div>
           <div className="form-actions">

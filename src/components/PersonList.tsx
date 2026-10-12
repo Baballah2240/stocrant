@@ -1,3 +1,4 @@
+import ChoiceSelect from "./ChoiceSelect";
 import { useEffect, useState } from "react";
 import { api, type Person, type PersonStatus, type Store } from "../api";
 import { classNames } from "../util";
@@ -154,9 +155,9 @@ export default function PersonList() {
             <div className="form-field"><label className="field-label">Email</label><input type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} /></div>
             <div className="form-field"><label className="field-label">Phone</label><input type="text" value={form.phone} onChange={(e) => handleChange("phone", e.target.value)} /></div>
             <div className="form-field"><label className="field-label">Hire date</label><input type="date" value={form.hireDate} onChange={(e) => handleChange("hireDate", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Store</label><select value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-            <div className="form-field"><label className="field-label">Role</label><select value={form.role} onChange={(e) => handleChange("role", e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}</select></div>
-            <div className="form-field"><label className="field-label">Status</label><select value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
+            <div className="form-field"><label className="field-label">Store</label><ChoiceSelect value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">Role</label><ChoiceSelect value={form.role} onChange={(e) => handleChange("role", e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">Status</label><ChoiceSelect value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</ChoiceSelect></div>
           </div>
           <div className="form-actions">
             <button type="submit" className="primary" disabled={submitting}>{editingId ? "Save changes" : "Add person"}</button>

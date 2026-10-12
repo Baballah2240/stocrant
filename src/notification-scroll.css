@@ -1,0 +1,35 @@
+/* Keep controls fixed and let the notification content own scrolling. */
+dialog.notification-panel {
+  overflow: hidden;
+  min-width: 0;
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+dialog.notification-panel[open] { display: flex; flex-direction: column; }
+.notification-panel__head { flex: 0 0 auto; flex-wrap: wrap; background: var(--ios-cell); }
+.notification-panel__title { min-width: 0; margin: 0; flex: 1 1 auto; }
+.notification-panel > .notification-filters { flex: 0 0 auto; margin-top: 12px; }
+.notification-panel__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scroll-padding-block: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ios-separator) transparent;
+  scrollbar-gutter: stable;
+  padding: 4px 2px 16px;
+}
+.notification-panel__scroll::-webkit-scrollbar { width: 5px; }
+.notification-panel__scroll::-webkit-scrollbar-track { background: transparent; }
+.notification-panel__scroll::-webkit-scrollbar-thumb { background: var(--ios-separator); border-radius: 8px; }
+.notification-panel__scroll:focus-visible { outline: 2px solid var(--brand-link); outline-offset: -3px; border-radius: 12px; }
+.notification-panel__scroll > :is(.error, .hint) { margin-inline: 16px; }
+@media (max-width: 700px) {
+  .notification-panel__scroll .notification-list__item { flex-direction: column; gap: 12px; }
+  .notification-panel__scroll .notification-list__actions { align-self: stretch; flex-wrap: wrap; }
+  .notification-panel__scroll .notification-list__main { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .notification-panel__scroll { scroll-behavior: auto; } }

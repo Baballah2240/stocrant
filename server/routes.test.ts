@@ -70,10 +70,13 @@ describe("STOCRANT secure workspace API", () => {
   });
 
   it("creates a Main Manager with an HTTP-only secure session and rejects wrong passwords", async () => {
-    const setup = await request("/auth/setup", {
+    const setupInput = {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Main Manager", email: "owner@example.test", password: "correct-horse-battery-staple", setupKey: "local-setup" }),
-    });
+    };
+    const setupResults = await Promise.all([request("/auth/setup", setupInput), request("/auth/setup", setupInput)]);
+    assert.deepEqual(setupResults.map(response => response.status).sort(), [201, 409], "concurrent setup must create exactly one manager");
+    const setup = setupResults.find(response => response.status === 201)!;
     assert.equal(setup.status, 201);
     mainCookie = cookieFrom(setup);
     const created = await json<{ user: { id: string; roleId: string } }>(setup);
@@ -789,6 +792,45 @@ describe("hardened authentication and scoping", () => {
 });
 
 describe("registration approval and notification replies", () => {
+  it("prevents duplicate accounts and lost changes during concurrent password updates", async () => {
+    const input = { name: "Concurrent User", email: "concurrent-user@example.test", password: "concurrent-user-password", roleId: "role-manager", organizationIds: ["company-primary"] };
+    const create = () => request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, mainCookie);
+    const responses = await Promise.all([create(), create()]);
+    assert.deepEqual(responses.map(response => response.status).sort(), [201, 409]);
+    const { item } = await json<{ item: { id: string } }>(responses.find(response => response.status === 201)!);
+    const update = (body: unknown) => request(`/workspace/access/users/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, mainCookie);
+    const changed = await Promise.all([update({ password: "changed-concurrent-password" }), update({ name: "Concurrent Name Preserved" })]);
+    assert.ok(changed.every(response => response.status === 200));
+    const stored = (getStore().collections.accessUsers as Record<string, unknown>[]).find(account => account.id === item.id)!;
+    assert.equal(stored.name, "Concurrent Name Preserved");
+    assert.equal((getStore().collections.accessUsers as Record<string, unknown>[]).filter(account => account.email === input.email).length, 1);
+    assert.equal((await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: input.email, password: "changed-concurrent-password" }) })).status, 200);
+    assert.equal((await request("/auth/status", {}, mainCookie)).headers.get("cache-control"), "no-store");
+  });
+  it("lets the Main Manager transfer company access and applies permissions to the current session", async () => {
+    resetFailures();
+    const data = getStore();
+    data.collections.companies.push({ id: "company-transfer-target", name: "Transfer Company", status: "active" });
+    data.collections.products.push({ id: "transfer-product-old", organizationId: "company-primary", name: "Old company product" }, { id: "transfer-product-new", organizationId: "company-transfer-target", name: "New company product" });
+    saveStore(data);
+    const created = await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Company Transfer User", email: "company-transfer@example.com", password: "company-transfer-test-password", roleId: "role-manager", organizationIds: ["company-primary"] }) }, mainCookie);
+    assert.equal(created.status, 201, await created.clone().text());
+    const { item } = await json<{ item: { id: string } }>(created);
+    const update = (body: unknown, cookie = mainCookie) => request(`/workspace/access/users/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, cookie);
+    assert.equal((await update({ permissions: ["operations.view"] })).status, 200);
+    const login = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "company-transfer@example.com", password: "company-transfer-test-password" }) });
+    const cookie = cookieFrom(login);
+    assert.equal((await request("/collections/products/transfer-product-old", {}, cookie)).status, 200);
+    assert.equal((await update({ organizationIds: ["company-transfer-target"], employeeId: null, locationIds: [], permissions: ["operations.*", "finance.view"], ownRecordsOnly: false })).status, 200);
+    assert.equal((await request("/collections/products/transfer-product-old", {}, cookie)).status, 404);
+    assert.equal((await request("/collections/products/transfer-product-new", {}, cookie)).status, 200);
+    assert.equal((await update({ organizationIds: ["company-primary"] }, cookie)).status, 403);
+    assert.equal((await update({ organizationIds: ["nonexistent-company"] })).status, 400);
+    assert.equal((await update({ locationIds: ["nonexistent-location"] })).status, 400);
+    const status = await json<{ user: { organizationIds: string[]; permissions: string[] } }>(await request("/auth/status", {}, cookie));
+    assert.deepEqual(status.user.organizationIds, ["company-transfer-target"]);
+    assert.ok(status.user.permissions.includes("finance.view"));
+  });
   it("assigns unique immutable AWBs and blocks access outside the assigned company", async () => {
     resetFailures();
     const data = getStore();

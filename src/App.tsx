@@ -1,27 +1,29 @@
 import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
+import { lazy } from "react";
+import { PageError } from "./components/ErrorBoundary";
 import Layout from "./components/Layout";
-import StoreList from "./components/StoreList";
-import ZoneList from "./components/ZoneList";
-import PersonList from "./components/PersonList";
-import Calculator from "./components/Calculator";
-import ReportView from "./components/ReportView";
-import EntityList from "./components/EntityList";
-import EntityDetail from "./components/EntityDetail";
-import EntityForm from "./components/EntityForm";
-import ModuleOverview from "./components/ModuleOverview";
-import AboutPage from "./components/AboutPage";
+const StoreList = lazy(() => import("./components/StoreList"));
+const ZoneList = lazy(() => import("./components/ZoneList"));
+const PersonList = lazy(() => import("./components/PersonList"));
+const Calculator = lazy(() => import("./components/Calculator"));
+const ReportView = lazy(() => import("./components/ReportView"));
+const EntityList = lazy(() => import("./components/EntityList"));
+const EntityDetail = lazy(() => import("./components/EntityDetail"));
+const EntityForm = lazy(() => import("./components/EntityForm"));
+const ModuleOverview = lazy(() => import("./components/ModuleOverview"));
+const AboutPage = lazy(() => import("./components/AboutPage"));
 import AuthPage from "./components/AuthPage";
 import RegistrationStatus from "./components/RegistrationStatus";
 import LockSettings from "./components/LockSettings";
-import ResponsiveHome from "./components/ResponsiveHome";
-import MobilePeople from "./components/MobilePeople";
-import MobileMore from "./components/MobileMore";
-import LocationsWorkspace from "./components/LocationsWorkspace";
-import OperationsWorkspace from "./components/OperationsWorkspace";
-import InventoryWorkspace from "./components/InventoryWorkspace";
-import FinanceWorkspace from "./components/FinanceWorkspace";
-import AccessWorkspace from "./components/AccessWorkspace";
-import HRWorkspace from "./components/HRWorkspace";
+const ResponsiveHome = lazy(() => import("./components/ResponsiveHome"));
+const MobilePeople = lazy(() => import("./components/MobilePeople"));
+const MobileMore = lazy(() => import("./components/MobileMore"));
+const LocationsWorkspace = lazy(() => import("./components/LocationsWorkspace"));
+const OperationsWorkspace = lazy(() => import("./components/OperationsWorkspace"));
+const InventoryWorkspace = lazy(() => import("./components/InventoryWorkspace"));
+const FinanceWorkspace = lazy(() => import("./components/FinanceWorkspace"));
+const AccessWorkspace = lazy(() => import("./components/AccessWorkspace"));
+const HRWorkspace = lazy(() => import("./components/HRWorkspace"));
 import { useSession } from "./session-context";
 import { MetaProvider } from "./meta-context";
 
@@ -37,6 +39,7 @@ const router = createBrowserRouter([
   },
   {
     element: <Layout />,
+    errorElement: <PageError />,
     children: [
       { index: true, element: <ResponsiveHome /> },
 

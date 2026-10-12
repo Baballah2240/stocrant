@@ -1,4 +1,6 @@
 apply plugin: 'com.android.application'
+def releaseSigningValues = ['STOCRANT_KEYSTORE_FILE', 'STOCRANT_KEYSTORE_PASSWORD', 'STOCRANT_KEY_ALIAS', 'STOCRANT_KEY_PASSWORD'].collectEntries { name -> [(name): System.getenv(name)] }
+def releaseSigningReady = releaseSigningValues.values().every { it != null && !it.trim().isEmpty() }
 
 android {
     namespace "com.stocrant.app"
@@ -7,8 +9,8 @@ android {
         applicationId "com.stocrant.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode Integer.parseInt(System.getenv('STOCRANT_VERSION_CODE') ?: '1')
+        versionName System.getenv('STOCRANT_VERSION_NAME') ?: '1.0'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,11 +18,29 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseSigningReady) {
+                storeFile file(releaseSigningValues['STOCRANT_KEYSTORE_FILE'])
+                storePassword releaseSigningValues['STOCRANT_KEYSTORE_PASSWORD']
+                keyAlias releaseSigningValues['STOCRANT_KEY_ALIAS']
+                keyPassword releaseSigningValues['STOCRANT_KEY_PASSWORD']
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') }) {
+        if (!releaseSigningReady) throw new GradleException('Set all four STOCRANT_KEYSTORE_FILE, STOCRANT_KEYSTORE_PASSWORD, STOCRANT_KEY_ALIAS, and STOCRANT_KEY_PASSWORD environment variables to build a signed release.')
+        if (!file(releaseSigningValues['STOCRANT_KEYSTORE_FILE']).isFile()) throw new GradleException('The release keystore file does not exist.')
     }
 }
 

@@ -25,7 +25,8 @@
     "mobile:add:android": "npx cap add android",
     "mobile:add:ios": "npx cap add ios",
     "check:data": "node scripts/check-data.mjs",
-    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run build:frontend",
+    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run build:frontend && npm run test:production",
+    "test:production": "node scripts/verify-production.mjs",
     "test:notifications": "node --test scripts/test-notification-activity.mjs",
     "test:lock": "node scripts/test-app-lock.mjs"
   },
