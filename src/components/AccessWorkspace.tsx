@@ -1,4 +1,5 @@
 import LockSettings from "./LockSettings";
+import { useWorkspaceTab } from "../use-workspace-tab";
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, useSearchParams } from "react-router-dom";
 import { useMeta } from "../meta-context";
@@ -24,7 +25,7 @@ export default function AccessWorkspace() {
   const [rules, setRules] = useState<CollectionItem[]>([]);
   const [approvals, setApprovals] = useState<CollectionItem[]>([]);
   const [audit, setAudit] = useState<CollectionItem[]>([]);
-  const [tab, setTab] = useState<Tab>("Users");
+  const [tab, setTab] = useWorkspaceTab(tabs, "Users");
   const [showInvite, setShowInvite] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState("");

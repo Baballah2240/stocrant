@@ -3,6 +3,7 @@ import { useSession } from "../session-context";
 import { api } from "../api";
 import { formatDate } from "../util";
 import BackButton from "./BackButton";
+import { useWorkspaceTab } from "../use-workspace-tab";
 import type { CollectionItem } from "../types";
 
 const tabs = ["Accounts", "Income", "Expenses", "Salaries & payroll", "Transfers", "Other movements", "Reports"] as const;
@@ -23,7 +24,7 @@ export default function FinanceWorkspace() {
   const [personFilter, setPersonFilter] = useState("");
   const [printId, setPrintId] = useState("");
   const [notice, setNotice] = useState("");
-  const [tab, setTab] = useState<(typeof tabs)[number]>("Accounts"); const [accounts, setAccounts] = useState<CollectionItem[]>([]); const [transactions, setTransactions] = useState<CollectionItem[]>([]); const [mode, setMode] = useState<"account" | "transaction" | null>(null); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useWorkspaceTab(tabs, "Accounts"); const [accounts, setAccounts] = useState<CollectionItem[]>([]); const [transactions, setTransactions] = useState<CollectionItem[]>([]); const [mode, setMode] = useState<"account" | "transaction" | null>(null); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
   const [accountForm, setAccountForm] = useState({ organizationId: "", name: "", type: "bank", currency: "USD", openingBalance: "0" }); const [transactionForm, setTransactionForm] = useState({ employeeId: "", personName: "", category: "", direction: "out", type: "income", accountId: "", destinationAccountId: "", amount: "", date: localDate(new Date()), time: new Date().toTimeString().slice(0, 5), status: "paid", reference: "", description: "", supportingDocument: "" });
   const load = async () => { try { const data = await api.workspace.finance(); setAccounts(data.accounts); setTransactions(data.transactions); setCompanies(data.companies); setPeople(data.people); setCurrency((current) => current || String(data.accounts[0]?.currency ?? "SAR")); setError(null); setTransactionForm((current) => ({ ...current, accountId: current.accountId || String(data.accounts[0]?.id ?? "") })); } catch (err) { setError(err instanceof Error ? err.message : "Could not load finance."); } };
   useEffect(() => { void load(); }, []);

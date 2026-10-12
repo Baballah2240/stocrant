@@ -29,6 +29,8 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const lastActivity = useRef(Date.now());
   const authenticating = useRef(false);
+  const biometricAttempted = useRef(false);
+  const [foreground, setForeground] = useState(true);
   const key = user ? `stocrant.lock.${user.id}` : "";
   const signalKey = user ? `stocrant.lock.signal.${user.id}` : "";
   useEffect(() => {
@@ -80,6 +82,8 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     if (!isNativeApp() || !user) return;
     let disposed = false;
     const handle = NativeApp.addListener("appStateChange", state => {
+      setForeground(state.isActive);
+      if (state.isActive) void BiometricAuth.checkBiometry().then(result => { if (!disposed) setAvailable(result.strongBiometryIsAvailable); }).catch(() => { if (!disposed) setAvailable(false); });
       if (!state.isActive && preferences.background && !authenticating.current) lock();
       if (state.isActive && !authenticating.current && inactivityExpired(lastActivity.current, Date.now(), preferences.minutes)) lock();
     });
@@ -87,6 +91,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     return () => { disposed = true; void handle.then(listener => listener.remove()); };
   }, [user, preferences.background, preferences.minutes, lock]);
   const authenticateBiometric = async () => {
+    if (authenticating.current) throw new Error("Biometric authentication is already in progress.");
     if (!isNativeApp()) throw new Error("Biometric unlock is available in the mobile app only.");
     const result = await BiometricAuth.checkBiometry();
     if (!result.strongBiometryIsAvailable) throw new Error(language === "ar" ? "فعّل البصمة أو Face ID في إعدادات الهاتف أولاً." : "Set up fingerprint or Face ID in your phone settings first.");
@@ -113,6 +118,15 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     } catch (err) { setError(err instanceof Error ? err.message : "Biometric unlock was canceled. Use your password."); }
     finally { setBusy(false); }
   }
+  const biometricUnlockRef = useRef(unlockBiometric);
+  biometricUnlockRef.current = unlockBiometric;
+  useEffect(() => {
+    if (!locked || !user) { biometricAttempted.current = false; return; }
+    if (accountId !== user.id || loading || !foreground || !isNativeApp() || !preferences.biometric || !available || busy || biometricAttempted.current) return;
+    // Prompt once per lock; cancellation leaves password and manual retry available.
+    biometricAttempted.current = true;
+    void biometricUnlockRef.current();
+  }, [locked, user?.id, accountId, loading, foreground, preferences.biometric, available, busy]);
   const value = { preferences, available, setPreferences, lock, authenticateBiometric };
   if (user && accountId !== user.id) return <main className="app-lock-screen" aria-busy="true" />;
   return <Context.Provider value={value}>{user && locked ? <main className="app-lock-screen"><section className="app-lock-card" aria-labelledby="app-lock-title">

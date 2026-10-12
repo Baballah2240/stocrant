@@ -163,7 +163,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (action) {
     let input: unknown;
     try { input = typeof init.body === "string" ? JSON.parse(init.body) : undefined; } catch { /* No request metadata needed. */ }
-    notifyAction(res.status === 202 || (result && typeof result === "object" && "pending" in result && result.pending) ? "Submitted for approval." : actionMessage(path, method, input));
+    notifyAction(res.status === 202 || (result && typeof result === "object" && "pending" in result && result.pending) ? "Submitted for approval." : actionMessage(path, method, input), "success", !path.startsWith("/notifications/") && !path.startsWith("/auth/login") && !path.startsWith("/auth/logout"));
   }
   return result;
 }

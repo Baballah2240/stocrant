@@ -3,7 +3,9 @@ import { useSession } from "../session-context";
 import { api } from "../api";
 import { relativeLabel as formatDate } from "../util";
 import type { Notification, NotificationType } from "../types";
-import type { ActionFeedback } from "../action-feedback";
+import { isImportantActivity, type ActionFeedback } from "../action-feedback";
+import { Link } from "react-router-dom";
+import BackButton from "./BackButton";
 import { useLanguage } from "../language-context";
 
 type RecentActivity = { id: string; message: string; createdAt: string; read: boolean };
@@ -52,13 +54,13 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
     let saved: RecentActivity[] = [];
     try {
       const value: unknown = JSON.parse(localStorage.getItem(activityKey) || "[]");
-      if (Array.isArray(value)) saved = value.filter(item => item && typeof item.id === "string" && typeof item.message === "string" && typeof item.createdAt === "string" && typeof item.read === "boolean").slice(0, 50);
+      if (Array.isArray(value)) saved = value.filter(item => item && typeof item.id === "string" && typeof item.message === "string" && typeof item.createdAt === "string" && typeof item.read === "boolean" && isImportantActivity(item.message)).slice(0, 50);
     } catch { /* Ignore unavailable or invalid device storage. */ }
     setActivity(saved);
     if (!activityKey) return;
     const record = (event: Event) => {
       const feedback = (event as CustomEvent<ActionFeedback>).detail;
-      if (!feedback || feedback.kind !== "success" || /^(Signed |Notification marked|All notifications marked)/.test(feedback.message)) return;
+      if (!feedback || feedback.kind !== "success" || !feedback.recordActivity || !isImportantActivity(feedback.message)) return;
       updateActivity(items => [{ id: crypto.randomUUID(), message: feedback.message, createdAt: new Date().toISOString(), read: false }, ...items].slice(0, 50));
     };
     window.addEventListener("stocrant:action", record);
@@ -204,10 +206,18 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
           {detailError && <p className="error" role="alert">{detailError}</p>}
           {detailBusy && <p className="hint" role="status">{language === "ar" ? "جارٍ التحميل…" : "Please wait…"}</p>}
           {selected ? <section className="notification-detail">
-            <button type="button" disabled={detailBusy} onClick={() => setSelected(null)}>{language === "ar" ? "العودة للإشعارات" : "Back to notifications"}</button>
+            <BackButton disabled={detailBusy} onBack={() => setSelected(null)} label={t("Notifications")} />
             <h3>{t(typeLabel(selected.item.type))}</h3><p className="notification-detail-message">{selected.item.message}</p><p className="notification-list__meta">{formatDate(selected.item.createdAt)}</p>
             <dl>{Object.entries(selected.details).map(([field, value]) => <div key={field}><dt>{t(field.charAt(0).toUpperCase() + field.slice(1))}</dt><dd>{String(value)}</dd></div>)}</dl>
             {selected.item.response && <p className="notification-response">{selected.item.response}</p>}
+            {user?.roleId === "role-main-manager" && <div className="notification-list__actions">
+              {selected.item.type === "password_reset" && <Link to={`/admin?tab=Users&user=${encodeURIComponent(selected.item.target ?? "")}`} onClick={() => setOpen(false)}>{language === "ar" ? "إدارة كلمة المرور والحساب" : "Manage password & account"}</Link>}
+              {selected.item.type === "registration_request" && <Link to={`/admin?tab=Users&user=${encodeURIComponent(selected.item.target ?? "")}`} onClick={() => setOpen(false)}>{language === "ar" ? "إدارة الشركة والصلاحيات" : "Manage company & permissions"}</Link>}
+              {selected.item.type === "leave_request" && <Link to="/hr" onClick={() => setOpen(false)}>{language === "ar" ? "فتح شؤون الموظفين" : "Open workforce & HR"}</Link>}
+              {selected.item.type === "low_stock" && <Link to="/warehouse" onClick={() => setOpen(false)}>{language === "ar" ? "إدارة المخزون" : "Manage inventory"}</Link>}
+              {selected.item.type === "overdue_work" && <Link to="/operations" onClick={() => setOpen(false)}>{language === "ar" ? "إدارة العمل" : "Manage work"}</Link>}
+              {selected.item.type === "pending_approval" && <Link to="/admin?tab=Approvals" onClick={() => setOpen(false)}>{language === "ar" ? "فتح الموافقات" : "Open approvals"}</Link>}
+            </div>}
             {selected.canReply && <div className="notification-reply"><label className="form-field"><span>{language === "ar" ? "تعليق للمرسل" : "Comment to sender"}</span><textarea rows={3} maxLength={2000} disabled={detailBusy} value={comment} onChange={event => setComment(event.target.value)} /></label><div className="inline-actions">{selected.canDecide && <><button className="primary" disabled={detailBusy} onClick={() => void respond("approve")}>{language === "ar" ? "موافقة" : "Approve"}</button><button className="danger" disabled={detailBusy} onClick={() => void respond("reject")}>{language === "ar" ? "رفض" : "Reject"}</button></>}<button disabled={detailBusy || !comment.trim()} onClick={() => void respond("comment")}>{language === "ar" ? "إرسال تعليق" : "Send comment"}</button></div></div>}
             <button className="notification-delete" disabled={detailBusy} onClick={() => void removeNotification(selected.item.id)}>{language === "ar" ? "حذف الإشعار" : "Delete notification"}</button>
           </section> : <>
@@ -237,7 +247,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
                     </p>
                   </div>
                   <div className="notification-list__actions">
-                    <button disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{language === "ar" ? "التفاصيل" : "Details"}</button>
+                    <button disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{user?.roleId === "role-main-manager" && ["registration_request", "leave_request", "pending_approval", "password_reset"].includes(notification.type) ? language === "ar" ? "مراجعة واتخاذ إجراء" : "Review & act" : language === "ar" ? "التفاصيل" : "Details"}</button>
                     <button disabled={detailBusy} onClick={() => void removeNotification(notification.id)}>{language === "ar" ? "حذف" : "Delete"}</button>
                     {!notification.read && <button
                       disabled={busy}

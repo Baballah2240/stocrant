@@ -19,6 +19,8 @@ import "./auth-notifications.css";
 import "./app-lock.css";
 import "./attendance-motion.css";
 import "./choice-controls.css";
+import "./mobile-drawer.css";
+import "./mobile-navigation.css";
 
 // Native builds have no hover pointer and need safe-area padding; the CSS
 // keys off this attribute so the browser layout stays untouched.

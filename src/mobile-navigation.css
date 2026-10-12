@@ -1,0 +1,15 @@
+/* iOS-style return control, shared by sections and nested panels. */
+.ios-app .back-button, .profile-panel .back-button, .notification-panel .back-button {
+  display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px;
+  min-height: 44px; padding: 8px 4px; margin: 0;
+  border: 0; border-radius: 10px; background: transparent;
+  color: var(--brand-link); font-size: 16px; font-weight: 500;
+  box-shadow: none; text-decoration: none; white-space: nowrap;
+}
+.back-button svg { width: 22px; height: 24px; flex-shrink: 0; }
+html[dir="rtl"] .back-button svg { transform: rotate(180deg); }
+.mobile-layout .topbar .mobile-header-back { flex-shrink: 0; min-width: 72px; }
+.mobile-layout .main > .page .back-button { display: none; }
+.mobile-layout .main .profile-panel .back-button { display: inline-flex; }
+.back-button:focus-visible { outline: 3px solid var(--brand-link); outline-offset: 2px; }
+@media (hover: hover) { .ios-app .back-button:hover { background: var(--brand-blue-soft); color: var(--brand-link); } }

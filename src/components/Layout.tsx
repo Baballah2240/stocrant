@@ -2,7 +2,8 @@ import MobileIcon, { type MobileIconName } from "./MobileIcon";
 import { useMobile } from "../use-mobile";
 import { useEffect, useRef, useState } from "react";
 import ProfilePanel from "./ProfilePanel";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import BackButton from "./BackButton";
 import { useTheme } from "../theme-context";
 import { useSession } from "../session-context";
 import { NotificationBell } from "./NotificationBell";
@@ -44,6 +45,9 @@ function NavButton({ item }: { item: NavEntry }) {
 export default function Layout() {
   const { language, setLanguage, t } = useLanguage();
   const mobile = useMobile();
+  const location = useLocation();
+  const parentPath = location.pathname.split("/").filter(Boolean).slice(0, -1).join("/");
+  const backFallback = parentPath === "me" ? "/" : parentPath === "organization" ? "/organizations" : parentPath ? `/${parentPath}` : "/";
   const [profileOpen, setProfileOpen] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState<File | undefined>();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -62,7 +66,7 @@ export default function Layout() {
   return (
     <div className={`ios-app ${mobile ? "mobile-layout" : ""}`}>
       <a className="skip-link" href="#main-content">{t("Skip to content")}</a><header className="topbar">
-        {mobile ? <><button className="mobile-header-control" type="button" aria-label="Open account menu" aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="topbar-spacer" /><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
+        {mobile ? <>{location.pathname !== "/" && <BackButton className="mobile-header-back" fallback={backFallback} />}<button className="mobile-header-control" type="button" aria-label="Open account menu" aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="topbar-spacer" /><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
           <span className="brand-logo" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <rect x="1" y="1" width="22" height="22" rx="6.5" />
@@ -90,8 +94,8 @@ export default function Layout() {
       </header>
       {mobile && <dialog ref={menuRef} id="mobile-account-menu" className="mobile-account-drawer" aria-labelledby="mobile-menu-title" onCancel={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} onClick={event => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
         <div className="mobile-drawer-content">
-          <header className="mobile-drawer-heading"><h2 id="mobile-menu-title">{t("My account")}</h2><button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>×</button></header>
-          <div className="mobile-drawer-identity"><button className="mobile-drawer-photo" type="button" aria-label="Open my profile" onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><span className="mobile-drawer-avatar">{user?.avatar ? <img src={user.avatar} alt="Your profile" /> : <MobileIcon name="profile" />}</span><span>{t("My profile")}</span></button><strong>{user?.name}</strong></div>
+          <header className="mobile-drawer-heading"><div><span className="mobile-drawer-brand">STOCRANT</span><h2 id="mobile-menu-title">{t("My account")}</h2></div><button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>×</button></header>
+          <button className="mobile-drawer-identity" type="button" aria-label={t("My profile")} onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><span className="mobile-drawer-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : user?.name?.slice(0, 2).toUpperCase() || <MobileIcon name="profile" />}</span><span className="mobile-drawer-user"><strong>{user?.name}</strong><span>{t("My profile")}</span></span><span className="mobile-drawer-chevron" aria-hidden="true">›</span></button>
           <nav className="mobile-drawer-controls" aria-label="Account controls">
             <NavLink to="/security" onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{language === "ar" ? "قفل التطبيق" : "App lock"}</span></NavLink>
             <section className="language-settings" aria-labelledby="language-heading">
@@ -103,9 +107,9 @@ export default function Layout() {
               <p>{language === "ar" ? "يتم حفظ اختيارك على هذا الجهاز" : "Saved on this device"}</p>
             </section>
             <NavLink to={user?.roleId === "role-main-manager" ? "/admin" : "/mobile-more"} onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("Settings")}</span></NavLink>
-            <button type="button" onClick={toggle}><MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{t(nextTheme === "dark" ? "Dark mode" : "Light mode")}</span></button>
-            <button type="button" onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><MobileIcon name="profile" /><span>{t("My profile")}</span></button>
+            <button type="button" role="switch" aria-checked={theme === "dark"} aria-label={t("Dark mode")} onClick={toggle}><MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{t("Dark mode")}</span><span className="mobile-drawer-switch" aria-hidden="true" /></button>
           </nav>
+          <footer className="mobile-drawer-footer"><NavLink to="/about" onClick={() => setMenuOpen(false)}><MobileIcon name="info" /><span>{t("About")}</span></NavLink><span>STOCRANT</span></footer>
         </div>
       </dialog>}
 

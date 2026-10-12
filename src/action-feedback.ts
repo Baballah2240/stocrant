@@ -1,6 +1,9 @@
-export type ActionFeedback = { message: string; kind: "success" | "error" };
-export function notifyAction(message: string, kind: ActionFeedback["kind"] = "success") {
-  window.dispatchEvent(new CustomEvent<ActionFeedback>("stocrant:action", { detail: { message, kind } }));
+export type ActionFeedback = { message: string; kind: "success" | "error"; recordActivity?: boolean };
+export function isImportantActivity(message: string): boolean {
+  return !/^(Signed |Notification |All notifications |(?:Light|Dark) mode |Print dialog |Language |App lock |Biometric )/i.test(message);
+}
+export function notifyAction(message: string, kind: ActionFeedback["kind"] = "success", recordActivity = false) {
+  window.dispatchEvent(new CustomEvent<ActionFeedback>("stocrant:action", { detail: { message, kind, recordActivity } }));
 }
 export function actionMessage(path: string, method: string, input?: unknown): string {
   if (path === "/auth/login") return "Signed in successfully.";
