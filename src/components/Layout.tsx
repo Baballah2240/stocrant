@@ -23,6 +23,7 @@ const navItems: NavEntry[] = [
   { to: "/locations", label: "Locations", icon: "locations", section: "locations" },
   { to: "/hr", label: "Workforce & HR", icon: "people", section: "hr" },
   { to: "/operations", label: "Operations", icon: "work", section: "operations" },
+  { to: "/customer-service", label: "Customer Service", icon: "work", section: "customerService" },
   { to: "/warehouse", label: "Inventory", icon: "inventory", section: "inventory" },
   { to: "/finance", label: "Finance", icon: "finance", section: "finance" },
   { to: "/admin", label: "Access & Settings", icon: "settings", section: "access" },
@@ -35,9 +36,10 @@ const aboutItem: NavEntry = {
 };
 
 function NavButton({ item }: { item: NavEntry }) {
+  const { t } = useLanguage();
   return (
-    <NavLink to={item.to} end={item.end} className="nav-item" aria-label={item.label}>
-      {item.icon && <MobileIcon name={item.icon} />}<span className="nav-label">{item.label}</span>
+    <NavLink to={item.to} end={item.end} className="nav-item" aria-label={t(item.label)}>
+      {item.icon && <MobileIcon name={item.icon} />}<span className="nav-label">{t(item.label)}</span>
     </NavLink>
   );
 }
@@ -61,12 +63,14 @@ export default function Layout() {
   const { theme, toggle } = useTheme();
   const { user, signOut } = useSession();
   const nextTheme = theme === "light" ? "dark" : "light";
-  const visibleNavItems = navItems.filter((item) => item.section === "access" ? user?.roleId === "role-main-manager" : !item.section || user?.permissions.includes("*") || user?.permissions.includes(`${item.section}.*`) || user?.permissions.includes(`${item.section}.view`));
+  const mainAdmin = user?.roleId === "role-main-manager";
+  const canSeeSection = (section?: string) => !section || mainAdmin || Boolean(user?.permissions.includes("*") || user?.permissions.includes(`${section}.*`) || user?.permissions.includes(`${section}.view`));
+  const visibleNavItems = navItems.filter(item => canSeeSection(item.section));
 
   return (
     <div className={`ios-app ${mobile ? "mobile-layout" : ""}`}>
       <a className="skip-link" href="#main-content">{t("Skip to content")}</a><header className="topbar">
-        {mobile ? <>{location.pathname !== "/" && <BackButton className="mobile-header-back" fallback={backFallback} />}<button className="mobile-header-control" type="button" aria-label="Open account menu" aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="topbar-spacer" /><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
+        {mobile ? <>{location.pathname !== "/" && <BackButton className="mobile-header-back" fallback={backFallback} />}<button className="mobile-header-control" type="button" aria-label={t("Open account menu")} aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="topbar-spacer" /><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
           <span className="brand-logo" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <rect x="1" y="1" width="22" height="22" rx="6.5" />
@@ -84,39 +88,40 @@ export default function Layout() {
             type="button"
             className="theme-toggle"
             onClick={toggle}
-            aria-label={`Switch to ${nextTheme} mode`}
-            title={`Switch to ${nextTheme} mode`}
+            aria-label={t(nextTheme === "dark" ? "Switch to dark mode" : "Switch to light mode")}
+            title={t(nextTheme === "dark" ? "Switch to dark mode" : "Switch to light mode")}
           >
-            <MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{theme === "light" ? "Dark mode" : "Light mode"}</span>
+            <MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{t(theme === "light" ? "Dark mode" : "Light mode")}</span>
           </button>
-          <button type="button" className="logout-button" aria-label="Log out" title="Log out" onClick={() => void signOut()}>{t("Log out")}</button>
+          <button type="button" className="theme-toggle language-toggle" lang={language === "en" ? "ar" : "en"} dir={language === "en" ? "rtl" : "ltr"} aria-label={t(language === "en" ? "Switch to Arabic" : "Switch to English")} title={t(language === "en" ? "Switch to Arabic" : "Switch to English")} onClick={() => setLanguage(language === "en" ? "ar" : "en")}>{language === "en" ? "العربية" : "EN"}</button>
+          <button type="button" className="logout-button" aria-label={t("Sign out")} title={t("Sign out")} onClick={() => void signOut()}>{t("Sign out")}</button>
         </div></>}
       </header>
       {mobile && <dialog ref={menuRef} id="mobile-account-menu" className="mobile-account-drawer" aria-labelledby="mobile-menu-title" onCancel={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} onClick={event => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
         <div className="mobile-drawer-content">
-          <header className="mobile-drawer-heading"><div><span className="mobile-drawer-brand">STOCRANT</span><h2 id="mobile-menu-title">{t("My account")}</h2></div><button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>×</button></header>
+          <header className="mobile-drawer-heading"><div><span className="mobile-drawer-brand">{t("STOCRANT")}</span><h2 id="mobile-menu-title">{t("My account")}</h2></div><button type="button" aria-label={t("Close menu")} onClick={() => setMenuOpen(false)}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
           <button className="mobile-drawer-identity" type="button" aria-label={t("My profile")} onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><span className="mobile-drawer-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : user?.name?.slice(0, 2).toUpperCase() || <MobileIcon name="profile" />}</span><span className="mobile-drawer-user"><strong>{user?.name}</strong><span>{t("My profile")}</span></span><span className="mobile-drawer-chevron" aria-hidden="true">›</span></button>
-          <nav className="mobile-drawer-controls" aria-label="Account controls">
-            <NavLink to="/security" onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{language === "ar" ? "قفل التطبيق" : "App lock"}</span></NavLink>
+          <nav className="mobile-drawer-controls" aria-label={t("Account controls")}>
+            <NavLink to="/security" onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("App lock")}</span></NavLink>
             <section className="language-settings" aria-labelledby="language-heading">
-              <h3 id="language-heading">{language === "ar" ? "اللغة" : "Language"}</h3>
-              <div className="language-options" role="group" aria-label={language === "ar" ? "لغة التطبيق" : "App language"}>
+              <h3 id="language-heading">{t("Language")}</h3>
+              <div className="language-options" role="group" aria-label={t("App language")}>
                 <button type="button" className="language-option" lang="en" dir="ltr" aria-pressed={language === "en"} onClick={() => setLanguage("en")}><span className="language-code" aria-hidden="true">EN</span><span>English</span><span className="language-selected" aria-hidden="true">{language === "en" ? <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg> : null}</span></button>
                 <button type="button" className="language-option" lang="ar" dir="rtl" aria-pressed={language === "ar"} onClick={() => setLanguage("ar")}><span className="language-code" aria-hidden="true">ع</span><span>العربية</span><span className="language-selected" aria-hidden="true">{language === "ar" ? <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg> : null}</span></button>
               </div>
-              <p>{language === "ar" ? "يتم حفظ اختيارك على هذا الجهاز" : "Saved on this device"}</p>
+              <p>{t("Saved on this device")}</p>
             </section>
-            <NavLink to={user?.roleId === "role-main-manager" ? "/admin" : "/mobile-more"} onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("Settings")}</span></NavLink>
+            <NavLink to={canSeeSection("access") ? "/admin" : "/mobile-more"} onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("Settings")}</span></NavLink>
             <button type="button" role="switch" aria-checked={theme === "dark"} aria-label={t("Dark mode")} onClick={toggle}><MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{t("Dark mode")}</span><span className="mobile-drawer-switch" aria-hidden="true" /></button>
           </nav>
-          <footer className="mobile-drawer-footer"><NavLink to="/about" onClick={() => setMenuOpen(false)}><MobileIcon name="info" /><span>{t("About")}</span></NavLink><span>STOCRANT</span></footer>
+          <footer className="mobile-drawer-footer"><NavLink to="/about" onClick={() => setMenuOpen(false)}><MobileIcon name="info" /><span>{t("About")}</span></NavLink><span>{t("STOCRANT")}</span></footer>
         </div>
       </dialog>}
 
-      {mobile && <nav className="mobile-bottom-nav" aria-label="Mobile navigation"><NavLink to="/" end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
+      {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to="/" end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
       <div className="app">
-        <aside className="sidebar" aria-label="Primary navigation">
-          <nav className="nav" aria-label="Main">
+        <aside className="sidebar" aria-label={t("Primary navigation")}>
+          <nav className="nav" aria-label={t("Main navigation")}>
             {visibleNavItems.map((item) => (
               <NavButton key={item.to} item={item} />
             ))}
@@ -126,7 +131,7 @@ export default function Layout() {
           </div>
         </aside>
         {profileOpen && <ProfilePanel initialPhoto={profilePhoto} onClose={() => { setProfileOpen(false); setProfilePhoto(undefined); }} />}<main className="main" id="main-content">
-          <Suspense fallback={<p className="hint" role="status">{language === "ar" ? "جارٍ التحميل…" : "Loading…"}</p>}><Outlet /></Suspense>
+          <Suspense fallback={<p className="hint" role="status">{t("Loading…")}</p>}><Outlet /></Suspense>
         </main>
       </div>
     </div>

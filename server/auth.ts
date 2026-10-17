@@ -16,6 +16,7 @@ export interface AuthenticatedUser {
   roleId: string;
   employeeId?: string;
   organizationIds: string[];
+  tenantOrganizationIds?: string[];
   locationIds: string[];
   ownRecordsOnly: boolean;
   permissions: string[];
@@ -109,6 +110,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
   const employee = (getCollection("employees") as Record<string, unknown>[]).find((employee) => employee.id === account.employeeId || String(employee.email ?? "").toLowerCase() === account.email.toLowerCase());
   const assigned = Array.isArray(account.organizationIds) && account.organizationIds.length ? account.organizationIds : employee?.organizationId ? [employee.organizationId] : [];
   const validCompanies = new Set((getCollection("companies") as Record<string, unknown>[]).map(company => company.id));
+  const delegated = ["role-organization-admin", "role-company-manager"].includes(account.roleId);
   return {
     accountStatus: account.status,
     id: account.id,
@@ -122,9 +124,10 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     roleId: account.roleId,
     employeeId: typeof account.employeeId === "string" ? account.employeeId : undefined,
     organizationIds: assigned.filter((id): id is string => typeof id === "string" && validCompanies.has(id)),
+    tenantOrganizationIds: Array.isArray(account.tenantOrganizationIds) ? account.tenantOrganizationIds.filter((id): id is string => typeof id === "string") : [],
     locationIds: Array.isArray(account.locationIds) ? account.locationIds.filter((id): id is string => typeof id === "string") : [],
     ownRecordsOnly: account.ownRecordsOnly === true,
-    permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && !["*", "access.*", "audit.*"].includes(permission) && !permission.startsWith("access.") && !permission.startsWith("audit.")),
+    permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && permission !== "*" && (delegated || (!permission.startsWith("access.") && !permission.startsWith("audit.") && !/^hr\.(create|edit|delete|approve|\*)$/.test(permission)))),
   };
 }
 
@@ -137,7 +140,22 @@ function sessionRows() {
 }
 
 function activeAccountById(id: string) {
-  return accountRows().find((account) => account.id === id && ["active", "pending", "rejected"].includes(account.status));
+  return accountRows().find((account) => account.id === id && ["active", "pending", "rejected"].includes(account.status) && accountScopeActive(account));
+}
+
+export function accountScopeActive(account: Record<string, unknown>): boolean {
+  if (account.roleId === "role-main-manager") return true;
+  const organizations = getCollection("organizations") as Record<string, unknown>[];
+  const parents = Array.isArray(account.tenantOrganizationIds) ? account.tenantOrganizationIds : [];
+  if (account.roleId === "role-organization-admin") return parents.length === 1 && organizations.some(org => org.id === parents[0] && org.status === "active");
+  const companies = getCollection("companies") as Record<string, unknown>[];
+  return !Array.isArray(account.organizationIds) || !account.organizationIds.length || account.organizationIds.every(id => {
+    const company = companies.find(row => row.id === id);
+    // The additive tenant migration assigns parentOrganizationId on normal
+    // storage load. Keep an unparented legacy/imported company usable until
+    // that migration pass; an explicit inactive parent always blocks access.
+    return Boolean(company && company.status !== "inactive" && (!company.parentOrganizationId || organizations.some(org => org.id === company.parentOrganizationId && org.status === "active")));
+  });
 }
 
 export function authenticatedUser(req: Request): AuthenticatedUser | undefined {

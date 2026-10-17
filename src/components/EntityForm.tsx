@@ -6,6 +6,8 @@ import { useSession } from "../session-context";
 import { api } from "../api";
 import { classNames } from "../util";
 import type { CollectionItem, FieldSpec } from "../types";
+import { useLanguage } from "../language-context";
+import { hasPermission, sectionForModule } from "../access-control";
 
 interface FieldProps {
   field: FieldSpec;
@@ -14,11 +16,12 @@ interface FieldProps {
 }
 
 function Field({ field, value, onChange }: FieldProps) {
+  const { t } = useLanguage();
   const { user } = useSession();
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
-  useEffect(() => { if (field.key === "organizationId") void api.auth.companies().then(result => setCompanies(result.companies.filter(company => user?.roleId === "role-main-manager" || user?.organizationIds.includes(company.id)))).catch(() => setCompanies([])); }, [field.key, user]);
+  useEffect(() => { if (field.key === "organizationId") void api.auth.companies().then(result => setCompanies(result.companies)).catch(() => setCompanies([])); if (field.key === "parentOrganizationId") void api.collections.list("organizations").then(result => setCompanies(result.items.filter(item => item.status === "active").map(item => ({ id: item.id, name: String(item.name) })))).catch(() => setCompanies([])); }, [field.key, user]);
   if (field.readOnly) return <label className="form-field"><span className="field-label">{field.label}</span><input readOnly value={value ?? ""} placeholder={field.placeholder} /><small>Assigned automatically when saved</small></label>;
-  if (field.key === "organizationId") return <label className="form-field"><span className="field-label">Company</span><ChoiceSelect required={field.required} value={value ?? ""} onChange={event => onChange(field.key, event.target.value)}><option value="">Choose company</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</ChoiceSelect></label>;
+  if (["organizationId", "parentOrganizationId"].includes(field.key)) return <label className="form-field"><span className="field-label">{t(field.key === "organizationId" ? "Company" : "Organization")}</span><ChoiceSelect required={field.required} value={value ?? ""} onChange={event => onChange(field.key, event.target.value)}><option value="">{t(field.key === "organizationId" ? "Choose company" : "Choose organization")}</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</ChoiceSelect></label>;
   const inputType: Record<string, string> = {
     text: "text",
     textarea: "textarea",
@@ -48,7 +51,7 @@ function Field({ field, value, onChange }: FieldProps) {
       className={classNames("form-field", field.type === "textarea" ? "field--full" : undefined)}
     >
       <label className="field-label" htmlFor={`field-${field.key}`}>
-        {field.label}
+        {t(field.label)}
         {field.required ? <span className="required" aria-hidden="true">*</span> : null}
       </label>
       {field.type === "select" ? (
@@ -56,7 +59,7 @@ function Field({ field, value, onChange }: FieldProps) {
           <option value="">Choose&hellip;</option>
           {field.options?.map((opt) => (
             <option key={opt} value={opt}>
-              {opt}
+              {t(opt)}
             </option>
           ))}
         </ChoiceSelect>
@@ -67,7 +70,7 @@ function Field({ field, value, onChange }: FieldProps) {
           value={value ?? ""}
           onChange={handleChange}
           rows={4}
-          placeholder={field.placeholder}
+          placeholder={field.placeholder ? t(field.placeholder) : undefined}
         />
       ) : (
         <input
@@ -78,7 +81,7 @@ function Field({ field, value, onChange }: FieldProps) {
           onChange={handleChange}
           min={field.min}
           max={field.max}
-          placeholder={field.placeholder}
+          placeholder={field.placeholder ? t(field.placeholder) : undefined}
         />
       )}
     </div>
@@ -103,6 +106,7 @@ export function buildInitialValues(
 }
 
 export default function EntityForm() {
+  const { t } = useLanguage();
   const { module, collection, id } = useParams<{
     module: string;
     collection: string;
@@ -113,6 +117,7 @@ export default function EntityForm() {
   const { user } = useSession();
   const [searchParams] = useSearchParams();
   const companyId = searchParams.get("company") ?? "";
+  const parentOrganizationId = searchParams.get("org") ?? "";
 
   const isEdit = Boolean(id);
   const spec = useMemo(() => {
@@ -164,11 +169,11 @@ export default function EntityForm() {
   // Seed the form with existing values (or defaults when creating).
   useEffect(() => {
     if (!spec) return;
-    setValues({ ...buildInitialValues(spec.fields, item), ...(!isEdit && collection === "employees" && companyId ? { organizationId: companyId } : {}) });
-  }, [spec, item, companyId, isEdit, collection]);
+    setValues({ ...buildInitialValues(spec.fields, item), ...(!isEdit && collection === "employees" && companyId ? { organizationId: companyId } : {}), ...(!isEdit && collection === "companies" && parentOrganizationId ? { parentOrganizationId } : {}) });
+  }, [spec, item, companyId, parentOrganizationId, isEdit, collection]);
 
   function handleChange(key: string, value: unknown) {
-    setValues((prev) => ({ ...prev, [key]: value as string | number | null }));
+    setValues((prev) => ({ ...prev, [key]: value as string | number | null, ...(key === "organizationId" ? { locationId: "", location: "" } : {}) }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -199,7 +204,7 @@ export default function EntityForm() {
     return <p className="hint">Loading metadata&hellip;</p>;
   }
 
-  if (module === "hr" && user?.roleId !== "role-main-manager") return <div className="alert alert--bad" role="alert">Only the main admin can manage HR records.</div>;
+  if (!hasPermission(user, sectionForModule(module), isEdit ? "edit" : "create")) return <div className="alert alert--bad" role="alert">{t("You do not have permission to change this section.")}</div>;
 
   const employeeGroups = collection === "employees" ? [
     { title: "Company assignment", description: "Which company are you adding this employee to?", keys: ["organizationId"] },

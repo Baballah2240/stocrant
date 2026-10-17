@@ -140,6 +140,7 @@ export interface AuthUser {
   roleId: string;
   employeeId?: string;
   organizationIds: string[];
+  tenantOrganizationIds?: string[];
   locationIds: string[];
   ownRecordsOnly: boolean;
   permissions: string[];

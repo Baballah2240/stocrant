@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Continue"
 
-$root = "C:\Users\Lenovo\resturrant\stocrant"
+$root = "$PSScriptRoot"
 $adb = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 $apk = Join-Path $root "android\app\build\outputs\apk\debug\app-debug.apk"
 $log = Join-Path $root "v-usb-auto-install.log"

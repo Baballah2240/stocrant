@@ -9,12 +9,12 @@
 [CmdletBinding()]
 param(
     [string]$ExpectedSerial = "AMEGJV5A23G10506",
-    [string]$Apk = "C:\Users\Lenovo\resturrant\stocrant\android\app\build\outputs\apk\debug\app-debug.apk",
+    [string]$Apk = "$((Resolve-Path (Join-Path $PSScriptRoot '..')).Path)\android\app\build\outputs\apk\debug\app-debug.apk",
     [int]$WaitMinutes = 30
 )
 
 $ErrorActionPreference = "Continue"
-$root = "C:\Users\Lenovo\resturrant\stocrant"
+$root = "$((Resolve-Path (Join-Path $PSScriptRoot '..')).Path)"
 $log = Join-Path $root "v-wireless-expected-install.log"
 $adb = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 

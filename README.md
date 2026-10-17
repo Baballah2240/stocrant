@@ -4,9 +4,9 @@ The management web app and mobile app share this project's API and business data
 
 **App lock:** every account can open **App lock** from the navigation or Settings. The default inactivity timeout is 5 minutes, configurable from 1 to 60 minutes per account/device. Restored sessions open locked. Web unlock asks only for the existing account password and uses the normal rate-limited sign-in endpoint. Native mobile can enable strong fingerprint/Face ID authentication after confirming the account password and device biometric prompt. Passwords and biometric data are not saved for this feature. The mobile app can also lock immediately when backgrounded. This is a device privacy lock for the workspace UI; normal server authorization and session expiration continue to apply. Biometric unlock requires a valid server session. Run `npm run test:lock` for timing boundary and clock rollback checks.
 
-**Attendance:** employees and managers can record up to three non-overlapping check-in/check-out sessions each day in the configured business timezone. Sessions and total hours are kept in a single daily record. Older single-session records are preserved and count as the first session. The Main Manager account remains excluded from attendance.
+**Attendance:** employees and managers can record up to three non-overlapping check-in/check-out sessions each day in the configured business timezone. Sessions and total hours are kept in a single daily record. Older single-session records are preserved and count as the first session. The Main Admin account remains excluded from attendance.
 
-**Products and account companies:** products and inventory items receive a unique random `AWB-` identifier automatically; edits preserve it. Existing items without an identifier are filled additively during migration. Registration and non-Main-Manager accounts require exactly one existing company. The Main Manager retains cross-company administration. Users without a valid company assignment must be assigned through Access & Settings before they can access business records. Roles may restrict the assigned company further but cannot grant access to other companies. The registration company selector exposes only company IDs and names, and all business data access remains authenticated and company-scoped.
+**Products and account companies:** products and inventory items receive a unique random `AWB-` identifier automatically; edits preserve it. Existing items without an identifier are filled additively during migration. Registration and non-Main-Manager accounts require exactly one existing company. The Main Admin retains cross-company administration. Users without a valid company assignment must be assigned through Access & Settings before they can access business records. Roles may restrict the assigned company further but cannot grant access to other companies. The registration company selector exposes only company IDs and names, and all business data access remains authenticated and company-scoped.
 
 Business management for companies with restaurants, retail stores, offices,
 warehouses and branches. Manage the organization hierarchy, locations,
@@ -57,8 +57,8 @@ debug APK (needs `JAVA_HOME` set to a JDK 21); use `npm run mobile:apk`, or open
 **iOS** — must be built on macOS with Xcode. The `ios/` project is committed and
 ready; run `npm run mobile:build` then `npm run mobile:ios`.
 
-Point the packaged app at your deployment with `VITE_API_BASE_URL=…` at build
-time, or per device in **Access & Settings → Mobile app**. Full details,
+Point the packaged app at your deployment with `VITE_API_BASE_URL=â€¦` at build
+time, or per device in **Access & Settings â†’ Mobile app**. Full details,
 including how role-based access applies to mobile users, are in
 **[MOBILE.md](MOBILE.md)**.
 
@@ -66,8 +66,8 @@ including how role-based access applies to mobile users, are in
 ## Core business hierarchy
 
 ```text
-Company → Locations → Areas / zones → Workforce assignments
-                       └→ HR, attendance, leave and payroll
+Company â†’ Locations â†’ Areas / zones â†’ Workforce assignments
+                       â””â†’ HR, attendance, leave and payroll
 ```
 
 - **Organizations:** legal company profiles and business settings.
@@ -99,7 +99,7 @@ npm run build:full && node dist/index.js
 ### Secure first-run setup
 
 STOCRANT requires an authenticated account. On the first visit, create the first
-**Main Manager** account using the setup key. Passwords are hashed using Node's
+**Main Admin** account using the setup key. Passwords are hashed using Node's
 `scrypt`; sessions are opaque, signed, server-stored, HTTP-only cookies. Neither
 passwords nor selected roles are stored in browser storage.
 
@@ -112,7 +112,7 @@ $env:STOCRANT_SESSION_SECRET = "a-long-random-session-signing-secret"
 npm run dev
 ```
 
-After a Main Manager is created, add employees from **Access & Settings**. The
+After a Main Admin is created, add employees from **Access & Settings**. The
 server authorizes every protected request from the saved account role, section
 permission, organization/location scope, and own-record restriction.
 
@@ -154,7 +154,7 @@ HTTPS verification steps.
 | `PORT`               | `3000`             | HTTP port for the API / static server     |
 | `STOCRANT_DATA_DIR`  | application root   | Base directory; data is written to `<value>/data/stocrant.json` |
 | `STOCRANT_SESSION_SECRET` | required in production | HMAC secret used to sign secure session cookies |
-| `STOCRANT_SETUP_KEY` | required for first production setup | One-time key required to create the initial Main Manager |
+| `STOCRANT_SETUP_KEY` | required for first production setup | One-time key required to create the initial Main Admin |
 
 ## Scripts
 

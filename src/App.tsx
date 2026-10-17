@@ -10,7 +10,6 @@ const ReportView = lazy(() => import("./components/ReportView"));
 const EntityList = lazy(() => import("./components/EntityList"));
 const EntityDetail = lazy(() => import("./components/EntityDetail"));
 const EntityForm = lazy(() => import("./components/EntityForm"));
-const ModuleOverview = lazy(() => import("./components/ModuleOverview"));
 const AboutPage = lazy(() => import("./components/AboutPage"));
 import AuthPage from "./components/AuthPage";
 import RegistrationStatus from "./components/RegistrationStatus";
@@ -24,6 +23,8 @@ const InventoryWorkspace = lazy(() => import("./components/InventoryWorkspace"))
 const FinanceWorkspace = lazy(() => import("./components/FinanceWorkspace"));
 const AccessWorkspace = lazy(() => import("./components/AccessWorkspace"));
 const HRWorkspace = lazy(() => import("./components/HRWorkspace"));
+const CustomerServiceWorkspace = lazy(() => import("./components/CustomerServiceWorkspace"));
+const OrganizationWorkspace = lazy(() => import("./components/OrganizationWorkspace"));
 import { useSession } from "./session-context";
 import { MetaProvider } from "./meta-context";
 
@@ -57,7 +58,7 @@ const router = createBrowserRouter([
       { path: "report", element: <ReportView /> },
 
       // ── Module overviews ──
-      { path: "organizations", element: <ModuleOverview module="organization" /> },
+      { path: "organizations", element: <OrganizationWorkspace /> },
       { path: "hr", element: <HRWorkspace /> },
       { path: "operations", element: <OperationsWorkspace /> },
       { path: "store", element: <OperationsWorkspace /> }, // Legacy URL retained for bookmarks.
@@ -66,6 +67,7 @@ const router = createBrowserRouter([
       { path: "admin", element: <AccessWorkspace /> },
       { path: "access", element: <AccessWorkspace /> },
       { path: "finance", element: <FinanceWorkspace /> },
+      { path: "customer-service", element: <CustomerServiceWorkspace /> },
       { path: "about", element: <AboutPage /> },
 
       // ── Registry-driven entity CRUD (HR / Stores / Warehouse) ──
@@ -82,6 +84,6 @@ export default function App() {
   if (loading) return <main className="auth-page"><p className="hint">Loading secure workspace…</p></main>;
   if (!user) return <AuthPage />;
   if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;
-  if (user.roleId !== "role-main-manager" && user.organizationIds.length !== 1) return <RegistrationStatus />;
+  if (user.roleId !== "role-main-manager" && !(user.roleId === "role-organization-admin" && user.tenantOrganizationIds?.length === 1) && user.organizationIds.length !== 1) return <RegistrationStatus />;
   return <MetaProvider><RouterProvider router={router} /></MetaProvider>;
 }

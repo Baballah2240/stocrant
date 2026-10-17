@@ -4,11 +4,12 @@ import { useMobile } from "../use-mobile";
 import { useLanguage } from "../language-context";
 
 type Option = { value: string; label: string; disabled: boolean; group: string };
+const searchText = (text: string) => text.normalize("NFKD").replace(/[\u064b-\u065f\u0670\u0640]/g, "").toLocaleLowerCase();
 
-/** Keep the native select for form submission and validation; enhance mobile picking. */
+/** Keep native form values and validation; use a searchable dialog on mobile. */
 export default function ChoiceSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   const mobile = useMobile();
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const selectRef = useRef<HTMLSelectElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -23,16 +24,15 @@ export default function ChoiceSelect(props: SelectHTMLAttributes<HTMLSelectEleme
   });
   useLayoutEffect(() => {
     if (!open) return;
-    dialogRef.current?.showModal();
+    if (!dialogRef.current?.open) dialogRef.current?.showModal();
     dialogRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest" });
   }, [open]);
   function show() {
     const select = selectRef.current;
     if (!select || props.disabled) return;
     const labelElement = select.labels?.[0];
-    const caption = labelElement?.querySelector(".field-label, span")?.textContent
-      || labelElement?.firstChild?.textContent || select.previousElementSibling?.textContent;
-    setTitle(props["aria-label"] || caption?.trim() || (language === "ar" ? "اختر خياراً" : "Choose an option"));
+    const caption = labelElement?.querySelector(".field-label, span")?.textContent || labelElement?.firstChild?.textContent || select.previousElementSibling?.textContent;
+    setTitle(props["aria-label"] || caption?.trim() || t("Choose an option"));
     setOptions(Array.from(select.options, option => ({ value: option.value, label: option.textContent || option.value, disabled: option.disabled || (option.parentElement instanceof HTMLOptGroupElement && option.parentElement.disabled), group: option.parentElement instanceof HTMLOptGroupElement ? option.parentElement.label : "" })));
     setQuery(""); setOpen(true);
   }
@@ -46,15 +46,16 @@ export default function ChoiceSelect(props: SelectHTMLAttributes<HTMLSelectEleme
     close();
   }
   if (!mobile || props.multiple || props.size) return <select {...props} ref={selectRef} />;
+  const matches = options.filter(option => searchText(`${option.label} ${option.group} ${option.value}`).includes(searchText(query)));
   return <>
     <span className="choice-select">
       <select {...props} ref={selectRef} tabIndex={-1} aria-hidden="true" onInvalid={event => { props.onInvalid?.(event); event.preventDefault(); show(); }} />
-      <button ref={triggerRef} type="button" className="choice-select-trigger" disabled={props.disabled} aria-haspopup="dialog" aria-expanded={open} aria-label={props["aria-label"]} onClick={event => { event.preventDefault(); show(); }}><span>{label || (language === "ar" ? "اختر" : "Choose")}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+      <button ref={triggerRef} type="button" className="choice-select-trigger" disabled={props.disabled} aria-haspopup="dialog" aria-expanded={open} aria-label={props["aria-label"] || label || t("Choose an option")} onClick={event => { event.preventDefault(); show(); }}><span>{label || t("Choose")}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
     </span>
     {open && createPortal(<dialog ref={dialogRef} className="choice-picker" aria-label={title} onCancel={close} onClose={close} onClick={event => { if (event.target === event.currentTarget) close(); }}>
-      <header><h2>{title}</h2><button type="button" onClick={close}>{language === "ar" ? "تم" : "Done"}</button></header>
-      {options.length > 8 && <input type="search" className="choice-picker-search" aria-label={language === "ar" ? "بحث في الخيارات" : "Search options"} placeholder={language === "ar" ? "بحث" : "Search options"} value={query} onChange={event => setQuery(event.target.value)} />}
-      <div className="choice-picker-options">{options.filter(option => `${option.label} ${option.group}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((option, index) => <button type="button" key={`${option.value}-${index}`} disabled={option.disabled} aria-pressed={selectRef.current?.value === option.value} onClick={() => choose(option.value)}><span>{option.group && <small>{option.group}</small>}{option.label}</span><span className="choice-picker-check" aria-hidden="true">{selectRef.current?.value === option.value ? "✓" : ""}</span></button>)}{!options.some(option => `${option.label} ${option.group}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())) && <p>{language === "ar" ? "لا توجد نتائج" : "No matching options"}</p>}</div>
+      <header><h2>{title}</h2><button type="button" onClick={close}>{t("Done")}</button></header>
+      {options.length > 8 && <input type="search" className="choice-picker-search" aria-label={t("Search options")} placeholder={t("Search options")} value={query} onChange={event => setQuery(event.target.value)} />}
+      <div className="choice-picker-options">{matches.map((option, index) => <button type="button" key={`${option.value}-${index}`} disabled={option.disabled} aria-pressed={selectRef.current?.value === option.value} onClick={() => choose(option.value)}><span>{option.group && <small>{option.group}</small>}{option.label}</span><span className="choice-picker-check" aria-hidden="true">{selectRef.current?.value === option.value ? <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg> : null}</span></button>)}{!matches.length && <p>{t("No matching options")}</p>}</div>
     </dialog>, document.body)}
   </>;
 }

@@ -1,0 +1,28 @@
+.access-workspace .access-invite { margin-block-end: 1.25rem; }
+.access-workspace .access-invite h2 { margin-block-start: 0; }
+.access-workspace .access-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-block-end: 1.25rem; }
+.access-workspace .access-metrics > div { display: flex; flex-direction: column; gap: .3rem; padding: 1rem; border: 1px solid var(--line, #94a3b84a); border-radius: 14px; background: var(--surface, transparent); }
+.access-workspace .access-metrics strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.access-workspace .access-metrics span { font-size: .82rem; opacity: .8; }
+.access-workspace .access-filters { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(115px, 1fr)); align-items: end; gap: .75rem; margin-block-end: 1.25rem; }
+.access-workspace .access-filters .form-field { margin: 0; min-width: 0; }
+.access-workspace .account-summary { flex-wrap: wrap; gap: 1rem; }
+.access-workspace .account-summary > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.access-workspace .account-summary .inline-actions { margin-inline-start: auto; }
+.access-workspace .access-permission-fieldset { min-width: 0; border-radius: 14px; border: 1px solid var(--line, #94a3b84a); padding: 1rem; margin-block: 1.25rem; }
+.access-workspace .access-permission-fieldset legend { padding-inline: .35rem; font-weight: 700; }
+.access-workspace .access-permission-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1.25rem; margin-block: 1rem; }
+.access-workspace .access-permission-grid > div { padding: .75rem; border: 1px solid var(--line, #94a3b84a); border-radius: 10px; }
+.access-workspace .access-permission-grid strong { display: block; margin-block-end: .5rem; }
+.access-workspace .access-permission-grid .check-field { display: flex; gap: .5rem; margin-block: .5rem; }
+.access-workspace .access-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding-block: 1rem; font-size: .85rem; }
+.access-workspace .account-status-pending { background: #f59e0b22; color: #b96b04; }
+.access-workspace .account-status-suspended, .access-workspace .account-status-rejected { background: #ef444422; color: #dc4c4c; }
+@media(max-width: 1000px) { .access-workspace .access-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media(max-width: 540px) {
+ .access-workspace .access-filters { grid-template-columns: minmax(0, 1fr); }
+ .access-workspace .access-metrics { gap: .4rem; }
+ .access-workspace .access-metrics > div { padding: .65rem; }
+ .access-workspace .account-summary .inline-actions { margin-inline-start: 0; width: 100%; justify-content: space-between; }
+ .access-workspace .access-permission-fieldset { padding: .65rem; }
+}

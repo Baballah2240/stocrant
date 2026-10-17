@@ -121,7 +121,7 @@ notificationsRouter.delete("/:id", (req, res) => {
 
 notificationsRouter.post("/:id/respond", (req, res) => {
   const user = req.auth;
-  if (!user || user.roleId !== "role-main-manager" || user.accountStatus !== "active") return res.status(403).json({ error: "Only the Main Manager can respond to requests." });
+  if (!user || user.roleId !== "role-main-manager" || user.accountStatus !== "active") return res.status(403).json({ error: "Only the Main Admin can respond to requests." });
   const item = listNotifications(user.id).find(item => item.id === req.params.id);
   if (!item) return res.status(404).json({ error: "Notification not found." });
   const parsed = z.object({ action: z.enum(["approve", "reject", "comment"]), comment: z.string().trim().max(2000).default("") }).strict().safeParse(req.body);

@@ -21,6 +21,35 @@ validation-*.log
 .vscode/
 *.local
 
+# Local recovery checkpoints, screenshots, and task diagnostics. These remain
+# available on the workstation but must never be published with the product.
+/.access-layout-fix/
+/.android-fix/
+/.api-numbered.txt
+/.collections-fix/
+/.dispatch-control/
+/.driver-accounts/
+/.driver-header/
+/.driver-upgrade/
+/.ios-driver/
+/.layout-fix/
+/.layout-numbered.txt
+/.layout-refine/
+/.light-express-fix/
+/.notification-detail-fix/
+/.operations-awb/
+/.portal-ios/
+/.production-audit/
+/.public-site/
+/.reschedule/
+/.resume-check/
+/.rollback-backup/
+/.settings-refine/
+/.shipment-drawer/
+/.sidebar-fix/
+/.theme-fix/
+/save-light-express-checkpoint.ps1
+
 # ── Native mobile shells ───────────────────────────────────────────────
 # android/ and ios/ are build inputs, not outputs, and stay committed so both
 # platforms can be rebuilt. Only their generated artifacts are ignored below.

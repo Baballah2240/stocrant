@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { hashPassword, publicUser } from "../auth.js";
-import { can, isMainManager, isWithinScope, redactRecord, requirePermission, sectionForCollection } from "../permissions.js";
+import { authenticatedUser, hashPassword, publicUser } from "../auth.js";
+import { can, companyIdsFor, isMainManager, isWithinScope, redactRecord, requirePermission, sectionForCollection } from "../permissions.js";
+import { canManageAccount, validateAccountAssignment } from "../organization-policy.js";
 import { registry } from "../registry.js";
 import { getCollection, getStore, nextCollectionId, saveStore } from "../storage.js";
 import { createNotification, listNotifications } from "../notifications.js";
@@ -11,7 +12,7 @@ const router = Router();
 
 function sendError(res: import("express").Response, error: unknown) {
   const message = error instanceof Error ? error.message : "Request failed.";
-  const status = message.includes("permission") ? 403 : message.includes("not found") ? 404 : 400;
+  const status = (error as { statusCode?: number })?.statusCode ?? (message.includes("permission") ? 403 : message.includes("not found") ? 404 : 400);
   return res.status(status).json({ error: message });
 }
 
@@ -234,7 +235,7 @@ router.post("/self-service/leave/:id/cancel", (req, res) => {
 
 router.post("/attendance/check-in", (req, res) => {
   const user = req.auth!;
-  if (isMainManager(user)) return res.status(403).json({ error: "The Main Manager account cannot check in or check out." });
+  if (isMainManager(user)) return res.status(403).json({ error: "The Main Admin account cannot check in or check out." });
   const employee = employeeFor(user) ?? { id: user.id, name: user.name, email: user.email, status: "active" };
 
   const now = new Date();
@@ -268,7 +269,7 @@ router.post("/attendance/check-in", (req, res) => {
 
 router.post("/attendance/check-out", (req, res) => {
   const user = req.auth!;
-  if (isMainManager(user)) return res.status(403).json({ error: "The Main Manager account cannot check in or check out." });
+  if (isMainManager(user)) return res.status(403).json({ error: "The Main Admin account cannot check in or check out." });
   const employee = employeeFor(user) ?? { id: user.id, name: user.name, email: user.email, status: "active" };
 
   const now = new Date();
@@ -348,7 +349,8 @@ router.post("/locations/:id/updates", requirePermission("locations", "edit"), (r
   res.status(result.pending ? 202 : 201).json(result);
 });
 
-router.get("/hr/companies", requirePermission("hr", "view"), (req, res) => {
+router.get("/hr/companies", (req, res) => {
+  if (!can(req.auth, "hr", "view") && !can(req.auth, "access", "view")) return res.status(403).json({ error: "You do not have permission to view these records." });
   const companies = rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id }));
   res.json({ companies, employees: scoped(req, rows("employees"), "employees") });
 });
@@ -554,19 +556,84 @@ router.post("/finance/transactions", requirePermission("finance", "create"), (re
   } catch (error) { return sendError(res, error); }
 });
 
-router.get("/access/roles", requirePermission("access", "view"), (_req, res) => res.json({ items: rows("accessRoles") }));
-router.get("/access/users", requirePermission("access", "view"), (_req, res) => res.json({ items: rows("accessUsers").map(({ passwordHash: _passwordHash, ...user }) => user) }));
+const appointmentSchema = z.object({
+  customerId: z.string().trim().max(160).optional(),
+  customerName: z.string().trim().min(2).max(160),
+  customerEmail: z.string().trim().email().max(160).optional().or(z.literal("")),
+  customerPhone: z.string().trim().max(50).optional(),
+  organizationId: z.string().trim().min(1),
+  locationId: z.string().trim().max(160).optional(),
+  appointmentAt: z.string().datetime(),
+  assignedStaffId: z.string().trim().max(160).optional(),
+  assignedStaffName: z.string().trim().max(160).optional(),
+  status: z.enum(["scheduled", "confirmed", "completed", "cancelled", "no-show"]).default("scheduled"),
+  notes: z.string().trim().max(4000).optional(),
+});
+
+router.get("/customer-service", requirePermission("customerService", "view"), (req, res) => {
+  res.json({
+    customers: scoped(req, rows("customers"), "customers"),
+    appointments: scoped(req, rows("customerAppointments"), "customerAppointments"),
+    questions: scoped(req, rows("customerQuestions"), "customerQuestions"),
+    replies: scoped(req, rows("customerReplies"), "customerReplies"),
+    companies: scoped(req, rows("companies"), "companies"),
+    employees: scoped(req, rows("employees"), "employees"),
+  });
+});
+router.post("/customer-service/appointments", requirePermission("customerService", "create"), (req, res) => {
+  const parsed = appointmentSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(issue => issue.message).join("; ") });
+  if (!isWithinScope(req.auth!, parsed.data)) return res.status(403).json({ error: "The appointment is outside your assigned company or location." });
+  try { const result = mutateCollection(req.auth!, "customerAppointments", "create", parsed.data); res.status(result.pending ? 202 : 201).json(result); } catch (error) { sendError(res, error); }
+});
+router.patch("/customer-service/appointments/:id", requirePermission("customerService", "edit"), (req, res) => {
+  const existing = rows("customerAppointments").find(row => row.id === req.params.id);
+  if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Appointment not found." });
+  const parsed = appointmentSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(issue => issue.message).join("; ") });
+  try { res.json(mutateCollection(req.auth!, "customerAppointments", "edit", parsed.data, existing.id)); } catch (error) { sendError(res, error); }
+});
+router.post("/customer-service/questions", requirePermission("customerService", "create"), (req, res) => {
+  const parsed = z.object({ customerId: z.string().max(160).optional(), customerName: z.string().trim().min(2).max(160), customerEmail: z.string().trim().email().optional().or(z.literal("")), organizationId: z.string().min(1), subject: z.string().trim().min(2).max(240), message: z.string().trim().min(1).max(8000), status: z.enum(["open", "resolved"]).default("open") }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(issue => issue.message).join("; ") });
+  if (!isWithinScope(req.auth!, parsed.data)) return res.status(403).json({ error: "The question is outside your assigned company." });
+  try { const result = mutateCollection(req.auth!, "customerQuestions", "create", parsed.data); res.status(result.pending ? 202 : 201).json(result); } catch (error) { sendError(res, error); }
+});
+router.patch("/customer-service/questions/:id", requirePermission("customerService", "edit"), (req, res) => {
+  const existing = rows("customerQuestions").find(row => row.id === req.params.id);
+  if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Question not found." });
+  const parsed = z.object({ status: z.enum(["open", "resolved"]), subject: z.string().trim().min(2).max(240).optional() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Choose a valid question status." });
+  try { res.json(mutateCollection(req.auth!, "customerQuestions", "edit", parsed.data, existing.id)); } catch (error) { sendError(res, error); }
+});
+router.post("/customer-service/questions/:id/replies", requirePermission("customerService", "reply"), (req, res) => {
+  const question = rows("customerQuestions").find(row => row.id === req.params.id);
+  if (!question || !isWithinScope(req.auth!, question)) return res.status(404).json({ error: "Question not found." });
+  const parsed = z.object({ message: z.string().trim().min(1).max(8000), resolve: z.boolean().default(false) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Enter a reply." });
+  if (parsed.data.resolve && !can(req.auth!, "customerService", "edit")) return res.status(403).json({ error: "You do not have permission to resolve customer questions." });
+  try {
+    const result = mutateCollection(req.auth!, "customerReplies", "create", { questionId: question.id, organizationId: question.organizationId, message: parsed.data.message, authorId: req.auth!.id, authorName: req.auth!.name, createdAt: new Date().toISOString(), channel: "local" }, undefined, "reply");
+    if (parsed.data.resolve) mutateCollection(req.auth!, "customerQuestions", "edit", { status: "resolved", resolvedAt: new Date().toISOString(), resolvedBy: req.auth!.id }, question.id);
+    res.status(result.pending ? 202 : 201).json(result);
+  } catch (error) { sendError(res, error); }
+});
+
+router.get("/access/roles", requirePermission("access", "view"), (req, res) => res.json({ items: rows("accessRoles").filter(role => isMainManager(req.auth) || !["role-main-manager", "role-organization-admin"].includes(role.id)) }));
+router.get("/access/users", requirePermission("access", "view"), (req, res) => res.json({ items: rows("accessUsers").filter(account => canManageAccount(req.auth!, account)).map(({ passwordHash: _passwordHash, ...user }) => user) }));
 router.patch("/access/roles/:id", requirePermission("access", "edit"), (req, res) => {
+  if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to change global roles." });
   const role = rows("accessRoles").find((item) => item.id === req.params.id);
   if (!role) return res.status(404).json({ error: "Role not found." });
-  if (role.id === "role-main-manager" && Array.isArray(req.body.permissions) && !req.body.permissions.includes("*")) return res.status(400).json({ error: "The Main Manager role must retain full permissions." });
+  if (role.id === "role-main-manager" && Array.isArray(req.body.permissions) && !req.body.permissions.includes("*")) return res.status(400).json({ error: "The Main Admin role must retain full permissions." });
   const parsed = z.object({ permissions: z.array(z.string()).optional(), organizationIds: z.array(z.string()).optional(), locationIds: z.array(z.string()).optional(), ownRecordsOnly: z.boolean().optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid role permissions or access scope." });
   try { res.json(mutateCollection(req.auth!, "accessRoles", "edit", parsed.data, role.id)); } catch (error) { sendError(res, error); }
 });
-router.get("/access/approval-rules", requirePermission("access", "view"), (_req, res) => res.json({ items: rows("approvalRules") }));
+router.get("/access/approval-rules", requirePermission("access", "view"), (req, res) => { if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to view global approval rules." }); res.json({ items: rows("approvalRules") }); });
 router.post("/access/approval-rules", requirePermission("access", "create"), (req, res) => {
-  const parsed = z.object({ section: z.enum(["organizations", "locations", "hr", "operations", "inventory", "finance", "access"]), action: z.enum(["create", "edit", "delete"]), active: z.boolean().default(true) }).safeParse(req.body);
+  if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to change global approval rules." });
+  const parsed = z.object({ section: z.enum(["organizations", "locations", "hr", "operations", "customerService", "inventory", "finance", "access"]), action: z.enum(["create", "edit", "delete"]), active: z.boolean().default(true) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose a section and sensitive action." });
   try {
     const existing = rows("approvalRules").find((rule) => rule.section === parsed.data.section && rule.action === parsed.data.action);
@@ -575,23 +642,26 @@ router.post("/access/approval-rules", requirePermission("access", "create"), (re
   } catch (error) { sendError(res, error); }
 });
 router.patch("/access/approval-rules/:id", requirePermission("access", "edit"), (req, res) => {
+  if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to change global approval rules." });
   const rule = rows("approvalRules").find((item) => item.id === req.params.id);
   if (!rule) return res.status(404).json({ error: "Approval rule not found." });
   try { res.json(mutateCollection(req.auth!, "approvalRules", "edit", req.body as Record<string, unknown>, rule.id)); } catch (error) { sendError(res, error); }
 });
 
 router.post("/access/users", requirePermission("access", "create"), async (req, res) => {
-  const parsed = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(160), password: z.string().min(12).max(256), roleId: z.string().min(1), employeeId: z.string().optional(), organizationIds: z.array(z.string()).default([]), locationIds: z.array(z.string()).default([]), ownRecordsOnly: z.boolean().default(false) }).safeParse(req.body);
+  const parsed = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(160), password: z.string().min(12).max(256), roleId: z.string().min(1), employeeId: z.string().optional(), organizationIds: z.array(z.string()).default([]), tenantOrganizationIds: z.array(z.string()).max(1).default([]), locationIds: z.array(z.string()).default([]), ownRecordsOnly: z.boolean().default(false) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
-  if (parsed.data.roleId === "role-main-manager" && !isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Manager can create another Main Manager account." });
+  if (parsed.data.roleId === "role-main-manager" && !isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin can create another Main Admin account." });
   if (rows("accessUsers").some((user) => String(user.email).toLowerCase() === parsed.data.email.toLowerCase())) return res.status(409).json({ error: "An account with that email already exists." });
   if (!rows("accessRoles").some((role) => role.id === parsed.data.roleId)) return res.status(400).json({ error: "Choose a valid role." });
-  if (parsed.data.employeeId) { const employee = rows("employees").find((row) => row.id === parsed.data.employeeId); if (!employee) return res.status(400).json({ error: "Choose an existing employee." }); if (employee.organizationId) parsed.data.organizationIds = [String(employee.organizationId)]; }
-  if (parsed.data.roleId !== "role-main-manager" && (parsed.data.organizationIds.length !== 1 || !rows("companies").some(company => company.id === parsed.data.organizationIds[0]))) return res.status(400).json({ error: "Assign this user to one existing company." });
-  if (parsed.data.locationIds.some(id => !getStore().stores.some(location => location.id === id && parsed.data.organizationIds.includes(location.companyId)))) return res.status(400).json({ error: "Choose locations from the assigned company." });
+  if (parsed.data.employeeId) { const employee = rows("employees").find((row) => row.id === parsed.data.employeeId); if (!employee) return res.status(400).json({ error: "Choose an existing employee." }); const company = employee.organizationId ?? employee.companyId; if (company && parsed.data.organizationIds.length && !parsed.data.organizationIds.includes(String(company))) return res.status(400).json({ error: "Choose an employee from the assigned company." }); if (company && parsed.data.roleId !== "role-organization-admin") parsed.data.organizationIds = [String(company)]; }
+  try { validateAccountAssignment(req.auth!, { ...parsed.data, status: "active" }); } catch (error) { return sendError(res, error); }
   const { password: accountPassword, ...accountInput } = parsed.data;
-  const account = { id: nextCollectionId("accessUsers"), ...accountInput, email: parsed.data.email.toLowerCase(), passwordHash: await hashPassword(accountPassword), status: "active", createdAt: new Date().toISOString(), dataClassification: "company" };
+  const account = { id: nextCollectionId("accessUsers"), ...accountInput, email: parsed.data.email.toLowerCase(), passwordHash: await hashPassword(accountPassword), mustChangePassword: true, status: "active", createdAt: new Date().toISOString(), dataClassification: "company" };
+  req.auth = authenticatedUser(req);
+  if (!can(req.auth, "access", "create")) return res.status(403).json({ error: "Your account access changed. Sign in again." });
   if (rows("accessUsers").some(user => normalized(user.email) === account.email)) return res.status(409).json({ error: "An account with that email already exists." });
+  try { validateAccountAssignment(req.auth!, account); } catch (error) { return sendError(res, error); }
   const data = getStore();
   data.collections.accessUsers = [...rows("accessUsers"), account];
   saveStore(data);
@@ -600,25 +670,29 @@ router.post("/access/users", requirePermission("access", "create"), async (req, 
 });
 
 router.patch("/access/users/:id", requirePermission("access", "edit"), async (req, res) => {
-  if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Manager can directly edit user accounts." });
   const parsed = z.object({
     name: z.string().trim().min(2).max(120).optional(),
     email: z.string().trim().email().max(160).optional(),
     password: z.string().min(12).max(256).optional(),
     roleId: z.string().trim().min(1).max(160).optional(),
     employeeId: z.string().trim().max(160).nullable().optional(),
-    permissions: z.array(z.string().trim().regex(/^(organizations|locations|hr|operations|inventory|finance)\.(view|create|edit|delete|approve|export|\*)$/)).nullable().optional(),
+    permissions: z.array(z.string().trim().regex(/^(organizations|locations|hr|operations|customerService|inventory|finance|approvals|access|audit)\.(view|create|edit|delete|approve|reply|export|\*)$/)).nullable().optional(),
     organizationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),
+    tenantOrganizationIds: z.array(z.string().trim().min(1).max(160)).max(1).optional(),
     locationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),
     ownRecordsOnly: z.boolean().optional(),
-    status: z.enum(["active", "inactive", "pending", "rejected"]).optional(),
+    status: z.enum(["active", "suspended", "inactive", "pending", "rejected"]).optional(),
   }).strict().refine((value) => Object.keys(value).length > 0, "Provide at least one account change.").safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   // Finish asynchronous hashing before reading the account snapshot for this write.
   const passwordHash = parsed.data.password ? await hashPassword(parsed.data.password) : undefined;
+  req.auth = authenticatedUser(req);
+  if (!can(req.auth, "access", "edit")) return res.status(403).json({ error: "Your account access changed. Sign in again." });
   const users = rows("accessUsers");
   const existing = users.find((user) => user.id === req.params.id);
   if (!existing) return res.status(404).json({ error: "User not found." });
+  if (!canManageAccount(req.auth!, existing)) return res.status(404).json({ error: "User not found." });
+  if (parsed.data.permissions?.some(permission => /^(access|audit)\./.test(permission)) && !["role-main-manager", "role-organization-admin", "role-company-manager"].includes(String(parsed.data.roleId ?? existing.roleId))) return res.status(400).json({ error: "Account administration requires an administrator role." });
   if (parsed.data.roleId && !rows("accessRoles").some((role) => role.id === parsed.data.roleId)) return res.status(400).json({ error: "Choose a valid role." });
   if (parsed.data.email && users.some((user) => user.id !== existing.id && normalized(user.email) === normalized(parsed.data.email))) return res.status(409).json({ error: "An account with that email already exists." });
   const { password, employeeId, ...changes } = parsed.data;
@@ -630,32 +704,45 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     id: existing.id,
     updatedAt: new Date().toISOString(),
   };
-  if (passwordHash) next.passwordHash = passwordHash;
-  if (next.roleId !== "role-main-manager") {
-    const companies = Array.isArray(next.organizationIds) ? next.organizationIds : [];
-    if (companies.length !== 1 || !rows("companies").some(company => company.id === companies[0])) return res.status(400).json({ error: "Assign this user to one existing company." });
-    if (Array.isArray(next.locationIds) && next.locationIds.some(id => !getStore().stores.some(location => location.id === id && companies.includes(location.companyId)))) return res.status(400).json({ error: "Choose locations from the assigned company." });
-    if (next.employeeId) { const employee = rows("employees").find(employee => employee.id === next.employeeId); if (!employee || (employee.organizationId ?? employee.companyId) !== companies[0]) return res.status(400).json({ error: "Choose an employee from the assigned company." }); }
-  }
+  if (passwordHash) { next.passwordHash = passwordHash; next.mustChangePassword = true; }
+  try { validateAccountAssignment(req.auth!, next, existing); } catch (error) { return sendError(res, error); }
   const wasManager = existing.roleId === "role-main-manager" && existing.status === "active";
   const remainsManager = next.roleId === "role-main-manager" && next.status === "active";
-  if (wasManager && !remainsManager && users.filter((user) => user.roleId === "role-main-manager" && user.status === "active").length <= 1) return res.status(400).json({ error: "The last Main Manager cannot be removed or deactivated." });
+  if (wasManager && !remainsManager && users.filter((user) => user.roleId === "role-main-manager" && user.status === "active").length <= 1) return res.status(400).json({ error: "The last Main Admin cannot be removed or deactivated." });
   const data = getStore();
   data.collections.accessUsers = users.map((user) => user.id === existing.id ? next : user);
-  if (password) data.collections.sessions = rows("sessions").filter((session) => session.accountId !== existing.id);
+  const accessRevoked = next.status !== "active" || next.roleId !== existing.roleId || passwordHash !== undefined;
+  if (accessRevoked) data.collections.sessions = rows("sessions").filter((session) => session.accountId !== existing.id);
   saveStore(data);
-  const changedFields = ["name", "email", "roleId", "employeeId", "organizationIds", "locationIds", "ownRecordsOnly", "status", "permissions"]
+  const changedFields = ["name", "email", "roleId", "employeeId", "organizationIds", "tenantOrganizationIds", "locationIds", "ownRecordsOnly", "status", "permissions"]
     .filter((field) => JSON.stringify(existing[field]) !== JSON.stringify(next[field]));
   if (password) changedFields.push("password");
   audit(req.auth, "access.user-directly-updated", {
     targetId: existing.id,
     targetName: next.name,
     changedFields,
-    directMainManagerOverride: true,
-    sessionsRevoked: Boolean(password),
+    directMainManagerOverride: isMainManager(req.auth),
+    organizationId: Array.isArray(next.organizationIds) ? next.organizationIds[0] : undefined,
+    tenantOrganizationIds: next.tenantOrganizationIds,
+    sessionsRevoked: accessRevoked,
   });
   const { passwordHash: _passwordHash, ...safe } = next;
   res.json({ item: safe });
+});
+
+router.delete("/access/users/:id", requirePermission("access", "delete"), (req, res) => {
+  const users = rows("accessUsers");
+  const existing = users.find(user => user.id === req.params.id);
+  if (!existing) return res.status(404).json({ error: "User not found." });
+  if (!canManageAccount(req.auth!, existing)) return res.status(404).json({ error: "User not found." });
+  if (existing.id === req.auth!.id) return res.status(400).json({ error: "You cannot delete your own signed-in account." });
+  if (existing.roleId === "role-main-manager" && existing.status === "active" && users.filter(user => user.roleId === "role-main-manager" && user.status === "active").length <= 1) return res.status(400).json({ error: "The last active Main Admin cannot be deleted." });
+  const data = getStore();
+  data.collections.accessUsers = users.filter(user => user.id !== existing.id);
+  data.collections.sessions = rows("sessions").filter(session => session.accountId !== existing.id);
+  saveStore(data);
+  audit(req.auth!, "access.user-deleted", { targetId: existing.id, targetName: existing.name, email: existing.email, sessionsRevoked: true });
+  res.json({ ok: true });
 });
 
 router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => isWithinScope(req.auth!, row)) }));
@@ -665,6 +752,6 @@ router.post("/approvals/:id", requirePermission("approvals", "approve"), (req, r
   try { res.json({ item: approveRequest(req.auth!, req.params.id as string, parsed.data.decision === "approve", parsed.data.note) }); } catch (error) { sendError(res, error); }
 });
 
-router.get("/audit", requirePermission("audit", "view"), (_req, res) => res.json({ items: rows("auditLog").sort((a, b) => String(b.occurredAt).localeCompare(String(a.occurredAt))) }));
+router.get("/audit", requirePermission("audit", "view"), (req, res) => res.json({ items: rows("auditLog").filter(entry => isMainManager(req.auth) || isWithinScope(req.auth!, entry) || (req.auth!.roleId === "role-organization-admin" && req.auth!.tenantOrganizationIds?.includes(String(entry.parentOrganizationId)))).sort((a, b) => String(b.occurredAt).localeCompare(String(a.occurredAt))) }));
 
 export default router;

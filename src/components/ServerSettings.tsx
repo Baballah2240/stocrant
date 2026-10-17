@@ -16,7 +16,7 @@ export default function ServerSettings() {
 
   async function testConnection(candidate: string) {
     const normalized = candidate.trim().replace(/\/+$/, "");
-    if (!normalized) throw new Error("Enter your STOCRANT server address, for example https://stocrant.example.com");
+    if (!normalized) throw new Error("Enter your STOCRANT server address, for example https://portal.stocrant.example");
     let parsed: URL;
     try {
       parsed = new URL(normalized);
@@ -82,7 +82,7 @@ export default function ServerSettings() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="https://stocrant.example.com"
+            placeholder="https://portal.stocrant.example"
             value={origin}
             onChange={(event) => setOrigin(event.target.value)}
           />

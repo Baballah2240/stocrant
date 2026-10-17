@@ -45,7 +45,7 @@ export type {
  *
  *   1. SERVER_URL saved from the in-app server settings (stored on device)
  *   2. VITE_API_BASE_URL baked in at build time
- *   3. "" → same-origin relative requests (browser / hosted deployment)
+ *   3. "" â†’ same-origin relative requests (browser / hosted deployment)
  */
 const RUNTIME_OVERRIDE_KEY = "stocrant.serverUrl";
 const RUNTIME_SESSION_KEY = "stocrant.mobileSession";
@@ -173,7 +173,7 @@ export const api = {
 
   auth: {
     companies: () => request<{ companies: { id: string; name: string }[] }>("/auth/companies"),
-    register: (input: { name: string; email: string; password: string; organizationId: string }) => request<{ ok: boolean; message: string }>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
+    register: (input: { name: string; email: string; password: string }) => request<{ ok: boolean; message: string }>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
     forgotPassword: (email: string) => request<{ ok: boolean; message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
     updateProfile: (input: { name: string; email: string; phone: string; avatar: string; bio?: string; currentPassword?: string }) => request<{ user: AuthUser }>("/auth/profile", { method: "PATCH", body: JSON.stringify(input) }),
     changePassword: (input: { currentPassword: string; newPassword: string }) => request<{ ok: boolean }>("/auth/password", { method: "POST", body: JSON.stringify(input) }),
@@ -291,6 +291,11 @@ export const api = {
     finance: () => request<{ companies: CollectionItem[]; people: CollectionItem[]; accounts: CollectionItem[]; transactions: CollectionItem[]; income: number; expenses: number; salaries: number; net: number }>("/workspace/finance"),
     createAccount: (input: Record<string, unknown>) => request<MutationResult>("/workspace/finance/accounts", { method: "POST", body: JSON.stringify(input) }),
     createTransaction: (input: Record<string, unknown>) => request<MutationResult & { items?: CollectionItem[] }>("/workspace/finance/transactions", { method: "POST", body: JSON.stringify(input) }),
+    customerService: () => request<{ customers: CollectionItem[]; appointments: CollectionItem[]; questions: CollectionItem[]; replies: CollectionItem[]; companies: CollectionItem[]; employees: CollectionItem[] }>("/workspace/customer-service"),
+    createAppointment: (input: Record<string, unknown>) => request<MutationResult>("/workspace/customer-service/appointments", { method: "POST", body: JSON.stringify(input) }),
+    updateAppointment: (id: string, input: Record<string, unknown>) => request<MutationResult>(`/workspace/customer-service/appointments/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+    createQuestion: (input: Record<string, unknown>) => request<MutationResult>("/workspace/customer-service/questions", { method: "POST", body: JSON.stringify(input) }),
+    replyToQuestion: (id: string, input: { message: string; resolve: boolean }) => request<MutationResult>(`/workspace/customer-service/questions/${id}/replies`, { method: "POST", body: JSON.stringify(input) }),
     roles: () => request<{ items: CollectionItem[] }>("/workspace/access/roles"),
     updateRole: (id: string, input: Record<string, unknown>) => request<MutationResult>(`/workspace/access/roles/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
     users: () => request<{ items: CollectionItem[] }>("/workspace/access/users"),
@@ -299,6 +304,7 @@ export const api = {
     updateApprovalRule: (id: string, input: Record<string, unknown>) => request<MutationResult>(`/workspace/access/approval-rules/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
     createUser: (input: Record<string, unknown>) => request<{ item: CollectionItem }>("/workspace/access/users", { method: "POST", body: JSON.stringify(input) }),
     updateUser: (id: string, input: Record<string, unknown>) => request<{ item: CollectionItem }>(`/workspace/access/users/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+    deleteUser: (id: string) => request<{ ok: boolean }>(`/workspace/access/users/${id}`, { method: "DELETE" }),
     approvals: () => request<{ items: CollectionItem[] }>("/workspace/approvals"),
     decideApproval: (id: string, input: { decision: "approve" | "reject"; note?: string }) => request<{ item: CollectionItem }>(`/workspace/approvals/${id}`, { method: "POST", body: JSON.stringify(input) }),
     audit: () => request<{ items: CollectionItem[] }>("/workspace/audit"),

@@ -6,6 +6,7 @@
   "type": "module",
   "main": "server/index.js",
   "scripts": {
+    "demo:accounts": "npm run build && node scripts/create-demo-accounts.mjs",
     "build": "tsc -p server/tsconfig.build.json",
     "build:frontend": "node ./node_modules/vite/bin/vite.js build",
     "build:full": "npm run build:frontend && npm run build",

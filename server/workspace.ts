@@ -1,5 +1,6 @@
 import type { AuthenticatedUser } from "./auth.js";
-import { getCollection, getStore, nextCollectionId, saveStore } from "./storage.js";
+import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
+import { validateHierarchyMutation } from "./organization-policy.js";
 import { can, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
 import { createNotification, listNotifications } from "./notifications.js";
 import { newProductAwb } from "./product-awb.js";
@@ -36,12 +37,16 @@ function rowId(name: string) {
 }
 
 export function audit(user: AuthenticatedUser | undefined, action: string, details: Record<string, unknown> = {}) {
+  const subject = details.collection && details.targetId ? rows(String(details.collection)).find(row => row.id === details.targetId) : undefined;
+  const companyId = subject?.organizationId ?? subject?.companyId ?? (details.collection === "companies" ? details.targetId : undefined) ?? user?.organizationIds[0];
   const entry: Row = {
     id: rowId("auditLog"),
     action,
     actorId: user?.id ?? "system",
     actorName: user?.name ?? "System",
     occurredAt: timestamp(),
+    ...(companyId ? { organizationId: companyId } : {}),
+    ...(subject?.parentOrganizationId ? { parentOrganizationId: subject.parentOrganizationId } : {}),
     ...details,
   };
   const data = getStore();
@@ -61,6 +66,8 @@ function updateEmployeeHistory(user: AuthenticatedUser, employee: Row, event: st
     id: rowId("employeeHistory"),
     employee: employee.name ?? employee.id,
     employeeId: employee.id,
+    organizationId: employee.organizationId,
+    locationId: employee.locationId,
     date: new Date().toISOString().slice(0, 10),
     event,
     details: `Employee record ${event}.`,
@@ -77,6 +84,8 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
   const activity: Row = {
     id: rowId("workActivity"),
     workItemId: item.id,
+    organizationId: item.organizationId,
+    locationId: item.locationId,
     message: event,
     progress: item.progress ?? 0,
     status: item.status ?? "Planned",
@@ -91,7 +100,7 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
 }
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
-  if (sectionForCollection(collection) === "hr" && !can(user, "hr", action)) throw new Error("Only the Main Manager has permission to manage HR records.");
+  if (sectionForCollection(collection) === "hr" && !can(user, "hr", action)) throw new Error("Only the Main Admin has permission to manage HR records.");
   const data = getStore();
   const list = rows(collection);
   const now = timestamp();
@@ -145,15 +154,23 @@ export function mutateCollection(
   action: MutationAction,
   payload: Record<string, unknown> = {},
   targetId?: string,
+  permissionAction: PermissionAction = action,
 ): { pending: boolean; item?: Row; request?: ApprovalRequest } {
+  return transaction(() => performMutation(user, collection, action, payload, targetId, permissionAction));
+}
+
+function performMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId: string | undefined, permissionAction: PermissionAction): { pending: boolean; item?: Row; request?: ApprovalRequest } {
   const section = sectionForCollection(collection);
-  const permissionAction: PermissionAction = action;
   if (!can(user, section, permissionAction)) throw new Error(`You do not have permission to ${action} ${section}.`);
   const current = targetId ? rows(collection).find(row => row.id === targetId) : undefined;
+  if (targetId && (!current || !isWithinScope(user, current))) throw new Error("Record not found.");
+  // Client IDs must never impersonate organization/company rows during scope resolution.
+  if (payload.id !== undefined && (!current || payload.id !== current.id)) throw Object.assign(new Error("Record identifiers are assigned by the server and cannot be changed."), { statusCode: 400 });
+  if (["organizations", "companies"].includes(collection)) payload = validateHierarchyMutation(user, collection, action, payload, current);
   if (action === "create" && !isMainManager(user) && !payload.organizationId && !payload.companyId && user.organizationIds.length === 1) payload = { ...payload, organizationId: user.organizationIds[0] };
   if (["products", "inventoryItems"].includes(collection) && action !== "delete" && !rows("companies").some(company => company.id === (payload.organizationId ?? current?.organizationId))) throw new Error("Choose an existing company for this product.");
-  if (targetId && (!current || !isWithinScope(user, current))) throw new Error("Record not found.");
-  if (action !== "delete" && !isWithinScope(user, { ...current, ...payload, createdBy: current?.createdBy ?? user.id })) throw new Error("You do not have permission to use this record scope.");
+  if (action !== "delete" && !(collection === "organizations" && isMainManager(user)) && !isWithinScope(user, { ...current, ...payload, createdBy: current?.createdBy ?? user.id })) throw new Error("You do not have permission to use this record scope.");
+  if (!["organizations", "companies"].includes(collection)) payload = validateHierarchyMutation(user, collection, action, payload, current);
   if (action === "create" && payload.id && rows(collection).some(row => row.id === payload.id)) throw new Error("A record with this id already exists.");
   payload = { ...payload };
   for (const field of ["createdAt", "createdBy", "createdByName", "updatedAt", "updatedBy", "updatedByName", "__proto__", "constructor", "prototype"]) delete payload[field];
@@ -180,6 +197,11 @@ export function mutateCollection(
     return { pending: true, request };
   }
   const item = applyMutation(user, collection, action, payload, targetId);
+  if ((collection === "organizations" || collection === "companies") && action === "edit" && (payload.status === "inactive" || (current?.parentOrganizationId && payload.parentOrganizationId && current.parentOrganizationId !== payload.parentOrganizationId))) {
+    const companies = collection === "organizations" ? rows("companies").filter(company => company.parentOrganizationId === targetId).map(company => company.id) : [targetId];
+    const accounts = rows("accessUsers").filter(account => account.roleId !== "role-main-manager" && ((Array.isArray(account.organizationIds) && account.organizationIds.some(id => companies.includes(String(id)))) || (collection === "organizations" && Array.isArray(account.tenantOrganizationIds) && account.tenantOrganizationIds.includes(targetId)))).map(account => account.id);
+    const data = getStore(); data.collections.sessions = rows("sessions").filter(session => !accounts.includes(String(session.accountId))); saveStore(data);
+  }
   fireMutationAlerts(user, collection, action, payload, item);
   return { pending: false, item };
 }
@@ -264,6 +286,7 @@ export function approveRequest(user: AuthenticatedUser, requestId: string, appro
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
   if (request.requestedBy === user.id) throw new Error("A requester cannot approve their own request.");
   if (approve) {
+    validateHierarchyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId ? rows(request.collection).find(row => row.id === request.targetId) : undefined);
     applyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId);
     data = getStore();
   }

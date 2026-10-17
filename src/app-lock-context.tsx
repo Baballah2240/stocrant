@@ -94,9 +94,9 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     if (authenticating.current) throw new Error("Biometric authentication is already in progress.");
     if (!isNativeApp()) throw new Error("Biometric unlock is available in the mobile app only.");
     const result = await BiometricAuth.checkBiometry();
-    if (!result.strongBiometryIsAvailable) throw new Error(language === "ar" ? "فعّل البصمة أو Face ID في إعدادات الهاتف أولاً." : "Set up fingerprint or Face ID in your phone settings first.");
+    if (!result.strongBiometryIsAvailable) throw new Error(language === "ar" ? "ÙØ¹Ù‘Ù„ Ø§Ù„Ø¨ØµÙ…Ø© Ø£Ùˆ Face ID ÙÙŠ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ù‡Ø§ØªÙ Ø£ÙˆÙ„Ø§Ù‹." : "Set up fingerprint or Face ID in your phone settings first.");
     authenticating.current = true;
-    try { await BiometricAuth.authenticate({ reason: language === "ar" ? "فتح تطبيق ستوكرانت" : "Unlock your STOCRANT workspace", androidTitle: "STOCRANT", androidBiometryStrength: AndroidBiometryStrength.strong, allowDeviceCredential: false, cancelTitle: language === "ar" ? "إلغاء" : "Cancel" }); }
+    try { await BiometricAuth.authenticate({ reason: language === "ar" ? "ÙØªØ­ ØªØ·Ø¨ÙŠÙ‚ Ø³ØªÙˆÙƒØ±Ø§Ù†Øª" : "Unlock your STOCRANT workspace", androidTitle: "STOCRANT", androidBiometryStrength: AndroidBiometryStrength.strong, allowDeviceCredential: false, cancelTitle: language === "ar" ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel" }); }
     finally { authenticating.current = false; }
   };
   async function unlockPassword(event: React.FormEvent) {
@@ -112,7 +112,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     try {
       await authenticateBiometric();
       const status = await api.auth.status();
-      if (status.user?.id !== user?.id) { await refresh(); throw new Error(language === "ar" ? "انتهت الجلسة. سجّل الدخول مجدداً." : "Your session expired. Sign in again."); }
+      if (status.user?.id !== user?.id) { await refresh(); throw new Error(language === "ar" ? "Ø§Ù†ØªÙ‡Øª Ø§Ù„Ø¬Ù„Ø³Ø©. Ø³Ø¬Ù‘Ù„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù…Ø¬Ø¯Ø¯Ø§Ù‹." : "Your session expired. Sign in again."); }
       await refresh();
       lastActivity.current = Date.now(); setLocked(false);
     } catch (err) { setError(err instanceof Error ? err.message : "Biometric unlock was canceled. Use your password."); }
@@ -131,10 +131,10 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   if (user && accountId !== user.id) return <main className="app-lock-screen" aria-busy="true" />;
   return <Context.Provider value={value}>{user && locked ? <main className="app-lock-screen"><section className="app-lock-card" aria-labelledby="app-lock-title">
     <svg className="app-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
-    <p className="eyebrow">STOCRANT</p><h1 id="app-lock-title">{language === "ar" ? "مساحة العمل مقفلة" : "Workspace locked"}</h1><p>{user.name}</p><p className="hint">{language === "ar" ? "أدخل كلمة مرور حسابك للمتابعة." : "Enter your account password to continue."}</p>
-    <form className="form" onSubmit={unlockPassword}><label className="form-field"><span>{language === "ar" ? "كلمة المرور" : "Password"}</span><input autoFocus required type="password" autoComplete="current-password" disabled={busy} maxLength={256} value={password} onChange={event => setPassword(event.target.value)} /></label>{error && <p className="error" role="alert">{error}</p>}<button className="primary" disabled={busy}>{language === "ar" ? busy ? "جارٍ الفتح…" : "فتح" : busy ? "Unlocking…" : "Unlock"}</button></form>
-    {isNativeApp() && preferences.biometric && available && <button className="app-lock-biometric" disabled={busy} onClick={() => void unlockBiometric()}>{language === "ar" ? "الفتح بالبصمة أو Face ID" : "Unlock with fingerprint / Face ID"}</button>}
-    <button className="app-lock-signout" disabled={busy} onClick={() => void signOut()}>{language === "ar" ? "تسجيل الخروج" : "Sign out"}</button>
+    <p className="eyebrow">STOCRANT</p><h1 id="app-lock-title">{language === "ar" ? "Ù…Ø³Ø§Ø­Ø© Ø§Ù„Ø¹Ù…Ù„ Ù…Ù‚ÙÙ„Ø©" : "Workspace locked"}</h1><p>{user.name}</p><p className="hint">{language === "ar" ? "Ø£Ø¯Ø®Ù„ ÙƒÙ„Ù…Ø© Ù…Ø±ÙˆØ± Ø­Ø³Ø§Ø¨Ùƒ Ù„Ù„Ù…ØªØ§Ø¨Ø¹Ø©." : "Enter your account password to continue."}</p>
+    <form className="form" onSubmit={unlockPassword}><label className="form-field"><span>{language === "ar" ? "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±" : "Password"}</span><input autoFocus required type="password" autoComplete="current-password" disabled={busy} maxLength={256} value={password} onChange={event => setPassword(event.target.value)} /></label>{error && <p className="error" role="alert">{error}</p>}<button className="primary" disabled={busy}>{language === "ar" ? busy ? "Ø¬Ø§Ø±Ù Ø§Ù„ÙØªØ­â€¦" : "ÙØªØ­" : busy ? "Unlockingâ€¦" : "Unlock"}</button></form>
+    {isNativeApp() && preferences.biometric && available && <button className="app-lock-biometric" disabled={busy} onClick={() => void unlockBiometric()}>{language === "ar" ? "Ø§Ù„ÙØªØ­ Ø¨Ø§Ù„Ø¨ØµÙ…Ø© Ø£Ùˆ Face ID" : "Unlock with fingerprint / Face ID"}</button>}
+    <button className="app-lock-signout" disabled={busy} onClick={() => void signOut()}>{language === "ar" ? "ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬" : "Sign out"}</button>
   </section></main> : loading && user ? <main className="app-lock-screen" aria-busy="true" /> : children}</Context.Provider>;
 }
 export const useAppLock = () => useContext(Context);

@@ -69,10 +69,10 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal(unknownUnauth.status, 401);
   });
 
-  it("creates a Main Manager with an HTTP-only secure session and rejects wrong passwords", async () => {
+  it("creates a Main Admin with an HTTP-only secure session and rejects wrong passwords", async () => {
     const setupInput = {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Main Manager", email: "owner@example.test", password: "correct-horse-battery-staple", setupKey: "local-setup" }),
+      body: JSON.stringify({ name: "Main Admin", email: "owner@example.test", password: "correct-horse-battery-staple", setupKey: "local-setup" }),
     };
     const setupResults = await Promise.all([request("/auth/setup", setupInput), request("/auth/setup", setupInput)]);
     assert.deepEqual(setupResults.map(response => response.status).sort(), [201, 409], "concurrent setup must create exactly one manager");
@@ -175,7 +175,49 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal((await request(`/collections/employees/${item.id}`, { method: "DELETE" }, mainCookie)).status, 200);
   });
 
-  it("gives only the Main Manager an audited immediate account override and personal workday briefing", async () => {
+  it("enforces organization boundaries and preserves history after tenant deactivation", async () => {
+    const createOrganization = async (name: string) => {
+      const response = await request("/collections/organizations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, status: "active" }) }, mainCookie);
+      assert.equal(response.status, 201, await response.clone().text());
+      return (await json<{ item: { id: string } }>(response)).item.id;
+    };
+    const createCompany = async (name: string, parentOrganizationId: string) => {
+      const response = await request("/collections/companies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, parentOrganizationId, organizationType: "office", industry: "services", currency: "USD", status: "active" }) }, mainCookie);
+      assert.equal(response.status, 201, await response.clone().text());
+      return (await json<{ item: { id: string } }>(response)).item.id;
+    };
+
+    const firstOrganization = await createOrganization("Isolation Organization One");
+    const secondOrganization = await createOrganization("Isolation Organization Two");
+    const firstCompany = await createCompany("Isolation Company One", firstOrganization);
+    const secondCompany = await createCompany("Isolation Company Two", secondOrganization);
+    const credentials = { email: "organization-admin-isolation@example.test", password: "organization-admin-isolation-password" };
+    const account = await request("/workspace/access/users", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Isolation Organization Admin", ...credentials, roleId: "role-organization-admin", tenantOrganizationIds: [firstOrganization], organizationIds: [], locationIds: [], ownRecordsOnly: false, status: "active" }),
+    }, mainCookie);
+    assert.equal(account.status, 201, await account.clone().text());
+    const organizationAdminCookie = cookieFrom(await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) }));
+
+    const companies = await json<{ items: Array<{ id: string }> }>(await request("/collections/companies", {}, organizationAdminCookie));
+    assert.deepEqual(companies.items.map(company => company.id), [firstCompany]);
+    assert.equal((await request(`/collections/companies/${secondCompany}`, {}, organizationAdminCookie)).status, 404, "direct URLs cannot cross organization boundaries");
+    assert.equal((await request("/collections/companies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Forbidden Company", parentOrganizationId: secondOrganization, organizationType: "office", industry: "services", currency: "USD", status: "active" }) }, organizationAdminCookie)).status, 403);
+    assert.equal((await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeCode: "FOREIGN-ORG", name: "Forbidden Employee", email: "forbidden-employee@example.test", employmentType: "full-time", status: "active", hireDate: "2026-10-18", organizationId: secondCompany }) }, organizationAdminCookie)).status, 400);
+    assert.equal((await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Forbidden User", email: "forbidden-user@example.test", password: "forbidden-user-password", roleId: "role-employee", organizationIds: [secondCompany], locationIds: [], ownRecordsOnly: false, status: "active" }) }, organizationAdminCookie)).status, 403);
+
+    const deactivateCompany = await request(`/collections/companies/${firstCompany}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "inactive" }) }, mainCookie);
+    assert.equal(deactivateCompany.status, 200, await deactivateCompany.clone().text());
+    const afterCompanyDeactivation = await json<{ items: Array<{ id: string }> }>(await request("/collections/companies", {}, organizationAdminCookie));
+    assert.deepEqual(afterCompanyDeactivation.items, [], "inactive companies remain stored but leave delegated operational scope");
+    assert.equal((await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeCode: "INACTIVE-ORG", name: "Inactive Company Employee", email: "inactive-company@example.test", employmentType: "full-time", status: "active", hireDate: "2026-10-18", organizationId: firstCompany }) }, organizationAdminCookie)).status, 400);
+
+    const deactivateOrganization = await request(`/collections/organizations/${firstOrganization}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "inactive" }) }, mainCookie);
+    assert.equal(deactivateOrganization.status, 200, await deactivateOrganization.clone().text());
+    assert.equal((await request("/workspace/overview", {}, organizationAdminCookie)).status, 401, "organization deactivation revokes existing delegated sessions");
+  });
+
+  it("gives only the Main Admin an audited immediate account override and personal workday briefing", async () => {
     const mainOverview = await request("/workspace/overview", {}, mainCookie);
     assert.equal(mainOverview.status, 200);
     const mainOverviewBody = await json<{ personal: { attendanceEnabled: boolean } }>(mainOverview);
@@ -201,7 +243,7 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal(mainCheckOut.status, 403);
 
     // Give the existing Manager account access administration permissions. It
-    // must still not receive the Main Manager's direct-account override.
+    // must still not receive the Main Admin's direct-account override.
     const grantAccess = await request("/workspace/access/roles/role-manager", {
       method: "PATCH", headers: { "Content-Type": "application/json", Cookie: mainCookie },
       body: JSON.stringify({ permissions: ["organizations.view", "locations.view", "locations.create", "locations.edit", "hr.view", "hr.create", "hr.edit", "operations.*", "inventory.*", "finance.view", "finance.create", "finance.edit", "approvals.view", "approvals.approve", "access.view", "access.create", "access.edit"] }),
@@ -210,7 +252,7 @@ describe("STOCRANT secure workspace API", () => {
 
     const employee = await request("/collections/employees", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
-      body: JSON.stringify({ organizationId: "company-primary", employeeCode: "EMP-DASH", name: "Dashboard Employee", email: "dashboard.employee@example.test", department: "Operations", jobTitle: "Shift Lead", employmentType: "full-time", status: "active", hireDate: "2026-01-01", manager: "Main Manager" }),
+      body: JSON.stringify({ organizationId: "company-primary", employeeCode: "EMP-DASH", name: "Dashboard Employee", email: "dashboard.employee@example.test", department: "Operations", jobTitle: "Shift Lead", employmentType: "full-time", status: "active", hireDate: "2026-01-01", manager: "Main Admin" }),
     });
     assert.equal(employee.status, 201);
     const employeeBody = await json<{ item: { id: string } }>(employee);
@@ -300,7 +342,7 @@ describe("STOCRANT secure workspace API", () => {
 
     const managerCannotPromote = await request("/workspace/access/users", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: managerCookie },
-      body: JSON.stringify({ name: "Unauthorized Main Manager", email: "unauthorized.manager@example.test", password: "unauthorized-manager-password", roleId: "role-main-manager" }),
+      body: JSON.stringify({ name: "Unauthorized Main Admin", email: "unauthorized.manager@example.test", password: "unauthorized-manager-password", roleId: "role-main-manager" }),
     });
     assert.equal(managerCannotPromote.status, 403);
 
@@ -492,7 +534,7 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal((await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...credentials, password: "profile-replacement-password" }) })).status, 200);
   });
 
-  it("sends password reset requests only to main managers without revealing accounts", async () => {
+  it("sends password reset requests only to main admins without revealing accounts", async () => {
     const send = (email: string) => request("/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
     const known = await send("manager@example.test");
     assert.equal(known.status, 200);
@@ -619,7 +661,7 @@ describe("STOCRANT secure workspace API", () => {
     }
   });
 
-  it("prevents the last Main Manager from being deactivated", async () => {
+  it("prevents the last Main Admin from being deactivated", async () => {
     const response = await request(`/workspace/access/users/${mainUserId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json", Cookie: mainCookie }, body: JSON.stringify({ status: "inactive" }),
     });
@@ -759,7 +801,7 @@ describe("hardened authentication and scoping", () => {
     assert.equal(login.status, 200);
     const employeeCookie = cookieFrom(login);
 
-    // A work item created by the Main Manager and assigned to nobody is out of
+    // A work item created by the Main Admin and assigned to nobody is out of
     // scope for an own-records employee; direct edits by id must 404.
     const ownedWork = await request("/workspace/work", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
@@ -807,7 +849,7 @@ describe("registration approval and notification replies", () => {
     assert.equal((await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: input.email, password: "changed-concurrent-password" }) })).status, 200);
     assert.equal((await request("/auth/status", {}, mainCookie)).headers.get("cache-control"), "no-store");
   });
-  it("lets the Main Manager transfer company access and applies permissions to the current session", async () => {
+  it("lets the Main Admin transfer company access and applies permissions to the current session", async () => {
     resetFailures();
     const data = getStore();
     data.collections.companies.push({ id: "company-transfer-target", name: "Transfer Company", status: "active" });
@@ -860,15 +902,14 @@ describe("registration approval and notification replies", () => {
     assert.equal(denied.status, 403);
     role.organizationIds = before; saveStore(getStore());
   });
-  it("requires a valid company for registration and admin-created accounts", async () => {
+  it("keeps registrations unassigned until Main Admin review and validates admin-created accounts", async () => {
     resetFailures();
     const body = { name: "Company User", email: "company-user@example.test", password: "company-user-test-password" };
     const register = (input: unknown) => request("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-    assert.equal((await register(body)).status, 400);
-    assert.equal((await register({ ...body, organizationId: "missing-company" })).status, 400);
-    assert.equal((await register({ ...body, organizationId: "company-boundary-two" })).status, 201);
+    assert.equal((await register(body)).status, 201);
+    assert.equal((await register({ ...body, email: "strict-input@example.test", organizationId: "missing-company" })).status, 400);
     const account = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === body.email)!;
-    assert.deepEqual(account.organizationIds, ["company-boundary-two"]);
+    assert.deepEqual(account.organizationIds, []);
     const invalid = await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, email: "unassigned-test@example.test", roleId: "role-manager", organizationIds: [] }) }, mainCookie);
     assert.equal(invalid.status, 400);
     const valid = await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, email: "assigned-admin-created@example.test", roleId: "role-manager", organizationIds: ["company-boundary-two"] }) }, mainCookie);
@@ -883,14 +924,14 @@ describe("registration approval and notification replies", () => {
     const ownerLogin = await post("/auth/login", { email: "owner@example.test", password: "correct-horse-battery-staple" });
     const ownerCookie = cookieFrom(ownerLogin);
     const email = `new-${Date.now()}@example.test`;
-    const credentials = { name: "Pending Applicant", email, password: "registration-test-password", organizationId: "company-primary" };
+    const credentials = { name: "Pending Applicant", email, password: "registration-test-password" };
     assert.equal((await post("/auth/register", credentials)).status, 201);
     const stored = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === email)!;
     assert.equal(stored.status, "pending");
     assert.match(String(stored.passwordHash), /^scrypt\$/);
     assert.equal(stored.password, undefined);
     const login = await post("/auth/login", { email, password: credentials.password });
-    const applicantCookie = cookieFrom(login);
+    let applicantCookie = cookieFrom(login);
     assert.equal((await request("/workspace/overview", {}, applicantCookie)).status, 403);
     assert.equal((await request("/collections/employees", {}, applicantCookie)).status, 403);
     const notices = await json<{ items: Notification[] }>(await request("/notifications", {}, ownerCookie));
@@ -906,6 +947,9 @@ describe("registration approval and notification replies", () => {
     assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "comment", comment: "Please confirm your department." }, ownerCookie)).status, 200);
     let inbox = await json<{ items: Notification[] }>(await request("/notifications", {}, applicantCookie));
     assert.ok(inbox.items.some(item => item.message.includes("Please confirm your department.")));
+    assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "approve", comment: "Welcome aboard." }, ownerCookie)).status, 400);
+    assert.equal((await request(`/workspace/access/users/${stored.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationIds: ["company-primary"], roleId: "role-employee", permissions: ["operations.view"], status: "pending" }) }, ownerCookie)).status, 200);
+    applicantCookie = cookieFrom(await post("/auth/login", { email, password: credentials.password }));
     assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "approve", comment: "Welcome aboard." }, ownerCookie)).status, 200);
     assert.equal((getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.id === stored.id)?.status, "active");
     assert.equal((await post(`/notifications/${registration.id}/respond`, { action: "reject" }, ownerCookie)).status, 409);
@@ -921,7 +965,7 @@ describe("registration approval and notification replies", () => {
     const post = (path: string, body: unknown, cookie?: string) => request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, cookie);
     const ownerCookie = cookieFrom(await post("/auth/login", { email: "owner@example.test", password: "correct-horse-battery-staple" }));
     const email = `reject-${Date.now()}@example.test`;
-    await post("/auth/register", { name: "Rejected Applicant", email, password: "registration-test-password", organizationId: "company-primary" });
+    await post("/auth/register", { name: "Rejected Applicant", email, password: "registration-test-password" });
     const account = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.email === email)!;
     const notices = await json<{ items: Notification[] }>(await request("/notifications", {}, ownerCookie));
     const notification = notices.items.find(item => item.type === "registration_request" && item.target === account.id)!;
@@ -929,5 +973,41 @@ describe("registration approval and notification replies", () => {
     const cookie = cookieFrom(await post("/auth/login", { email, password: "registration-test-password" }));
     assert.equal((await request("/workspace/overview", {}, cookie)).status, 403);
     assert.equal((await request("/notifications", {}, cookie)).status, 200);
+  });
+});
+
+describe("Customer Service permissions and session revocation", () => {
+  it("stores appointments and local replies while blocking finance, then revokes a suspended session", async () => {
+    resetFailures();
+    const email = `customer-service-${Date.now()}@example.test`;
+    const password = "customer-service-test-password";
+    const created = await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Customer Service Agent", email, password, roleId: "role-customer-service", organizationIds: ["company-primary"] }) }, mainCookie);
+    assert.equal(created.status, 201, await created.clone().text());
+    const account = (await json<{ item: { id: string } }>(created)).item;
+    const login = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+    assert.equal(login.status, 200);
+    const cookie = cookieFrom(login);
+    assert.equal((await request("/workspace/finance", {}, cookie)).status, 403);
+    const appointment = await request("/workspace/customer-service/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerName: "Local Customer", organizationId: "company-primary", appointmentAt: "2026-10-15T09:30:00.000Z", status: "scheduled", notes: "Local test" }) }, cookie);
+    assert.equal(appointment.status, 201, await appointment.clone().text());
+    const question = await request("/workspace/customer-service/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerName: "Local Customer", organizationId: "company-primary", subject: "Delivery time", message: "When will the order arrive?", status: "open" }) }, cookie);
+    assert.equal(question.status, 201, await question.clone().text());
+    const questionId = (await json<{ item: { id: string } }>(question)).item.id;
+    const reply = await request(`/workspace/customer-service/questions/${questionId}/replies`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "Tomorrow morning.", resolve: true }) }, cookie);
+    assert.equal(reply.status, 201, await reply.clone().text());
+    const storedReply = (getStore().collections.customerReplies as Record<string, unknown>[]).find(row => row.questionId === questionId)!;
+    assert.equal(storedReply.channel, "local");
+    assert.equal((getStore().collections.customerQuestions as Record<string, unknown>[]).find(row => row.id === questionId)?.status, "resolved");
+    const replyOnlyPermissions = await request(`/workspace/access/users/${account.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: ["customerService.view", "customerService.reply"] }) }, mainCookie);
+    assert.equal(replyOnlyPermissions.status, 200, await replyOnlyPermissions.clone().text());
+    const replyOnlyLogin = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+    assert.equal(replyOnlyLogin.status, 200);
+    const replyOnlyCookie = cookieFrom(replyOnlyLogin);
+    const deniedResolve = await request(`/workspace/customer-service/questions/${questionId}/replies`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "This reply must not be saved.", resolve: true }) }, replyOnlyCookie);
+    assert.equal(deniedResolve.status, 403);
+    assert.equal((getStore().collections.customerReplies as Record<string, unknown>[]).filter(row => row.questionId === questionId).length, 1);
+    const suspended = await request(`/workspace/access/users/${account.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "suspended" }) }, mainCookie);
+    assert.equal(suspended.status, 200, await suspended.clone().text());
+    assert.equal((await request("/workspace/customer-service", {}, replyOnlyCookie)).status, 401);
   });
 });

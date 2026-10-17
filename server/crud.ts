@@ -63,7 +63,7 @@ function sendError(res: Response, err: unknown) {
     return res.status(400).json({ error: (err as Error).message });
   }
   const message = err instanceof Error ? err.message : "Request failed";
-  return res.status(status ?? (/permission|scope/i.test(message) ? 403 : 500)).json({ error: message });
+  return res.status(status ?? (/permission|scope/i.test(message) ? 403 : /not found/i.test(message) ? 404 : 400)).json({ error: message });
 }
 
 /** One collection = full CRUD under /api/collections/:name, driven by registry. */

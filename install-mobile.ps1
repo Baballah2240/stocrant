@@ -6,7 +6,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Apk = "C:\Users\Lenovo\resturrant\stocrant\android\app\build\outputs\apk\debug\app-debug.apk",
+    [string]$Apk = "$PSScriptRoot\android\app\build\outputs\apk\debug\app-debug.apk",
     [switch]$All
 )
 

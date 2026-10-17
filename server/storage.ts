@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import type { Person, Store, Zone } from "./types.js";
 import { SEED_COLLECTIONS } from "./seed-collections.js";
 import { newProductAwb } from "./product-awb.js";
+import { migrateOrganizations } from "./organization-model.js";
 
 const DEFAULT_COMPANY_ID = "company-primary";
 if (process.env.NODE_TEST_CONTEXT && !process.env.STOCRANT_DATA_DIR?.includes("stocrant-test-data-")) {
@@ -167,6 +168,14 @@ function systemRoles(): Row[] {
       description: "Runs assigned business areas and can approve configured work.",
     },
     {
+      id: "role-customer-service",
+      name: "Customer Service",
+      permissions: ["organizations.view", "locations.view", "customerService.view", "customerService.create", "customerService.edit", "customerService.reply"],
+      isSystem: true,
+      dataClassification: "system",
+      description: "Manages customer appointments, questions and permitted local replies within the assigned company.",
+    },
+    {
       id: "role-employee",
       name: "Employee",
       permissions: ["organizations.view", "locations.view", "hr.view", "operations.view", "operations.create", "operations.edit", "inventory.view"],
@@ -319,6 +328,7 @@ function read(): StoreData {
         : structuredClone(SEED_DATA);
       migrateCompanyHierarchy(seeded);
       migrateSecureWorkspace(seeded);
+      migrateOrganizations(seeded);
       write(seeded);
       return seeded;
     }
@@ -327,10 +337,12 @@ function read(): StoreData {
     if (!Array.isArray(parsed.stores) || !Array.isArray(parsed.zones) || !Array.isArray(parsed.people) || (parsed.collections !== undefined && (!parsed.collections || typeof parsed.collections !== "object" || Array.isArray(parsed.collections)))) throw new Error("Invalid business data structure.");
     const hierarchyChanged = migrateCompanyHierarchy(parsed);
     const workspaceChanged = migrateSecureWorkspace(parsed);
-    if (hierarchyChanged || workspaceChanged) {
+    const organizationsChanged = migrateOrganizations(parsed);
+    if (hierarchyChanged || workspaceChanged || organizationsChanged) {
       // Capture the on-disk original before its first v2 migration. The backup
       // stays beside the JSON store and is ignored by Git with the data folder.
       if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
+      if (organizationsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"));
       write(parsed);
     }
     return parsed;
@@ -362,6 +374,7 @@ function write(data: StoreData) {
 
 
 let cache: StoreData | null = null;
+let transactionDepth = 0;
 
 export function getStore(): StoreData {
   if (!cache) cache = read();
@@ -369,8 +382,21 @@ export function getStore(): StoreData {
 }
 
 export function saveStore(data: StoreData) {
-  write(data);
+  if (!transactionDepth) write(data);
   cache = data;
+}
+
+/** Synchronous multi-record changes commit once, including audit/history. */
+export function transaction<T>(operation: () => T): T {
+  if (transactionDepth) return operation();
+  const original = structuredClone(getStore());
+  transactionDepth++;
+  try {
+    const result = operation();
+    write(getStore());
+    return result;
+  } catch (error) { cache = original; throw error; }
+  finally { transactionDepth--; }
 }
 
 /** Returns a usable company id for locations created by legacy API clients. */

@@ -48,13 +48,24 @@ export const MODULES: Record<ModuleKey, { label: string }> = {
 };
 
 export const registry: EntitySpec[] = [];
+registry.push({
+  collection: "organizations", label: "Organizations", singular: "Organization", module: "organization", permission: "organizations.view",
+  fields: [
+    { key: "name", label: "Organization name", type: "text", required: true },
+    { key: "email", label: "Email", type: "email" },
+    { key: "phone", label: "Phone", type: "tel" },
+    { key: "address", label: "Address", type: "textarea" },
+    { key: "status", label: "Status", type: "select", options: ["active", "inactive"], required: true },
+  ], columns: ["name", "email", "phone", "status"],
+});
 
 // ── Organizations ───────────────────────────────────────────────────────────
 registry.push({
   collection: "companies", label: "Companies", singular: "Company",
   module: "organization", permission: "organization.companies.read",
   fields: [
-    { key: "name", label: "Organization name", type: "text", required: true },
+    { key: "name", label: "Company name", type: "text", required: true },
+    { key: "parentOrganizationId", label: "Organization", type: "select", required: true },
     { key: "tradeName", label: "Trading name", type: "text" },
     { key: "organizationType", label: "Organization type", type: "select", options: ["shop", "store", "office", "restaurant", "mixed"], required: true },
     { key: "industry", label: "Industry", type: "select", options: ["restaurant", "retail", "hospitality", "services", "mixed"], required: true },
@@ -100,7 +111,7 @@ registry.push(
       { key: "status", label: "Status", type: "select", options: ["active", "probation", "on-leave", "terminated"], required: true },
       { key: "hireDate", label: "Hire date", type: "date", required: true },
       { key: "birthday", label: "Birthday", type: "date" },
-      { key: "organizationId", label: "Organization ID", type: "text" },
+      { key: "organizationId", label: "Company", type: "select", required: true },
       { key: "locationId", label: "Location ID", type: "text" },
       { key: "location", label: "Location", type: "text" },
       { key: "salary", label: "Base salary", type: "currency", min: 0 },
