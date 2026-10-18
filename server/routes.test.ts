@@ -763,6 +763,98 @@ describe("action-required notifications", () => {
     const foreignItems = (await json<{ items: Notification[] }>(foreignList)).items;
     assert.equal(foreignItems.some((item) => list.items.some((owned) => owned.id === item.id)), false);
   });
+  it("runs scoped attendance corrections, ordered approvals and idempotent payroll deductions", async () => {
+    const suffix = Date.now();
+    const employeeEmail = `attendance.employee.${suffix}@example.test`;
+    const hrEmail = `attendance.hr.${suffix}@example.test`;
+    const generalEmail = `attendance.general.${suffix}@example.test`;
+    const financeEmail = `attendance.finance.${suffix}@example.test`;
+    const credentials = { employee: "attendance-employee-password", approver: "attendance-approver-password" };
+    const attendanceDate = "2026-10-14";
+    const followUpDate = "2026-10-15";
+
+    const employeeResponse = await request("/collections/employees", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId: "company-primary", employeeCode: `ATT-${suffix}`, name: "Attendance Workflow Employee", email: employeeEmail, department: "Operations", jobTitle: "Coordinator", employmentType: "full-time", status: "active", hireDate: "2026-01-01", salary: 2600 }),
+    }, mainCookie);
+    assert.equal(employeeResponse.status, 201, await employeeResponse.clone().text());
+    const employee = (await json<{ item: { id: string } }>(employeeResponse)).item;
+
+    const createAccount = async (name: string, email: string, roleId: string, password: string, extra: Record<string, unknown> = {}) => {
+      const response = await request("/workspace/access/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, roleId, organizationIds: ["company-primary"], ...extra }) }, mainCookie);
+      assert.equal(response.status, 201, await response.clone().text());
+      return cookieFrom(await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) }));
+    };
+    const employeeCookie = await createAccount("Attendance Workflow Employee", employeeEmail, "role-employee", credentials.employee, { employeeId: employee.id, ownRecordsOnly: true });
+    const hrCookie = await createAccount("Attendance HR Manager", hrEmail, "role-hr-manager", credentials.approver);
+    const generalCookie = await createAccount("Attendance General Manager", generalEmail, "role-general-manager", credentials.approver);
+    const financeCookie = await createAccount("Attendance Finance Manager", financeEmail, "role-finance-manager", credentials.approver);
+
+    const selfDashboard = await request(`/workspace/attendance/dashboard?from=${attendanceDate}&to=${attendanceDate}`, {}, employeeCookie);
+    assert.equal(selfDashboard.status, 200);
+    const selfBody = await json<{ records: { employeeId: string }[]; permissions: { canReview: boolean } }>(selfDashboard);
+    assert.equal(selfBody.permissions.canReview, false);
+    assert.ok(selfBody.records.every((row) => row.employeeId === employee.id));
+    const unauthorizedManual = await request("/workspace/attendance/records", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationId: "company-primary", employeeId: employee.id, date: attendanceDate, checkIn: "08:00", checkOut: "17:00" }) }, employeeCookie);
+    assert.equal(unauthorizedManual.status, 403);
+
+    const correction = await request("/workspace/attendance/correction-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attendanceDate, requestedCheckIn: "08:20", requestedCheckOut: "17:00", reason: "Forgot the morning clock-in after opening the office." }) }, employeeCookie);
+    assert.equal(correction.status, 201, await correction.clone().text());
+    const correctionBody = await json<{ item: { id: string } }>(correction);
+    const hrInbox = await json<{ items: Notification[] }>(await request("/notifications", {}, hrCookie));
+    assert.ok(hrInbox.items.some((item) => item.target === `attendance-correction:${correctionBody.item.id}`));
+    assert.equal((await request(`/workspace/attendance/correction-requests/${correctionBody.item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "approve", comment: "Verified against the shift roster." }) }, employeeCookie)).status, 403);
+    const approvedCorrection = await request(`/workspace/attendance/correction-requests/${correctionBody.item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "approve", comment: "Verified against the shift roster." }) }, hrCookie);
+    assert.equal(approvedCorrection.status, 200, await approvedCorrection.clone().text());
+    const corrected = await json<{ item: { attendanceId: string; status: string } }>(approvedCorrection);
+    assert.equal(corrected.item.status, "Approved");
+
+    const firstRecord = await json<{ records: Array<{ id: string; approvalStatus: string }> }>(await request(`/workspace/attendance/dashboard?from=${attendanceDate}&to=${attendanceDate}&employeeId=${employee.id}`, {}, generalCookie));
+    const correctedRecord = firstRecord.records.find((record) => record.id === corrected.item.attendanceId)!;
+    assert.equal(correctedRecord.approvalStatus, "Pending General Manager Approval");
+    assert.equal((await request(`/workspace/attendance/records/${correctedRecord.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "Finance cannot decide before General Manager." }) }, financeCookie)).status, 403);
+    assert.equal((await request(`/workspace/attendance/records/${correctedRecord.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "Operational attendance approved." }) }, generalCookie)).status, 200);
+    assert.equal((await request(`/workspace/attendance/records/${correctedRecord.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "General Manager cannot decide the Finance stage." }) }, generalCookie)).status, 403);
+    assert.equal((await request(`/workspace/attendance/records/${correctedRecord.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "Deduction policy is currently disabled." }) }, financeCookie)).status, 200);
+    assert.equal((getStore().collections.attendancePayrollAdjustments as Record<string, unknown>[]).filter((row) => row.attendanceId === correctedRecord.id).length, 0, "disabled deductions must not post payroll adjustments");
+
+    const settings = await request("/workspace/attendance/settings", {}, mainCookie);
+    assert.equal(settings.status, 200);
+    const settingsBody = await json<{ item: Record<string, unknown> }>(settings);
+    const enableDeductions = await request("/workspace/attendance/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...settingsBody.item, organizationId: "company-primary", deductionsEnabled: true }) }, mainCookie);
+    assert.equal(enableDeductions.status, 200, await enableDeductions.clone().text());
+
+    const manual = await request("/workspace/attendance/records", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationId: "company-primary", employeeId: employee.id, date: followUpDate, checkIn: "08:30", checkOut: "17:00", status: "late", note: "Regression attendance entry" }) }, hrCookie);
+    assert.equal(manual.status, 201, await manual.clone().text());
+    const manualBody = await json<{ item: { id: string; estimatedDeduction: number } }>(manual);
+    assert.equal(Number(manualBody.item.estimatedDeduction.toFixed(2)), 4.17, "late time must not also be charged as missing hours");
+    assert.equal((await request(`/workspace/attendance/records/${manualBody.item.id}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comment: "Submit for payroll review." }) }, hrCookie)).status, 200);
+    assert.equal((await request(`/workspace/attendance/records/${manualBody.item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "HR approved." }) }, hrCookie)).status, 200);
+    assert.equal((await request(`/workspace/attendance/records/${manualBody.item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "General Manager approved." }) }, generalCookie)).status, 200);
+    assert.equal((await request(`/workspace/attendance/records/${manualBody.item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "Finance approved." }) }, financeCookie)).status, 200);
+    assert.equal((await request(`/workspace/attendance/records/${manualBody.item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment: "Duplicate final decision." }) }, financeCookie)).status, 409);
+    const adjustments = (getStore().collections.attendancePayrollAdjustments as Record<string, unknown>[]).filter((row) => row.attendanceId === manualBody.item.id);
+    assert.equal(adjustments.length, 1);
+    assert.equal(adjustments[0].status, "posted");
+    const payroll = (getStore().collections.payroll as Record<string, unknown>[]).find((row) => row.id === adjustments[0].payrollId)!;
+    assert.ok(Number(payroll.deductions) > 0);
+
+    const data = getStore();
+    data.collections.payroll = (data.collections.payroll as Record<string, unknown>[]).map((row) => row.id === payroll.id ? { ...row, status: "paid" } : row);
+    saveStore(data);
+    const paidDeductions = Number((getStore().collections.payroll as Record<string, unknown>[]).find((row) => row.id === payroll.id)!.deductions);
+    const paidRecord = await request("/workspace/attendance/records", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organizationId: "company-primary", employeeId: employee.id, date: "2026-10-16", checkIn: "08:45", checkOut: "17:00", status: "late" }) }, hrCookie);
+    assert.equal(paidRecord.status, 201);
+    const paidRecordBody = await json<{ item: { id: string } }>(paidRecord);
+    assert.equal((await request(`/workspace/attendance/records/${paidRecordBody.item.id}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }, hrCookie)).status, 200);
+    for (const [cookie, comment] of [[hrCookie, "HR"], [generalCookie, "General"], [financeCookie, "Finance"]] as const) {
+      assert.equal((await request(`/workspace/attendance/records/${paidRecordBody.item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve", comment }) }, cookie)).status, 200);
+    }
+    const protectedPayroll = (getStore().collections.payroll as Record<string, unknown>[]).find((row) => row.id === payroll.id)!;
+    assert.equal(Number(protectedPayroll.deductions), paidDeductions, "approved attendance must not mutate paid payroll");
+    const pendingAdjustment = (getStore().collections.attendancePayrollAdjustments as Record<string, unknown>[]).find((row) => row.attendanceId === paidRecordBody.item.id)!;
+    assert.equal(pendingAdjustment.status, "pending");
+  });
 });
 
 describe("hardened authentication and scoping", () => {

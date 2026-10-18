@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-18 — Attendance, timesheets and payroll workflow
+
+### Workforce attendance
+
+- Added the dedicated **Attendance & Timesheets** HR workspace with business-timezone clocking, daily/monthly/yearly filters, search, pagination, CSV export, attendance metrics, and responsive trend/table views.
+- Added employee correction requests with immutable original snapshots, HR comments, audit events, and in-app links/notifications.
+- Added staged attendance approvals for HR Manager, General Manager, and Finance Manager; the configured stage order is enforced server-side and decisions are idempotent.
+- Wired the **Employee Directory** table into the HR dashboard with search, department/location/status filters, HR-only toggle, sortable columns, pagination, permission-aware View/Edit/Delete actions, and id-based deletion.
+
+### Payroll and security
+
+- Added company attendance settings for work schedules, break/grace/overtime rules, deduction policy, business timezone, and stage configuration.
+- Attendance deductions are opt-in, calculated from approved attendance only, posted idempotently to draft payroll, and deferred to a payroll adjustment when payroll is finalized or paid.
+- Blocked generic edits/deletes of finalized attendance records; corrections must use the audited workflow.
+- Standardized the default business timezone to `Asia/Qatar` across hosted configuration, API attendance paths, and environment documentation.
+
 ## 2026-10-18 — Organization workflow and production hardening
 
 ### Organization ownership and access

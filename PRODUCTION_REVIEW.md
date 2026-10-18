@@ -11,7 +11,7 @@ The public introduction and contact form are available at `/welcome`. Signed-out
 - Checked mutation scope before approval and prevented edits to audit ownership fields. Finance and inventory summaries honor the user's scope.
 - Preserved unreadable data instead of replacing it with demo records. New production installations start empty.
 - Added flushed atomic writes and a daily snapshot under `data/backups`. Keep independent off-server backups too; monitor disk usage and retention.
-- Attendance uses `STOCRANT_TIME_ZONE` (default `Asia/Riyadh`), with one check-in and one check-out per account per day. Main admin cannot use attendance.
+- Attendance uses `STOCRANT_TIME_ZONE` (default `Asia/Qatar`), with legacy self-service sessions and the HR attendance workflow using the same configured business day.
 - Added request timeouts and graceful server shutdown.
 - Removed 114 obsolete root logs and scratch files after copying the current data into `data/backups`. Source, native projects and business data were retained.
 

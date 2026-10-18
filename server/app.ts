@@ -10,6 +10,7 @@ import occupancyRouter from "./routes/occupancy.js";
 import collectionsRouter from "./routes/collections.js";
 import authRouter from "./routes/auth.js";
 import workspaceRouter from "./routes/workspace.js";
+import attendanceRouter from "./routes/attendance.js";
 import {
   attachAuth,
   productionConfigurationError,
@@ -87,6 +88,7 @@ export function createApp() {
   app.use("/api/people", peopleRouter);
   app.use("/api/occupancy", occupancyRouter);
   app.use("/api/collections", collectionsRouter);
+  app.use("/api/workspace/attendance", attendanceRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);
 

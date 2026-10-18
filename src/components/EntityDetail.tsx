@@ -20,7 +20,7 @@ export default function EntityDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const spec = useMemo(() => module && collection ? (entities ?? []).find((entity) => entity.module === module && entity.collection === collection) : undefined, [module, collection, entities]);
-  const canEdit = (module !== "hr" || user?.roleId === "role-main-manager") && can(user?.permissions, sectionFor(module), "edit");
+  const canEdit = can(user?.permissions, sectionFor(module), "edit");
   useEffect(() => { if (!id || !collection || !spec) return; let active = true; setLoading(true); setError(null); api.collections.get(collection, id).then((result) => { if (active) setItem(result.item ?? null); }).catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : "Failed to load this record."); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [id, collection, spec]);
   if (metaLoading || !spec) return <p className="hint">Loading record…</p>;
   if (loading) return <p className="hint">Loading {spec.singular.toLowerCase()}…</p>;

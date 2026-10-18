@@ -284,6 +284,21 @@ export const api = {
     cancelLeave: (id: string) => request<{ ok: boolean }>(`/workspace/self-service/leave/${id}/cancel`, { method: "POST" }),
     checkIn: () => request<{ item: CollectionItem }>("/workspace/attendance/check-in", { method: "POST" }),
     checkOut: () => request<{ item: CollectionItem }>("/workspace/attendance/check-out", { method: "POST" }),
+    attendanceDashboard: (filters: Record<string, string | number | undefined> = {}) => {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") params.set(key, String(value));
+      return request<{ settings: CollectionItem; permissions: { canReview: boolean; canManage: boolean; canConfigure: boolean; canApprove: boolean }; filters: { companyId: string; from: string; to: string; page: number; limit: number }; employees: CollectionItem[]; departments: string[]; metrics: { totalEmployees: number; presentToday: number; absentToday: number; lateToday: number; currentlyWorking: number; pendingCorrections: number; totalRecordedHours: number }; trend: CollectionItem[]; records: CollectionItem[]; total: number }>(`/workspace/attendance/dashboard${params.size ? `?${params}` : ""}`);
+    },
+    attendanceSettings: (organizationId?: string) => request<{ item: CollectionItem }>(`/workspace/attendance/settings${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
+    saveAttendanceSettings: (input: Record<string, unknown>) => request<{ item: CollectionItem }>("/workspace/attendance/settings", { method: "PUT", body: JSON.stringify(input) }),
+    attendanceClockIn: () => request<{ item: CollectionItem }>("/workspace/attendance/clock-in", { method: "POST" }),
+    attendanceClockOut: () => request<{ item: CollectionItem }>("/workspace/attendance/clock-out", { method: "POST" }),
+    createAttendanceRecord: (input: Record<string, unknown>) => request<{ item: CollectionItem }>("/workspace/attendance/records", { method: "POST", body: JSON.stringify(input) }),
+    submitAttendance: (id: string, comment?: string) => request<{ item: CollectionItem }>(`/workspace/attendance/records/${encodeURIComponent(id)}/submit`, { method: "POST", body: JSON.stringify({ comment }) }),
+    decideAttendance: (id: string, decision: "approve" | "reject" | "return", comment: string) => request<{ item: CollectionItem }>(`/workspace/attendance/records/${encodeURIComponent(id)}/decision`, { method: "POST", body: JSON.stringify({ decision, comment }) }),
+    attendanceCorrections: (organizationId?: string) => request<{ items: CollectionItem[] }>(`/workspace/attendance/correction-requests${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
+    requestAttendanceCorrection: (input: Record<string, unknown>) => request<{ item: CollectionItem }>("/workspace/attendance/correction-requests", { method: "POST", body: JSON.stringify(input) }),
+    decideAttendanceCorrection: (id: string, action: "approve" | "reject" | "more-information", comment: string) => request<{ item: CollectionItem }>(`/workspace/attendance/correction-requests/${encodeURIComponent(id)}/decision`, { method: "POST", body: JSON.stringify({ action, comment }) }),
     inventory: () => request<{ items: CollectionItem[]; movements: CollectionItem[]; lowStockCount: number; companies: CollectionItem[]; employees: CollectionItem[]; history: CollectionItem[] }>("/workspace/inventory"),
     createInventoryItem: (input: Record<string, unknown>) => request<MutationResult>("/workspace/inventory/items", { method: "POST", body: JSON.stringify(input) }),
     updateInventoryItem: (id: string, input: Record<string, unknown>) => request<MutationResult>(`/workspace/inventory/items/${id}`, { method: "PATCH", body: JSON.stringify(input) }),

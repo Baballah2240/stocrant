@@ -19,6 +19,7 @@ import "./settings-layout.css";
 import "./auth-notifications.css";
 import "./app-lock.css";
 import "./attendance-motion.css";
+import "./attendance-workspace.css";
 import "./choice-controls.css";
 import "./mobile-drawer.css";
 import "./mobile-navigation.css";

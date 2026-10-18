@@ -24,9 +24,9 @@ export default function EntityList() {
   const [statusFilter, setStatusFilter] = useState("all");
   const spec = useMemo(() => module && collection ? (entities ?? []).find((entity) => entity.module === module && entity.collection === collection) : undefined, [module, collection, entities]);
   const section = sectionFor(module);
-  const canCreate = (module !== "hr" || user?.roleId === "role-main-manager") && can(user?.permissions, section, "create");
-  const canEdit = (module !== "hr" || user?.roleId === "role-main-manager") && can(user?.permissions, section, "edit");
-  const canDelete = (module !== "hr" || user?.roleId === "role-main-manager") && can(user?.permissions, section, "delete");
+  const canCreate = can(user?.permissions, section, "create");
+  const canEdit = can(user?.permissions, section, "edit");
+  const canDelete = can(user?.permissions, section, "delete");
   const canExport = can(user?.permissions, section, "export");
   const feedback = typeof location.state === "object" && location.state && "success" in location.state && typeof location.state.success === "string" ? location.state.success : null;
 

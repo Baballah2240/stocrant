@@ -7,6 +7,7 @@ import { api } from "../api";
 import { useSession } from "../session-context";
 import type { CollectionItem } from "../types";
 import { relativeLabel } from "../util";
+import EmployeeDirectory from "./EmployeeDirectory";
 
 interface HrOverview {
   today: string;
@@ -17,9 +18,9 @@ interface HrOverview {
   activity: CollectionItem[];
 }
 
-const recordLinks = [
+const recordLinks: Array<{ collection: string; label: string; description: string; to?: string }> = [
   { collection: "employees", label: "Employee directory", description: "Profiles, contacts, jobs and assignments" },
-  { collection: "attendance", label: "Attendance log", description: "Daily check-ins, work status and hours" },
+  { collection: "attendance", label: "Attendance & timesheets", description: "Time tracking, approvals, corrections and payroll deductions", to: "/hr/attendance" },
   { collection: "leaveRequests", label: "Time off", description: "Leave requests and approval status" },
   { collection: "employeeHistory", label: "Employment history", description: "Hires, changes and employment events" },
   { collection: "departments", label: "Departments", description: "Teams, managers and cost centers" },
@@ -49,7 +50,7 @@ function StatusPill({ status }: { status: unknown }) {
 
 function MetricCard({ label, value, detail, to, tone }: { label: string; value: string | number; detail: string; to: string; tone?: "green" | "amber" | "slate" }) {
   const { t } = useLanguage();
-  return <NavLink className={`hr-metric-card${tone ? ` hr-metric-card--${tone}` : ""}`} to={to}><span>{t(label)}</span><strong>{value}</strong><small>{t(detail)}</small></NavLink>;
+  return <NavLink className={`hr-metric-card${tone ? ` hr-metric-card--${tone}` : ""}`} to={to} aria-label={`${t(label)}: ${value}. ${t(detail)}`}><span>{t(label)}</span><strong>{value}</strong><small>{t(detail)}</small></NavLink>;
 }
 
 function EmptyState({ message, actionTo, actionLabel }: { message: string; actionTo?: string; actionLabel?: string }) {
@@ -67,14 +68,18 @@ export default function HRWorkspace() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<CollectionItem[]>([]);
+  const [deleting, setDeleting] = useState(false);
   const main = user?.roleId === "role-main-manager";
   const canCreate = main || can(user?.permissions, "hr", "create");
+  const canEditEmployees = main || can(user?.permissions, "hr", "edit");
+  const canDeleteEmployees = main || can(user?.permissions, "hr", "delete");
   const canViewApprovals = can(user?.permissions, "approvals", "view");
   const canViewFinance = can(user?.permissions, "finance", "view");
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
-    try { const [summary, companyData] = await Promise.all([api.workspace.hrOverview(), api.workspace.hrCompanies()]); setOverview(summary); setCompanies(companyData.companies); setEmployees(companyData.employees); setError(null); }
+    try { const [summary, companyData, departmentData] = await Promise.all([api.workspace.hrOverview(), api.workspace.hrCompanies(), api.collections.list("departments")]); setOverview(summary); setCompanies(companyData.companies); setEmployees(companyData.employees); setDepartments(departmentData.items ?? []); setError(null); }
     catch (err) { setError(err instanceof Error ? err.message : "Could not load the HR overview."); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -87,7 +92,7 @@ export default function HRWorkspace() {
   }, [overview]);
   const company = companies.find((item) => item.id === companyId);
   const companyEmployees = employees.filter((item) => (item.organizationId ?? item.companyId) === companyId);
-  async function removeEmployee(employee: CollectionItem) { if (!window.confirm(`Remove ${String(employee.name)}? This cannot be undone.`)) return; try { const result = await api.collections.remove("employees", employee.id); if (result.pending) setError("Removal was submitted for approval."); else await load(true); } catch (err) { setError(err instanceof Error ? err.message : "Could not remove employee."); } }
+  async function removeEmployee(employeeId: string) { const employee = employees.find((item) => item.id === employeeId); if (!employee || !window.confirm(`Remove ${String(employee.name)}? This cannot be undone.`)) return; setDeleting(true); try { const result = await api.collections.remove("employees", employee.id); if (result.pending) setError("Removal was submitted for approval."); else await load(true); } catch (err) { setError(err instanceof Error ? err.message : "Could not remove employee."); } finally { setDeleting(false); } }
   const firstName = user?.name.split(" ")[0] || "";
   const formatDate = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? t("Not recorded") : date.toLocaleDateString(languageLocale(language), { year: "numeric", month: "short", day: "numeric" }); };
 
@@ -100,7 +105,7 @@ export default function HRWorkspace() {
     {error ? <div className="alert alert--bad" role="alert"><div><strong>{t("HR data could not be loaded.")}</strong><p>{error}</p></div><button type="button" className="ghost" onClick={() => void load()}>{t("Try again")}</button></div> : null}
     {loading && !overview ? <div className="hr-loading-grid" aria-label={t("Loading HR overview")} aria-busy="true"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton hr-loading-panel" /><div className="skeleton hr-loading-panel" /></div> : null}
 
-    {!loading && <section className="card"><h2>{t("Company HR")}</h2><label className="form-field"><span className="field-label">{t("Select company")}</span><ChoiceSelect value={companyId} onChange={(event) => setCompanyId(event.target.value)}><option value="">{t("Choose a company")}</option>{companies.map((item) => <option key={item.id} value={item.id}>{String(item.name)}</option>)}</ChoiceSelect></label>{company ? <><h3>{String(company.name)}</h3><div className="detail-grid">{["tradeName", "organizationType", "industry", "country", "currency", "status", "contactName", "contactEmail", "contactPhone", "taxId"].map((key) => <div className="detail-item" key={key}><span>{({ tradeName: "Trading name", organizationType: "Type", contactName: "Contact", contactEmail: "Email", contactPhone: "Phone", taxId: "Registration ID" } as Record<string, string>)[key] ?? titleCase(key)}</span><strong>{String(company[key] || "Not recorded")}</strong></div>)}</div><div className="list-heading"><h3>{t("Employees (")}{companyEmployees.length})</h3>{canCreate && <NavLink className="primary-link" to={`/hr/employees/new?company=${encodeURIComponent(companyId)}`}>{t("Add employee")}</NavLink>}</div><div className="stack-list">{companyEmployees.map((employee) => <div className="approval-row" key={employee.id}><div><strong>{String(employee.name)}</strong><span>{String(employee.jobTitle || "Employee")}  ? {String(employee.status || "")}</span></div><div className="inline-actions"><NavLink to={`/hr/employees/${employee.id}`}>{t("View")}</NavLink>{canCreate && <><NavLink to={`/hr/employees/${employee.id}/edit`}>{t("Edit")}</NavLink><button type="button" className="ghost danger" onClick={() => void removeEmployee(employee)}>{t("Remove")}</button></>}</div></div>)}</div>{!companyEmployees.length && <p className="empty">{t("No employees assigned to this company yet.")}</p>}</> : <p className="empty">{t("Select a company to see its properties and employees.")}</p>}</section>}
+    {!loading && <section className="card"><h2>{t("Company HR")}</h2><label className="form-field"><span className="field-label">{t("Select company")}</span><ChoiceSelect value={companyId} onChange={(event) => setCompanyId(event.target.value)}><option value="">{t("Choose a company")}</option>{companies.map((item) => <option key={item.id} value={item.id}>{String(item.name)}</option>)}</ChoiceSelect></label>{company ? <><h3>{String(company.name)}</h3><div className="detail-grid">{["tradeName", "organizationType", "industry", "country", "currency", "status", "contactName", "contactEmail", "contactPhone", "taxId"].map((key) => <div className="detail-item" key={key}><span>{({ tradeName: "Trading name", organizationType: "Type", contactName: "Contact", contactEmail: "Email", contactPhone: "Phone", taxId: "Registration ID" } as Record<string, string>)[key] ?? titleCase(key)}</span><strong>{String(company[key] || "Not recorded")}</strong></div>)}</div><div className="list-heading"><h3>{t("Employees (")}{companyEmployees.length})</h3>{canCreate && <NavLink className="primary-link" to={`/hr/employees/new?company=${encodeURIComponent(companyId)}`}>{t("Add employee")}</NavLink>}</div><div className="stack-list">{companyEmployees.map((employee) => <div className="approval-row" key={employee.id}><div><strong>{String(employee.name)}</strong><span>{String(employee.jobTitle || "Employee")}  ? {String(employee.status || "")}</span></div><div className="inline-actions"><NavLink to={`/hr/employees/${employee.id}`}>{t("View")}</NavLink>{canCreate && <><NavLink to={`/hr/employees/${employee.id}/edit`}>{t("Edit")}</NavLink><button type="button" className="ghost danger" onClick={() => void removeEmployee(employee.id)}>{t("Remove")}</button></>}</div></div>)}</div>{!companyEmployees.length && <p className="empty">{t("No employees assigned to this company yet.")}</p>}</> : <p className="empty">{t("Select a company to see its properties and employees.")}</p>}</section>}
     {overview ? <><h2>{t("Workspace HR overview")}</h2>
       <section className="hr-metric-grid" aria-label={t("HR overview metrics")}>
         <MetricCard label={t("Team members")} value={overview.metrics.totalEmployees} detail={`${overview.metrics.activeEmployees} active`} to="/hr/employees" tone="green" />
@@ -110,6 +115,8 @@ export default function HRWorkspace() {
       </section>
 
       {canViewApprovals && overview.metrics.pendingApprovals ? <NavLink className="hr-approval-banner" to="/admin"><span className="hr-banner-dot" aria-hidden="true" /><span><strong>{overview.metrics.pendingApprovals} {t("HR approval")}{overview.metrics.pendingApprovals === 1 ? "" : "s"} {t("awaiting action")}</strong><small>{t("Review authorized changes in Access & Settings.")}</small></span><span aria-hidden="true">→</span></NavLink> : null}
+
+      <EmployeeDirectory employees={employees} departments={departments} canCreate={canCreate} canEdit={canEditEmployees} canDelete={canDeleteEmployees} deleting={deleting} onDelete={(id) => { void removeEmployee(id); }} />
 
       <section className="hr-overview-grid">
         <article className="card hr-attendance-card"><div className="hr-section-heading"><div><p className="eyebrow">{t("Today ·")}{formatDate(overview.today)}</p><h2>{t("Attendance snapshot")}</h2></div><NavLink to="/hr/attendance">{t("View log")}</NavLink></div><div className="hr-attendance-summary"><strong>{attendanceRate}%</strong><span>{t("of active employees have an attendance record")}</span></div><div className="hr-progress" role="progressbar" aria-label={t("Attendance recorded")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={attendanceRate}><span style={{ width: `${attendanceRate}%` }} /></div>{overview.attendance.length ? <div className="hr-compact-list">{overview.attendance.slice(0, 4).map((record) => <div className="hr-person-row" key={record.id}><span className="hr-avatar" aria-hidden="true">{initials(record.employee)}</span><div><strong>{readable(record.employee, "Unnamed employee")}</strong><small>{record.checkIn ? `Checked in ${String(record.checkIn)}` : "No check-in time"}{record.workMode ? ` · ${titleCase(record.workMode)}` : ""}</small></div><StatusPill status={record.status} /></div>)}</div> : <EmptyState message={t("No attendance has been recorded for today.")} actionTo={canCreate ? "/hr/attendance/new" : "/hr/attendance"} actionLabel={canCreate ? "Record attendance" : "Open attendance"} />}</article>
@@ -121,7 +128,7 @@ export default function HRWorkspace() {
         <article className="card"><div className="hr-section-heading"><div><p className="eyebrow">{t("Celebrate")}</p><h2>{t("Upcoming birthdays")}</h2></div><span className="hr-muted">{t("Next 60 days")}</span></div>{overview.birthdays.length ? <div className="hr-compact-list">{overview.birthdays.map((employee) => <NavLink to={`/hr/employees/${employee.id}`} className="hr-birthday-row" key={employee.id}><span className="hr-avatar hr-avatar--green" aria-hidden="true">{initials(employee.name)}</span><div><strong>{readable(employee.name, "Unnamed employee")}</strong><small>{readable(employee.jobTitle, readable(employee.department, "Employee"))}</small></div><time dateTime={String(employee.birthday)}>{formatDate(String(employee.birthday))}</time></NavLink>)}</div> : <EmptyState message={t("Add birthdays to employee profiles to see upcoming celebrations.")} actionTo="/hr/employees" actionLabel={t("Open employees")} />}</article>
       </section>
 
-      <section className="hr-library card"><div className="hr-section-heading"><div><p className="eyebrow">{t("Workforce records")}</p><h2>{t("Manage HR")}</h2></div>{canViewFinance ? <NavLink to="/finance">{t("Payroll & finance →")}</NavLink> : null}</div><div className="hr-link-grid">{recordLinks.map((link) => <NavLink className="hr-record-link" key={link.collection} to={`/hr/${link.collection}`}><div><strong>{link.label}</strong><span>{link.description}</span></div><span aria-hidden="true">→</span></NavLink>)}</div></section>
+        <section className="hr-library card"><div className="hr-section-heading"><div><p className="eyebrow">{t("Workforce records")}</p><h2>{t("Manage HR")}</h2></div>{canViewFinance ? <NavLink to="/finance">{t("Payroll & finance →")}</NavLink> : null}</div><div className="hr-link-grid">{recordLinks.map((link) => <NavLink className="hr-record-link" key={link.collection} to={link.to ?? `/hr/${link.collection}`}><div><strong>{link.label}</strong><span>{link.description}</span></div><span aria-hidden="true">→</span></NavLink>)}</div></section>
     </> : null}
   </div>;
 }

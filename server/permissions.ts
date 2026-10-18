@@ -36,10 +36,27 @@ export function can(user: AuthenticatedUser | undefined, section: WorkspaceSecti
   if (!user) return false;
   if (isMainManager(user)) return true;
   if (["access", "audit"].includes(section) && !isDelegatedAdmin(user)) return false;
-  if (section === "hr" && ["create", "edit", "delete", "approve"].includes(action) && !isDelegatedAdmin(user)) return false;
   const permissions = permissionsFor(user);
   return permissions.includes("*") || permissions.includes(`${section}.*`) || permissions.includes(`${section}.${action}`);
 }
+
+/** HR write access is granted by explicit permission strings (`hr.*`, `hr.create`,
+ * `hr.edit`, `hr.delete`, `hr.approve`). Account administration stays Main-Admin-only. */
+export function canManageHr(user: AuthenticatedUser | undefined, action: PermissionAction): boolean {
+  if (!user) return false;
+  if (isMainManager(user)) return true;
+  const permissions = permissionsFor(user);
+  return permissions.includes("*") || permissions.includes("hr.*") || permissions.includes(`hr.${action}`);
+}
+
+/** Personal employee data (email/phone/birthday/salary) is visible to the Main Admin,
+ * delegated admins, HR users with record-management permission, and the employee
+ * viewing their own record. Everyone else receives a redacted record. */
+export function canViewPersonalData(user: AuthenticatedUser | undefined): boolean {
+  if (!user) return false;
+  if (isMainManager(user) || isDelegatedAdmin(user)) return true;
+  const permissions = permissionsFor(user);
+  return permissions.includes("*") || permissions.includes("hr.*") || permissions.includes("hr.create") || permissions.includes("hr.edit");
 
 /** The Main Admin is the sole account-administration override role. */
 export function isMainManager(user: AuthenticatedUser | undefined): boolean {

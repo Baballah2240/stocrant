@@ -1,7 +1,7 @@
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { validateHierarchyMutation } from "./organization-policy.js";
-import { can, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
+import { can, canManageHr, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
 import { createNotification, listNotifications } from "./notifications.js";
 import { newProductAwb } from "./product-awb.js";
 
@@ -100,7 +100,7 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
 }
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
-  if (sectionForCollection(collection) === "hr" && !can(user, "hr", action)) throw new Error("Only the Main Admin has permission to manage HR records.");
+  if (sectionForCollection(collection) === "hr" && !canManageHr(user, action)) throw new Error("You do not have permission to manage HR records.");
   const data = getStore();
   const list = rows(collection);
   const now = timestamp();

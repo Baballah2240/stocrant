@@ -42,7 +42,7 @@ function newestAt(row: Row) {
   return "";
 }
 
-const attendanceTimeZone = process.env.STOCRANT_TIME_ZONE || "Asia/Riyadh";
+const attendanceTimeZone = process.env.STOCRANT_TIME_ZONE || "Asia/Qatar";
 function dateStamp(date: Date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: attendanceTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }

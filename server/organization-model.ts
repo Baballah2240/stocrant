@@ -20,8 +20,11 @@ export function migrateOrganizations(data: StoreData): boolean {
   for (const role of [
     { id: "role-organization-admin", name: "Organization Admin", permissions: ["organizations.view", "organizations.create", "organizations.edit", "locations.*", "hr.*", "operations.*", "inventory.*", "finance.*", "customerService.*", "access.view", "access.create", "access.edit", "access.delete", "audit.view", "approvals.view", "approvals.approve"], description: "Manages permitted records and accounts in one assigned organization." },
     { id: "role-company-manager", name: "Company Manager", permissions: ["organizations.view", "locations.*", "hr.view", "hr.create", "hr.edit", "hr.delete", "operations.*", "inventory.*", "customerService.*", "access.view", "access.create", "access.edit", "access.delete", "audit.view"], description: "Manages permitted records and staff in one assigned company." },
+    { id: "role-hr-manager", name: "HR Manager", permissions: ["organizations.view", "hr.view", "hr.create", "hr.edit", "hr.approve", "approvals.view"], description: "Reviews attendance corrections and performs the HR attendance approval stage." },
+    { id: "role-general-manager", name: "General Manager", permissions: ["organizations.view", "hr.view", "approvals.view", "approvals.approve"], description: "Performs the General Manager attendance approval stage." },
+    { id: "role-finance-manager", name: "Finance Manager", permissions: ["organizations.view", "hr.view", "finance.view", "approvals.view", "approvals.approve"], description: "Performs the Finance Manager attendance approval stage and reviews deductions." },
   ]) if (!roles.some(existing => existing.id === role.id)) { roles.push({ ...role, isSystem: true, dataClassification: "system" }); changed = true; }
   const settings = (data.collections.workspaceSettings as Record<string, unknown>[]).find(row => row.id === "workspace-settings");
-  if (settings && settings.schemaVersion !== 3) { settings.schemaVersion = 3; changed = true; }
+  if (settings && settings.schemaVersion !== 4) { settings.schemaVersion = 4; changed = true; }
   return changed;
 }

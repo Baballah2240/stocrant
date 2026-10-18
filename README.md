@@ -4,7 +4,7 @@ The management web app and mobile app share this project's API and business data
 
 **App lock:** every account can open **App lock** from the navigation or Settings. The default inactivity timeout is 5 minutes, configurable from 1 to 60 minutes per account/device. Restored sessions open locked. Web unlock asks only for the existing account password and uses the normal rate-limited sign-in endpoint. Native mobile can enable strong fingerprint/Face ID authentication after confirming the account password and device biometric prompt. Passwords and biometric data are not saved for this feature. The mobile app can also lock immediately when backgrounded. This is a device privacy lock for the workspace UI; normal server authorization and session expiration continue to apply. Biometric unlock requires a valid server session. Run `npm run test:lock` for timing boundary and clock rollback checks.
 
-**Attendance:** employees and managers can record up to three non-overlapping check-in/check-out sessions each day in the configured business timezone. Sessions and total hours are kept in a single daily record. Older single-session records are preserved and count as the first session. The Main Admin account remains excluded from attendance.
+**Attendance & timesheets:** the HR **Attendance & Timesheets** workspace supports Qatar-timezone daily/monthly/yearly reporting, employee clocking, correction requests, manager review, audit history, and configurable HR → General Manager → Finance Manager approval stages. Approved records calculate late, early-departure, missing-hour and unpaid-absence estimates using company policy. Attendance deductions are disabled by default; when enabled they post once to draft payroll, while approved/paid payroll receives a separate adjustment request instead of being silently changed. Legacy self-service sessions remain supported, and the Main Admin account remains excluded from personal clocking.
 
 **Products and account companies:** products and inventory items receive a unique random `AWB-` identifier automatically; edits preserve it. Existing items without an identifier are filled additively during migration. Registration and non-Main-Manager accounts require exactly one existing company. The Main Admin retains cross-company administration. Users without a valid company assignment must be assigned through Access & Settings before they can access business records. Roles may restrict the assigned company further but cannot grant access to other companies. The registration company selector exposes only company IDs and names, and all business data access remains authenticated and company-scoped.
 
@@ -155,6 +155,7 @@ HTTPS verification steps.
 | `STOCRANT_DATA_DIR`  | application root   | Base directory; data is written to `<value>/data/stocrant.json` |
 | `STOCRANT_SESSION_SECRET` | required in production | HMAC secret used to sign secure session cookies |
 | `STOCRANT_SETUP_KEY` | required for first production setup | One-time key required to create the initial Main Admin |
+| `STOCRANT_TIME_ZONE` | `Asia/Qatar` | IANA business timezone used for attendance dates and timestamps |
 
 ## Scripts
 

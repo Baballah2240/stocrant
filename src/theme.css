@@ -2307,6 +2307,40 @@ button.primary:hover {
 .hr-loading-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .hr-loading-grid .skeleton { min-height: 145px; }
 .hr-loading-grid .hr-loading-panel { grid-column: span 2; min-height: 300px; }
+/* Employee directory table (HR dashboard) */
+.hr-directory { display: grid; padding: 0; overflow: hidden; border: 1px solid var(--ios-hairline); border-radius: 18px; }
+.hr-directory .hr-section-heading { padding: 18px 20px 0; }
+.hr-directory-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--ios-hairline); }
+.hr-directory-search { position: relative; display: block; flex: 1 1 240px; min-width: 200px; margin: 0; }
+.hr-directory-search svg { position: absolute; top: 50%; left: 12px; width: 16px; height: 16px; fill: none; stroke: var(--stocrant-ink-muted); stroke-width: 2; transform: translateY(-50%); pointer-events: none; }
+.hr-directory-search input { width: 100%; padding-left: 38px; }
+.hr-directory-field { display: grid; gap: 5px; margin: 0; color: var(--stocrant-ink-muted); font-size: 12px; }
+.hr-directory-field select { min-width: 140px; }
+.hr-directory-check { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 7px; color: var(--ios-label); font-size: 13px; white-space: nowrap; }
+.hr-directory-check input { width: 16px; height: 16px; accent-color: var(--stocrant-green); }
+.hr-directory-table { min-width: 880px; }
+.hr-directory-table tbody tr:hover { background: var(--stocrant-green-soft); }
+.hr-sort { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 8px; border: 0; background: transparent; color: var(--stocrant-ink-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.hr-sort:hover { color: var(--stocrant-green); background: var(--stocrant-green-soft); }
+.hr-directory-person { display: inline-flex; align-items: center; gap: 10px; padding: 4px 8px; border: 0; background: transparent; color: var(--ios-label); font: inherit; text-align: start; border-radius: 12px; }
+.hr-directory-person:hover { background: var(--stocrant-green-soft); }
+.hr-directory-person span:last-child { display: grid; gap: 2px; min-width: 0; }
+.hr-directory-person strong { font-size: 13px; }
+.hr-directory-person small { color: var(--stocrant-ink-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hr-directory-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.hr-directory-actions button { min-height: 32px; padding: 5px 10px; font-size: 12px; }
+.hr-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 20px; color: var(--stocrant-ink-muted); font-size: 12px; }
+@media (max-width: 700px) {
+  .hr-directory .hr-section-heading,
+  .hr-directory-toolbar,
+  .hr-pagination { padding-left: 16px; padding-right: 16px; }
+  .hr-directory-toolbar { flex-direction: column; align-items: stretch; }
+  .hr-directory-search { width: 100%; }
+  .hr-directory-field select,
+  .hr-directory-field .choice-select { width: 100%; }
+  .hr-pagination { flex-wrap: wrap; }
+}
+
 
 /* Record directory, form, and employee profile */
 .entity-list-card { padding: 0; overflow: hidden; border: 1px solid var(--ios-hairline); border-radius: 18px; }

@@ -70,6 +70,7 @@ export function canManageAccount(actor: AuthenticatedUser, account: Row) {
 
 export function validateHierarchyMutation(user: AuthenticatedUser, collection: string, action: string, input: Row, current?: Row): Row {
   const next = { ...current, ...input };
+  if (collection === "attendance" && ["create", "edit", "delete"].includes(action)) policyError("Use the Attendance & Timesheets workflow to create or change attendance records.", 409);
   if (["roles", "users", "accessRoles", "accessUsers", "approvalRules"].includes(collection) && !isMainManager(user)) policyError("Only the Main Admin has permission to change global access settings.", 403);
   if (collection === "organizations") {
     if ((action !== "edit" || (input.status !== undefined && input.status !== current?.status)) && !isMainManager(user)) policyError("Only the Main Admin has permission to create, activate or deactivate organizations.", 403);

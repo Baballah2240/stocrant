@@ -23,6 +23,7 @@ const InventoryWorkspace = lazy(() => import("./components/InventoryWorkspace"))
 const FinanceWorkspace = lazy(() => import("./components/FinanceWorkspace"));
 const AccessWorkspace = lazy(() => import("./components/AccessWorkspace"));
 const HRWorkspace = lazy(() => import("./components/HRWorkspace"));
+const AttendanceWorkspace = lazy(() => import("./components/AttendanceWorkspace"));
 const CustomerServiceWorkspace = lazy(() => import("./components/CustomerServiceWorkspace"));
 const OrganizationWorkspace = lazy(() => import("./components/OrganizationWorkspace"));
 import { useSession } from "./session-context";
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       // ── Module overviews ──
       { path: "organizations", element: <OrganizationWorkspace /> },
       { path: "hr", element: <HRWorkspace /> },
+      { path: "hr/attendance", element: <AttendanceWorkspace /> },
       { path: "operations", element: <OperationsWorkspace /> },
       { path: "store", element: <OperationsWorkspace /> }, // Legacy URL retained for bookmarks.
       { path: "warehouse", element: <InventoryWorkspace /> },

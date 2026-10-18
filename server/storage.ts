@@ -239,7 +239,7 @@ function migrateSecureWorkspace(data: StoreData): boolean {
   const required = [
     "accessRoles", "accessUsers", "sessions", "approvalRules", "approvalRequests", "auditLog",
     "locationUpdates", "workItems", "workActivity", "inventoryItems", "inventoryMovements",
-    "financeAccounts", "financeTransactions", "workspaceSettings",
+    "financeAccounts", "financeTransactions", "workspaceSettings", "attendanceSettings", "attendanceCorrectionRequests", "attendancePayrollAdjustments",
   ];
   for (const name of required) {
     if (!Array.isArray(data.collections[name])) {

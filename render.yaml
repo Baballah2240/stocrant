@@ -26,7 +26,7 @@ services:
       - key: STOCRANT_DATA_DIR
         value: /var/lib/stocrant
       - key: STOCRANT_TIME_ZONE
-        value: Asia/Riyadh
+        value: Asia/Qatar
       - key: STOCRANT_TRUST_PROXY
         value: "1"
       - key: STOCRANT_SESSION_SECRET
