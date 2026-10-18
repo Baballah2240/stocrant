@@ -142,6 +142,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
     data.collections.inventoryHistory = [...rows("inventoryHistory"), { id: rowId("inventoryHistory"), inventoryItemId: item.id, organizationId: item.organizationId, actor: user.name, actorId: user.id, occurredAt: now, action, changedFields }];
   }
   saveStore(data);
+  revokeTenantSessions(collection, action, payload, existing, targetId);
   if (collection === "employees") updateEmployeeHistory(user, item, existing ? "updated" : "hired");
   if (collection === "workItems") updateWorkActivity(user, item, existing ? "Work item updated." : "Work item created.");
   audit(user, `${collection}.${action}`, { collection, targetId: item.id, section: sectionForCollection(collection) });
@@ -197,13 +198,16 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
     return { pending: true, request };
   }
   const item = applyMutation(user, collection, action, payload, targetId);
+  fireMutationAlerts(user, collection, action, payload, item);
+  return { pending: false, item };
+}
+
+function revokeTenantSessions(collection: string, action: MutationAction, payload: Record<string, unknown>, current: Row | undefined, targetId?: string) {
   if ((collection === "organizations" || collection === "companies") && action === "edit" && (payload.status === "inactive" || (current?.parentOrganizationId && payload.parentOrganizationId && current.parentOrganizationId !== payload.parentOrganizationId))) {
     const companies = collection === "organizations" ? rows("companies").filter(company => company.parentOrganizationId === targetId).map(company => company.id) : [targetId];
     const accounts = rows("accessUsers").filter(account => account.roleId !== "role-main-manager" && ((Array.isArray(account.organizationIds) && account.organizationIds.some(id => companies.includes(String(id)))) || (collection === "organizations" && Array.isArray(account.tenantOrganizationIds) && account.tenantOrganizationIds.includes(targetId)))).map(account => account.id);
     const data = getStore(); data.collections.sessions = rows("sessions").filter(session => !accounts.includes(String(session.accountId))); saveStore(data);
   }
-  fireMutationAlerts(user, collection, action, payload, item);
-  return { pending: false, item };
 }
 
 function fireMutationAlerts(
@@ -277,6 +281,10 @@ function notifyPendingApproval(user: AuthenticatedUser, request: ApprovalRequest
 }
 
 export function approveRequest(user: AuthenticatedUser, requestId: string, approve: boolean, note?: string): ApprovalRequest {
+  return transaction(() => decideRequest(user, requestId, approve, note));
+}
+
+function decideRequest(user: AuthenticatedUser, requestId: string, approve: boolean, note?: string): ApprovalRequest {
   if (!can(user, "approvals", "approve")) throw new Error("You do not have permission to approve requests.");
   let data = getStore();
   const list = rows("approvalRequests") as ApprovalRequest[];

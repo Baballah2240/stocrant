@@ -127,7 +127,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     tenantOrganizationIds: Array.isArray(account.tenantOrganizationIds) ? account.tenantOrganizationIds.filter((id): id is string => typeof id === "string") : [],
     locationIds: Array.isArray(account.locationIds) ? account.locationIds.filter((id): id is string => typeof id === "string") : [],
     ownRecordsOnly: account.ownRecordsOnly === true,
-    permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && permission !== "*" && (delegated || (!permission.startsWith("access.") && !permission.startsWith("audit.") && !/^hr\.(create|edit|delete|approve|\*)$/.test(permission)))),
+    permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && permission !== "*" && (delegated || (!permission.startsWith("access.") && !permission.startsWith("audit.")))),
   };
 }
 

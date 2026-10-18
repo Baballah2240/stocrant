@@ -4,6 +4,7 @@ dist/
 
 # Runtime data: keep business records and personally identifiable data out of Git.
 data/
+.local-preview/
 
 # Local logs and command output
 *.log

@@ -56,7 +56,8 @@ export function canViewPersonalData(user: AuthenticatedUser | undefined): boolea
   if (!user) return false;
   if (isMainManager(user) || isDelegatedAdmin(user)) return true;
   const permissions = permissionsFor(user);
-  return permissions.includes("*") || permissions.includes("hr.*") || permissions.includes("hr.create") || permissions.includes("hr.edit");
+  return permissions.includes("*") || permissions.includes("hr.*") || permissions.includes("hr.create") || permissions.includes("hr.edit") || permissions.includes("hr.personal.view") || can(user, "finance", "view");
+}
 
 /** The Main Admin is the sole account-administration override role. */
 export function isMainManager(user: AuthenticatedUser | undefined): boolean {
@@ -88,10 +89,6 @@ export function requirePermission(section: WorkspaceSection, action: PermissionA
     if (!can(req.auth, section, action)) return res.status(403).json({ error: `You do not have permission to ${action} ${section}.` });
     next();
   };
-}
-
-export function canViewPersonalData(user: AuthenticatedUser | undefined) {
-  return Boolean(user && (can(user, "hr", "edit") || can(user, "finance", "view") || permissionsFor(user).includes("hr.personal.view") || permissionsFor(user).includes("*")));
 }
 
 export function canViewSalaryData(user: AuthenticatedUser | undefined) {

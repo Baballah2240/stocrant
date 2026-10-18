@@ -153,7 +153,7 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal((await request("/workspace/work", {}, managerCookie)).status, 200);
   });
 
-  it("allows only the main admin to manage employees and exposes company HR details", async () => {
+  it("enforces explicit HR action permissions and exposes scoped company HR details", async () => {
     const companyResponse = await request("/workspace/hr/companies", {}, mainCookie);
     assert.equal(companyResponse.status, 200);
     const data = await json<{ companies: { id: string }[]; employees: unknown[] }>(companyResponse);
@@ -167,10 +167,26 @@ describe("STOCRANT secure workspace API", () => {
     const create = await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, mainCookie);
     assert.equal(create.status, 201);
     const { item } = await json<{ item: { id: string } }>(create);
+    const managerPayload = { ...payload, employeeCode: "HR-MANAGER", email: "hr-manager-control@example.test" };
+    const profile = await json<{ user: AuthenticatedUser }>(await request("/auth/me", {}, managerCookie));
+    assert.ok(profile.user.permissions.includes("hr.create"), "The interface must receive the same HR grants enforced by the API");
+    const managerCreate = await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(managerPayload) }, managerCookie);
+    assert.equal(managerCreate.status, 201, await managerCreate.clone().text());
+    const managerEmployee = await json<{ item: { id: string } }>(managerCreate);
+    assert.equal((await request(`/collections/employees/${managerEmployee.item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobTitle: "Scoped HR editor" }) }, managerCookie)).status, 200);
+    assert.equal((await request(`/collections/employees/${managerEmployee.item.id}`, { method: "DELETE" }, managerCookie)).status, 403, "HR edit permission must not imply delete");
+    const accounts = await json<{ items: { id: string; email: string }[] }>(await request("/workspace/access/users", {}, mainCookie));
+    const managerId = accounts.items.find(account => account.email === "manager@example.test")!.id;
+    const setManagerPermissions = (permissions: string[] | null) => request(`/workspace/access/users/${managerId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions }) }, mainCookie);
+    assert.equal((await setManagerPermissions(["hr.view", "organizations.view"])).status, 200);
+    const restrictedProfile = await json<{ user: AuthenticatedUser }>(await request("/auth/me", {}, managerCookie));
+    assert.ok(!restrictedProfile.user.permissions.includes("hr.create"));
     for (const [method, path] of [["POST", "/collections/employees"], ["PATCH", `/collections/employees/${item.id}`], ["DELETE", `/collections/employees/${item.id}`]]) {
       const denied = await request(path, { method, headers: { "Content-Type": "application/json", "x-role": "role-main-manager" }, body: JSON.stringify(payload) }, managerCookie);
       assert.equal(denied.status, 403);
     }
+    assert.equal((await setManagerPermissions(null)).status, 200);
+    assert.equal((await request(`/collections/employees/${managerEmployee.item.id}`, { method: "DELETE" }, mainCookie)).status, 200);
     assert.equal((await request(`/collections/employees/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobTitle: "Updated" }) }, mainCookie)).status, 200);
     assert.equal((await request(`/collections/employees/${item.id}`, { method: "DELETE" }, mainCookie)).status, 200);
   });
