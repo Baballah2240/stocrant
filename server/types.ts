@@ -87,6 +87,8 @@ export const STORE_STATUSES: StoreStatus[] = ["open", "open-limited", "closed"];
 
 /** Action-required notification emitted by the backend. */
 export type NotificationType =
+  | "hr_message"
+  | "document_expiry"
   | "registration_request"
   | "message"
   | "overdue_work"
@@ -99,6 +101,9 @@ export type NotificationType =
 export type NotificationSeverity = "info" | "warning" | "critical";
 
 export interface Notification {
+  title?: string; senderName?: string; hrType?: string; priority?: string;
+  url?: string; effectiveAt?: string; shiftTime?: string; location?: string;
+  acknowledgmentRequired?: boolean; acknowledgedAt?: string; readAt?: string; deliveredAt?: string; remindedAt?: string; campaignId?: string;
   response?: string;
   senderId?: string;
   decision?: "approved" | "rejected";

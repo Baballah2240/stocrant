@@ -5,9 +5,46 @@ import { accountScopeActive, clearSession, createSession, hashPassword, loginTim
 import { isWithinScope } from "../permissions.js";
 import { createNotification } from "../notifications.js";
 import { blockedFor, clearFailures, recordFailure } from "../rate-limit.js";
-import { getCollection, getStore, nextCollectionId, saveStore } from "../storage.js";
+import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "../storage.js";
+import { tokenDigest, employmentInactive } from "../employee-accounts.js";
+import { audit } from "../workspace.js";
 
 const router = Router();
+router.post("/activate-employee", async (req, res) => {
+  const key = `employee-activation:${req.ip ?? "unknown"}`;
+  if (blockedFor(key)) return res.status(429).json({ error: "Too many attempts. Try again later." });
+  recordFailure(key);
+  const parsed = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/), email: z.string().trim().email().max(160), password: z.string().min(12).max(256) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Use a valid invitation, email, and password of at least 12 characters." });
+  const digest = tokenDigest(parsed.data.token);
+  const valid = () => {
+    const invite = (getCollection("employeeInvitations") as Record<string, unknown>[]).find(row => row.tokenHash === digest && Date.parse(String(row.expiresAt)) > Date.now());
+    const account = invite && accounts().find(row => row.id === invite.accountId && row.status === "invited" && row.activationRequired === true);
+    const employee = account && (getCollection("employees") as Record<string, unknown>[]).find(row => row.id === account.employeeId && !employmentInactive(row.status));
+    return account && employee && accountScopeActive(account) ? { account, employee } : undefined;
+  };
+  if (!valid()) return res.status(400).json({ error: "This invitation is invalid, expired, or no longer available." });
+  const hash = await hashPassword(parsed.data.password);
+  // Hashing yields: atomically recheck one-time token, employment, scope, and uniqueness.
+  try {
+    transaction(() => {
+      const current = valid();
+      if (!current) throw new Error("This invitation is invalid, expired, or no longer available.");
+      const email = parsed.data.email.toLowerCase();
+      if (accounts().some(row => row.id !== current.account.id && row.email.toLowerCase() === email) || (getCollection("employees") as Record<string, unknown>[]).some(row => row.id !== current.employee.id && String(row.email || "").toLowerCase() === email)) throw new Error("This email is already in use.");
+      // An existing HR-provided email is verified by handing over the invitation to that employee.
+      if (current.employee.email && String(current.employee.email).toLowerCase() !== email) throw new Error("Use the email assigned by HR, or ask HR to update your profile first.");
+      Object.assign(current.account, { email, passwordHash: hash, status: "active", activationRequired: false, activatedAt: new Date().toISOString() });
+      current.employee.email = email;
+      const data = getStore();
+      data.collections.employeeInvitations = (getCollection("employeeInvitations") as Record<string, unknown>[]).filter(row => row.accountId !== current.account.id);
+      saveStore(data);
+      audit(undefined, "access.employee-account-activated", { targetId: current.account.id, employeeId: current.employee.id, organizationId: current.employee.organizationId });
+    });
+    clearFailures(key);
+    res.json({ ok: true });
+  } catch (error) { res.status(400).json({ error: (error as Error).message }); }
+});
 const credentialsSchema = z.object({
   email: z.string().trim().email("Enter a valid email").max(160),
   password: z.string().min(12, "Use at least 12 characters").max(256),

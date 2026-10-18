@@ -1,3 +1,4 @@
+import hrMessagesRouter from "./hr-messages.js";
 import { existsSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,7 @@ import collectionsRouter from "./routes/collections.js";
 import authRouter from "./routes/auth.js";
 import workspaceRouter from "./routes/workspace.js";
 import attendanceRouter from "./routes/attendance.js";
+import documentsRouter from "./routes/documents.js";
 import {
   attachAuth,
   productionConfigurationError,
@@ -65,7 +67,7 @@ export function createApp() {
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     if (process.env.NODE_ENV === "production") {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-      res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+      res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' blob:; connect-src 'self' https:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
     }
     next();
   });
@@ -87,8 +89,11 @@ export function createApp() {
   app.use("/api/zones", zonesRouter);
   app.use("/api/people", peopleRouter);
   app.use("/api/occupancy", occupancyRouter);
+  app.use("/api/collections/documents", documentsRouter);
+  app.use("/api/workspace/documents", documentsRouter);
   app.use("/api/collections", collectionsRouter);
   app.use("/api/workspace/attendance", attendanceRouter);
+  app.use("/api/workspace/hr/communication", hrMessagesRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);
 

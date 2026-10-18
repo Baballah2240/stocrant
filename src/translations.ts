@@ -1,4 +1,6 @@
+import hrCommunicationTranslations from "./hr-communication-translations.ts";
 /** Display copy only. Business data and identifiers are never rewritten. */
+import documentTranslations from "./document-translations.ts";
 export type Language = "en" | "ar";
 export type TranslationValues = Readonly<Record<string, string | number>>;
 
@@ -200,6 +202,42 @@ const existingArabic: Readonly<Record<string, string>> = {
 };
 
 export const arabicTranslations: Readonly<Record<string, string>> = {
+  ...documentTranslations,
+  ...hrCommunicationTranslations,
+  "Notifications, {count} unread": "الإشعارات، {count} غير مقروءة",
+  "{count} unread updates": "{count} من التحديثات غير المقروءة",
+  "{count} updates": "{count} من التحديثات",
+  "You’re all caught up": "اطّلعت على جميع التحديثات",
+  "Search notifications": "البحث في الإشعارات",
+  "Filter notifications": "تصفية الإشعارات",
+  "Requests": "الطلبات",
+  "Close notifications": "إغلاق الإشعارات",
+  "No matching notifications": "لا توجد إشعارات مطابقة",
+  "No requests to review": "لا توجد طلبات للمراجعة",
+  "No notifications yet": "لا توجد إشعارات بعد",
+  "New updates will appear here.": "ستظهر التحديثات الجديدة هنا.",
+  "Loading notifications…": "جارٍ تحميل الإشعارات…",
+  "Only notifications for your account are shown.": "تُعرض الإشعارات الخاصة بحسابك فقط.",
+  "All notifications marked as read.": "تم وضع علامة مقروء على جميع الإشعارات.",
+  "Notification deleted.": "تم حذف الإشعار.",
+  "Delete this notification? This cannot be undone.": "هل تريد حذف هذا الإشعار؟ لا يمكن التراجع عن هذا الإجراء.",
+  "Approve this request?": "هل تريد الموافقة على هذا الطلب؟",
+  "Mark all read": "تحديد الكل كمقروء",
+  "Date unavailable": "التاريخ غير متاح",
+  "Manage password & account": "إدارة كلمة المرور والحساب",
+  "Manage company & permissions": "إدارة الشركة والصلاحيات",
+  "Open workforce & HR": "فتح شؤون الموظفين",
+  "Manage inventory": "إدارة المخزون",
+  "Manage work": "إدارة العمل",
+  "Open approvals": "فتح الموافقات",
+  "Open attendance": "فتح سجل الحضور",
+  "Review missing attendance": "مراجعة سجلات الحضور الناقصة",
+  "Open correction requests": "فتح طلبات التصحيح",
+  "Open payroll adjustments": "فتح تسويات الرواتب",
+  "Comment to sender": "تعليق للمرسل",
+  "Send comment": "إرسال التعليق",
+  "Delete notification": "حذف الإشعار",
+  "Review & act": "المراجعة واتخاذ إجراء",
   ...existingArabic,
   "Your workday starts here.": "يوم عملك يبدأ من هنا.", "A shared home for your team, daily work and company records.": "مكان واحد يجمع فريقك وأعمالك اليومية وسجلات شركاتك.", "Your workspace": "مساحة عملك", "Account access": "الدخول إلى الحساب", "Request an account": "طلب حساب", "Reset your password": "إعادة تعيين كلمة المرور", "Your Main Admin reviews each request. Sign in afterwards to check your status and messages.": "يراجع المسؤول الرئيسي كل طلب. سجّل الدخول بعد ذلك لمتابعة حالة طلبك ورسائلك.", "Send a reset request to your Main Admin.": "أرسل طلب إعادة تعيين إلى المسؤول الرئيسي.", "Create your first Main Admin account.": "أنشئ أول حساب للمسؤول الرئيسي.", "Sign in to your company workspace.": "سجّل الدخول إلى مساحة عمل شركتك.", "Unable to continue.": "تعذّرت المتابعة.", "Hide password": "إخفاء كلمة المرور", "Show password": "إظهار كلمة المرور", "Hide": "إخفاء", "Show": "إظهار", "Use at least 12 characters.": "استخدم 12 حرفًا على الأقل.", "Setup key": "مفتاح الإعداد", "Please wait…": "يرجى الانتظار…", "Create Main Admin": "إنشاء المسؤول الرئيسي", "Send registration request": "إرسال طلب التسجيل", "Send reset request": "إرسال طلب إعادة التعيين", "Back to sign in": "العودة لتسجيل الدخول", "Forgot password": "نسيت كلمة المرور", "Choose an option": "اختر خيارًا", "Choose": "اختر", "Done": "تم", "Search options": "البحث في الخيارات", "No matching options": "لا توجد خيارات مطابقة",
   "User management": "إدارة المستخدمين", "Could not load access settings.": "تعذّر تحميل إعدادات الصلاحيات.", "User created. Access is limited to the assigned scope.": "تم إنشاء المستخدم. تقتصر صلاحياته على النطاق المعيّن.", "Manage accounts, approvals and access within your assigned scope.": "إدارة الحسابات والموافقات والصلاحيات ضمن نطاقك المعيّن.", "Choose what each role can view and change.": "حدّد ما يمكن لكل دور عرضه وتغييره.", "Review pending changes and previous decisions.": "راجع التغييرات المعلّقة والقرارات السابقة.", "Review who changed records and when.": "راجع من عدّل السجلات ووقت التعديل.", "Choose which changes require approval.": "حدّد التغييرات التي تتطلب موافقة.", "Connect your mobile app to the correct server.": "اربط تطبيق الجوال بالخادم الصحيح.", "Manage your workspace preferences.": "إدارة تفضيلات مساحة العمل.",

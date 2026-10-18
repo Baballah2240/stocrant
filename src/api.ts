@@ -133,7 +133,7 @@ function apiBase(): string {
   return `${serverUrl.current()}${API}`;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method || "GET").toUpperCase();
   const action = !["GET", "HEAD"].includes(method) || path.startsWith("/workspace/export/");
   const headers = new Headers(init.headers);

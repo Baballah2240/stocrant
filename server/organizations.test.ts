@@ -122,6 +122,8 @@ describe("Organization hierarchy migration and scoped administration", () => {
 
   it("lets delegated admins create in-scope employees and users without promoting themselves or granting finance", async () => {
     const employee = await create("employees", employeeInput("Managed employee", companyA.id, "ORG-A-02"), companyManagerCookie);
+    const invitation = (getStore().collections.accessUsers as Row[]).find(row => row.employeeId === employee.id)!;
+    await expectStatus(await request(`/workspace/access/users/${invitation.id}`, "DELETE", undefined, companyManagerCookie), 200);
     const account = await createAccount("Managed employee account", "role-employee", [companyA.id], [], companyManagerCookie);
     await expectStatus(await request(`/workspace/access/users/${account.item.id}`, "PATCH", { employeeId: employee.id }, companyManagerCookie), 200);
     await expectStatus(await request(`/workspace/access/users/${account.item.id}`, "PATCH", { permissions: ["finance.view"] }, companyManagerCookie), 403);

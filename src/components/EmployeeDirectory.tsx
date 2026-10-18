@@ -1,5 +1,7 @@
+import { request } from "../api";
+import { EmployeeCommunicationLink } from "./EmployeeActivation";
 import ChoiceSelect from "./ChoiceSelect";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useLanguage } from "../language-context";
 import type { CollectionItem } from "../types";
@@ -37,6 +39,8 @@ export default function EmployeeDirectory({ employees, departments, canCreate, c
 }) {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
+  const [accounts, setAccounts] = useState<Record<string,string>>({});
+  useEffect(() => { if (!canEdit) return; let active = true; void request<{employees: {id:string; account: {status:string}|null}[]}>("/workspace/hr/communication/employees").then(result => { if(active) setAccounts(Object.fromEntries(result.employees.map(item => [item.id,item.account?.status || "No linked account"]))); }).catch(() => {}); return () => {active=false;}; },[employees,canEdit]);
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("all");
   const [location, setLocation] = useState("all");
@@ -52,7 +56,7 @@ export default function EmployeeDirectory({ employees, departments, canCreate, c
     const needle = query.trim().toLocaleLowerCase();
     return employees.filter((item) => {
       if (needle) {
-        const haystack = [item.name, item.employeeCode, item.id].map((value) => String(value ?? "").toLocaleLowerCase()).join(" ");
+        const haystack = [item.name, item.employeeCode, item.id, item.email, item.phone].map((value) => String(value ?? "").toLocaleLowerCase()).join(" ");
         if (!haystack.includes(needle)) return false;
       }
       if (department !== "all" && String(item.department ?? "") !== department) return false;
@@ -88,7 +92,7 @@ export default function EmployeeDirectory({ employees, departments, canCreate, c
         <th scope="col">{t("Job title")}</th>
         <th scope="col">{t("Work location")}</th>
         <th scope="col">{t("Phone")}</th>
-        <th scope="col">{t("Status")}</th>
+        <th scope="col">{t("Status")}</th><th scope="col">{t("Account status")}</th>
         <th scope="col"><button type="button" className="hr-sort" onClick={() => toggleSort("hireDate")}>{t("Join date")}{sortLabel("hireDate")}</button></th>
         <th scope="col"><span className="visually-hidden">{t("Actions")}</span></th>
       </tr></thead>
@@ -100,9 +104,9 @@ export default function EmployeeDirectory({ employees, departments, canCreate, c
         <td>{readable(item.jobTitle, "—")}</td>
         <td>{readable(item.location, "—")}</td>
         <td dir="ltr">{readable(item.phone, "—")}</td>
-        <td><StatusPill status={item.status} /></td>
+        <td><StatusPill status={item.status} /></td><td>{accounts[item.id] ? t(accounts[item.id]) : "?"}</td>
         <td>{formatFieldValue(item.hireDate)}</td>
-        <td><span className="hr-directory-actions"><button type="button" onClick={() => navigate(`/hr/employees/${item.id}`)}>{t("View")}</button>{canEdit ? <button type="button" onClick={() => navigate(`/hr/employees/${item.id}/edit`)}>{t("Edit")}</button> : null}{canDelete ? <button type="button" className="danger" disabled={deleting} onClick={() => onDelete(item.id)}>{t("Delete")}</button> : null}</span></td>
+        <td><span className="hr-directory-actions">{canEdit && <EmployeeCommunicationLink employeeId={item.id} />}<button type="button" onClick={() => navigate(`/hr/employees/${item.id}`)}>{t("View")}</button>{canEdit ? <button type="button" onClick={() => navigate(`/hr/employees/${item.id}/edit`)}>{t("Edit")}</button> : null}{canDelete ? <button type="button" className="danger" disabled={deleting} onClick={() => onDelete(item.id)}>{t("Delete")}</button> : null}</span></td>
       </tr>)}</tbody>
     </table></div> : <div className="hr-empty-state"><p>{t("No employees match these filters.")}</p></div> : <div className="hr-empty-state"><p>{t("No employees yet.")}</p>{canCreate ? <NavLink to="/hr/employees/new">{t("Add the first employee")}</NavLink> : null}</div>}
     {pages > 1 ? <div className="hr-pagination"><span>{t("Page")} {currentPage} / {pages} · {sorted.length} {t("employees")}</span><div className="inline-actions"><button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>{t("Previous")}</button><button type="button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>{t("Next")}</button></div></div> : null}
@@ -118,7 +122,7 @@ function DirectoryToolbar({ query, setQuery, resetPage, department, setDepartmen
 }) {
   const { t } = useLanguage();
   return <div className="hr-directory-toolbar">
-    <label className="hr-directory-search"><span className="visually-hidden">{t("Search employees by name or ID")}</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); resetPage(); }} placeholder={t("Search name or ID…")} /></label>
+    <label className="hr-directory-search"><span className="visually-hidden">{t("Search employees")}</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); resetPage(); }} placeholder={t("Search name or ID…")} /></label>
     <label className="hr-directory-field"><span>{t("Department")}</span><ChoiceSelect value={department} onChange={(event) => { setDepartment(event.target.value); resetPage(); }}><option value="all">{t("All departments")}</option>{departments.map((item) => String(item.name ?? "")).filter(Boolean).sort().map((name) => <option key={name} value={name}>{name}</option>)}</ChoiceSelect></label>
     <label className="hr-directory-field"><span>{t("Work location")}</span><ChoiceSelect value={location} onChange={(event) => { setLocation(event.target.value); resetPage(); }}><option value="all">{t("All locations")}</option>{locations.map((name) => <option key={name} value={name}>{name}</option>)}</ChoiceSelect></label>
     <label className="hr-directory-field"><span>{t("Status")}</span><ChoiceSelect value={status} onChange={(event) => { setStatus(event.target.value); resetPage(); }}><option value="all">{t("All statuses")}</option>{statuses.map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</ChoiceSelect></label>

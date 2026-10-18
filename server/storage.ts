@@ -6,6 +6,7 @@ import type { Person, Store, Zone } from "./types.js";
 import { SEED_COLLECTIONS } from "./seed-collections.js";
 import { newProductAwb } from "./product-awb.js";
 import { migrateOrganizations } from "./organization-model.js";
+import { migrateDocuments } from "./document-model.js";
 
 const DEFAULT_COMPANY_ID = "company-primary";
 if (process.env.NODE_TEST_CONTEXT && !process.env.STOCRANT_DATA_DIR?.includes("stocrant-test-data-")) {
@@ -329,6 +330,7 @@ function read(): StoreData {
       migrateCompanyHierarchy(seeded);
       migrateSecureWorkspace(seeded);
       migrateOrganizations(seeded);
+      migrateDocuments(seeded);
       write(seeded);
       return seeded;
     }
@@ -338,10 +340,12 @@ function read(): StoreData {
     const hierarchyChanged = migrateCompanyHierarchy(parsed);
     const workspaceChanged = migrateSecureWorkspace(parsed);
     const organizationsChanged = migrateOrganizations(parsed);
-    if (hierarchyChanged || workspaceChanged || organizationsChanged) {
+    const documentsChanged = migrateDocuments(parsed);
+    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged) {
       // Capture the on-disk original before its first v2 migration. The backup
       // stays beside the JSON store and is ignored by Git with the data folder.
       if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
+      if (documentsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-documents-v4-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-documents-v4-backup.json"));
       if (organizationsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"));
       write(parsed);
     }
@@ -380,6 +384,7 @@ export function getStore(): StoreData {
   if (!cache) cache = read();
   return cache;
 }
+export function getDataDirectory(): string { return DATA_DIR; }
 
 export function saveStore(data: StoreData) {
   if (!transactionDepth) write(data);

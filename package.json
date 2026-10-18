@@ -16,7 +16,7 @@
     "start": "npm run build:full && node dist/index.js",
     "preview:local": "npm run build:full && node scripts/start-local-preview.mjs",
     "typecheck": "tsc --noEmit -p server/tsconfig.json",
-    "test": "npm run build && node --test dist/routes.test.js dist/organizations.test.js && node scripts/verify-storage.mjs",
+    "test": "npm run build && node --test dist/routes.test.js dist/organizations.test.js dist/documents.test.js dist/hr-communication.test.js && node scripts/verify-storage.mjs",
     "admin:reset": "node scripts/reset-admin.mjs",
     "setup:reset": "node scripts/reset-first-time-setup.mjs",
     "mobile:build": "node ./node_modules/vite/bin/vite.js build && npx cap sync",
@@ -31,7 +31,10 @@
     "test:translations": "node --test scripts/test-translations.mjs",
     "test:production": "node scripts/verify-production.mjs",
     "test:notifications": "node --test scripts/test-notification-activity.mjs",
-    "test:lock": "node scripts/test-app-lock.mjs"
+    "test:notification-panel": "npm run build:full && node scripts/verify-notification-panel.mjs",
+    "test:hr-documents": "npm run build:full && node scripts/verify-hr-documents.mjs",
+    "test:lock": "node scripts/test-app-lock.mjs",
+    "test:hr-communication": "npm run build:full && node scripts/verify-hr-communication.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "9.1.2",

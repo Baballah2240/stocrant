@@ -1,3 +1,4 @@
+import { UrgentEmployeeBanner } from "./HRMessageDetails";
 import MobileIcon, { type MobileIconName } from "./MobileIcon";
 import { useMobile } from "../use-mobile";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -155,7 +156,7 @@ export default function Layout() {
           </div>
         </aside>
         {profileOpen && <ProfilePanel initialPhoto={profilePhoto} onClose={() => { setProfileOpen(false); setProfilePhoto(undefined); }} />}<main className="main" id="main-content">
-          <Suspense fallback={<p className="hint" role="status">{t("Loading…")}</p>}><Outlet /></Suspense>
+          <UrgentEmployeeBanner /><Suspense fallback={<p className="hint" role="status">{t("Loading…")}</p>}><Outlet /></Suspense>
         </main>
       </div>
     </div>

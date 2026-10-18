@@ -1,3 +1,4 @@
+import { EmployeeActivation } from "./components/EmployeeActivation";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "./theme-context";
@@ -24,6 +25,7 @@ import "./choice-controls.css";
 import "./mobile-drawer.css";
 import "./mobile-navigation.css";
 import "./notification-scroll.css";
+import "./notification-panel.css";
 import "./choice-picker.css";
 import "./sidebar-workspace.css";
 
@@ -35,15 +37,17 @@ if (isNativeApp()) {
   if (platform) document.documentElement.setAttribute("data-native-platform", platform);
 }
 
+const employeeActivation = new URLSearchParams(location.hash.slice(1)).has("activate");
+
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <LanguageProvider><ThemeProvider>
       <CursorMotion />
       <ErrorBoundary><SessionProvider>
-        <AppLockProvider>
+        {employeeActivation ? <EmployeeActivation /> : <AppLockProvider>
         <App />
         <ActionToasts />
-        </AppLockProvider>
+        </AppLockProvider>}
       </SessionProvider></ErrorBoundary>
     </ThemeProvider></LanguageProvider>
   </StrictMode>,

@@ -1,0 +1,15 @@
+.hr-communication { display: grid; gap: 1rem; }
+.hr-communication .card { padding: clamp(1rem, 2.5vw, 1.8rem); min-width: 0; }
+.hr-message-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 1rem; margin-block: 1rem; }
+.hr-communication label { display: grid; gap: .45rem; }
+.hr-communication label:has(input[type=checkbox]) { display: flex; align-items: center; }
+.hr-communication input:not([type=checkbox]), .hr-communication textarea { width: 100%; box-sizing: border-box; }
+.hr-communication td small { display: block; }
+.hr-message-preview { padding: 1rem; border: 1px solid var(--border, #627a89); border-radius: 16px; margin-block: 1rem; }
+.hr-message-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.hr-message-history { padding-block: .8rem; border-bottom: 1px solid var(--border, #627a89); overflow-wrap: anywhere; }
+.hr-message-history summary { cursor: pointer; }
+.hr-urgent-banner { padding: .7rem 1rem; border: 1px solid #c87442; border-radius: 12px; background: var(--surface, #263442); color: var(--text, #fff); margin: .5rem; }
+.hr-inbox { display: grid; gap: .8rem; }
+.hr-inbox article { padding: 1rem; border-radius: 16px; border: 1px solid var(--border,#627a89); }
+.hr-inbox .hr-message-body { max-width: 80ch; }

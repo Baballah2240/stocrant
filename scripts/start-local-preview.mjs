@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
@@ -14,8 +14,12 @@ const { getStore } = await import("../dist/storage.js");
 getStore(); // Empty first-run store, without development sample business data.
 process.env.NODE_ENV = "development";
 const { createApp } = await import("../dist/app.js");
+const { dispatchHrMessages } = await import("../dist/hr-messages.js");
+const hrTimer = setInterval(() => { try { dispatchHrMessages(); } catch { console.error("HR message schedule scan failed."); } }, 15000);
+hrTimer.unref();
 const port = Number(process.env.STOCRANT_PREVIEW_PORT || 3000);
 const server = createApp().listen(port, "127.0.0.1", () => {
+  writeFileSync(new URL("../.local-preview/server.pid", import.meta.url), String(process.pid));
   console.log(`Stocrant separate local preview: http://localhost:${port}`);
   console.log("First-time setup key: local-setup (local development only).");
   console.log(`Preview data: ${root}`);

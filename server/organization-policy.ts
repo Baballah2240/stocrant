@@ -37,6 +37,7 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
     if (!main && companies.some(id => !companyIdsFor(actor).includes(id))) policyError("You do not have permission to assign another company.", 403);
     if (next.employeeId && !rows("employees").some(employee => employee.id === next.employeeId && (employee.organizationId ?? employee.companyId) === companies[0] && activeCompany(companies[0]))) policyError("Choose an employee from the assigned company.");
   }
+  if (next.employeeId && next.status === "active" && rows("employees").some(employee => employee.id === next.employeeId && ["terminated", "inactive", "suspended"].includes(String(employee.status).toLowerCase()))) policyError("Reactivate the employee profile before restoring account access.");
   const locations = Array.isArray(next.locationIds) ? next.locationIds.map(String) : [];
   const allowed = next.roleId === "role-organization-admin"
     ? rows("companies").filter(company => parents.includes(String(company.parentOrganizationId)) && activeCompany(company.id)).map(company => String(company.id))
@@ -98,12 +99,13 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
     if (!location || (companyId && location.companyId !== companyId)) policyError("Choose a location from the assigned company.");
   }
   const relations: Record<string, string> = { employeeId: "employees", assignedStaffId: "employees", assigneeId: "employees", inventoryItemId: "inventoryItems", accountId: "financeAccounts", customerId: "customers", questionId: "customerQuestions", workItemId: "workItems" };
-  for (const [key, relatedCollection] of Object.entries(relations)) if (action !== "delete" && next[key]) {
+  for (const [key, relatedCollection] of Object.entries(relations)) if (action !== "delete" && next[key] && !(collection === "employees" && key === "accountId")) {
     const related = rows(relatedCollection).find(row => row.id === next[key]);
     const relatedCompany = related?.organizationId ?? related?.companyId;
     if (!related || !isWithinScope(user, related) || (relatedCompany && !activeCompany(relatedCompany)) || (companyId && relatedCompany && relatedCompany !== companyId)) policyError("Choose a related record from the assigned company.");
   }
   if (collection === "employees") {
+    if ((action === "delete" || (current && action === "edit" && companyId !== current.organizationId)) && (rows("documents").some(document => document.employeeId === current?.id))) policyError("This employee has retained HR documents. Preserve the profile and archive its records before any reassignment.");
     if (action !== "delete" && !companyId) policyError("Choose a valid company for this employee.");
     for (const key of ["employeeCode", "email"]) if (action !== "delete" && normalized(next[key]) && rows("employees").some(employee => employee.id !== current?.id && normalized(employee[key]) === normalized(next[key]) && (key === "email" || employee.organizationId === companyId))) policyError(key === "email" ? "An employee with this email already exists." : "This employee ID already exists in the company.", 409);
     if (current && action === "edit" && companyId !== current.organizationId && rows("accessUsers").some(account => account.employeeId === current.id)) policyError("Transfer the linked login account before moving this employee.");

@@ -8,6 +8,7 @@ import { useSession } from "../session-context";
 import type { CollectionItem } from "../types";
 import { relativeLabel } from "../util";
 import EmployeeDirectory from "./EmployeeDirectory";
+import { DocumentsSummary } from "./DocumentsWorkspace";
 
 interface HrOverview {
   today: string;
@@ -19,6 +20,8 @@ interface HrOverview {
 }
 
 const recordLinks: Array<{ collection: string; label: string; description: string; to?: string }> = [
+  { collection: "employees", label: "Employee accounts & notifications", description: "Account activation, private messages and acknowledgment tracking", to: "/hr/communication" },
+  { collection: "documents", label: "Documents", description: "Private employee records, company files and expiry reminders", to: "/hr/documents" },
   { collection: "employees", label: "Employee directory", description: "Profiles, contacts, jobs and assignments" },
   { collection: "attendance", label: "Attendance & timesheets", description: "Time tracking, approvals, corrections and payroll deductions", to: "/hr/attendance" },
   { collection: "leaveRequests", label: "Time off", description: "Leave requests and approval status" },
@@ -101,6 +104,7 @@ export default function HRWorkspace() {
       <div><p className="eyebrow">{t("Workforce command center")}</p><h1>{t("Workforce & HR")}</h1><p>{t("Welcome back,")}{firstName}{t(". Keep people, attendance and time off in one clear view.")}</p></div>
       <div className="hr-hero-actions"><button type="button" className="ghost" onClick={() => void load(true)} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh"}</button>{canCreate ? <NavLink className="primary-link" to={companyId ? `/hr/employees/new?company=${encodeURIComponent(companyId)}` : "/hr/employees/new"}>{t("Add employee")}</NavLink> : <NavLink className="secondary-link" to="/hr/employees">{t("Open directory")}</NavLink>}</div>
     </header>
+    <DocumentsSummary />
 
     {error ? <div className="alert alert--bad" role="alert"><div><strong>{t("HR data could not be loaded.")}</strong><p>{error}</p></div><button type="button" className="ghost" onClick={() => void load()}>{t("Try again")}</button></div> : null}
     {loading && !overview ? <div className="hr-loading-grid" aria-label={t("Loading HR overview")} aria-busy="true"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton hr-loading-panel" /><div className="skeleton hr-loading-panel" /></div> : null}

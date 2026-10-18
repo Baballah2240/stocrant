@@ -229,6 +229,7 @@ export default function EntityForm() {
 
       {error && <p className="error">{error}</p>}
 
+      {collection === "employees" && !isEdit && <p className="hint">{t("A restricted Employee account is created automatically. Create its private activation invitation in Employee accounts & notifications.")}</p>}
       <form className="form entity-form" onSubmit={handleSubmit}>
         {employeeGroups ? employeeGroups.map((group) => {
           const fields = spec.fields.filter((field) => group.keys.includes(field.key));

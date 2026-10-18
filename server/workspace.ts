@@ -1,9 +1,11 @@
+import { syncEmployeeAccount } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { validateHierarchyMutation } from "./organization-policy.js";
 import { can, canManageHr, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
 import { createNotification, listNotifications } from "./notifications.js";
 import { newProductAwb } from "./product-awb.js";
+import { applyDocumentApproval, managesDocuments } from "./documents.js";
 
 export type Row = Record<string, unknown> & { id: string };
 export type MutationAction = "create" | "edit" | "delete";
@@ -100,6 +102,7 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
 }
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
+  if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   if (sectionForCollection(collection) === "hr" && !canManageHr(user, action)) throw new Error("You do not have permission to manage HR records.");
   const data = getStore();
   const list = rows(collection);
@@ -143,7 +146,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   }
   saveStore(data);
   revokeTenantSessions(collection, action, payload, existing, targetId);
-  if (collection === "employees") updateEmployeeHistory(user, item, existing ? "updated" : "hired");
+  if (collection === "employees") { syncEmployeeAccount(user, item, existing); updateEmployeeHistory(user, item, existing ? "updated" : "hired"); }
   if (collection === "workItems") updateWorkActivity(user, item, existing ? "Work item updated." : "Work item created.");
   audit(user, `${collection}.${action}`, { collection, targetId: item.id, section: sectionForCollection(collection) });
   return item;
@@ -161,6 +164,7 @@ export function mutateCollection(
 }
 
 function performMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId: string | undefined, permissionAction: PermissionAction): { pending: boolean; item?: Row; request?: ApprovalRequest } {
+  if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   const section = sectionForCollection(collection);
   if (!can(user, section, permissionAction)) throw new Error(`You do not have permission to ${action} ${section}.`);
   const current = targetId ? rows(collection).find(row => row.id === targetId) : undefined;
@@ -175,6 +179,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
   if (action === "create" && payload.id && rows(collection).some(row => row.id === payload.id)) throw new Error("A record with this id already exists.");
   payload = { ...payload };
   for (const field of ["createdAt", "createdBy", "createdByName", "updatedAt", "updatedBy", "updatedByName", "__proto__", "constructor", "prototype"]) delete payload[field];
+  if (collection === "employees") for (const key of ["accountId", "passwordHash", "roleId", "permissions", "activationRequired"]) delete payload[key];
   if (requiresApproval(section, action)) {
     const request: ApprovalRequest = {
       id: rowId("approvalRequests"),
@@ -291,11 +296,15 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
   const request = list.find((row) => row.id === requestId);
   if (!request) throw new Error("Approval request not found.");
   if (!isWithinScope(user, request)) throw new Error("Approval request not found.");
+  if (request.collection === "documents" && !managesDocuments(user, request.action)) throw new Error("You do not have permission to decide HR document requests.");
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
   if (request.requestedBy === user.id) throw new Error("A requester cannot approve their own request.");
   if (approve) {
+    if (request.collection === "documents") applyDocumentApproval(user, request);
+    else {
     validateHierarchyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId ? rows(request.collection).find(row => row.id === request.targetId) : undefined);
     applyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId);
+    }
     data = getStore();
   }
   const updated: ApprovalRequest = {

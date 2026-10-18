@@ -7,6 +7,7 @@ import { registry } from "../registry.js";
 import { getCollection, getStore, nextCollectionId, saveStore } from "../storage.js";
 import { createNotification, listNotifications } from "../notifications.js";
 import { approveRequest, audit, financeSummary, inventorySummary, mutateCollection, type Row } from "../workspace.js";
+import { canReadDocument, documentCompanyScope, managesDocuments, safeDocument } from "../documents.js";
 
 const router = Router();
 
@@ -21,6 +22,7 @@ function rows(name: string) {
 }
 
 function scoped(req: import("express").Request, list: Row[], collection: string) {
+  if (collection === "documents") return list.filter(row => canReadDocument(req.auth!, row)).map(row => safeDocument(req.auth!, row));
   return list.filter((row) => isWithinScope(req.auth!, row)).map((row) => redactRecord(collection, row, req.auth!));
 }
 
@@ -105,7 +107,7 @@ function persistAttendance(user: NonNullable<import("express").Request["auth"]>,
 }
 
 function isCompanyPolicy(row: Row, user: NonNullable<import("express").Request["auth"]>) {
-  if (!isMainManager(user) && !user.organizationIds.includes(String(row.organizationId ?? row.companyId ?? ""))) return false;
+  if (!isMainManager(user) && !companyIdsFor(user).includes(String(row.organizationId ?? row.companyId ?? ""))) return false;
   if (normalized(row.type) !== "policy") return false;
   const audience = normalized(row.employee ?? row.audience);
   return !audience || ["all", "all employees", "everyone", "company", "company-wide"].includes(audience) || matchesUser(row, user);
@@ -134,7 +136,7 @@ router.get("/overview", (req, res) => {
   const account = rows("accessUsers").find((item) => item.id === user.id);
   const previousLoginAt = typeof account?.previousLoginAt === "string" ? account.previousLoginAt : undefined;
   const policies = rows("documents")
-    .filter((item) => isCompanyPolicy(item, user))
+    .filter((item) => isCompanyPolicy(item, user) && canReadDocument(user, item) && item.lifecycle !== "archived")
     .sort((a, b) => newestAt(b).localeCompare(newestAt(a)))
     .slice(0, 5)
     .map((item) => ({
@@ -204,7 +206,7 @@ router.get("/self-service", (req, res) => {
     employee: employee ? redactRecord("employees", employee, user) : null,
     attendance: rows("attendance").filter(own).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 90),
     leave: rows("leaveRequests").filter(own).sort((a, b) => newestAt(b).localeCompare(newestAt(a))),
-    documents: (can(user, "hr", "view") ? rows("documents") : []).filter((row) => own(row) || (isCompanyPolicy(row, user) && (!row.organizationId || row.organizationId === employee?.organizationId))),
+    documents: rows("documents").filter(row => row.lifecycle !== "archived" && canReadDocument(user, row) && (row.category === "company" || row.employeeId === employee?.id)).map(row => safeDocument(user, row)),
   });
 });
 
@@ -664,6 +666,7 @@ router.post("/access/users", requirePermission("access", "create"), async (req, 
   try { validateAccountAssignment(req.auth!, account); } catch (error) { return sendError(res, error); }
   const data = getStore();
   data.collections.accessUsers = [...rows("accessUsers"), account];
+  if (account.employeeId) { const employee = rows("employees").find(row => row.id === account.employeeId); if (employee) employee.accountId = account.id; }
   saveStore(data);
   audit(req.auth, "access.user-created", { targetId: account.id, email: account.email, roleId: account.roleId });
   res.status(201).json({ item: publicUser(account) });
@@ -681,7 +684,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     tenantOrganizationIds: z.array(z.string().trim().min(1).max(160)).max(1).optional(),
     locationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),
     ownRecordsOnly: z.boolean().optional(),
-    status: z.enum(["active", "suspended", "inactive", "pending", "rejected"]).optional(),
+    status: z.enum(["active", "invited", "suspended", "inactive", "pending", "rejected"]).optional(),
   }).strict().refine((value) => Object.keys(value).length > 0, "Provide at least one account change.").safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   // Finish asynchronous hashing before reading the account snapshot for this write.
@@ -704,13 +707,17 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     id: existing.id,
     updatedAt: new Date().toISOString(),
   };
-  if (passwordHash) { next.passwordHash = passwordHash; next.mustChangePassword = true; }
+  if (passwordHash) { next.passwordHash = passwordHash; next.mustChangePassword = true; next.activationRequired = false; }
   try { validateAccountAssignment(req.auth!, next, existing); } catch (error) { return sendError(res, error); }
+  if (next.status === "invited" && existing.activationRequired !== true) return res.status(400).json({ error: "Only accounts awaiting password setup can remain invited." });
+  if (next.status === "active" && existing.activationRequired === true && !passwordHash) return res.status(400).json({ error: "Complete employee activation or set a new password before activating this account." });
   const wasManager = existing.roleId === "role-main-manager" && existing.status === "active";
   const remainsManager = next.roleId === "role-main-manager" && next.status === "active";
   if (wasManager && !remainsManager && users.filter((user) => user.roleId === "role-main-manager" && user.status === "active").length <= 1) return res.status(400).json({ error: "The last Main Admin cannot be removed or deactivated." });
   const data = getStore();
   data.collections.accessUsers = users.map((user) => user.id === existing.id ? next : user);
+  if (existing.employeeId && existing.employeeId !== next.employeeId) { const oldEmployee = rows("employees").find(row => row.id === existing.employeeId); if (oldEmployee?.accountId === existing.id) delete oldEmployee.accountId; }
+  if (next.employeeId) { const employee = rows("employees").find(row => row.id === next.employeeId); if (employee) employee.accountId = next.id; }
   const accessRevoked = next.status !== "active" || next.roleId !== existing.roleId || passwordHash !== undefined;
   if (accessRevoked) data.collections.sessions = rows("sessions").filter((session) => session.accountId !== existing.id);
   saveStore(data);
@@ -739,13 +746,16 @@ router.delete("/access/users/:id", requirePermission("access", "delete"), (req, 
   if (existing.roleId === "role-main-manager" && existing.status === "active" && users.filter(user => user.roleId === "role-main-manager" && user.status === "active").length <= 1) return res.status(400).json({ error: "The last active Main Admin cannot be deleted." });
   const data = getStore();
   data.collections.accessUsers = users.filter(user => user.id !== existing.id);
+  const linkedEmployee = rows("employees").find(row => row.id === existing.employeeId && row.accountId === existing.id);
+  if (linkedEmployee) delete linkedEmployee.accountId;
+  data.collections.employeeInvitations = rows("employeeInvitations").filter(row => row.accountId !== existing.id);
   data.collections.sessions = rows("sessions").filter(session => session.accountId !== existing.id);
   saveStore(data);
   audit(req.auth!, "access.user-deleted", { targetId: existing.id, targetName: existing.name, email: existing.email, sessionsRevoked: true });
   res.json({ ok: true });
 });
 
-router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => isWithinScope(req.auth!, row)) }));
+router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => isWithinScope(req.auth!, row) && (row.collection !== "documents" || (managesDocuments(req.auth!) && documentCompanyScope(req.auth!, row.organizationId)))) }));
 router.post("/approvals/:id", requirePermission("approvals", "approve"), (req, res) => {
   const parsed = z.object({ decision: z.enum(["approve", "reject"]), note: z.string().max(2000).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose approve or reject." });

@@ -1,10 +1,17 @@
+import { dispatchHrMessages } from "./hr-messages.js";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createApp } from "./app.js";
+import { generateDocumentExpiryAlerts } from "./documents.js";
 
 const port = Number(process.env.PORT) || 3000;
 const app = createApp();
+const hrTimer = setInterval(() => { try { dispatchHrMessages(); } catch { console.error("HR message schedule scan failed."); } }, 15000);
+hrTimer.unref();
+const expiryTimer = setInterval(() => { try { generateDocumentExpiryAlerts(); } catch { console.error("HR document expiry scan failed; no file details logged."); } }, 6 * 60 * 60 * 1000);
+expiryTimer.unref();
+try { generateDocumentExpiryAlerts(); } catch { console.error("HR document expiry scan failed; no file details logged."); }
 const server = createServer(app);
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;

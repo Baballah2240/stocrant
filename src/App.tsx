@@ -1,3 +1,5 @@
+const HRCommunication = lazy(() => import("./components/HRCommunication"));
+const EmployeeInbox = lazy(() => import("./components/EmployeeInbox"));
 import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
 import { lazy } from "react";
 import { PageError } from "./components/ErrorBoundary";
@@ -24,6 +26,10 @@ const FinanceWorkspace = lazy(() => import("./components/FinanceWorkspace"));
 const AccessWorkspace = lazy(() => import("./components/AccessWorkspace"));
 const HRWorkspace = lazy(() => import("./components/HRWorkspace"));
 const AttendanceWorkspace = lazy(() => import("./components/AttendanceWorkspace"));
+const DocumentsWorkspace = lazy(() => import("./components/DocumentsWorkspace"));
+const DocumentForm = lazy(() => import("./components/DocumentsWorkspace").then(module => ({ default: module.DocumentForm })));
+const DocumentDetail = lazy(() => import("./components/DocumentsWorkspace").then(module => ({ default: module.DocumentDetail })));
+const DocumentRequestReview = lazy(() => import("./components/DocumentsWorkspace").then(module => ({ default: module.DocumentRequestReview })));
 const CustomerServiceWorkspace = lazy(() => import("./components/CustomerServiceWorkspace"));
 const OrganizationWorkspace = lazy(() => import("./components/OrganizationWorkspace"));
 import { useSession } from "./session-context";
@@ -62,6 +68,13 @@ const router = createBrowserRouter([
       { path: "organizations", element: <OrganizationWorkspace /> },
       { path: "hr", element: <HRWorkspace /> },
       { path: "hr/attendance", element: <AttendanceWorkspace /> },
+      { path: "hr/communication", element: <HRCommunication /> },
+      { path: "notifications", element: <EmployeeInbox /> },
+      { path: "hr/documents", element: <DocumentsWorkspace /> },
+      { path: "hr/documents/new", element: <DocumentForm /> },
+      { path: "hr/documents/requests/:id", element: <DocumentRequestReview /> },
+      { path: "hr/documents/:id", element: <DocumentDetail /> },
+      { path: "hr/documents/:id/edit", element: <DocumentForm /> },
       { path: "operations", element: <OperationsWorkspace /> },
       { path: "store", element: <OperationsWorkspace /> }, // Legacy URL retained for bookmarks.
       { path: "warehouse", element: <InventoryWorkspace /> },
@@ -83,6 +96,7 @@ const router = createBrowserRouter([
 
 export default function App() {
   const { user, loading } = useSession();
+
   if (loading) return <main className="auth-page"><p className="hint">Loading secure workspace…</p></main>;
   if (!user) return <AuthPage />;
   if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;

@@ -1,3 +1,4 @@
+import { dispatchHrMessages } from "./hr-messages.js";
 /**
  * Action-required notification engine.
  *
@@ -71,7 +72,7 @@ export function listNotifications(userId: string | null): Notification[] {
 export function markAsRead(id: string, userId: string): Notification | undefined {
   const notifications = getNotificationStore();
   const next = notifications.map((item) =>
-    item.id === id && item.userId === userId ? { ...item, read: true } : item
+    item.id === id && item.userId === userId ? { ...item, read: true, readAt: item.readAt || new Date().toISOString() } : item
   );
   saveNotificationStore(next);
   return next.find((item) => item.id === id && item.userId === userId);
@@ -83,7 +84,7 @@ export function markAllReadForUser(userId: string): number {
   const next = notifications.map((item) => {
     if (item.userId === userId && !item.read) {
       marked += 1;
-      return { ...item, read: true };
+      return { ...item, read: true, readAt: item.readAt || new Date().toISOString() };
     }
     return item;
   });
@@ -115,6 +116,7 @@ notificationsRouter.delete("/:id", (req, res) => {
   if (!req.auth) return res.status(401).json({ error: "Sign in is required." });
   const owned = listNotifications(req.auth.id).find(item => item.id === req.params.id);
   if (!owned) return res.status(404).json({ error: "Notification not found." });
+  if (owned.type === "hr_message") return res.status(409).json({ error: "HR messages are retained in your notification history." });
   saveNotificationStore(getNotificationStore().filter(item => item.id !== owned.id));
   res.json({ success: true });
 });
@@ -154,6 +156,12 @@ notificationsRouter.post("/:id/respond", (req, res) => {
 });
 
 notificationsRouter.get("/", (req, res) => {
+  dispatchHrMessages();
+  const now = new Date().toISOString();
+  const notices = getNotificationStore();
+  let changed = false;
+  for (const notice of notices) if (notice.userId === req.auth?.id && notice.type === "hr_message" && !notice.deliveredAt) { notice.deliveredAt = now; changed = true; }
+  if (changed) saveNotificationStore(notices);
   res.json({ items: listNotifications(req.auth?.id ?? null) });
 });
 
@@ -171,4 +179,14 @@ notificationsRouter.post("/:id/read", (req, res) => {
   res.json({ success: true, item });
 });
 
+notificationsRouter.post("/:id/acknowledge", (req, res) => {
+  const item = listNotifications(req.auth?.id ?? null).find(row => row.id === req.params.id);
+  if (!item) return res.status(404).json({ error: "Notification not found." });
+  if (item.type !== "hr_message" || !item.acknowledgmentRequired) return res.status(409).json({ error: "Acknowledgment is not required." });
+  const now = new Date().toISOString();
+  item.acknowledgedAt ||= now; item.readAt ||= now; item.deliveredAt ||= now; item.read = true;
+  saveNotificationStore(getNotificationStore());
+  audit(req.auth, "hr.notification-acknowledged", { targetId: item.id });
+  res.json({ item });
+});
 export const notificationRouter = notificationsRouter;

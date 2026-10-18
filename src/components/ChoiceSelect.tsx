@@ -7,7 +7,7 @@ type Option = { value: string; label: string; disabled: boolean; group: string }
 const searchText = (text: string) => text.normalize("NFKD").replace(/[\u064b-\u065f\u0670\u0640]/g, "").toLocaleLowerCase();
 
 /** Keep native form values and validation; use a searchable dialog on mobile. */
-export default function ChoiceSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
+export default function ChoiceSelect({ searchable = false, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { searchable?: boolean }) {
   const mobile = useMobile();
   const { t } = useLanguage();
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -45,7 +45,7 @@ export default function ChoiceSelect(props: SelectHTMLAttributes<HTMLSelectEleme
     setLabel(select.selectedOptions[0]?.textContent ?? "");
     close();
   }
-  if (!mobile || props.multiple || props.size) return <select {...props} ref={selectRef} />;
+  if ((!mobile && !searchable) || props.multiple || props.size) return <select {...props} ref={selectRef} />;
   const matches = options.filter(option => searchText(`${option.label} ${option.group} ${option.value}`).includes(searchText(query)));
   return <>
     <span className="choice-select">
@@ -54,7 +54,7 @@ export default function ChoiceSelect(props: SelectHTMLAttributes<HTMLSelectEleme
     </span>
     {open && createPortal(<dialog ref={dialogRef} className="choice-picker" aria-label={title} onCancel={close} onClose={close} onClick={event => { if (event.target === event.currentTarget) close(); }}>
       <header><h2>{title}</h2><button type="button" onClick={close}>{t("Done")}</button></header>
-      {options.length > 8 && <input type="search" className="choice-picker-search" aria-label={t("Search options")} placeholder={t("Search options")} value={query} onChange={event => setQuery(event.target.value)} />}
+      {(searchable || options.length > 8) && <input type="search" className="choice-picker-search" aria-label={t("Search options")} placeholder={t("Search options")} value={query} onChange={event => setQuery(event.target.value)} />}
       <div className="choice-picker-options">{matches.map((option, index) => <button type="button" key={`${option.value}-${index}`} disabled={option.disabled} aria-pressed={selectRef.current?.value === option.value} onClick={() => choose(option.value)}><span>{option.group && <small>{option.group}</small>}{option.label}</span><span className="choice-picker-check" aria-hidden="true">{selectRef.current?.value === option.value ? <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg> : null}</span></button>)}{!matches.length && <p>{t("No matching options")}</p>}</div>
     </dialog>, document.body)}
   </>;

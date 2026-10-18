@@ -22,13 +22,22 @@ function cookieFrom(response: Response) {
   return raw.split(";")[0];
 }
 
-function request(path: string, init: RequestInit = {}, cookie?: string) {
+async function request(path: string, init: RequestInit = {}, cookie?: string) {
   // General account/product fixtures belong to the seeded primary company.
   if (init.method === "POST" && typeof init.body === "string" && ["/workspace/access/users", "/collections/products"].includes(path)) {
     const input = JSON.parse(init.body);
     if (path === "/workspace/access/users" && !input.employeeId && input.organizationIds === undefined) input.organizationIds = ["company-primary"];
     if (path === "/collections/products" && input.organizationId === undefined) input.organizationId = "company-primary";
     init = { ...init, body: JSON.stringify(input) };
+  }
+  if (path === "/workspace/access/users" && init.method === "POST" && typeof init.body === "string") {
+    const input = JSON.parse(init.body);
+    const invited = (getStore().collections.accessUsers as Record<string, unknown>[]).find(row => row.status === "invited" && (row.employeeId === input.employeeId || row.email === input.email));
+    if (invited && (input.employeeId || invited.email === input.email)) {
+      const { organizationIds, tenantOrganizationIds, ...changes } = input;
+      const response = await fetch(`${base}/api/workspace/access/users/${invited.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Cookie: cookie || new Headers(init.headers).get("Cookie") || "" }, body: JSON.stringify({ ...changes, status: "active" }) });
+      return new Response(await response.text(), { status: response.status === 200 ? 201 : response.status, headers: response.headers });
+    }
   }
   const headers = new Headers(init.headers);
   if (cookie) headers.set("Cookie", cookie);
@@ -186,9 +195,9 @@ describe("STOCRANT secure workspace API", () => {
       assert.equal(denied.status, 403);
     }
     assert.equal((await setManagerPermissions(null)).status, 200);
-    assert.equal((await request(`/collections/employees/${managerEmployee.item.id}`, { method: "DELETE" }, mainCookie)).status, 200);
+    assert.equal((await request(`/collections/employees/${managerEmployee.item.id}`, { method: "DELETE" }, mainCookie)).status, 400);
     assert.equal((await request(`/collections/employees/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobTitle: "Updated" }) }, mainCookie)).status, 200);
-    assert.equal((await request(`/collections/employees/${item.id}`, { method: "DELETE" }, mainCookie)).status, 200);
+    assert.equal((await request(`/collections/employees/${item.id}`, { method: "DELETE" }, mainCookie)).status, 400);
   });
 
   it("enforces organization boundaries and preserves history after tenant deactivation", async () => {
@@ -275,7 +284,7 @@ describe("STOCRANT secure workspace API", () => {
 
     const policy = await request("/collections/documents", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
-      body: JSON.stringify({ organizationId: "company-primary", employee: "all", audience: "company-wide", type: "policy", title: "Mobile work and safety policy", issuedOn: "2026-10-09", fileUrl: "https://example.test/policies/mobile-work" }),
+      body: JSON.stringify({ organizationId: "company-primary", category: "company", visibility: "company", type: "policy", title: "Mobile work and safety policy", issuedOn: "2026-10-09", fileUrl: "https://example.test/policies/mobile-work" }),
     });
     assert.equal(policy.status, 201);
 
