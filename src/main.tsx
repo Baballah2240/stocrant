@@ -24,6 +24,7 @@ import "./mobile-drawer.css";
 import "./mobile-navigation.css";
 import "./notification-scroll.css";
 import "./choice-picker.css";
+import "./sidebar-workspace.css";
 
 // Native builds have no hover pointer and need safe-area padding; the CSS
 // keys off this attribute so the browser layout stays untouched.

@@ -1,0 +1,133 @@
+/* Shared workspace navigation: module links retain router state while the
+   desktop sidebar yields the full canvas to the selected workspace. */
+.workspace-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--ios-separator, var(--color-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ios-cell, var(--color-background)) 84%, transparent);
+  color: var(--ios-label, var(--color-neutral));
+  box-shadow: none;
+}
+
+.workspace-sidebar-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-drawer-workspace-nav {
+  display: grid;
+  gap: 6px;
+  margin-top: 24px;
+  padding: 16px 0;
+  border-top: 1px solid var(--ios-separator, var(--color-border));
+  border-bottom: 1px solid var(--ios-separator, var(--color-border));
+}
+
+.mobile-drawer-nav-label {
+  padding: 0 12px 4px;
+  color: var(--ios-label-2, var(--color-neutral-muted));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.mobile-layout .mobile-drawer-workspace-nav .nav-item {
+  min-height: 52px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--ios-label, var(--color-neutral));
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mobile-layout .mobile-drawer-workspace-nav .nav-item.active {
+  background: var(--brand-green-soft, var(--color-primary-soft));
+  color: var(--stocrant-green-strong, var(--color-primary));
+}
+
+.mobile-layout .mobile-drawer-workspace-nav .nav-item .mobile-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--brand-link, var(--color-primary));
+}
+
+@media (min-width: 861px) {
+  .ios-app:not(.mobile-layout) .app {
+    min-width: 0;
+  }
+
+  .ios-app:not(.mobile-layout) .sidebar {
+    width: 236px;
+    flex: 0 0 236px;
+    min-width: 0;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateX(0);
+    transition: width 240ms var(--ios-ease), flex-basis 240ms var(--ios-ease), padding 240ms var(--ios-ease), border-width 240ms var(--ios-ease), opacity 180ms ease, transform 240ms var(--ios-ease);
+    will-change: width, flex-basis, transform;
+  }
+
+  .ios-app:not(.mobile-layout) .main {
+    min-width: 0;
+  }
+
+  .ios-app.sidebar-collapsed:not(.mobile-layout) .sidebar {
+    width: 0;
+    flex-basis: 0;
+    padding-inline: 0;
+    border-inline-width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-16px);
+  }
+
+  html[dir="rtl"] .ios-app.sidebar-collapsed:not(.mobile-layout) .sidebar {
+    transform: translateX(16px);
+  }
+}
+
+@media (min-width: 701px) and (max-width: 860px) {
+  .ios-app:not(.mobile-layout) .sidebar {
+    max-height: 132px;
+    min-height: 0;
+    overflow: hidden;
+    opacity: 1;
+    transition: max-height 240ms var(--ios-ease), padding 240ms var(--ios-ease), border-width 240ms var(--ios-ease), opacity 180ms ease;
+  }
+
+  .ios-app.sidebar-collapsed:not(.mobile-layout) .sidebar {
+    max-height: 0;
+    padding-block: 0;
+    border-block-width: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (hover: hover) {
+  .workspace-sidebar-toggle:hover {
+    background: var(--ios-fill, var(--color-neutral-soft));
+    border-color: var(--color-primary);
+  }
+
+  .mobile-layout .mobile-drawer-workspace-nav .nav-item:hover {
+    background: var(--ios-bg, var(--color-neutral-soft));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-sidebar-toggle,
+  .ios-app:not(.mobile-layout) .sidebar {
+    transition: none;
+  }
+}

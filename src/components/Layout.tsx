@@ -35,10 +35,10 @@ const aboutItem: NavEntry = {
   label: "About", icon: "info",
 };
 
-function NavButton({ item }: { item: NavEntry }) {
+function NavButton({ item, onNavigate }: { item: NavEntry; onNavigate?: () => void }) {
   const { t } = useLanguage();
   return (
-    <NavLink to={item.to} end={item.end} className="nav-item" aria-label={t(item.label)}>
+    <NavLink to={item.to} end={item.end} className="nav-item" aria-label={t(item.label)} onClick={onNavigate}>
       {item.icon && <MobileIcon name={item.icon} />}<span className="nav-label">{t(item.label)}</span>
     </NavLink>
   );
@@ -53,6 +53,13 @@ export default function Layout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState<File | undefined>();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem("stocrant-sidebar-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const menuRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = menuRef.current;
@@ -60,17 +67,30 @@ export default function Layout() {
     if (mobile && menuOpen && !dialog.open) dialog.showModal();
     else if ((!mobile || !menuOpen) && dialog.open) dialog.close();
   }, [mobile, menuOpen]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("stocrant-sidebar-collapsed", String(sidebarCollapsed));
+    } catch {
+      // Private browsing or device policies can disable local storage.
+    }
+  }, [sidebarCollapsed]);
   const { theme, toggle } = useTheme();
   const { user, signOut } = useSession();
   const nextTheme = theme === "light" ? "dark" : "light";
   const mainAdmin = user?.roleId === "role-main-manager";
   const canSeeSection = (section?: string) => !section || mainAdmin || Boolean(user?.permissions.includes("*") || user?.permissions.includes(`${section}.*`) || user?.permissions.includes(`${section}.view`));
   const visibleNavItems = navItems.filter(item => canSeeSection(item.section));
+  const closeSidebarAfterNavigation = () => {
+    if (!mobile) setSidebarCollapsed(true);
+  };
 
   return (
-    <div className={`ios-app ${mobile ? "mobile-layout" : ""}`}>
+    <div className={`ios-app ${mobile ? "mobile-layout" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">{t("Skip to content")}</a><header className="topbar">
         {mobile ? <>{location.pathname !== "/" && <BackButton className="mobile-header-back" fallback={backFallback} />}<button className="mobile-header-control" type="button" aria-label={t("Open account menu")} aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="topbar-spacer" /><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
+          <button className="workspace-sidebar-toggle" type="button" aria-label={t("Primary navigation")} aria-controls="primary-navigation" aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
           <span className="brand-logo" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <rect x="1" y="1" width="22" height="22" rx="6.5" />
@@ -101,6 +121,10 @@ export default function Layout() {
         <div className="mobile-drawer-content">
           <header className="mobile-drawer-heading"><div><span className="mobile-drawer-brand">{t("STOCRANT")}</span><h2 id="mobile-menu-title">{t("My account")}</h2></div><button type="button" aria-label={t("Close menu")} onClick={() => setMenuOpen(false)}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
           <button className="mobile-drawer-identity" type="button" aria-label={t("My profile")} onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><span className="mobile-drawer-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : user?.name?.slice(0, 2).toUpperCase() || <MobileIcon name="profile" />}</span><span className="mobile-drawer-user"><strong>{user?.name}</strong><span>{t("My profile")}</span></span><span className="mobile-drawer-chevron" aria-hidden="true">›</span></button>
+          <nav className="mobile-drawer-workspace-nav" aria-label={t("Primary navigation")}>
+            <span className="mobile-drawer-nav-label">{t("Business workspace")}</span>
+            {visibleNavItems.map((item) => <NavButton key={item.to} item={item} onNavigate={() => setMenuOpen(false)} />)}
+          </nav>
           <nav className="mobile-drawer-controls" aria-label={t("Account controls")}>
             <NavLink to="/security" onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("App lock")}</span></NavLink>
             <section className="language-settings" aria-labelledby="language-heading">
@@ -120,14 +144,14 @@ export default function Layout() {
 
       {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to="/" end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
       <div className="app">
-        <aside className="sidebar" aria-label={t("Primary navigation")}>
+        <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} aria-hidden={sidebarCollapsed} inert={sidebarCollapsed}>
           <nav className="nav" aria-label={t("Main navigation")}>
             {visibleNavItems.map((item) => (
-              <NavButton key={item.to} item={item} />
+              <NavButton key={item.to} item={item} onNavigate={closeSidebarAfterNavigation} />
             ))}
           </nav>
           <div className="nav-bottom">
-            <NavButton item={aboutItem} />
+            <NavButton item={aboutItem} onNavigate={closeSidebarAfterNavigation} />
           </div>
         </aside>
         {profileOpen && <ProfilePanel initialPhoto={profilePhoto} onClose={() => { setProfileOpen(false); setProfilePhoto(undefined); }} />}<main className="main" id="main-content">
