@@ -6,6 +6,22 @@ on:
 permissions:
   contents: read
 jobs:
+  public-website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: public-website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: public-website/package-lock.json
+      - run: npm ci --include=dev
+      - run: npm run build
+      - run: npm audit --audit-level=high
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -1,4 +1,5 @@
 import { redesignTranslations } from "./redesign-translations.ts";
+import { auditTranslations } from "./audit-translations.ts";
 import payrollTranslations from "./payroll-translations.ts";
 import companyProfileTranslations from "./company-profile-translations.ts";
 import hrCommunicationTranslations from "./hr-communication-translations.ts";
@@ -210,6 +211,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   ...companyProfileTranslations,
   ...payrollTranslations,
   ...redesignTranslations,
+  ...auditTranslations,
   "Notifications, {count} unread": "الإشعارات، {count} غير مقروءة",
   "{count} unread updates": "{count} من التحديثات غير المقروءة",
   "{count} updates": "{count} من التحديثات",
@@ -308,4 +310,4 @@ export function translate(text: string, language: Language, values?: Translation
 }
 
 export function languageDirection(language: Language): "ltr" | "rtl" { return language === "ar" ? "rtl" : "ltr"; }
-export function languageLocale(language: Language): string { return language === "ar" ? "ar-QA" : "en-GB"; }
+export function languageLocale(language: Language): string { return language === "ar" ? "ar-QA" : "en-US"; }

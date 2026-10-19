@@ -83,6 +83,7 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api", requireAuth);
   app.use("/api", (req, res, next) => {
+    if (req.auth?.mustChangePassword) return res.status(403).json({ error: "Change your temporary password before accessing business records.", code: "PASSWORD_CHANGE_REQUIRED" });
     if (req.auth?.accountStatus && req.auth.accountStatus !== "active" && !req.path.startsWith("/notifications")) return res.status(403).json({ error: "Your registration requires Main Admin approval." });
     if (req.auth && req.auth.roleId !== "role-main-manager" && !(req.auth.roleId === "role-organization-admin" && req.auth.tenantOrganizationIds?.length === 1) && req.auth.organizationIds.length !== 1 && !req.path.startsWith("/notifications")) return res.status(403).json({ error: "The Main Admin must assign your organization or company before you can access business records." });
     next();

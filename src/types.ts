@@ -128,6 +128,7 @@ export interface ModuleInfo {
 }
 
 export interface AuthUser {
+  mustChangePassword?: boolean;
   accountStatus?: string;
   position?: string;
   description?: string;

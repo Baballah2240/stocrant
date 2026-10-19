@@ -35,6 +35,8 @@ const DocumentRequestReview = lazy(() => import("./components/DocumentsWorkspace
 const CustomerServiceWorkspace = lazy(() => import("./components/CustomerServiceWorkspace"));
 const OrganizationWorkspace = lazy(() => import("./components/OrganizationWorkspace"));
 import { useSession } from "./session-context";
+import ForcedPasswordChange from "./components/ForcedPasswordChange";
+import { useLanguage } from "./language-context";
 import { MetaProvider } from "./meta-context";
 
 const router = createBrowserRouter([
@@ -83,6 +85,7 @@ const router = createBrowserRouter([
       { path: "hr/documents/:id", element: <DocumentDetail /> },
       { path: "hr/documents/:id/edit", element: <DocumentForm /> },
       { path: "operations", element: <OperationsWorkspace /> },
+      { path: "operations/work/:id", element: <OperationsWorkspace /> },
       { path: "store", element: <OperationsWorkspace /> }, // Legacy URL retained for bookmarks.
       { path: "warehouse", element: <InventoryWorkspace /> },
       { path: "inventory", element: <InventoryWorkspace /> },
@@ -103,9 +106,11 @@ const router = createBrowserRouter([
 
 export default function App() {
   const { user, loading } = useSession();
+  const { t } = useLanguage();
 
-  if (loading) return <main className="auth-page"><p className="hint">Loading secure workspace…</p></main>;
+  if (loading) return <main className="auth-page"><p className="hint">{t("Loading secure workspace…")}</p></main>;
   if (!user) return <AuthPage />;
+  if (user.mustChangePassword) return <ForcedPasswordChange />;
   if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;
   if (user.roleId !== "role-main-manager" && !(user.roleId === "role-organization-admin" && user.tenantOrganizationIds?.length === 1) && user.organizationIds.length !== 1) return <RegistrationStatus />;
   return <MetaProvider><RouterProvider router={router} /></MetaProvider>;

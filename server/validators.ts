@@ -49,7 +49,7 @@ export type ZoneInput = z.infer<typeof zoneSchema>;
 export type PersonInput = z.infer<typeof personSchema>;
 
 /** Validate and normalize an incoming request body. Throws on failure. */
-export function parseJson<T extends z.ZodTypeAny>(schema: T, input: unknown, label: string) {
+export function parseJson<T extends z.ZodTypeAny>(schema: T, input: unknown, _label: string) {
   const result = schema.safeParse(input);
   if (!result.success) {
     const message = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");

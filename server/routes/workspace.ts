@@ -1,4 +1,6 @@
 import { payrollCan } from "../payroll.js";
+import { randomUUID } from "node:crypto";
+import { csvCell } from "../csv.js";
 import { generateUsername, validUsername } from "../employee-identity.js";
 import { Router } from "express";
 import { z } from "zod";
@@ -6,10 +8,10 @@ import { authenticatedUser, hashPassword, publicUser } from "../auth.js";
 import { can, companyIdsFor, isMainManager, isWithinScope, redactRecord, requirePermission, sectionForCollection } from "../permissions.js";
 import { canManageAccount, validateAccountAssignment } from "../organization-policy.js";
 import { registry } from "../registry.js";
-import { getCollection, getStore, nextCollectionId, saveStore } from "../storage.js";
+import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "../storage.js";
 import { createNotification, listNotifications } from "../notifications.js";
-import { approveRequest, audit, financeSummary, inventorySummary, mutateCollection, type Row } from "../workspace.js";
-import { canReadDocument, documentCompanyScope, managesDocuments, safeDocument } from "../documents.js";
+import { approveRequest, audit, canReadApproval, financeSummary, inventorySummary, mutateCollection, type Row } from "../workspace.js";
+import { canReadDocument, safeDocument } from "../documents.js";
 
 const router = Router();
 
@@ -115,18 +117,13 @@ function isCompanyPolicy(row: Row, user: NonNullable<import("express").Request["
   return !audience || ["all", "all employees", "everyone", "company", "company-wide"].includes(audience) || matchesUser(row, user);
 }
 
-function csvCell(value: unknown) {
-  const text = Array.isArray(value) ? value.map(String).join("; ") : value === null || value === undefined ? "" : String(value);
-  return `"${text.replaceAll("\"", "\"\"")}"`;
-}
-
 router.get("/overview", (req, res) => {
   const data = getStore();
   const user = req.auth!;
   const work = can(req.auth, "operations", "view") ? scoped(req, rows("workItems"), "workItems") : [];
   const inventory = can(req.auth, "inventory", "view") ? inventorySummary(req.auth) : { items: [], lowStockCount: 0 };
   const finance = can(req.auth, "finance", "view") ? financeSummary(req.auth) : { accounts: [], income: 0, expenses: 0, salaries: 0, net: 0 };
-  const pendingApprovals = can(req.auth, "approvals", "view") ? rows("approvalRequests").filter((row) => row.status === "pending").length : 0;
+  const pendingApprovals = can(req.auth, "approvals", "view") ? rows("approvalRequests").filter((row) => row.status === "pending" && canReadApproval(user, row)).length : 0;
   const employee = rows("employees").find((item) => isWithinScope(user, item) && matchesUser(item, user));
   const personalWork = can(req.auth, "operations", "view")
     ? rows("workItems").filter((item) => isWithinScope(user, item) && matchesUser(item, user)).sort((a, b) => String(a.dueDate ?? "").localeCompare(String(b.dueDate ?? "")))
@@ -319,7 +316,7 @@ router.get("/export/:collection", (req, res) => {
     return safe;
   });
   const keys = [...new Set(items.flatMap((item) => Object.keys(item)))].filter((key) => !["id", "createdAt", "updatedAt"].includes(key));
-  const csv = [keys.join(","), ...items.map((item) => keys.map((key) => csvCell(item[key])).join(","))].join("\n");
+  const csv = [keys.map(csvCell).join(","), ...items.map((item) => keys.map((key) => csvCell(item[key])).join(","))].join("\r\n");
   audit(req.auth, "data.exported", { collection, section, count: items.length });
   res.json({ filename: `stocrant-${collection}.csv`, csv });
 });
@@ -383,7 +380,7 @@ router.get("/hr/overview", requirePermission("hr", "view"), (req, res) => {
   const history = scoped(req, rows("employeeHistory"), "employeeHistory");
   const allPendingApprovals = can(req.auth, "approvals", "view")
     ? rows("approvalRequests")
-      .filter((item) => item.status === "pending" && item.section === "hr")
+      .filter((item) => item.status === "pending" && item.section === "hr" && canReadApproval(req.auth!, item))
       .sort((a, b) => newestAt(b).localeCompare(newestAt(a)))
     : [];
   const pendingApprovals = allPendingApprovals.slice(0, 6);
@@ -437,13 +434,15 @@ router.get("/work", requirePermission("operations", "view"), (req, res) => {
   res.json({ companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), items: items.sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate))), activity: scoped(req, rows("workActivity"), "workActivity") });
 });
 
-router.post("/work", requirePermission("operations", "create"), (req, res) => {
-  const parsed = z.object({
+const workSchema = z.object({
     title: z.string().trim().min(1).max(180), organizationId: z.string().optional(), locationId: z.string().optional(),
-    assignee: z.string().trim().max(120).optional(), assigneeId: z.string().optional(), dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    assignee: z.string().trim().max(120).optional(), assigneeId: z.string().optional(), dueDate: z.string().date("Choose a valid date.").optional(),
     priority: z.enum(["Low", "Medium", "High", "Urgent"]).default("Medium"), status: z.enum(["Planned", "Assigned", "In Progress", "Awaiting Approval", "Completed", "Cancelled"]).default("Planned"),
     workflow: z.string().trim().max(120).optional(), progress: z.coerce.number().min(0).max(100).default(0), comments: z.string().max(4000).optional(), attachments: z.string().max(2000).optional(), inventoryUsage: z.string().max(1000).optional(),
-  }).safeParse(req.body);
+  }).strict();
+
+router.post("/work", requirePermission("operations", "create"), (req, res) => {
+  const parsed = workSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   try {
     const result = mutateCollection(req.auth!, "workItems", "create", parsed.data);
@@ -454,8 +453,10 @@ router.post("/work", requirePermission("operations", "create"), (req, res) => {
 router.patch("/work/:id", requirePermission("operations", "edit"), (req, res) => {
   const existing = rows("workItems").find((item) => item.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Work item not found." });
+  const parsed = workSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Enter valid work details, status, progress, and date." });
   try {
-    const result = mutateCollection(req.auth!, "workItems", "edit", req.body as Record<string, unknown>, existing.id);
+    const result = mutateCollection(req.auth!, "workItems", "edit", parsed.data, existing.id);
     res.status(result.pending ? 202 : 200).json(result);
   } catch (error) { sendError(res, error); }
 });
@@ -548,11 +549,14 @@ router.post("/finance/transactions", requirePermission("finance", "create"), (re
   }
   try {
     if (parsed.data.type === "transfer") {
-      const group = `transfer-${Date.now().toString(36)}`;
-      const outgoing = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, direction: "out", transferGroupId: group });
-      const destination = rows("financeAccounts").find((row) => row.id === parsed.data.destinationAccountId)!;
-      const incoming = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, organizationId: destination.organizationId, accountId: parsed.data.destinationAccountId, destinationAccountId: parsed.data.accountId, direction: "in", transferGroupId: group });
-      return res.status(outgoing.pending || incoming.pending ? 202 : 201).json({ pending: outgoing.pending || incoming.pending, items: [outgoing.item, incoming.item].filter(Boolean) });
+      const result = transaction(() => {
+        const group = `transfer-${randomUUID()}`;
+        const outgoing = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, direction: "out", transferGroupId: group });
+        const destination = rows("financeAccounts").find((row) => row.id === parsed.data.destinationAccountId)!;
+        const incoming = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, organizationId: destination.organizationId, accountId: parsed.data.destinationAccountId, destinationAccountId: parsed.data.accountId, direction: "in", transferGroupId: group });
+        return { pending: outgoing.pending || incoming.pending, items: [outgoing.item, incoming.item].filter(Boolean) };
+      });
+      return res.status(result.pending ? 202 : 201).json(result);
     }
     const direction = parsed.data.type === "income" ? "in" : ["expense", "payroll", "advance", "reimbursement", "tax"].includes(parsed.data.type) ? "out" : parsed.data.direction;
     if (!direction) return res.status(400).json({ error: "Choose money in or money out for this movement." });
@@ -760,7 +764,7 @@ router.delete("/access/users/:id", requirePermission("access", "delete"), (req, 
   res.json({ ok: true });
 });
 
-router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => isWithinScope(req.auth!, row) && (row.collection !== "documents" || (managesDocuments(req.auth!) && documentCompanyScope(req.auth!, row.organizationId)))) }));
+router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)) }));
 router.post("/approvals/:id", requirePermission("approvals", "approve"), (req, res) => {
   const parsed = z.object({ decision: z.enum(["approve", "reject"]), note: z.string().max(2000).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose approve or reject." });

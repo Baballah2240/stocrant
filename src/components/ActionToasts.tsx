@@ -6,7 +6,7 @@ let sequence = 0;
 function ToastItem({ toast, dismiss }: { toast: Toast; dismiss: (id: number) => void }) {
   const { t } = useLanguage();
   useEffect(() => { const timer = window.setTimeout(() => dismiss(toast.id), toast.kind === "error" ? 7000 : 4000); return () => clearTimeout(timer); }, [toast.id, toast.kind, dismiss]);
-  return <div className={`action-toast action-toast--${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}><span className="action-toast-icon" aria-hidden="true">{toast.kind === "error" ? "!" : "✓"}</span><span>{toast.message}</span><button type="button" aria-label={t("Dismiss notification")} onClick={() => dismiss(toast.id)}>×</button></div>;
+  return <div className={`action-toast action-toast--${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}><span className="action-toast-icon" aria-hidden="true">{toast.kind === "error" ? "!" : "✓"}</span><span>{t(toast.message)}</span><button type="button" aria-label={t("Dismiss notification")} onClick={() => dismiss(toast.id)}>×</button></div>;
 }
 export default function ActionToasts() {
   const { t } = useLanguage();

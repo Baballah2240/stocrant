@@ -2,7 +2,7 @@ import { Router } from "express";
 import { zoneSchema, parseJson } from "../validators.js";
 import { upsertZone, deleteZone, getStore } from "../storage.js";
 import type { Request, Response } from "express";
-import { zoneUtilization } from "../occupancy.js";
+
 import { isWithinScope, requirePermission } from "../permissions.js";
 import { audit, requiresApproval } from "../workspace.js";
 

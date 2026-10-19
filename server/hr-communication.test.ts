@@ -1,4 +1,4 @@
-import { TEST_DATA_DIR } from "./test-env.js";
+import { TEST_DATA_DIR, establishFixtureAccount } from "./test-env.js";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -15,7 +15,7 @@ type Row = Record<string, any>;
 let server: Server, base = "", main = "", hr = "", employeeCookie = "", employee: Row, second: Row, outside: Row, hrAccount: Row, companyId = "company-primary";
 const rows = (key: string) => getStore().collections[key] as Row[];
 const cookie = (response: Response) => response.headers.get("set-cookie")!.split(";")[0];
-async function req(path: string, method = "GET", body?: unknown, owner = main) { return fetch(`${base}/api${path}`, { method, headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(owner ? { Cookie: owner } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }); }
+async function req(path: string, method = "GET", body?: unknown, owner = main) { if (path === "/auth/login") await establishFixtureAccount((body as { email?: unknown } | undefined)?.email);  return fetch(`${base}/api${path}`, { method, headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(owner ? { Cookie: owner } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }); }
 async function expect(response: Response, code: number) { assert.equal(response.status, code, await response.clone().text()); return response.json() as Promise<Row>; }
 const employeeInput = (name: string, company = companyId, overrides: Row = {}) => ({ name, employeeCode: randomUUID(), email: `${randomUUID()}@hr.test`, organizationId: company, status: "active", employmentType:"full-time", hireDate: "2026-10-01", department: "Operations", jobTitle: "Associate", ...overrides });
 async function createEmployee(name: string, company = companyId, overrides: Row = {}) { return (await expect(await req("/collections/employees", "POST", employeeInput(name, company, overrides), hr || main), 201)).item; }

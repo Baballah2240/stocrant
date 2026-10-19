@@ -6,7 +6,6 @@ import { LanguageProvider } from "./language-context";
 import { SessionProvider } from "./session-context";
 import { AppLockProvider } from "./app-lock-context";
 import { isNativeApp } from "./api";
-import CursorMotion from "./components/CursorMotion";
 import App from "./App";
 import ActionToasts from "./components/ActionToasts";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -43,7 +42,6 @@ const employeeActivation = new URLSearchParams(location.hash.slice(1)).has("acti
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <LanguageProvider><ThemeProvider>
-      <CursorMotion />
       <ErrorBoundary><SessionProvider>
         {employeeActivation ? <EmployeeActivation /> : <AppLockProvider>
         <App />

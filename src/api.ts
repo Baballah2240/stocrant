@@ -1,4 +1,8 @@
 import { notifyAction, actionMessage } from "./action-feedback";
+
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public fieldErrors: Record<string, string> = {}) { super(message); this.name = "ApiError"; }
+}
 import type {
   CollectionItem,
   EntitySpec,
@@ -73,6 +77,7 @@ export function isNativeApp(): boolean {
 
 export const serverUrl = {
   key: RUNTIME_OVERRIDE_KEY,
+  default(): string { return buildTimeBase(); },
   /** Origin the app is currently calling; "" means same-origin. */
   current(): string {
     return readRuntimeOverride() || buildTimeBase();
@@ -81,6 +86,7 @@ export const serverUrl = {
   save(origin: string): string {
     const normalized = origin.trim().replace(/\/+$/, "");
     try {
+      if ((normalized || buildTimeBase()) !== this.current()) mobileSession.clear();
       if (normalized) localStorage.setItem(RUNTIME_OVERRIDE_KEY, normalized);
       else localStorage.removeItem(RUNTIME_OVERRIDE_KEY);
     } catch {
@@ -89,11 +95,7 @@ export const serverUrl = {
     return this.current();
   },
   clear(): void {
-    try {
-      localStorage.removeItem(RUNTIME_OVERRIDE_KEY);
-    } catch {
-      // Nothing to clear.
-    }
+    this.save("");
   },
 };
 
@@ -150,14 +152,18 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   catch (error) { if (action) notifyAction("Could not complete the action. Check your connection and try again.", "error"); throw error; }
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
+    let fieldErrors: Record<string, string> = {};
     try {
-      const body = (await res.json()) as { error?: string };
+      const body = (await res.json()) as { error?: string; fieldErrors?: Record<string, unknown>; code?: string };
       if (body.error) message = body.error;
+      if (body.fieldErrors) fieldErrors = Object.fromEntries(Object.entries(body.fieldErrors).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+      if (body.code === "PASSWORD_CHANGE_REQUIRED") window.dispatchEvent(new Event("stocrant:session-changed"));
     } catch {
       // ignore non-JSON error bodies
     }
     if (action) notifyAction(message, "error");
-    throw new Error(message);
+    if (res.status === 401 && !path.startsWith("/auth/")) window.dispatchEvent(new Event("stocrant:session-changed"));
+    throw new ApiError(message, res.status, fieldErrors);
   }
   const result = (await res.json()) as T;
   if (action) {

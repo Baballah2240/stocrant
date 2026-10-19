@@ -1,4 +1,4 @@
-import { TEST_DATA_DIR } from "./test-env.js";
+import { TEST_DATA_DIR, establishFixtureAccount } from "./test-env.js";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import type { Server } from "node:http";
 import { createApp } from "./app.js";
 import { getStore, saveStore } from "./storage.js";
-import { calculatePayroll, money, periodSchema, rulesSchema, scaled, type PayrollRules, type SalaryProfile } from "./payroll-model.js";
+import { calculatePayroll, money, periodSchema, scaled, type PayrollRules, type SalaryProfile } from "./payroll-model.js";
 import { migratePayroll } from "./payroll-migration.js";
 type Row=Record<string,any>;
 const rules:PayrollRules={currency:"QAR",frequency:"monthly",timezone:"Asia/Qatar",workingDays:[0,1,2,3,4],standardMinutes:480,breakMinutes:60,startTime:"08:00",lateGraceMinutes:0,attendanceApprovalRequired:true,hourlyPaidLeave:true,overtimeEnabled:true,overtimeApprovalRequired:true,overtimeMode:"multiplier",overtimeRate:"1.25",restDayRate:"1.5",holidayRate:"2",overtimeIncrement:15,overtimeRounding:"down",holidays:[],unpaidLeaveEnabled:true,absenceEnabled:true,lateEnabled:true,deductionCapPercent:100,allowNegativeNet:false,approvalRequired:true,allowanceTypes:["Housing","Transport"],policy:"Test company contract and approved payroll policy"};
@@ -37,7 +37,7 @@ describe("Payroll integer calculations",()=>{
 
 let server:Server,base="",main="",hr="",approver="",finance="",staff="",otherStaff="",hrId="",employeeId="",run:Row;
 const rows=(name:string)=>getStore().collections[name] as Row[];
-async function req(path:string,method="GET",input?:unknown,owner=main){return fetch(base+"/api"+path,{method,headers:{...(input===undefined?{}:{"Content-Type":"application/json"}),...(owner?{Cookie:owner}:{})},...(input===undefined?{}:{body:JSON.stringify(input)})});}
+async function req(path:string,method="GET",input?:unknown,owner=main){ if (path === "/auth/login") await establishFixtureAccount((input as { email?: unknown } | undefined)?.email); return fetch(base+"/api"+path,{method,headers:{...(input===undefined?{}:{"Content-Type":"application/json"}),...(owner?{Cookie:owner}:{})},...(input===undefined?{}:{body:JSON.stringify(input)})});}
 async function expect(r:Response,code:number){assert.equal(r.status,code,await r.clone().text());return r.json() as Promise<Row>;}
 const cookie=(r:Response)=>r.headers.get("set-cookie")!.split(";")[0];
 const path="/workspace/payroll";

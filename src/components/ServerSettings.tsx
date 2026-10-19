@@ -1,105 +1,46 @@
-import { useLanguage } from "../language-context";
-import { useState } from "react";
-import { api, serverUrl } from "../api";
+﻿import { useLanguage } from "../language-context";
+import { useEffect, useRef, useState } from "react";
+import { serverUrl } from "../api";
 
-/**
- * Lets a phone or tablet point the packaged app at its STOCRANT server.
- *
- * A native build is served from capacitor:// or https://localhost, so a
- * relative "/api" resolves to nothing. The origin is stored on the device and
- * validated against /api/health before it is accepted, which stops a typo from
- * silently breaking every later request.
- */
 export default function ServerSettings() {
   const { t } = useLanguage();
   const [origin, setOrigin] = useState(serverUrl.current());
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ text: string; good: boolean } | null>(null);
   const [checking, setChecking] = useState(false);
+  const request = useRef<AbortController | null>(null);
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { const active = request.current; request.current = null; active?.abort(); if (reloadTimer.current) clearTimeout(reloadTimer.current); }, []);
 
-  async function testConnection(candidate: string) {
+  async function verify(candidate: string, save: boolean) {
+    if (request.current) return;
     const normalized = candidate.trim().replace(/\/+$/, "");
-    if (!normalized) throw new Error("Enter your STOCRANT server address, for example https://portal.stocrant.example");
-    let parsed: URL;
-    try {
-      parsed = new URL(normalized);
-    } catch {
-      throw new Error("That address is not a valid URL. Include http:// or https://");
+    if (normalized) {
+      try {
+        const url = new URL(normalized);
+        if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error();
+      } catch { setStatus({ text: "Enter an HTTP or HTTPS server address without credentials, a query, or a fragment.", good: false }); return; }
     }
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      throw new Error("Only http:// and https:// addresses are supported.");
-    }
-    // Bypass the resolver so the candidate can be verified before saving it.
-    const response = await fetch(`${normalized}/api/health`, { credentials: "include" });
-    if (!response.ok) throw new Error(`The server answered ${response.status}. Check the address and try again.`);
-    const body = (await response.json()) as { service?: string };
-    if (body.service !== "stocrant") throw new Error("That address responded, but it is not a STOCRANT server.");
-  }
-
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
-    setChecking(true);
-    setStatus(null);
+    const controller = new AbortController();
+    request.current = controller; setChecking(true); setStatus(null);
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
-      await testConnection(origin);
-      const applied = serverUrl.save(origin);
-      setStatus(`Connected to ${applied || "this device"}. Reloading your session…`);
-      // Force the app to re-read session state against the new origin.
-      window.setTimeout(() => window.location.reload(), 700);
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Could not verify that server.");
+      const response = await fetch(`${normalized}/api/health`, { credentials: "omit", signal: controller.signal });
+      if (!response.ok) throw new Error(t("The server could not be reached. Check the address and try again."));
+      const body = await response.json() as { service?: string };
+      if (body.service !== "stocrant") throw new Error(t("That address responded, but it is not a STOCRANT server."));
+      if (save) {
+        serverUrl.save(origin);
+        if (serverUrl.current() !== normalized) throw new Error(t("The server preference could not be saved on this device."));
+        setStatus({ text: "Connection saved. Sign in to the selected server.", good: true });
+        reloadTimer.current = setTimeout(() => location.reload(), 700);
+      } else setStatus({ text: "Connection verified.", good: true });
+    } catch (error) {
+      if (request.current !== controller) return;
+      setStatus({ text: controller.signal.aborted ? "The connection timed out. Check the address and try again." : error instanceof Error ? error.message : "Could not verify that server.", good: false });
     } finally {
-      setChecking(false);
+      clearTimeout(timeout);
+      if (request.current === controller) { request.current = null; setChecking(false); }
     }
   }
-
-  async function verifyCurrent() {
-    setChecking(true);
-    setStatus(null);
-    try {
-      await api.health();
-      setStatus(`Connected to ${serverUrl.current() || "this device"}.`);
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Could not reach the server.");
-    } finally {
-      setChecking(false);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <header className="panel-head">
-        <div>
-          <h2>{t("Mobile server connection")}</h2>
-          <p className="hint">
-             {t("Enter the address of the STOCRANT server this app should use. Stored on this device only.")} </p>
-        </div>
-      </header>
-      <form className="form" onSubmit={save}>
-        <div className="form-field">
-          <label className="field-label" htmlFor="server-url">{t("Server address")}</label>
-          <input
-            id="server-url"
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder={t("https://portal.stocrant.example")}
-            value={origin}
-            onChange={(event) => setOrigin(event.target.value)}
-          />
-          <span className="field-help">
-             {t("Leave empty to use the address this app was built with (")}{serverUrl.current() || "none configured"}).
-          </span>
-        </div>
-        {status && <p className={status.startsWith("Connected") ? "hint" : "error"}>{status}</p>}
-        <div className="row-actions">
-          <button className="primary" disabled={checking} type="submit">
-            {checking ? t("Checking…") : t("Test and save")}
-          </button>
-          <button className="ghost" disabled={checking} type="button" onClick={() => void verifyCurrent()}>
-             {t("Test current")} </button>
-        </div>
-      </form>
-    </section>
-  );
+  return <section className="panel"><header className="panel-head"><div><h2>{t("Mobile server connection")}</h2><p className="hint">{t("Enter the address of the STOCRANT server this app should use. Stored on this device only.")}</p></div></header><form className="form" onSubmit={event => { event.preventDefault(); void verify(origin.trim() || serverUrl.default(), true); }}><label className="form-field" htmlFor="server-url"><span className="field-label">{t("Server address")}</span><input id="server-url" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={checking} placeholder="https://portal.stocrant.example" value={origin} onChange={event => setOrigin(event.target.value)} aria-describedby="server-help" aria-invalid={status && !status.good ? true : undefined} /><span id="server-help" className="field-help">{t("Leave blank to restore the default connection.")} {serverUrl.default() || t("This website")}</span></label>{status && <p className={status.good ? "hint" : "error"} role={status.good ? "status" : "alert"}>{t(status.text)}</p>}<div className="row-actions"><button className="primary" disabled={checking} type="submit">{t(checking ? "Checking…" : "Test and save")}</button><button className="ghost" disabled={checking} type="button" onClick={() => void verify(serverUrl.current(), false)}>{t("Test current")}</button></div></form></section>;
 }

@@ -72,7 +72,7 @@ export default function Calculator() {
             <div className="stat"><span className="stat-value">{result.pct}%</span><span className="stat-label">{t("Occupancy")}</span></div>
             <div className="stat"><span className="stat-value">{result.headCount}</span><span className="stat-label">{t("Headcount")}</span></div>
             <div className="stat"><span className="stat-value">{result.capacity}</span><span className="stat-label">{t("Capacity")}</span></div>
-            <div className="stat"><span className="stat-value">{result.capacity ? Math.round((result.headCount / result.capacity) * 100) : 0}%</span><span className="stat-label">{t("Utilisation")}</span></div>
+            <div className="stat"><span className="stat-value">{result.capacity ? Math.round((result.headCount / result.capacity) * 100) : 0}%</span><span className="stat-label">{t("Utilization")}</span></div>
           </div>
         </section>
       )}

@@ -11,7 +11,7 @@ import { can, isWithinScope, redactRecord, sectionForCollection } from "./permis
 import { mutateCollection } from "./workspace.js";
 
 /** Turn registry field metadata into a permissive-but-safe Zod schema. */
-export function buildSchema(fields: FieldSpec[]): z.ZodObject<Record<string, z.ZodTypeAny>> {
+export function buildSchema(fields: FieldSpec[], existing: Record<string, unknown> = {}): z.ZodObject<Record<string, z.ZodTypeAny>> {
   const shape: Record<string, z.ZodTypeAny> = {};
   for (const field of fields) {
     let base: z.ZodTypeAny;
@@ -19,40 +19,54 @@ export function buildSchema(fields: FieldSpec[]): z.ZodObject<Record<string, z.Z
       case "number":
       case "currency":
       case "percent": {
-        let num = z.coerce.number();
-        if (field.min !== undefined) num = num.min(field.min);
-        if (field.max !== undefined) num = num.max(field.max);
-        base = num as z.ZodNumber;
+        let num = z.coerce.number({ invalid_type_error: "Enter a valid number." }).finite("Enter a valid number.");
+        if (field.min !== undefined) num = num.min(field.min, "The value is below the allowed minimum.");
+        if (field.max !== undefined) num = num.max(field.max, "The value is above the allowed maximum.");
+        base = field.required ? z.preprocess(value => value == null || typeof value === "boolean" || (typeof value === "string" && !value.trim()) ? undefined : value, num) : num;
         break;
       }
       case "email":
         base = field.required ? z.string().email("Enter a valid email") : z.string().email().optional().or(z.literal(""));
         break;
       case "select":
-        base = field.required && !field.options?.length
-          ? z.string().min(1, `${field.label} is required`)
-          : z.string();
+        base = field.options?.length
+          ? z.enum(field.options as [string, ...string[]], { errorMap: () => ({ message: "Choose a valid option." }) })
+          : field.required ? z.string().trim().min(1, "This field is required.") : z.string();
+        if (!field.required) base = base.optional().or(z.literal(""));
+        // Retain an unchanged historical enum during unrelated edits.
+        if (typeof existing[field.key] === "string") base = base.or(z.literal(existing[field.key] as string));
+        break;
+      case "date":
+        base = z.string().date("Enter a valid date.");
+        if (!field.required) base = base.optional().or(z.literal(""));
+        if (typeof existing[field.key] === "string") base = base.or(z.literal(existing[field.key] as string));
+        break;
+      case "time":
+        base = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time.");
+        if (!field.required) base = base.optional().or(z.literal(""));
+        if (typeof existing[field.key] === "string") base = base.or(z.literal(existing[field.key] as string));
         break;
       default:
-        base = field.required ? z.string().min(1, `${field.label} is required`) : z.string().optional();
+        base = field.required ? z.string().trim().min(1, "This field is required.") : z.string().optional();
         break;
     }
     shape[field.key] = field.required && field.type !== "email" ? base : base;
     if (!field.required && (field.type === "number" || field.type === "currency" || field.type === "percent")) {
-      shape[field.key] = z.coerce.number().optional().default(0);
+      shape[field.key] = base.optional().default(0);
     }
   }
   return z.object(shape).catchall(z.unknown());
 }
 
-export function validateEntity(spec: EntitySpec, body: unknown, path?: Request["path"]) {
-  const schema = buildSchema(spec.fields);
+export function validateEntity(spec: EntitySpec, body: unknown, existing?: Record<string, unknown>) {
+  const schema = buildSchema(spec.fields, existing);
   const result = schema.safeParse(body);
   if (!result.success) {
     const err = new Error(
       result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
-    ) as Error & { statusCode?: number };
+    ) as Error & { statusCode?: number; fieldErrors?: Record<string, string> };
     err.name = "ValidationError";
+    err.fieldErrors = Object.fromEntries(result.error.issues.map(issue => [String(issue.path[0]), issue.message]));
     throw err;
   }
   return result.data as Record<string, unknown>;
@@ -61,7 +75,7 @@ export function validateEntity(spec: EntitySpec, body: unknown, path?: Request["
 function sendError(res: Response, err: unknown) {
   const status = (err as Error & { statusCode?: number })?.statusCode;
   if ((err as Error)?.name === "ValidationError") {
-    return res.status(400).json({ error: (err as Error).message });
+    return res.status(400).json({ error: "Review the highlighted fields.", fieldErrors: (err as Error & { fieldErrors?: Record<string, string> }).fieldErrors });
   }
   const message = err instanceof Error ? err.message : "Request failed";
   return res.status(status ?? (/permission|scope/i.test(message) ? 403 : /not found/i.test(message) ? 404 : 400)).json({ error: message });
@@ -111,7 +125,7 @@ export function createCollectionRouter(spec: EntitySpec): Router {
     if (!existing) return res.status(404).json({ error: `${spec.singular} not found.` });
     if (!isWithinScope(req.auth, existing)) return res.status(404).json({ error: `${spec.singular} not found.` });
     try {
-      const input = validateEntity(spec, { ...existing, ...req.body });
+      const input = validateEntity(spec, { ...existing, ...req.body }, existing);
       if (spec.collection === "employees" && (input.organizationId || req.body.organizationId !== undefined)) {
         const company = getCollectionItem("companies", String(input.organizationId ?? ""));
         if (!company || !isWithinScope(req.auth, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company for this employee." });

@@ -72,7 +72,10 @@ try {
   try {
     const hrPassword = randomBytes(24).toString("hex"), hrEmail = "pending-browser-hr@example.test";
     await request("/workspace/access/users", "POST", { name: "Browser HR requester", email: hrEmail, password: hrPassword, roleId: "role-manager", organizationIds: ["company-primary"] });
-    const login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: hrEmail, password: hrPassword }) }); assert.equal(login.status, 200);
+    let login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: hrEmail, password: hrPassword }) }); assert.equal(login.status, 200);
+    const rotatedPassword = randomBytes(24).toString("hex");
+    const changed = await fetch(`${base}/api/auth/password`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: login.headers.get("set-cookie").split(";")[0] }, body: JSON.stringify({ currentPassword: hrPassword, newPassword: rotatedPassword }) }); assert.equal(changed.status, 200);
+    login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: hrEmail, password: rotatedPassword }) }); assert.equal(login.status, 200);
     const queuedResponse = await fetch(`${base}/api/workspace/documents`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: login.headers.get("set-cookie").split(";")[0] }, body: JSON.stringify({ category: "company", organizationId: "company-primary", type: "policy", title: "Browser approval policy", visibility: "company", fileUrl: "https://company.example.test/approval" }) }); assert.equal(queuedResponse.status, 202);
     const queued = await queuedResponse.json();
     await navigate(`/hr/documents/requests/${queued.request.id}`); await until('document.querySelector(".document-detail-page h1")?.textContent === "Browser approval policy"');

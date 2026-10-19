@@ -1,52 +1,40 @@
-# STOCRANT launch preparation
+﻿# STOCRANT production readiness
 
-Reviewed on 13 October 2026. The code has passed local checks; these changes still need publishing and live verification. A passing build does not prove the production server has the new code.
+Local application audit: October 20, 2026. Local verification is complete for the checked source; this is not confirmation that a live server or installed phone has these changes. The detailed findings and cleanup inventory are in `docs/APPLICATION_AUDIT_2026-10-20.md`.
 
-## Verification completed
+## Verified locally
 
-- Frontend and server TypeScript checks.
-- 32 API tests covering authentication, company boundaries, permissions, attendance, inventory, finance, approvals, notification actions, and concurrent account updates.
-- Four lock timer and notification activity tests.
-- Storage checks: corrupt files remain untouched, production starts without demo data, a daily backup is created, and an isolated business snapshot restores correctly.
-- Isolated production smoke checks: built pages and assets, security headers, secure cookies, untrusted origin rejection, API cache policy, and private data protection.
-- `npm audit`: no known dependency vulnerabilities at review time.
-- Android debug build and connected-device installation succeeded. A release dry run correctly refused missing signing credentials.
-- Both live health endpoints responded with HTTP 200. This only checks reachability.
+- Backend/frontend TypeScript, including server unused-local and unused-parameter checks.
+- 122 API/unit tests, two app-lock tests, two notification tests and six translation tests.
+- Corrupt-store preservation, clean production initialization, daily backup creation and an isolated restore exercise.
+- Production-mode smoke checks for SPA/assets, security headers, cookies, trusted mutation origins, cache policy and private data.
+- Browser route coverage in English/Arabic and light/dark appearance at desktop, tablet and mobile widths, plus focused business workflows. See the audit report for actual commands and final results.
+- Both management and independent public website builds. Dependency audits reported no known vulnerabilities in either locked tree at audit time.
+- A limited tracked-source scan found no private-key blocks or tested AWS/GitHub token patterns. No credentials were printed or added to source.
 
-Run `npm run check` and `npm audit` before every release. GitHub Actions now runs the checks automatically. `render.yaml` selects deployment after passing CI checks; sync the Blueprint or apply the same setting in Render. See https://render.com/docs/deploys.
+No lint or formatter command is configured. The project uses TypeScript, automated tests, build checks, translation checks and whitespace validation.
 
-## Fixes from this review
+## Required before a production release
 
-- Concurrent first-time setup cannot overwrite the first Main Manager.
-- Concurrent account creation cannot create duplicate emails.
-- Password resets preserve newer account edits; profile/password changes and login recheck the current account after asynchronous password verification.
-- Sensitive API responses use `Cache-Control: no-store`.
-- Workspace pages load separately, reducing the main JavaScript bundle from about 502 KB to 244 KB. Router preloads and shared chunks also contribute to the first download.
-- App and route failures show recovery controls instead of internal stack traces.
-- Android app data backup is disabled; release builds require a private signing keystore.
+1. Back up the JSON store and private document bytes together. Keep an independent private copy and perform an isolated restore drill. Backups on the same disk do not protect against losing that disk.
+2. Keep exactly one API process/writer and one application instance. The JSON store and in-memory rate limiter do not support horizontal scaling; migrate to a transactional database and shared rate limiting before adding replicas.
+3. Verify production mode, a persistent disk, `STOCRANT_DATA_DIR=/var/lib/stocrant`, trusted proxy configuration, allowed origins and private random session/setup secrets. The code rejects unsafe first-run production configuration. Do not put secrets in the repository or chat.
+4. Review existing flagged temporary-password accounts. They must change their passwords before business API access. Old native binaries may need the current web interface for that setup until an updated APK is installed. Unflagged accounts are not automatically reset.
+5. Review ambiguous/unlinked legacy name assignments and any historical partially decided transfer pairs. The audit preserves historical records rather than guessing ownership or silently rewriting financial history. New transfer pairs are created and decided atomically.
+6. Run `npm run check`, both dependency audits and the relevant browser suites on the release candidate. The CI workflow builds website artifacts and Android test artifacts, but CI results for this local audit commit have not been verified.
+7. Verify live HTTPS, the deployed source version, private-data controls, tenant roles, company reassignment, approvals, finance/inventory totals and customer workflows with staging accounts. Do not use real payroll or customer records for verification.
+8. Configure monitoring for `/api/health`, alert delivery and clear responsibility for access requests, password resets, backups and recovery. Health reachability alone does not prove deployment correctness.
+9. Build and distribute a properly signed native release when requested. Verify real-device biometrics, cancellation, session expiration, background lock, pickers, keyboard behavior, Arabic layout and OS printing. iOS requires its own macOS/Xcode/signing/device validation.
+10. Configure public website values separately. Its contact form opens a mail draft using `VITE_CONTACT_EMAIL`; there is no server-side contact delivery or management inbox. Without a contact email, the form is visibly unavailable.
 
-## Required before accepting real customers
+## Deployment boundary
 
-1. Publish the tested changes to the connected GitHub repository and confirm CI passes. Previous Git access returned “Repository not found”; check the account and repository access.
-2. Verify the Render service uses the persistent disk, `STOCRANT_DATA_DIR=/var/lib/stocrant`, production mode, and private random session/setup secrets. Do not paste secrets into chat or commit them. Disable first-time setup by completing it; the setup endpoint refuses further accounts afterward.
-3. Keep exactly one Node process and one Render instance. The JSON store and rate limiter are single-process designs. Migrate to a transactional database and shared rate limiting before adding replicas or promising larger-scale service.
-4. Copy backups to an independent private destination and perform a restore drill on an isolated instance. Backups on the same disk do not protect against loss of that disk. Restore the data and confirm company records, account access, and totals before relying on recovery.
-5. Use test accounts in staging to verify Main Manager, manager, employee, pending/rejected accounts, company reassignment, approvals, inventory movements, and financial reports. Keep these exercises out of real business records.
-6. On a real phone, test fingerprint setup, successful unlock, cancellation, unavailable biometrics, background lock, expired session, picker search, required selections, Arabic layout, and notification scrolling. Automated timer/API checks do not verify the phone's biometric hardware or visual behavior.
-7. Configure availability monitoring for `/api/health` and alert delivery to the operator. Decide who handles access requests, password resets, support, and backup recovery.
-8. Publish a signed Android release and complete the intended distribution channel's privacy and release requirements. The APK installed during development is a debug build. iOS requires a separate Xcode/signing build and device validation.
+This audit does not deploy hosting, install an APK, run destructive migrations or make external payments. `render.yaml` describes a single-instance service with a persistent disk and deployment after passing checks; the actual hosting account/configuration still needs separate verification and authorization. Do not infer a live deployment from a Git commit or push.
 
-## Signed Android release
+## Native release configuration
 
-Use an existing private release keystore and keep a secured recovery copy. Inject these variables through your local shell or CI secret store: `STOCRANT_KEYSTORE_FILE` (absolute file path), `STOCRANT_KEYSTORE_PASSWORD`, `STOCRANT_KEY_ALIAS`, and `STOCRANT_KEY_PASSWORD`. Do not save passwords in Gradle files.
+Use an existing private release keystore and keep a secured recovery copy. Supply `STOCRANT_KEYSTORE_FILE`, `STOCRANT_KEYSTORE_PASSWORD`, `STOCRANT_KEY_ALIAS` and `STOCRANT_KEY_PASSWORD` through the local shell or CI secret store. Do not save passwords in Gradle files.
 
-Set `STOCRANT_VERSION_CODE` to an increasing positive integer and `STOCRANT_VERSION_NAME` to the release label. Build frontend assets with `VITE_API_BASE_URL=https://stocrant-web.onrender.com`, run `npx --no-install cap sync android`, then run `.\gradlew.bat bundleRelease` from the Android directory using JDK 21. The result is `android/app/build/outputs/bundle/release/app-release.aab`. Missing signing settings intentionally stop release tasks. Debug installation and a release signed with a different key are separate distribution paths.
+Use an increasing `STOCRANT_VERSION_CODE`, set `STOCRANT_VERSION_NAME` and build against the intended deployed HTTPS API. Run Capacitor sync and the Android release task using JDK 21. Missing signing configuration intentionally prevents release tasks. Debug and release signing identities are separate distribution paths.
 
-## Suggested next features
-
-1. A daily company summary: pending approvals, overdue work, low stock, attendance exceptions, and recent money movements.
-2. Stock reorder suggestions: highlight items below their reorder point and prepare a purchase request for approval.
-3. Approval reminders and escalation: remind the responsible manager and show how long each request has waited.
-4. A searchable audit history: filter by company, user, action, and date; export the permitted results.
-5. Better onboarding: guide the Main Manager through company, location, first user, permissions, and first business record.
-6. A transactional database migration: company-scoped tables, migrations, tested restore procedures, and concurrency-safe stock and finance writes before scaling.
+After any requested Android build, run `npm run mobile:save`; keep APKs, keystores, runtime data and credentials out of source control. Source-only changes do not update an installed phone.

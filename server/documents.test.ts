@@ -1,4 +1,4 @@
-import { TEST_DATA_DIR } from "./test-env.js";
+import { TEST_DATA_DIR, establishFixtureAccount } from "./test-env.js";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -31,7 +31,7 @@ function zip(entries: Record<string, string>) {
   end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(count, 8); end.writeUInt16LE(count, 10); end.writeUInt32LE(directory.length, 12); end.writeUInt32LE(offset, 16);
   return Buffer.concat([...locals, directory, end]);
 }
-async function req(path: string, method = "GET", body?: unknown, cookie = main) { return fetch(`${base}/api${path}`, { method, headers: { ...(body === undefined ? {} : jsonHeaders), ...(cookie ? { Cookie: cookie } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }); }
+async function req(path: string, method = "GET", body?: unknown, cookie = main) { if (path === "/auth/login") await establishFixtureAccount((body as { email?: unknown } | undefined)?.email);  return fetch(`${base}/api${path}`, { method, headers: { ...(body === undefined ? {} : jsonHeaders), ...(cookie ? { Cookie: cookie } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }); }
 async function status(response: Response, code: number) { assert.equal(response.status, code, await response.clone().text()); return response.json() as Promise<Record<string, any>>; }
 const cookie = (response: Response) => response.headers.get("set-cookie")!.split(";")[0];
 async function employee(name: string, organizationId = "company-primary") { return (await status(await req("/collections/employees", "POST", { employeeCode: randomUUID(), name, email: randomUUID() + "@docs.test", organizationId, status: "active", employmentType: "full-time", hireDate: "2026-01-01" }), 201)).item as Row; }

@@ -22,6 +22,7 @@ test("hierarchy, delegated administration and Customer Service labels remain dis
   assert.equal(languageDirection("ar"), "rtl");
   assert.equal(languageDirection("en"), "ltr");
   assert.equal(languageLocale("ar"), "ar-QA");
+  assert.equal(languageLocale("en"), "en-US");
 });
 
 test("unknown business data stays unchanged, legacy UI punctuation is repaired, interpolation is explicit", () => {
@@ -49,14 +50,37 @@ test("entity metadata labels and non-identifier choices have Arabic copy", () =>
 test("literal interface translation calls have Arabic copy across every component", () => {
   const components = new URL("../src/components/", import.meta.url);
   const identifiers = new Set(["AWB:", "EN", "en-GB"]);
-  for (const filename of readdirSync(components).filter(name => name.endsWith(".tsx"))) {
-    const source = ts.createSourceFile(filename, readFileSync(new URL(filename, components), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const files = [...readdirSync(components).filter(name => name.endsWith(".tsx")).map(name => new URL(name, components)), new URL("../src/App.tsx", import.meta.url), new URL("../src/app-lock-context.tsx", import.meta.url)];
+  for (const file of files) {
+    const filename = file.pathname;
+    const source = ts.createSourceFile(filename, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     function visit(node) {
-      if (ts.isCallExpression(node) && node.expression.getText(source) === "t" && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
-        const label = node.arguments[0].text;
-        if (!identifiers.has(label) && !label.startsWith("https://") && !/[\u0600-\u06ff]/u.test(label)) {
-          assert.notEqual(translate(label, "ar"), label, `${filename}: missing translation for ${label}`);
+      if (ts.isCallExpression(node) && node.expression.getText(source) === "t" && node.arguments[0]) {
+        function check(value) {
+          if (ts.isConditionalExpression(value)) { check(value.whenTrue); check(value.whenFalse); }
+          if (!ts.isStringLiteral(value)) return;
+          const label = value.text;
+          if (!identifiers.has(label) && !label.startsWith("https://") && !/[\u0600-\u06ff]/u.test(label)) assert.notEqual(translate(label, "ar"), label, `${filename}: missing translation for ${label}`);
         }
+        check(node.arguments[0]);
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+  }
+});
+
+test("localized choice labels keep stable submission values", () => {
+  const directory = new URL("../src/components/", import.meta.url);
+  for (const filename of readdirSync(directory).filter(name => name.endsWith(".tsx"))) {
+    const source = ts.createSourceFile(filename, readFileSync(new URL(filename, directory), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const translated = expression => expression && ts.isCallExpression(expression) && expression.expression.getText(source) === "t";
+    function visit(node) {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+        const tag = node.tagName.getText(source);
+        const value = node.attributes.properties.find(property => ts.isJsxAttribute(property) && property.name.text === "value");
+        if (["select", "ChoiceSelect"].includes(tag) && value?.initializer && ts.isJsxExpression(value.initializer)) assert.ok(!translated(value.initializer.expression), `${filename}: translating a stored choice value`);
+        if (tag === "option" && !value && ts.isJsxElement(node.parent)) assert.ok(!node.parent.children.some(child => ts.isJsxExpression(child) && translated(child.expression)), `${filename}: translated option needs an explicit raw value`);
       }
       ts.forEachChild(node, visit);
     }

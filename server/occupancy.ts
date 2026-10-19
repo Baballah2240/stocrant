@@ -1,4 +1,4 @@
-import type { Person, Store, Zone, Occupancy, StoreSummary, ZoneOccupancy } from "./types.js";
+import type { Person, Occupancy, StoreSummary, ZoneOccupancy } from "./types.js";
 import { getStore } from "./storage.js";
 
 function countAssigned(storeId: string, zoneId?: string, status: Person["status"] = "active") {

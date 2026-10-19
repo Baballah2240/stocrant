@@ -294,7 +294,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
             </ul>
           )}
           </>}
-          </div><footer className="inbox-footer"><Link to="/notifications" onClick={() => setOpen(false)}>{t("Notification history")}</Link> ? {t("Only notifications for your account are shown.")}</footer>
+          </div><footer className="inbox-footer"><Link to="/notifications" onClick={() => setOpen(false)}>{t("Notification history")}</Link>  {"\u00b7"} {t("Only notifications for your account are shown.")}</footer>
         </dialog>
       )}
     </div>

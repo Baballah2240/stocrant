@@ -121,9 +121,21 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   if (locationIds.length && (!locationId || !locationIds.includes(String(locationId)))) return false;
   if (Array.isArray(inventoryItem?.allowedEmployeeIds) && inventoryItem.allowedEmployeeIds.includes(user.employeeId ?? "")) return true;
   if (!(user.ownRecordsOnly || role?.ownRecordsOnly === true)) return true;
-  const candidates = [row.employeeId, row.assigneeId, row.responsibleEmployeeId, row.assignee, row.email, row.employee, row.createdBy, row.createdById]
-    .filter((value): value is string => typeof value === "string");
-  return candidates.includes(user.id) || candidates.includes(user.employeeId ?? "") || candidates.includes(user.name) || candidates.includes(user.email);
+  const identities = new Set([user.id, user.employeeId].filter(Boolean));
+  const owners = [row.accountId, row.employeeId, row.assigneeId, row.responsibleEmployeeId].filter((value): value is string => typeof value === "string" && Boolean(value));
+  if (owners.length) return owners.some(id => identities.has(id));
+  const employees = getCollection("employees") as Record<string, unknown>[];
+  const employeeRecord = employees.find(employee => employee.id === row.id);
+  if (employeeRecord) return employeeRecord.id === user.employeeId || employeeRecord.accountId === user.id;
+  const stable = [row.email, row.createdBy, row.createdById, row.assignee, row.employee].filter((value): value is string => typeof value === "string");
+  if (stable.some(value => identities.has(value) || value === user.email)) return true;
+  // Legacy display-name assignments remain readable only through an unambiguous,
+  // linked employee identity. Changing an account's display name grants no access.
+  const names = [row.assignee, row.employee].filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+  return names.some(name => {
+    const matches = employees.filter(employee => (employee.organizationId ?? employee.companyId) === organizationId && employee.name === name);
+    return matches.length === 1 && matches[0].id === user.employeeId;
+  });
 }
 
 export function redactRecord(collection: string, row: Record<string, unknown>, user: AuthenticatedUser): Record<string, unknown> {

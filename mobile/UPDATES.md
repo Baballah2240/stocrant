@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-20 - Application audit and workflow repairs
+
+- Enforced flagged temporary-password setup in the shared UI and business APIs, improved session refresh handling, and retained existing password/session policies. Unflagged accounts remain unchanged.
+- Fixed Arabic Operations status values, task and notification navigation, private policy links, form labels, decimal input, scoped company selection, inline validation, draft/discard handling and recovery states.
+- Improved mobile picker keyboard/focus behavior and default server restoration; server changes clear the old native token and connection checks have timeouts/cancellation.
+- Shared API repairs cover approval privacy, own-record identity checks, atomic transfer pairs, export safety and validation. Existing records are preserved.
+- Source-only update: no native build or installation was requested. Flagged accounts using older binaries may need to complete password setup through the current web interface until a new APK is installed.
+
 ## 2026-10-20 - Shared management interface redesign
 
 - Updated shared workspace surfaces, dashboard metrics, forms, tables, tabs, dialogs and responsive spacing for Morning and Night appearances in English and Arabic.

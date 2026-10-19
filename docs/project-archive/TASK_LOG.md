@@ -1,5 +1,13 @@
 # Project task log
 
+## 2026-10-20 - Full application audit and repairs
+
+Repaired temporary-password enforcement, approval visibility and linked-employee ownership checks, atomic internal transfer decisions, CSV formula escaping, work/registry validation, generic company assignment and field errors, draft protection, stale sessions, task routes, safe connection settings, Arabic enum values and accessible controls. Reduced repeated dashboard/ledger work and removed verified unreachable modules. Archived 24 scratch files locally with checksums; business data was preserved.
+
+Verification: full project checks passed (122 API/unit plus 10 UI support tests), all 348 responsive language/theme route combinations, focused audit/payroll/company/HR/document/notification browser workflows, and separate public website build and desktop/tablet/mobile checks. Both dependency audits reported zero known vulnerabilities. Public website CI coverage was added.
+
+Details and limitations: [application audit](../APPLICATION_AUDIT_2026-10-20.md), CHANGELOG.md, PRODUCTION_READINESS.md and mobile/UPDATES.md. Original brief retained in 2026-10-20-APPLICATION-AUDIT-BRIEF.md. Source publication uses an audit review branch; no production deployment or native build/install was performed.
+
 ## 2026-10-20 - Shared management UI/UX redesign
 
 Implemented the attached management-system brief in the existing shared React/Capacitor application:

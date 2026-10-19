@@ -4,9 +4,9 @@ import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { validateHierarchyMutation } from "./organization-policy.js";
 import { can, canManageHr, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
-import { createNotification, listNotifications } from "./notifications.js";
+import { createNotification } from "./notifications.js";
 import { newProductAwb } from "./product-awb.js";
-import { applyDocumentApproval, managesDocuments } from "./documents.js";
+import { applyDocumentApproval, managesDocuments, documentCompanyScope } from "./documents.js";
 
 export type Row = Record<string, unknown> & { id: string };
 export type MutationAction = "create" | "edit" | "delete";
@@ -248,7 +248,7 @@ function fireMutationAlerts(
   collection: string,
   action: MutationAction,
   payload: Record<string, unknown>,
-  item?: Row,
+  _item?: Row,
 ): void {
   if (collection === "workItems" && action === "create") {
     const dueDate = String(payload.dueDate ?? "");
@@ -317,16 +317,41 @@ export function approveRequest(user: AuthenticatedUser, requestId: string, appro
   return transaction(() => decideRequest(user, requestId, approve, note));
 }
 
-function decideRequest(user: AuthenticatedUser, requestId: string, approve: boolean, note?: string): ApprovalRequest {
+/** Resolve legacy requests through their target/payload without broadening scope. */
+function approvalWithinScope(user: AuthenticatedUser, request: Row): boolean {
+  const payload = request.payload && typeof request.payload === "object" ? request.payload as Record<string, unknown> : {};
+  const current = request.targetId ? rows(String(request.collection)).find(row => row.id === request.targetId) : undefined;
+  const scope: Row = { ...current, ...payload, ...request,
+    locationId: request.locationId ?? payload.locationId ?? current?.locationId,
+    storeId: request.storeId ?? payload.storeId ?? current?.storeId,
+    employeeId: request.employeeId ?? payload.employeeId ?? current?.employeeId,
+  };
+  return isWithinScope(user, scope);
+}
+
+export function canReadApproval(user: AuthenticatedUser, request: Row): boolean {
+  return approvalWithinScope(user, request) && (request.collection !== "documents" || (managesDocuments(user) && documentCompanyScope(user, request.organizationId)));
+}
+
+function decideRequest(user: AuthenticatedUser, requestId: string, approve: boolean, note?: string, pairedTransfer = false): ApprovalRequest {
   if (!can(user, "approvals", "approve")) throw new Error("You do not have permission to approve requests.");
   let data = getStore();
   const list = rows("approvalRequests") as ApprovalRequest[];
   const request = list.find((row) => row.id === requestId);
   if (!request) throw new Error("Approval request not found.");
-  if (!isWithinScope(user, request)) throw new Error("Approval request not found.");
+  if (!approvalWithinScope(user, request)) throw new Error("Approval request not found.");
   if (request.collection === "documents" && !managesDocuments(user, request.action)) throw new Error("You do not have permission to decide HR document requests.");
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
   if (request.requestedBy === user.id) throw new Error("A requester cannot approve their own request.");
+  if (!pairedTransfer && request.collection === "financeTransactions" && request.payload?.type === "transfer" && request.payload.transferGroupId) {
+    const pair = list.filter(row => row.collection === "financeTransactions" && row.payload?.type === "transfer" && row.payload.transferGroupId === request.payload!.transferGroupId);
+    if (pair.length !== 2 || pair.some(row => row.status !== "pending")) throw new Error("Both sides of a transfer must be pending for joint review.");
+    const [first, second] = pair;
+    if (first.payload?.direction === second.payload?.direction || first.payload?.amount !== second.payload?.amount
+      || first.payload?.accountId !== second.payload?.destinationAccountId || second.payload?.accountId !== first.payload?.destinationAccountId) throw new Error("The transfer approval pair is inconsistent.");
+    const decisions = pair.map(row => decideRequest(user, row.id, approve, note, true));
+    return decisions.find(row => row.id === requestId)!;
+  }
   if (approve) {
     if (request.collection === "documents") applyDocumentApproval(user, request);
     else {
@@ -354,14 +379,15 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
 export function financeSummary(user?: AuthenticatedUser) {
   const accounts = rows("financeAccounts").filter(row => !user || isWithinScope(user, row));
   const transactions = rows("financeTransactions").filter(row => !user || isWithinScope(user, row));
+  const movements = new Map<unknown, number>();
+  for (const transaction of transactions) {
+    if (transaction.status !== "paid") continue;
+    const amount = Number(transaction.amount ?? 0);
+    movements.set(transaction.accountId, (movements.get(transaction.accountId) ?? 0) + (transaction.direction === "in" ? amount : transaction.direction === "out" ? -amount : 0));
+  }
   const balances = accounts.map((account) => {
     const opening = Number(account.openingBalance ?? 0);
-    const movement = transactions
-      .filter((transaction) => transaction.accountId === account.id && transaction.status === "paid")
-      .reduce((sum, transaction) => {
-        const amount = Number(transaction.amount ?? 0);
-        return sum + (transaction.direction === "in" ? amount : transaction.direction === "out" ? -amount : 0);
-      }, 0);
+    const movement = movements.get(account.id) ?? 0;
     return { ...account, balance: opening + movement };
   });
   const income = transactions.filter((row) => row.type === "income" && row.status === "paid").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
@@ -373,19 +399,19 @@ export function financeSummary(user?: AuthenticatedUser) {
 export function inventorySummary(user?: AuthenticatedUser) {
   const items = rows("inventoryItems").filter(row => !user || isWithinScope(user, row));
   const movements = rows("inventoryMovements").filter(row => !user || isWithinScope(user, row));
+  const totalsByItem = new Map<unknown, { incoming: number; returns: number; outgoing: number; adjustments: number }>();
+  for (const movement of movements) {
+    const totals = totalsByItem.get(movement.inventoryItemId) ?? { incoming: 0, returns: 0, outgoing: 0, adjustments: 0 };
+    const quantity = Number(movement.quantity ?? 0);
+    if (movement.type === "incoming") totals.incoming += quantity;
+    if (movement.type === "return") totals.returns += quantity;
+    if (movement.type === "outgoing") totals.outgoing += quantity;
+    if (movement.type === "adjustment") totals.adjustments += quantity;
+    totalsByItem.set(movement.inventoryItemId, totals);
+  }
   const stock = items.map((item) => {
     const opening = Number(item.openingStock ?? 0);
-    const totals = movements.filter((movement) => movement.inventoryItemId === item.id).reduce(
-      (sum, movement) => {
-        const quantity = Number(movement.quantity ?? 0);
-        if (movement.type === "incoming") sum.incoming += quantity;
-        if (movement.type === "return") sum.returns += quantity;
-        if (movement.type === "outgoing") sum.outgoing += quantity;
-        if (movement.type === "adjustment") sum.adjustments += quantity;
-        return sum;
-      },
-      { incoming: 0, returns: 0, outgoing: 0, adjustments: 0 },
-    );
+    const totals = totalsByItem.get(item.id) ?? { incoming: 0, returns: 0, outgoing: 0, adjustments: 0 };
     const available = opening + totals.incoming + totals.returns - totals.outgoing + totals.adjustments;
     return { ...item, ...totals, available, consumed: totals.outgoing, lowStock: available <= Number(item.reorderPoint ?? 0) };
   });

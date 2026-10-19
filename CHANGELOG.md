@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-10-20 — Application audit and reliability fixes
+
+### Security and financial integrity
+
+- Connected temporary-password setup in both the UI and business APIs; password rotation clears the existing flag and invalidates old sessions. Unflagged accounts are not reset.
+- Fixed cross-company/location approval summary leakage and retained separate confidential-document authorization. Fixed own-record access based on editable display names while preserving uniquely linked legacy assignments.
+- Made internal-transfer creation and paired approval/rejection atomic, with UUID grouping and rollback when either side fails. Historical partially decided pairs are not silently rewritten.
+- Shared formula-safe CSV encoding across collection, payroll and attendance exports. Changing mobile servers clears the prior native token; health probes do not send it.
+
+### Workflows, forms and user experience
+
+- Repaired dashboard task/notification/policy destinations and added the missing scoped task-detail route. Corrected Arabic Operations select values, status feedback and interface copy.
+- Added server validation for work updates and actual dates; strengthened registry enums, whitespace, time and numeric validation without rewriting unchanged historical enum/date/time values.
+- Added generic-form company assignment, legacy company-value preservation, structured field errors, adjacent localized feedback, associated labels, decimal inputs and unsaved-change protection.
+- Replaced indefinite metadata/record loading with recoverable error and missing-section states. Added stale-response protection and safer session refresh behavior.
+- Repaired blank/default server restoration, timeouts and unmount cancellation. Improved searchable picker keyboard navigation and focus restoration.
+- Centralized corrupted lock/error Arabic and known action messages, used American English date formatting, corrected separators, and refined Operations/Finance layout.
+- Updated the separate public site's obsolete HR/attendance FAQ and made its mail-draft contact action honest and unavailable when unconfigured.
+
+### Performance and cleanup
+
+- Replaced repeated per-account/per-item movement scans with single-pass aggregation and isolated the dashboard duration timer. Removed unnecessary pointer tracking.
+- Removed verified unused `Dashboard.tsx`, `FinanceOverview.tsx`, `ModuleOverview.tsx`, `CursorMotion.tsx` and `src/theme.ts`. Connected the previously unused password-change screen instead of deleting it.
+- Moved 24 pre-existing scratch files into ignored `.local-preview/archived-scratch-2026-10-20/` with a recovery manifest and hashes. Removed unused imports, enabled strict unused-code checks, corrected the package entry point and repaired README text.
+
+### Verification and rollout
+
+- `npm run check` passed 122 API/unit tests plus ten lock/notification/translation tests, both TypeScript checks, storage verification, production build and production security smoke checks. No lint/formatter script is configured.
+- The 348-combination route/language/theme/viewport matrix and existing company, payroll, private-document, HR communication and notification browser workflows passed. Focused final audit reruns are recorded in `docs/APPLICATION_AUDIT_2026-10-20.md`.
+- Both locked dependency audits reported zero known vulnerabilities; the separate public website build and light/dark desktop/tablet/mobile browser checks passed. Added its build and dependency audit to CI. No major dependency upgrades or destructive migrations were performed.
+- Shared mobile source notes accompany these changes. No hosting deployment, APK build, phone installation or real payment was performed. Production limits and required external checks are documented in `PRODUCTION_READINESS.md`.
+
+Full findings, affected areas, cleanup inventory, tests and remaining operational requirements: `docs/APPLICATION_AUDIT_2026-10-20.md`. Original request: `docs/project-archive/2026-10-20-APPLICATION-AUDIT-BRIEF.md`.
+
 ## 2026-10-19 ? Mobile app icon
 
 - Updated the native launcher identity with the existing ledger mark in sky blue, mint and navy. Added shared geometry/palette, editable SVG, PNG master and preview under mobile/branding/.

@@ -12,7 +12,7 @@ Business management for companies with restaurants, retail stores, offices,
 warehouses and branches. Manage the organization hierarchy, locations,
 workforce and HR, payroll, inventory, finance and operations from one system.
 
-- **Frontend:** React 19 + Vite + React Router v6 (TypeScript)
+- **Frontend:** React 19 + Vite + React Router v7 (TypeScript)
 - **Backend:** Express 5 + Zod (TypeScript)
 - **Data:** JSON file at `data/stocrant.json` (seeded on first run and additively migrated when the data model evolves)
 
@@ -57,8 +57,8 @@ debug APK (needs `JAVA_HOME` set to a JDK 21); use `npm run mobile:apk`, or open
 **iOS** — must be built on macOS with Xcode. The `ios/` project is committed and
 ready; run `npm run mobile:build` then `npm run mobile:ios`.
 
-Point the packaged app at your deployment with `VITE_API_BASE_URL=â€¦` at build
-time, or per device in **Access & Settings â†’ Mobile app**. Full details,
+Point the packaged app at your deployment with `VITE_API_BASE_URL=…` at build
+time, or per device in **Access & Settings → Mobile app**. Full details,
 including how role-based access applies to mobile users, are in
 **[MOBILE.md](MOBILE.md)**.
 
@@ -66,8 +66,8 @@ including how role-based access applies to mobile users, are in
 ## Core business hierarchy
 
 ```text
-Company â†’ Locations â†’ Areas / zones â†’ Workforce assignments
-                       â””â†’ HR, attendance, leave and payroll
+Company → Locations → Areas / zones → Workforce assignments
+                       └→ HR, attendance, leave and payroll
 ```
 
 - **Organizations:** legal company profiles and business settings.

@@ -1,4 +1,4 @@
-import { TEST_DATA_DIR } from "./test-env.js";
+import { TEST_DATA_DIR, establishFixtureAccount } from "./test-env.js";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -12,7 +12,7 @@ import { generateEmployeeCode, generateUsername, migrateEmployeeIdentities, vali
 type Row = Record<string, any>;
 let server:Server, base="", main="", hr="", staff="", foreign:Row, employee:Row;
 const rows=(name:string)=>getStore().collections[name] as Row[];
-async function req(path:string,method="GET",input?:unknown,owner=main){return fetch(base+"/api"+path,{method,headers:{...(input===undefined?{}:{"Content-Type":"application/json"}),...(owner?{Cookie:owner}:{})},...(input===undefined?{}:{body:JSON.stringify(input)})});}
+async function req(path:string,method="GET",input?:unknown,owner=main){ if (path === "/auth/login") await establishFixtureAccount((input as { email?: unknown } | undefined)?.email); return fetch(base+"/api"+path,{method,headers:{...(input===undefined?{}:{"Content-Type":"application/json"}),...(owner?{Cookie:owner}:{})},...(input===undefined?{}:{body:JSON.stringify(input)})});}
 async function expect(response:Response,code:number){assert.equal(response.status,code,await response.clone().text());return response.json() as Promise<Row>;}
 const cookie=(response:Response)=>response.headers.get("set-cookie")!.split(";")[0];
 const values=(extra:Row={})=>({name:"Company Test Employee",email:"",phone:"",organizationId:"company-primary",employmentType:"full-time",status:"active",hireDate:"2026-10-19",department:"Operations",jobTitle:"Coordinator",...extra});

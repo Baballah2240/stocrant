@@ -18,7 +18,7 @@ function DetailFields({ fields, item }: { fields: FieldSpec[]; item: Record<stri
 export default function EntityDetail() {
   const { t } = useLanguage();
   const { module, collection, id } = useParams<{ module: string; collection: string; id?: string }>();
-  const { entities, loading: metaLoading } = useMeta();
+  const { entities, loading: metaLoading, error: metaError } = useMeta();
   const { user } = useSession();
   const navigate = useNavigate();
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
@@ -27,6 +27,8 @@ export default function EntityDetail() {
   const spec = useMemo(() => module && collection ? (entities ?? []).find((entity) => entity.module === module && entity.collection === collection) : undefined, [module, collection, entities]);
   const canEdit = can(user?.permissions, sectionFor(module), "edit");
   useEffect(() => { if (!id || !collection || !spec) return; let active = true; setLoading(true); setError(null); api.collections.get(collection, id).then((result) => { if (active) setItem(result.item ?? null); }).catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : "Failed to load this record."); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [id, collection, spec]);
+  if (metaError) return <div className="page"><p className="error" role="alert">{t("Could not load workspace metadata. Try again.")}</p><button type="button" onClick={() => window.location.reload()}>{t("Try again")}</button></div>;
+  if (!metaLoading && !spec) return <div className="page"><p role="status">{t("This section could not be found.")}</p><button type="button" onClick={() => navigate("/")}>{t("Go to home")}</button></div>;
   if (metaLoading || !spec) return <p className="hint">{t("Loading record…")}</p>;
   if (loading) return <p className="hint">{t("Loading")} {t(spec.singular)}…</p>;
   if (error) return <div className="alert alert--bad" role="alert">{t(error)}</div>;

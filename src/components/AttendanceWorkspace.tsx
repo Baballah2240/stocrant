@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import ChoiceSelect from "./ChoiceSelect";
 import { api } from "../api";
 import { useLanguage } from "../language-context";
+import { csvCell } from "../../server/csv";
 import { useSession } from "../session-context";
 import type { CollectionItem } from "../types";
 import "../attendance-workspace.css";
@@ -27,7 +28,7 @@ function money(value: unknown) { return new Intl.NumberFormat(undefined, { minim
 function isCorrectionDecision(action: PendingDecision["action"]): action is CorrectionDecision { return action === "correction-approve" || action === "correction-reject" || action === "correction-more"; }
 function downloadCsv(records: CollectionItem[]) {
   const columns = ["Employee", "Employee ID", "Department", "Date", "Clock in", "Clock out", "Hours", "Expected hours", "Status", "Estimated deduction", "Approval status"];
-  const lines = records.map((record) => [record.employee, record.employeeCode, record.department, record.date, record.checkIn, record.checkOut, record.hours, record.expectedHours, record.status, record.estimatedDeduction, record.approvalStatus].map((cell) => `"${String(cell ?? "").replace(/"/g, "\"\"")}"`).join(","));
+  const lines = records.map((record) => [record.employee, record.employeeCode, record.department, record.date, record.checkIn, record.checkOut, record.hours, record.expectedHours, record.status, record.estimatedDeduction, record.approvalStatus].map(csvCell).join(","));
   const url = URL.createObjectURL(new Blob([[columns.join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a"); link.href = url; link.download = `stocrant-attendance-${today()}.csv`; link.click(); URL.revokeObjectURL(url);
 }

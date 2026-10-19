@@ -1,4 +1,4 @@
-import { TEST_DATA_DIR } from "./test-env.js";
+import { TEST_DATA_DIR, establishFixtureAccount } from "./test-env.js";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -21,7 +21,7 @@ let orgAdminCookie = "", companyManagerCookie = "", otherCompanyCookie = "";
 let organizationAdmin: Row, companyManager: Row, otherCompanyManager: Row;
 let employeeA: Row, employeeA2: Row, employeeB: Row;
 
-function request(path: string, method = "GET", input?: unknown, cookie = mainCookie) {
+async function request(path: string, method = "GET", input?: unknown, cookie = mainCookie) { if (path === "/auth/login") await establishFixtureAccount((input as { email?: unknown } | undefined)?.email);
   return fetch(`${base}/api${path}`, { method, headers: { ...(input === undefined ? {} : { "Content-Type": "application/json" }), ...(cookie ? { Cookie: cookie } : {}) }, ...(input === undefined ? {} : { body: JSON.stringify(input) }) });
 }
 function cookieFrom(response: Response) { const cookie = response.headers.get("set-cookie"); assert.ok(cookie, "Expected a session cookie"); return cookie.split(";")[0]; }

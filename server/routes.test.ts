@@ -1,4 +1,4 @@
-import { TEST_DATA_DIR } from "./test-env.js";
+import { TEST_DATA_DIR, establishFixtureAccount } from "./test-env.js";
 import { financeSummary, mutateCollection } from "./workspace.js";
 import { getStore, saveStore } from "./storage.js";
 import type { AuthenticatedUser } from "./auth.js";
@@ -23,6 +23,9 @@ function cookieFrom(response: Response) {
 }
 
 async function request(path: string, init: RequestInit = {}, cookie?: string) {
+  if (path === "/auth/login" && typeof init.body === "string") {
+    try { await establishFixtureAccount(JSON.parse(init.body).email); } catch { /* Malformed-body tests still reach the API. */ }
+  }
   // General account/product fixtures belong to the seeded primary company.
   if (init.method === "POST" && typeof init.body === "string" && ["/workspace/access/users", "/collections/products"].includes(path)) {
     const input = JSON.parse(init.body);

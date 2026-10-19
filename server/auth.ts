@@ -9,6 +9,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const sessionSecret = process.env.STOCRANT_SESSION_SECRET || randomBytes(32).toString("hex");
 
 export interface AuthenticatedUser {
+  mustChangePassword?: boolean;
   accountStatus?: string;
   id: string;
   email: string;
@@ -113,6 +114,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
   const validCompanies = new Set((getCollection("companies") as Record<string, unknown>[]).map(company => company.id));
   const delegated = ["role-organization-admin", "role-company-manager"].includes(account.roleId);
   return {
+    mustChangePassword: account.mustChangePassword === true,
     accountStatus: account.status,
     id: account.id,
     email: account.email,

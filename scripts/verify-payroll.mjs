@@ -11,8 +11,10 @@ const base=`http://127.0.0.1:${server.address().port}`,password=randomBytes(24).
 async function req(path,method="GET",body,owner=cookie){const r=await fetch(base+"/api"+path,{method,headers:{...(owner?{Cookie:owner}:{}),...(body===undefined?{}:{"Content-Type":"application/json"})},...(body===undefined?{}:{body:JSON.stringify(body)})});const result=await r.json();assert.ok(r.ok,JSON.stringify(result));return {result,cookie:r.headers.get("set-cookie")?.split(";")[0]};}
 try{
  cookie=(await req("/auth/setup","POST",{name:"Payroll Browser Owner",email:"owner@payroll-browser.test",password,setupKey:"local-setup"},"")).cookie;
- const mainCookie=cookie,staffPassword=randomBytes(24).toString("hex");
+ const mainCookie=cookie;let staffPassword=randomBytes(24).toString("hex");
  const approver=(await req("/workspace/access/users","POST",{name:"Independent Reviewer",email:"review@payroll-browser.test",password:staffPassword,roleId:"role-payroll-approver",organizationIds:["company-primary"]})).result.item;
+ const temporaryCookie=(await req("/auth/login","POST",{email:approver.email,password:staffPassword},"")).cookie;
+ const rotatedPassword=randomBytes(24).toString("hex");await req("/auth/password","POST",{currentPassword:staffPassword,newPassword:rotatedPassword},temporaryCookie);staffPassword=rotatedPassword;
  const reviewCookie=(await req("/auth/login","POST",{email:approver.email,password:staffPassword},"")).cookie;
  const data=getStore();data.collections.employees=Array.from({length:12},(_,i)=>({id:`payroll-browser-${i}`,employeeCode:`EMP-PB-${i}`,name:`Payroll Worker ${String(i).padStart(2,"0")}`,organizationId:"company-primary",department:i%2?"Operations":"Sales",status:"active",salary:2200,hireDate:"2026-01-01"}));data.collections.payroll=[];data.collections.financeAccounts.push({id:"payroll-browser-bank",name:"Payroll Bank",organizationId:"company-primary",currency:"QAR",openingBalance:100000});saveStore(data);
  browser=await browserQa(root);const {send,evaluate,until}=browser;await send("Network.enable");await send("Emulation.setDeviceMetricsOverride",{width:1440,height:1000,deviceScaleFactor:1,mobile:false});

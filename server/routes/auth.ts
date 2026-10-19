@@ -224,12 +224,13 @@ router.post("/password", requireAuth, async (req, res) => {
   if (blockedFor(key)) return res.status(429).json({ error: "Too many attempts. Try again in a few minutes." });
   const existing = accounts().find((account) => account.id === req.auth!.id);
   if (!existing || !await verifyPassword(parsed.data.currentPassword, existing.passwordHash)) { recordFailure(key); return res.status(400).json({ error: "Your current password is incorrect." }); }
+  if (existing.mustChangePassword && parsed.data.newPassword === parsed.data.currentPassword) return res.status(400).json({ error: "Choose a new password that is different from the temporary password." });
   clearFailures(key);
   const passwordHash = await hashPassword(parsed.data.newPassword);
   const current = accounts().find(account => account.id === existing.id);
   if (!current || current.passwordHash !== existing.passwordHash || current.status !== existing.status) return res.status(409).json({ error: "Your account changed. Sign in again before changing your password." });
   const data = getStore();
-  data.collections.accessUsers = accounts().map((account) => account.id === existing.id ? { ...account, passwordHash, updatedAt: new Date().toISOString() } : account);
+  data.collections.accessUsers = accounts().map((account) => account.id === existing.id ? { ...account, passwordHash, mustChangePassword: false, updatedAt: new Date().toISOString() } : account);
   data.collections.sessions = (getCollection("sessions") as Record<string, unknown>[]).filter((session) => session.accountId !== existing.id);
   data.collections.auditLog = [...(getCollection("auditLog") as Record<string, unknown>[]), { id: nextCollectionId("auditLog"), action: "profile.password-changed", actorId: existing.id, actorName: existing.name, occurredAt: new Date().toISOString() }];
   saveStore(data);

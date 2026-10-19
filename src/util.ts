@@ -1,7 +1,7 @@
 /** Small shared helpers for the frontend. */
 
 function displayLocale() {
-  return typeof document !== "undefined" && document.documentElement.lang === "ar" ? "ar-QA" : "en-GB";
+  return typeof document !== "undefined" && document.documentElement.lang === "ar" ? "ar-QA" : "en-US";
 }
 
 export function formatDate(value: string, fallback = "—"): string {

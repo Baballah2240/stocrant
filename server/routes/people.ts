@@ -2,7 +2,7 @@ import { Router } from "express";
 import { personSchema, parseJson } from "../validators.js";
 import { upsertPerson, deletePerson, getStore } from "../storage.js";
 import type { Request, Response } from "express";
-import { occupancy } from "../occupancy.js";
+
 import { isWithinScope, requirePermission } from "../permissions.js";
 import { audit, requiresApproval } from "../workspace.js";
 
