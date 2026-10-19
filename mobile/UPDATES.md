@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-19 ? App logo
+
+- Refined the existing ledger mark into a blue-to-mint app icon on navy. Saved an editable SVG, 1024px PNG and rounded preview in mobile/branding/.
+- Generated all Android launcher, round and adaptive foreground sizes and the opaque iOS icon from shared design parameters. Validated 17 native/master PNG dimensions and rebuilt/saved the Android debug package locally.
+- Source command: npm run mobile:icons. This icon update has not been installed on the phone or pushed to GitHub during this task.
+
 ## 2026-10-19 ? Company profiles and employee identities
 
 - Shared website/mobile company profile now has grouped information cards, readable organization names, a scoped employee table and English/Arabic responsive layouts.

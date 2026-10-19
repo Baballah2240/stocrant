@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-19 ? Mobile app icon
+
+- Updated the native launcher identity with the existing ledger mark in sky blue, mint and navy. Added shared geometry/palette, editable SVG, PNG master and preview under mobile/branding/.
+- Regenerated 15 Android launcher assets and the opaque iOS master; added npm run mobile:icons for reproducible generation. Verified dimensions/decoding and rebuilt the Android debug package.
+- Saved the updated mobile package locally; no device installation, GitHub push or iOS binary build was performed in this task.
+
+
 ## 2026-10-19 ? Company profile and employee identity workflow
 
 - Replaced the generic company detail page with a responsive, localized company profile, readable organization names, grouped contact/business/access cards and explicit Save/Cancel editing. Added a scoped employee table with username/ID search, filters, pagination and company-preselected creation.

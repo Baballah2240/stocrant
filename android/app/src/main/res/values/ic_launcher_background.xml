@@ -1,5 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- STOCRANT green used by the adaptive launcher icon background. -->
-    <color name="ic_launcher_background">#164E3B</color>
-</resources>
+<?xml version="1.0" encoding="utf-8"?><resources><color name="ic_launcher_background">#102A36</color></resources>
