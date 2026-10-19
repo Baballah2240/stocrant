@@ -1,3 +1,4 @@
+import { migrateEmployeeIdentities, assertEmployeeIdentities } from "./employee-identity.js";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -331,6 +332,7 @@ function read(): StoreData {
       migrateSecureWorkspace(seeded);
       migrateOrganizations(seeded);
       migrateDocuments(seeded);
+      migrateEmployeeIdentities(seeded);
       write(seeded);
       return seeded;
     }
@@ -341,12 +343,14 @@ function read(): StoreData {
     const workspaceChanged = migrateSecureWorkspace(parsed);
     const organizationsChanged = migrateOrganizations(parsed);
     const documentsChanged = migrateDocuments(parsed);
-    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged) {
+    const identitiesChanged = migrateEmployeeIdentities(parsed);
+    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged) {
       // Capture the on-disk original before its first v2 migration. The backup
       // stays beside the JSON store and is ignored by Git with the data folder.
       if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
       if (documentsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-documents-v4-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-documents-v4-backup.json"));
       if (organizationsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"));
+      if (identitiesChanged && !existsSync(join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"));
       write(parsed);
     }
     return parsed;
@@ -356,6 +360,7 @@ function read(): StoreData {
 }
 
 function write(data: StoreData) {
+  assertEmployeeIdentities(data);
   ensureDir();
   // Keep a daily snapshot of the previous on-disk state before the first write.
   // Backups remain private alongside the data, outside the web asset directory.
@@ -387,7 +392,7 @@ export function getStore(): StoreData {
 export function getDataDirectory(): string { return DATA_DIR; }
 
 export function saveStore(data: StoreData) {
-  if (!transactionDepth) write(data);
+  if (!transactionDepth) { try { write(data); } catch (error) { cache = null; throw error; } }
   cache = data;
 }
 

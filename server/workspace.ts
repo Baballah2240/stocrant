@@ -1,3 +1,4 @@
+import { generateEmployeeCode } from "./employee-identity.js";
 import { syncEmployeeAccount } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
@@ -122,6 +123,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   const existing = targetId ? list.find((row) => row.id === targetId) : undefined;
   if (targetId && !existing) throw new Error("Record not found.");
   if (existing && !isWithinScope(user, existing)) throw new Error("Record not found.");
+  if (collection === "employees" && !existing && !String(payload.employeeCode || "").trim()) payload = { ...payload, employeeCode: generateEmployeeCode(rows("employees")) };
   const item: Row = existing
     ? { ...existing, ...payload, id: existing.id, updatedAt: now, updatedBy: user.id, updatedByName: user.name }
     : {
@@ -168,6 +170,8 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
   const section = sectionForCollection(collection);
   if (!can(user, section, permissionAction)) throw new Error(`You do not have permission to ${action} ${section}.`);
   const current = targetId ? rows(collection).find(row => row.id === targetId) : undefined;
+  // HR creates receive server IDs. Main Admin legacy imports may retain existing formats.
+  if (collection === "employees" && action === "create" && !isMainManager(user)) { payload = { ...payload }; delete payload.employeeCode; }
   if (targetId && (!current || !isWithinScope(user, current))) throw new Error("Record not found.");
   // Client IDs must never impersonate organization/company rows during scope resolution.
   if (payload.id !== undefined && (!current || payload.id !== current.id)) throw Object.assign(new Error("Record identifiers are assigned by the server and cannot be changed."), { statusCode: 400 });
@@ -179,7 +183,21 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
   if (action === "create" && payload.id && rows(collection).some(row => row.id === payload.id)) throw new Error("A record with this id already exists.");
   payload = { ...payload };
   for (const field of ["createdAt", "createdBy", "createdByName", "updatedAt", "updatedBy", "updatedByName", "__proto__", "constructor", "prototype"]) delete payload[field];
-  if (collection === "employees") for (const key of ["accountId", "passwordHash", "roleId", "permissions", "activationRequired"]) delete payload[key];
+  if (collection === "employees") for (const key of ["accountId", "passwordHash", "roleId", "permissions", "activationRequired", "username", "employeeRequestKey"]) delete payload[key];
+  if (collection === "employees" && action === "create" && payload.clientRequestId !== undefined) {
+    const key = String(payload.clientRequestId);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) throw new Error("Use a valid employee submission identifier.");
+    delete payload.clientRequestId;
+    const duplicate = rows("employees").find(row => row.createdBy === user.id && row.employeeRequestKey === key);
+    if (duplicate) {
+      if (!isWithinScope(user, duplicate)) throw new Error("Record not found.");
+      if (Object.entries(payload).some(([name,value]) => !(name === "employeeCode" && !value) && JSON.stringify(duplicate[name]) !== JSON.stringify(value))) throw Object.assign(new Error("This submission was already used. Open the existing employee or start a new form."), {statusCode:409});
+      return { pending:false, item:duplicate };
+    }
+    const pending = (rows("approvalRequests") as ApprovalRequest[]).find(row => row.collection === "employees" && row.requestedBy === user.id && row.status === "pending" && row.payload?.employeeRequestKey === key);
+    if (pending) return { pending:true, request:pending };
+    payload.employeeRequestKey = key;
+  }
   if (requiresApproval(section, action)) {
     const request: ApprovalRequest = {
       id: rowId("approvalRequests"),

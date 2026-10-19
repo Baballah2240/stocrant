@@ -12,6 +12,7 @@ export interface AuthenticatedUser {
   accountStatus?: string;
   id: string;
   email: string;
+  username?: string;
   name: string;
   roleId: string;
   employeeId?: string;
@@ -115,6 +116,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     accountStatus: account.status,
     id: account.id,
     email: account.email,
+    username: typeof account.username === "string" ? account.username : undefined,
     name: account.name,
     phone: typeof account.phone === "string" ? account.phone : "",
     avatar: typeof account.avatar === "string" ? account.avatar : "",

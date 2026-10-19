@@ -1,3 +1,4 @@
+import companyProfileTranslations from "./company-profile-translations.ts";
 import hrCommunicationTranslations from "./hr-communication-translations.ts";
 /** Display copy only. Business data and identifiers are never rewritten. */
 import documentTranslations from "./document-translations.ts";
@@ -204,6 +205,7 @@ const existingArabic: Readonly<Record<string, string>> = {
 export const arabicTranslations: Readonly<Record<string, string>> = {
   ...documentTranslations,
   ...hrCommunicationTranslations,
+  ...companyProfileTranslations,
   "Notifications, {count} unread": "الإشعارات، {count} غير مقروءة",
   "{count} unread updates": "{count} من التحديثات غير المقروءة",
   "{count} updates": "{count} من التحديثات",

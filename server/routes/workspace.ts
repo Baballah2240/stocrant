@@ -1,3 +1,4 @@
+import { generateUsername, validUsername } from "../employee-identity.js";
 import { Router } from "express";
 import { z } from "zod";
 import { authenticatedUser, hashPassword, publicUser } from "../auth.js";
@@ -354,7 +355,7 @@ router.post("/locations/:id/updates", requirePermission("locations", "edit"), (r
 router.get("/hr/companies", (req, res) => {
   if (!can(req.auth, "hr", "view") && !can(req.auth, "access", "view")) return res.status(403).json({ error: "You do not have permission to view these records." });
   const companies = rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id }));
-  res.json({ companies, employees: scoped(req, rows("employees"), "employees") });
+  res.json({ companies: companies.map(company => ({...company, organizationName: rows("organizations").find(row=>row.id===company.parentOrganizationId)?.name})), employees: scoped(req, rows("employees"), "employees") });
 });
 
 router.get("/hr/birthdays", requirePermission("hr", "view"), (req, res) => {
@@ -659,7 +660,7 @@ router.post("/access/users", requirePermission("access", "create"), async (req, 
   if (parsed.data.employeeId) { const employee = rows("employees").find((row) => row.id === parsed.data.employeeId); if (!employee) return res.status(400).json({ error: "Choose an existing employee." }); const company = employee.organizationId ?? employee.companyId; if (company && parsed.data.organizationIds.length && !parsed.data.organizationIds.includes(String(company))) return res.status(400).json({ error: "Choose an employee from the assigned company." }); if (company && parsed.data.roleId !== "role-organization-admin") parsed.data.organizationIds = [String(company)]; }
   try { validateAccountAssignment(req.auth!, { ...parsed.data, status: "active" }); } catch (error) { return sendError(res, error); }
   const { password: accountPassword, ...accountInput } = parsed.data;
-  const account = { id: nextCollectionId("accessUsers"), ...accountInput, email: parsed.data.email.toLowerCase(), passwordHash: await hashPassword(accountPassword), mustChangePassword: true, status: "active", createdAt: new Date().toISOString(), dataClassification: "company" };
+  const account = { id: nextCollectionId("accessUsers"), ...accountInput, email: parsed.data.email.toLowerCase(), passwordHash: await hashPassword(accountPassword), username: generateUsername(rows("accessUsers"), accountInput.name), mustChangePassword: true, status: "active", createdAt: new Date().toISOString(), dataClassification: "company" };
   req.auth = authenticatedUser(req);
   if (!can(req.auth, "access", "create")) return res.status(403).json({ error: "Your account access changed. Sign in again." });
   if (rows("accessUsers").some(user => normalized(user.email) === account.email)) return res.status(409).json({ error: "An account with that email already exists." });
@@ -675,6 +676,7 @@ router.post("/access/users", requirePermission("access", "create"), async (req, 
 router.patch("/access/users/:id", requirePermission("access", "edit"), async (req, res) => {
   const parsed = z.object({
     name: z.string().trim().min(2).max(120).optional(),
+    username: z.string().trim().toLowerCase().refine(validUsername, "Choose a valid username.").optional(),
     email: z.string().trim().email().max(160).optional(),
     password: z.string().min(12).max(256).optional(),
     roleId: z.string().trim().min(1).max(160).optional(),
@@ -698,6 +700,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
   if (parsed.data.permissions?.some(permission => /^(access|audit)\./.test(permission)) && !["role-main-manager", "role-organization-admin", "role-company-manager"].includes(String(parsed.data.roleId ?? existing.roleId))) return res.status(400).json({ error: "Account administration requires an administrator role." });
   if (parsed.data.roleId && !rows("accessRoles").some((role) => role.id === parsed.data.roleId)) return res.status(400).json({ error: "Choose a valid role." });
   if (parsed.data.email && users.some((user) => user.id !== existing.id && normalized(user.email) === normalized(parsed.data.email))) return res.status(409).json({ error: "An account with that email already exists." });
+  if (parsed.data.username && users.some(user => user.id !== existing.id && normalized(user.username) === parsed.data.username)) return res.status(409).json({ error: "This username is already in use." });
   const { password, employeeId, ...changes } = parsed.data;
   const next: Row = {
     ...existing,
@@ -721,7 +724,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
   const accessRevoked = next.status !== "active" || next.roleId !== existing.roleId || passwordHash !== undefined;
   if (accessRevoked) data.collections.sessions = rows("sessions").filter((session) => session.accountId !== existing.id);
   saveStore(data);
-  const changedFields = ["name", "email", "roleId", "employeeId", "organizationIds", "tenantOrganizationIds", "locationIds", "ownRecordsOnly", "status", "permissions"]
+  const changedFields = ["name", "email", "username", "roleId", "employeeId", "organizationIds", "tenantOrganizationIds", "locationIds", "ownRecordsOnly", "status", "permissions"]
     .filter((field) => JSON.stringify(existing[field]) !== JSON.stringify(next[field]));
   if (password) changedFields.push("password");
   audit(req.auth, "access.user-directly-updated", {

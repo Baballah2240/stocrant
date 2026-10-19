@@ -136,6 +136,7 @@ export interface AuthUser {
   avatar?: string;
   id: string;
   email: string;
+  username?: string;
   name: string;
   roleId: string;
   employeeId?: string;

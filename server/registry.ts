@@ -101,7 +101,7 @@ registry.push(
     collection: "employees", label: "Employees", singular: "Employee",
     module: "hr", permission: "hr.employees.read",
     fields: [
-      { key: "employeeCode", label: "Employee ID", type: "text", required: true },
+      { key: "employeeCode", label: "Employee ID", type: "text", readOnly: true },
       { key: "name", label: "Full name", type: "text", required: true },
       { key: "email", label: "Email", type: "email" },
       { key: "phone", label: "Phone", type: "tel" },

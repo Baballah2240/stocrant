@@ -105,6 +105,14 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
     if (!related || !isWithinScope(user, related) || (relatedCompany && !activeCompany(relatedCompany)) || (companyId && relatedCompany && relatedCompany !== companyId)) policyError("Choose a related record from the assigned company.");
   }
   if (collection === "employees") {
+    if (action !== "delete") {
+      if (!current || (input.name !== undefined && input.name !== current.name)) {
+        if (typeof next.name !== "string" || next.name.trim().length < 2 || next.name.trim().length > 120) policyError("Enter an employee name of 2–120 characters.");
+        input = { ...input, name: next.name.trim() };
+      }
+      if ((!current || input.status !== current.status) && !["active","probation","on-leave","terminated","inactive","suspended","leave"].includes(String(next.status))) policyError("Choose a valid employment status.");
+    }
+    if (current?.employeeCode && input.employeeCode !== undefined && input.employeeCode !== current.employeeCode) policyError("Employee IDs are assigned once and cannot be changed.", 409);
     if ((action === "delete" || (current && action === "edit" && companyId !== current.organizationId)) && (rows("documents").some(document => document.employeeId === current?.id))) policyError("This employee has retained HR documents. Preserve the profile and archive its records before any reassignment.");
     if (action !== "delete" && !companyId) policyError("Choose a valid company for this employee.");
     for (const key of ["employeeCode", "email"]) if (action !== "delete" && normalized(next[key]) && rows("employees").some(employee => employee.id !== current?.id && normalized(employee[key]) === normalized(next[key]) && (key === "email" || employee.organizationId === companyId))) policyError(key === "email" ? "An employee with this email already exists." : "This employee ID already exists in the company.", 409);

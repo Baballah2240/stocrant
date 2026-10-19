@@ -1,3 +1,4 @@
+import { generateUsername, validUsername } from "../employee-identity.js";
 import { Router } from "express";
 import type { Request } from "express";
 import { z } from "zod";
@@ -85,6 +86,7 @@ router.post("/setup", async (req, res) => {
     name: parsed.data.name,
     email: parsed.data.email.toLowerCase(),
     passwordHash: await hashPassword(parsed.data.password),
+    username: generateUsername(accounts(), parsed.data.name),
     roleId: "role-main-manager",
     status: "active",
     dataClassification: "company",
@@ -138,7 +140,7 @@ router.post("/register", async (req, res) => {
   if (accountByEmail(parsed.data.email)) return res.json({ ok: true, message });
   const passwordHash = await hashPassword(parsed.data.password);
   if (accountByEmail(parsed.data.email)) return res.json({ ok: true, message });
-  const account: Account = { id: nextCollectionId("accessUsers"), name: parsed.data.name, email: parsed.data.email.toLowerCase(), passwordHash, roleId: "role-employee", status: "pending", permissions: [], ownRecordsOnly: true, organizationIds: [], locationIds: [], dataClassification: "company", createdAt: new Date().toISOString() };
+  const account: Account = { id: nextCollectionId("accessUsers"), username: generateUsername(accounts(), parsed.data.name), name: parsed.data.name, email: parsed.data.email.toLowerCase(), passwordHash, roleId: "role-employee", status: "pending", permissions: [], ownRecordsOnly: true, organizationIds: [], locationIds: [], dataClassification: "company", createdAt: new Date().toISOString() };
   const data = getStore(); data.collections.accessUsers = [...accounts(), account]; saveStore(data);
   for (const manager of managers) createNotification({ userId: manager.id, user: manager.name, type: "registration_request", severity: "info", message: `${account.name} (${account.email}) requested an account.`, target: account.id });
   createNotification({ userId: account.id, user: account.name, type: "message", severity: "info", message: "Your registration is awaiting Main Admin approval. You cannot access business records yet.", target: null });
@@ -158,7 +160,7 @@ function recordDeniedLoginAttempt(email: string): void {
 }
 
 router.post("/login", async (req, res) => {
-  const parsed = credentialsSchema.safeParse(req.body);
+  const parsed = credentialsSchema.extend({ email: z.string().trim().min(3).max(160).refine(value => validUsername(value.toLowerCase()) || z.string().email().safeParse(value).success, "Enter a valid email or username.") }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   const email = parsed.data.email.toLowerCase();
   // Brute-force protection: per-IP and per-account failure windows.
@@ -169,7 +171,7 @@ router.post("/login", async (req, res) => {
     res.setHeader("Retry-After", String(wait));
     return res.status(429).json({ error: "Too many sign-in attempts. Try again in a few minutes." });
   }
-  const account = accountByEmail(email);
+  const account = accountByEmail(email) || accounts().find(row => String(row.username || "").toLowerCase() === email);
   // Always run one scrypt verification (against a pad hash when the account is
   // unknown) so response timing does not reveal whether the email exists.
   const stored = account?.passwordHash ?? (await loginTimingPad());

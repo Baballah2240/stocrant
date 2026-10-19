@@ -1,0 +1,17 @@
+const translations:Record<string,string>={
+ "Company profile":"ملف الشركة", "Company overview":"نظرة عامة على الشركة", "Contact information":"معلومات التواصل", "Business information":"معلومات النشاط", "Organization & access":"المؤسسة والصلاحيات",
+ "Company creation date":"تاريخ إنشاء الشركة", "Business category":"نوع النشاط", "Company name":"اسم الشركة", "Trading name":"الاسم التجاري", "Organization type":"نوع المنشأة", "Tax / registration ID":"الرقم الضريبي / رقم التسجيل", "Primary contact":"جهة الاتصال الرئيسية", "Contact email":"البريد الإلكتروني للتواصل", "Contact phone":"هاتف التواصل", "Primary currency":"العملة الأساسية",
+ "Edit company":"تعديل الشركة", "Manage employees":"إدارة الموظفين", "Back to companies":"العودة إلى الشركات", "Open organization":"عرض المؤسسة", "Assigned users":"المستخدمون المعينون", "No assigned users.":"لا يوجد مستخدمون معينون.",
+ "Company updated successfully.":"تم تحديث بيانات الشركة بنجاح.", "Loading company profile…":"جارٍ تحميل ملف الشركة…", "Breadcrumb":"مسار التنقل",
+ "People and linked accounts in this company.":"الموظفون والحسابات المرتبطة بهذه الشركة.", "Name, Employee ID or username":"الاسم أو الرقم الوظيفي أو اسم المستخدم", "Employment status":"حالة التوظيف", "Department / position":"القسم / المسمى الوظيفي", "Username":"اسم المستخدم", "Start date":"تاريخ بدء العمل", "Manage account":"إدارة الحساب", "Account setup":"إعداد الحساب",
+ "Application account":"حساب التطبيق", "Secure account setup":"إعداد الحساب الآمن", "Awaiting password setup":"بانتظار تعيين كلمة المرور", "Password configured":"تم تعيين كلمة المرور", "Loading account…":"جارٍ تحميل الحساب…",
+ "Account information":"معلومات الحساب", "Assigned automatically when saved":"يُعيّن تلقائيًا عند الحفظ", "Invited after approval":"بانتظار التفعيل بعد الموافقة", "Private activation invitation":"دعوة تفعيل خاصة",
+ "The employee sets their own password using a private invitation. No email or SMS is sent automatically.":"يعيّن الموظف كلمة مروره عبر دعوة خاصة. لا تُرسل رسائل بريدية أو نصية تلقائيًا.",
+ "Email or username":"البريد الإلكتروني أو اسم المستخدم", "Enter a valid email or username.":"أدخل بريدًا إلكترونيًا أو اسم مستخدم صحيحًا.",
+ "Employee IDs are assigned once and cannot be changed.":"يُعيّن الرقم الوظيفي مرة واحدة ولا يمكن تغييره.", "This username is already in use.":"اسم المستخدم مستخدم بالفعل.", "Choose a valid username.":"أدخل اسم مستخدم صحيحًا.",
+ "This submission was already used. Open the existing employee or start a new form.":"تم استخدام هذا الطلب مسبقًا. افتح ملف الموظف الحالي أو ابدأ نموذجًا جديدًا.",
+ "You do not have permission to view company profiles.":"لا تملك صلاحية عرض ملفات الشركات.", "Company not found.":"لم يتم العثور على الشركة.", "You do not have permission to edit this company.":"لا تملك صلاحية تعديل هذه الشركة.",
+ "Personal details":"البيانات الشخصية", "Contact details and identity information.":"معلومات الاتصال والهوية.", "Role, status and reporting details.":"المسمى الوظيفي والحالة والإدارة المباشرة.", "Location & notes":"الموقع والملاحظات", "Workplace assignment and internal notes.":"موقع العمل والملاحظات الداخلية.",
+ "Create Employee":"إضافة موظف", "Edit Employee":"تعديل الموظف", "Company assignment":"تعيين الشركة", "Choose the company this employee belongs to.":"اختر الشركة التي ينتمي إليها الموظف.", "Keep personal, employment and location details organized in one profile.":"نظّم البيانات الشخصية والوظيفية وموقع العمل في ملف واحد.",
+};
+export default translations;

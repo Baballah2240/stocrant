@@ -120,7 +120,8 @@ describe("Transactional employee accounts and private HR communication", () => {
     assert.ok(!rows("employees").some(row=>row.employeeCode===input.employeeCode));
     assert.ok(!rows("accessUsers").some(row=>row.email===input.email));
     await expect(await req(`/workspace/approvals/${queued.request.id}`,"POST",{decision:"approve"}),200);
-    const created=rows("employees").find(row=>row.employeeCode===input.employeeCode)!;
+    const created=rows("employees").find(row=>row.email===input.email)!;
+    assert.match(String(created.employeeCode), /^EMP-\d{4}-[A-F0-9]{8}$/);
     assert.equal(rows("accessUsers").filter(row=>row.employeeId===created.id).length,1);
     await expect(await req(`/workspace/approvals/${queued.request.id}`,"POST",{decision:"approve"}),400);
     await expect(await req(`/workspace/access/approval-rules/${rule.id}`,"PATCH",{active:false}),200);

@@ -1,5 +1,5 @@
 import ChoiceSelect from "./ChoiceSelect";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMeta } from "../meta-context";
 import { useSession } from "../session-context";
@@ -20,7 +20,7 @@ function Field({ field, value, onChange }: FieldProps) {
   const { user } = useSession();
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => { if (field.key === "organizationId") void api.auth.companies().then(result => setCompanies(result.companies)).catch(() => setCompanies([])); if (field.key === "parentOrganizationId") void api.collections.list("organizations").then(result => setCompanies(result.items.filter(item => item.status === "active").map(item => ({ id: item.id, name: String(item.name) })))).catch(() => setCompanies([])); }, [field.key, user]);
-  if (field.readOnly) return <label className="form-field"><span className="field-label">{field.label}</span><input readOnly value={value ?? ""} placeholder={field.placeholder} /><small>Assigned automatically when saved</small></label>;
+  if (field.readOnly) return <label className="form-field"><span className="field-label">{t(field.label)}</span><input readOnly value={value ?? ""} placeholder={t("Assigned automatically when saved")} /><small>{t("Assigned automatically when saved")}</small></label>;
   if (["organizationId", "parentOrganizationId"].includes(field.key)) return <label className="form-field"><span className="field-label">{t(field.key === "organizationId" ? "Company" : "Organization")}</span><ChoiceSelect required={field.required} value={value ?? ""} onChange={event => onChange(field.key, event.target.value)}><option value="">{t(field.key === "organizationId" ? "Choose company" : "Choose organization")}</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</ChoiceSelect></label>;
   const inputType: Record<string, string> = {
     text: "text",
@@ -131,6 +131,8 @@ export default function EntityForm() {
   const [values, setValues] = useState<Record<string, string | number | null>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [clientRequestId] = useState(() => crypto.randomUUID());
   const [companies, setCompanies] = useState<CollectionItem[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
 
@@ -169,7 +171,7 @@ export default function EntityForm() {
   // Seed the form with existing values (or defaults when creating).
   useEffect(() => {
     if (!spec) return;
-    setValues({ ...buildInitialValues(spec.fields, item), ...(!isEdit && collection === "employees" && companyId ? { organizationId: companyId } : {}), ...(!isEdit && collection === "companies" && parentOrganizationId ? { parentOrganizationId } : {}) });
+    setValues({ ...buildInitialValues(spec.fields, item), ...(!isEdit && collection === "employees" ? { status: "active", employmentType: "full-time" } : {}), ...(!isEdit && collection === "employees" && companyId ? { organizationId: companyId } : {}), ...(!isEdit && collection === "companies" && parentOrganizationId ? { parentOrganizationId } : {}) });
   }, [spec, item, companyId, parentOrganizationId, isEdit, collection]);
 
   function handleChange(key: string, value: unknown) {
@@ -178,24 +180,26 @@ export default function EntityForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!spec) return;
+    if (!spec || submittingRef.current) return;
     if (collection === "employees" && !companies.some((company) => company.id === values.organizationId)) {
       setError("Choose the company this employee belongs to.");
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
       const result = isEdit
         ? await api.collections.update(collection!, id!, values)
-        : await api.collections.create(collection!, values);
-      navigate(`/${module}/${collection}`, {
+        : await api.collections.create(collection!, { ...values, ...(collection === "employees" ? { clientRequestId } : {}) });
+      navigate(collection === "employees" && !isEdit && result.item?.id ? `/hr/employees/${result.item.id}` : `/${module}/${collection}`, {
         replace: true,
         state: { success: result.pending ? "Your change was submitted for approval." : `${spec.singular} ${isEdit ? "updated" : "created"} successfully.` },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -219,10 +223,10 @@ export default function EntityForm() {
         <div>
           <button type="button" className="back-button" onClick={() => navigate(`/${module}/${collection}`)}>← Back to {spec.label}</button>
           <h1 className="anim-rise">
-            {isEdit ? "Edit" : "Create"} {spec.singular}
+            {t(`${isEdit ? "Edit" : "Create"} ${spec.singular}`)}
           </h1>
           <p className="hint">
-            {collection === "employees" ? "Keep personal, employment and location details organized in one profile." : `${isEdit ? "Update" : "Add"} ${spec.collection} details`}
+            {t(collection === "employees" ? "Keep personal, employment and location details organized in one profile." : `${isEdit ? "Update" : "Add"} ${spec.collection} details`)}
           </p>
         </div>
       </div>
@@ -233,8 +237,9 @@ export default function EntityForm() {
       <form className="form entity-form" onSubmit={handleSubmit}>
         {employeeGroups ? employeeGroups.map((group) => {
           const fields = spec.fields.filter((field) => group.keys.includes(field.key));
-          return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{group.title}</h2><p>{group.description}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">Company <span className="required" aria-hidden="true">*</span></label><ChoiceSelect id="employee-company" required disabled={companiesLoading || submitting} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? "Loading companies…" : "Choose a company"}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</ChoiceSelect>{!companiesLoading && !companies.length && <p className="hint">Add a company in Organizations before adding an employee.</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>;
+          return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{t(group.title)}</h2><p>{t(group.description)}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">{t("Company")} <span className="required" aria-hidden="true">*</span></label><ChoiceSelect id="employee-company" required disabled={companiesLoading || submitting || companies.length === 1 || Boolean(companyId)} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? "Loading companies…" : "Choose a company"}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</ChoiceSelect>{values.organizationId && <small>{t("Organization")}: {String(companies.find(company => company.id === values.organizationId)?.organizationName || t("Not provided"))}</small>}{!companiesLoading && !companies.length && <p className="hint">Add a company in Organizations before adding an employee.</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>;
         }) : <section className="card"><div className="form-grid">{spec.fields.map((field) => <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>}
+        {collection === "employees" && !isEdit && <section className="card employee-form-section"><h2>{t("Account information")}</h2><div className="form-grid">{[["Username","Assigned automatically when saved"],["Account status","Invited after approval"],["Role","Employee"],["Secure account setup","Private activation invitation"]].map(([label,value])=><label className="form-field" key={label}><span>{t(label)}</span><input readOnly value={t(value)} /></label>)}</div><p className="hint">{t("The employee sets their own password using a private invitation. No email or SMS is sent automatically.")}</p></section>}
         <div className="card entity-form-actions-card">
           <div className="form-actions">
             <button type="submit" className="primary" disabled={submitting || (collection === "employees" && (companiesLoading || !companies.length))}>

@@ -1,0 +1,16 @@
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { request } from "../api";
+import { useLanguage } from "../language-context";
+import { useSession } from "../session-context";
+import { hasPermission } from "../access-control";
+import "../company-profile.css";
+type AccountSummary={employeeCode:string;companyName?:string;organizationName?:string;account:null|{id:string;username:string;status:string;roleName:string;activationRequired:boolean}};
+export default function EmployeeAccountPanel({employeeId}:{employeeId:string}){
+  const {t}=useLanguage();const {user}=useSession();const [data,setData]=useState<AccountSummary|null>(null);const [error,setError]=useState("");const [invitation,setInvitation]=useState<{url:string;expiresAt:string}|null>(null);const [busy,setBusy]=useState(false);const saving=useRef(false);
+  const allowed=hasPermission(user,"hr","edit")&&!user?.ownRecordsOnly;
+  useEffect(()=>{if(!allowed)return;let active=true;void request<AccountSummary>(`/workspace/hr/communication/employees/${encodeURIComponent(employeeId)}/account`).then(result=>{if(active)setData(result);}).catch(err=>{if(active)setError(err.message);});return()=>{active=false;};},[employeeId,allowed]);
+  if(!allowed)return null;
+  async function invite(){if(saving.current)return;saving.current=true;setBusy(true);setError("");try{const result=await request<{token:string;expiresAt:string}>(`/workspace/hr/communication/employees/${encodeURIComponent(employeeId)}/invitation`,{method:"POST"});setInvitation({url:`${location.origin}/#activate=${result.token}`,expiresAt:result.expiresAt});}catch(err){setError((err as Error).message);}finally{saving.current=false;setBusy(false);}}
+  return <section className="card employee-account-panel" id="account"><h2>{t("Application account")}</h2>{error&&<p role="alert">{t(error)}</p>}{data?<><dl>{[["Employee ID",data.employeeCode],["Company",data.companyName],["Organization",data.organizationName],["Username",data.account?.username],["Account status",data.account?.status],["Role",data.account?.roleName],["Secure account setup",data.account?.activationRequired?"Awaiting password setup":data.account?"Password configured":"No linked account"]].map(([label,value])=><div key={label}><dt>{t(label!)}</dt><dd>{value?(["Account status","Role","Secure account setup"].includes(label!)?t(value):value):t("Not provided")}</dd></div>)}</dl><div className="company-actions">{data.account?.status==="invited"&&data.account.activationRequired&&<button type="button" disabled={busy} onClick={()=>void invite()}>{t("Create activation invitation")}</button>}{data.account&&hasPermission(user,"access","edit")&&<Link to={`/admin?tab=Users&user=${encodeURIComponent(data.account.id)}`}>{t("Manage account")}</Link>}</div>{invitation&&<div className="alert"><strong>{t("Private one-time invitation")}</strong><p>{t("Share directly with the verified employee. Do not post publicly. Creating another invitation invalidates this one.")}</p><input aria-label={t("Activation link")} readOnly value={invitation.url} onFocus={event=>event.target.select()}/><p>{t("Expires")}: {new Date(invitation.expiresAt).toLocaleString()}</p><button onClick={()=>setInvitation(null)}>{t("Close")}</button></div>}</>:<p role="status">{t("Loading account…")}</p>}</section>;
+}

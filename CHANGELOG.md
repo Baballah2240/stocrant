@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-19 ? Company profile and employee identity workflow
+
+- Replaced the generic company detail page with a responsive, localized company profile, readable organization names, grouped contact/business/access cards and explicit Save/Cancel editing. Added a scoped employee table with username/ID search, filters, pagination and company-preselected creation.
+- Added server-generated immutable Employee IDs, unique usernames, email-or-username login, authorized username editing and idempotent employee submissions, including approval-gated creation. Existing secure linked-account creation and private activation are now shown directly in employee profiles.
+- Added backed-up username migration and JSON-store unique constraints without changing historical Employee IDs, passwords or company relationships.
+- Verified npm run check (81 API tests plus eight other tests, both type checks, storage checks, production build and security smoke) and isolated company/HR communication browser workflows. Rebuilt and saved the mobile debug package locally; no phone installation or production deployment was performed.
+- Implementation, affected files, migration and schema limitations: docs/COMPANY_PROFILE_EMPLOYEE_IDENTITIES.md.
+
+
 ## 2026-10-19 ? Mobile update and source checkpoint
 
 - Rebuilt and verified the Android debug APK with the latest HR, document and notification screens; synchronized Capacitor resources. No USB device was detected, so device installation/runtime checks remain pending.

@@ -66,6 +66,7 @@ android/.gradle/
 android/app/release/
 *.apk
 *.aab
+mobile/releases/
 *.keystore
 
 # iOS build output and local dependency state

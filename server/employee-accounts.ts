@@ -1,3 +1,4 @@
+import { generateUsername } from "./employee-identity.js";
 import { createHash, randomBytes } from "node:crypto";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore } from "./storage.js";
@@ -22,6 +23,7 @@ export function syncEmployeeAccount(actor: AuthenticatedUser, employee: Row, pre
     if (!role) throw new Error("The Employee role is unavailable. Ask the Main Admin to restore it.");
     account = { id: nextCollectionId("accessUsers"), employeeId: employee.id, name: employee.name,
       email: email || `employee-${employee.id}@employee.invalid`, phone: employee.phone || "",
+      username: generateUsername(rows("accessUsers"), employee.name, employee.employeeCode),
       roleId: "role-employee", permissions: ["hr.view"], ownRecordsOnly: true,
       organizationIds: [employee.organizationId], tenantOrganizationIds: [],
       locationIds: employee.locationId ? [employee.locationId] : [],

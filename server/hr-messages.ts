@@ -61,7 +61,15 @@ function campaignSender(row: Row) { return publicUser(row as Parameters<typeof p
 const router = Router();
 router.use((req, res, next) => { if (!managesEmployees(req.auth)) return res.status(403).json({ error: "HR employee management permission is required." }); next(); });
 router.get("/employees", (req, res) => {
-  res.json({ employees: employeesFor(req.auth!).map(employee => { const account = rows("accessUsers").find(row => row.employeeId === employee.id); return { id: employee.id, name: employee.name, employeeCode: employee.employeeCode, organizationId: employee.organizationId, department: employee.department, jobTitle: employee.jobTitle, email: employee.email, phone: employee.phone, status: employee.status, account: account ? { id: account.id, status: account.status, roleId: account.roleId, activationRequired: account.activationRequired === true } : null }; }), companies: rows("companies").filter(row => isWithinScope(req.auth!, { ...row, organizationId: row.id })).map(row => ({ id: row.id, name: row.name })) });
+  res.json({ employees: employeesFor(req.auth!).map(employee => { const account = rows("accessUsers").find(row => row.employeeId === employee.id); return { id: employee.id, name: employee.name, employeeCode: employee.employeeCode, organizationId: employee.organizationId, department: employee.department, jobTitle: employee.jobTitle, email: employee.email, phone: employee.phone, status: employee.status, account: account ? { id: account.id, status: account.status, roleId: account.roleId, username: account.username, activationRequired: account.activationRequired === true } : null }; }), companies: rows("companies").filter(row => isWithinScope(req.auth!, { ...row, organizationId: row.id })).map(row => ({ id: row.id, name: row.name })) });
+});
+router.get("/employees/:id/account", (req, res) => {
+  const employee = employeesFor(req.auth!).find(row => row.id === req.params.id);
+  if (!employee) return res.status(404).json({ error: "Employee not found." });
+  const account = rows("accessUsers").find(row => row.employeeId === employee.id);
+  const company = rows("companies").find(row => row.id === employee.organizationId);
+  res.json({ employeeCode:employee.employeeCode, companyName:company?.name, organizationName:rows("organizations").find(row=>row.id===company?.parentOrganizationId)?.name,
+    account:account ? { id:account.id,username:account.username,status:account.status,roleName:rows("accessRoles").find(row=>row.id===account.roleId)?.name || "Employee",activationRequired:account.activationRequired === true } : null });
 });
 router.post("/employees/:id/invitation", (req, res) => {
   const employee = employeesFor(req.auth!).find(row => row.id === req.params.id);

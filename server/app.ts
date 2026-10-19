@@ -1,3 +1,4 @@
+import companyProfileRouter from "./routes/company-profile.js";
 import hrMessagesRouter from "./hr-messages.js";
 import { existsSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
@@ -93,6 +94,7 @@ export function createApp() {
   app.use("/api/workspace/documents", documentsRouter);
   app.use("/api/collections", collectionsRouter);
   app.use("/api/workspace/attendance", attendanceRouter);
+  app.use("/api/workspace/company-profiles", companyProfileRouter);
   app.use("/api/workspace/hr/communication", hrMessagesRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);
