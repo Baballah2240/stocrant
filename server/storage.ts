@@ -1,3 +1,4 @@
+import { migratePayroll } from "./payroll-migration.js";
 import { migrateEmployeeIdentities, assertEmployeeIdentities } from "./employee-identity.js";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -333,6 +334,7 @@ function read(): StoreData {
       migrateOrganizations(seeded);
       migrateDocuments(seeded);
       migrateEmployeeIdentities(seeded);
+      migratePayroll(seeded);
       write(seeded);
       return seeded;
     }
@@ -344,13 +346,15 @@ function read(): StoreData {
     const organizationsChanged = migrateOrganizations(parsed);
     const documentsChanged = migrateDocuments(parsed);
     const identitiesChanged = migrateEmployeeIdentities(parsed);
-    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged) {
+    const payrollChanged = migratePayroll(parsed);
+    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged || payrollChanged) {
       // Capture the on-disk original before its first v2 migration. The backup
       // stays beside the JSON store and is ignored by Git with the data folder.
       if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
       if (documentsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-documents-v4-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-documents-v4-backup.json"));
       if (organizationsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"));
       if (identitiesChanged && !existsSync(join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"));
+      if (payrollChanged && !existsSync(join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"));
       write(parsed);
     }
     return parsed;

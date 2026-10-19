@@ -1,3 +1,4 @@
+import { payrollList } from "./payroll.js";
 import { Router } from "express";
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
@@ -73,6 +74,7 @@ export function createCollectionRouter(spec: EntitySpec): Router {
 
   router.get("/", (req: Request, res: Response) => {
     if (!req.auth || !can(req.auth, section, "view")) return res.status(403).json({ error: "You do not have permission to view this section." });
+    if(spec.collection === "payroll") return res.json({items:payrollList(req.auth).legacy,entity:"payroll"});
     const items = listCollection(spec.collection)
       .filter((item) => isWithinScope(req.auth!, item))
       .map((item) => redactRecord(spec.collection, item, req.auth!));
@@ -81,6 +83,7 @@ export function createCollectionRouter(spec: EntitySpec): Router {
 
   router.get("/:id", (req: Request, res: Response) => {
     if (!req.auth || !can(req.auth, section, "view")) return res.status(403).json({ error: "You do not have permission to view this section." });
+    if(spec.collection === "payroll") { const item=payrollList(req.auth).legacy.find(row=>row.id===req.params.id);return item?res.json({item}):res.status(404).json({error:"Payslip not found."}); }
     const item = getCollectionItem(spec.collection, req.params.id as string);
     if (!item) return res.status(404).json({ error: `${spec.singular} not found.` });
     if (!isWithinScope(req.auth, item)) return res.status(404).json({ error: `${spec.singular} not found.` });

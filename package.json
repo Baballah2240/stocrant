@@ -16,7 +16,7 @@
     "start": "npm run build:full && node dist/index.js",
     "preview:local": "npm run build:full && node scripts/start-local-preview.mjs",
     "typecheck": "tsc --noEmit -p server/tsconfig.json",
-    "test": "npm run build && node --test dist/routes.test.js dist/organizations.test.js dist/documents.test.js dist/hr-communication.test.js dist/company-profile.test.js && node scripts/verify-storage.mjs",
+    "test": "npm run build && node --test dist/routes.test.js dist/organizations.test.js dist/documents.test.js dist/hr-communication.test.js dist/company-profile.test.js dist/payroll.test.js && node scripts/verify-storage.mjs",
     "admin:reset": "node scripts/reset-admin.mjs",
     "setup:reset": "node scripts/reset-first-time-setup.mjs",
     "mobile:build": "node ./node_modules/vite/bin/vite.js build && npx cap sync",
@@ -37,6 +37,7 @@
     "test:hr-communication": "npm run build:full && node scripts/verify-hr-communication.mjs",
     "mobile:save": "node scripts/save-mobile-update.mjs",
     "test:company-profile": "npm run build:full && node scripts/verify-company-profile.mjs",
+    "test:payroll": "npm run build:full && node scripts/verify-payroll.mjs",
     "mobile:icons": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-mobile-app-icons.ps1"
   },
   "dependencies": {

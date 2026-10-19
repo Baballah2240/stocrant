@@ -2,8 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore } from "./storage.js";
 
-export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve" | "reply" | "export";
-export type WorkspaceSection = "organizations" | "locations" | "hr" | "operations" | "customerService" | "inventory" | "finance" | "access" | "approvals" | "audit";
+export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve" | "reply" | "export" | "pay" | "configure";
+export type WorkspaceSection = "organizations" | "locations" | "hr" | "operations" | "customerService" | "inventory" | "finance" | "payroll" | "access" | "approvals" | "audit";
 
 const COLLECTION_SECTIONS: Record<string, WorkspaceSection> = {
   organizations: "organizations",
@@ -12,7 +12,7 @@ const COLLECTION_SECTIONS: Record<string, WorkspaceSection> = {
   tasks: "operations", workItems: "operations", workActivity: "operations", suppliers: "operations", customers: "operations", products: "operations",
   customerAppointments: "customerService", customerQuestions: "customerService", customerReplies: "customerService",
   warehouses: "inventory", bins: "inventory", inventory: "inventory", inventoryItems: "inventory", stockMovements: "inventory", inventoryMovements: "inventory", stockTransfers: "inventory", warehouseOrders: "inventory",
-  payroll: "finance", sales: "finance", expenses: "finance", taxes: "finance", purchases: "finance", returns: "finance", financeAccounts: "finance", financeTransactions: "finance",
+  payroll: "payroll", sales: "finance", expenses: "finance", taxes: "finance", purchases: "finance", returns: "finance", financeAccounts: "finance", financeTransactions: "finance",
   accessRoles: "access", accessUsers: "access", approvalRules: "access", approvalRequests: "approvals", auditLog: "audit", locationUpdates: "locations", roles: "access", users: "access",
 };
 
@@ -92,7 +92,7 @@ export function requirePermission(section: WorkspaceSection, action: PermissionA
 }
 
 export function canViewSalaryData(user: AuthenticatedUser | undefined) {
-  return Boolean(user && (can(user, "finance", "view") || permissionsFor(user).includes("hr.salary.view") || permissionsFor(user).includes("*")));
+  return Boolean(user && (can(user, "finance", "view") || can(user, "payroll", "view") || permissionsFor(user).includes("hr.salary.view") || permissionsFor(user).includes("*")));
 }
 
 export function isWithinScope(user: AuthenticatedUser, row: Record<string, unknown>): boolean {

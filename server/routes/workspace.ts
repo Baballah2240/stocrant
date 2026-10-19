@@ -1,3 +1,4 @@
+import { payrollCan } from "../payroll.js";
 import { generateUsername, validUsername } from "../employee-identity.js";
 import { Router } from "express";
 import { z } from "zod";
@@ -311,6 +312,7 @@ router.get("/export/:collection", (req, res) => {
   if (!known) return res.status(404).json({ error: "Unknown export collection." });
   const section = sectionForCollection(collection);
   if (!can(req.auth, section, "export")) return res.status(403).json({ error: `You do not have permission to export ${section}.` });
+  if(collection === "payroll" && !payrollCan(req.auth!, "view")) return res.status(403).json({error:"Use your employee payslip view for private payroll records."});
   const items = scoped(req, rows(collection), collection).map((item) => {
     const safe = { ...item };
     delete safe.passwordHash;
@@ -681,7 +683,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     password: z.string().min(12).max(256).optional(),
     roleId: z.string().trim().min(1).max(160).optional(),
     employeeId: z.string().trim().max(160).nullable().optional(),
-    permissions: z.array(z.string().trim().regex(/^(organizations|locations|hr|operations|customerService|inventory|finance|approvals|access|audit)\.(view|create|edit|delete|approve|reply|export|\*)$/)).nullable().optional(),
+    permissions: z.array(z.string().trim().regex(/^(organizations|locations|hr|operations|customerService|inventory|finance|payroll|approvals|access|audit)\.(view|create|edit|delete|approve|reply|export|pay|configure|\*)$/)).nullable().optional(),
     organizationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),
     tenantOrganizationIds: z.array(z.string().trim().min(1).max(160)).max(1).optional(),
     locationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),

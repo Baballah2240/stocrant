@@ -669,6 +669,13 @@ function postPayrollDeduction(record: AttendanceRow, employee: Row, settings: At
   const period = payrollPeriod(record.date);
   const existingAdjustment = rows("attendancePayrollAdjustments").find((adjustment) => adjustment.attendanceId === record.id);
   if (existingAdjustment) return { posted: existingAdjustment.status === "posted", adjustment: existingAdjustment };
+  // New payroll runs derive attendance once from immutable source snapshots.
+  // Queue approval metadata; never update their salary totals or legacy drafts.
+  if (rows("payrollSettings").some(setting => setting.organizationId === record.organizationId && setting.configured === true)) {
+    const adjustment: Row = { id: nextCollectionId("attendancePayrollAdjustments"), organizationId: record.organizationId, attendanceId: record.id, employeeId: employee.id, period, amount, status: "source-approved", reason: "Available to the controlled payroll calculator; not posted separately.", createdBy: actor.id, createdAt: now() };
+    writeRow("attendancePayrollAdjustments", adjustment);
+    return { posted: false, adjustment };
+  }
   const payroll = rows("payroll").find((item) => (item.employeeId === employee.id || text(item.employee) === text(employee.name)) && item.period === period);
   if (payroll && ["approved", "paid", "final"].includes(String(payroll.status).toLowerCase())) {
     const adjustment: Row = { id: nextCollectionId("attendancePayrollAdjustments"), organizationId: record.organizationId, attendanceId: record.id, employeeId: employee.id, employee: employee.name, period, amount, status: "pending", reason: "Attendance deduction approved after the payroll record was finalized.", createdBy: actor.id, createdAt: now() };

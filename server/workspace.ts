@@ -103,6 +103,7 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
 }
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
+  protectPayrollMutation(collection, action, payload, targetId);
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   if (sectionForCollection(collection) === "hr" && !canManageHr(user, action)) throw new Error("You do not have permission to manage HR records.");
   const data = getStore();
@@ -165,6 +166,14 @@ export function mutateCollection(
   return transaction(() => performMutation(user, collection, action, payload, targetId, permissionAction));
 }
 
+function currentPayrollTransaction(id?: string) { return id && rows("financeTransactions").some(row => row.id === id && row.payrollRunId); }
+
+function protectPayrollMutation(collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string) {
+  if (["payroll", "payrollEntries", "payrollRuns", "payrollSources", "payrollSettings", "payrollSalaries", "payrollHistory"].includes(collection)) throw new Error("Use the secure Payroll workspace to manage payroll records.");
+  if (collection === "financeTransactions" && action === "create" && payload.type === "payroll" && rows("payrollSettings").some(setting => setting.configured && setting.organizationId === payload.organizationId)) throw new Error("Use Payroll runs to record confirmed salary payments and prevent double counting.");
+  if (collection === "financeTransactions" && (payload.payrollRunId || (currentPayrollTransaction(targetId)))) throw new Error("Confirmed payroll ledger entries are immutable. Use an approved later-period payroll adjustment.");
+}
+
 function performMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId: string | undefined, permissionAction: PermissionAction): { pending: boolean; item?: Row; request?: ApprovalRequest } {
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   const section = sectionForCollection(collection);
@@ -177,6 +186,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
   if (payload.id !== undefined && (!current || payload.id !== current.id)) throw Object.assign(new Error("Record identifiers are assigned by the server and cannot be changed."), { statusCode: 400 });
   if (["organizations", "companies"].includes(collection)) payload = validateHierarchyMutation(user, collection, action, payload, current);
   if (action === "create" && !isMainManager(user) && !payload.organizationId && !payload.companyId && user.organizationIds.length === 1) payload = { ...payload, organizationId: user.organizationIds[0] };
+  protectPayrollMutation(collection, action, payload, targetId);
   if (["products", "inventoryItems"].includes(collection) && action !== "delete" && !rows("companies").some(company => company.id === (payload.organizationId ?? current?.organizationId))) throw new Error("Choose an existing company for this product.");
   if (action !== "delete" && !(collection === "organizations" && isMainManager(user)) && !isWithinScope(user, { ...current, ...payload, createdBy: current?.createdBy ?? user.id })) throw new Error("You do not have permission to use this record scope.");
   if (!["organizations", "companies"].includes(collection)) payload = validateHierarchyMutation(user, collection, action, payload, current);

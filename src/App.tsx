@@ -1,3 +1,4 @@
+const PayrollWorkspace = lazy(() => import("./components/PayrollWorkspace"));
 const CompanyProfile = lazy(() => import("./components/CompanyProfile"));
 const HRCommunication = lazy(() => import("./components/HRCommunication"));
 const EmployeeInbox = lazy(() => import("./components/EmployeeInbox"));
@@ -69,6 +70,9 @@ const router = createBrowserRouter([
       { path: "organizations", element: <OrganizationWorkspace /> },
       { path: "organization/companies/:id", element: <CompanyProfile /> },
       { path: "organization/companies/:id/edit", element: <CompanyProfile /> },
+      { path: "hr/payroll", element: <PayrollWorkspace /> },
+      { path: "me/payroll", element: <PayrollWorkspace /> },
+      { path: "hr/payroll/:id", element: <PayrollWorkspace /> },
       { path: "hr", element: <HRWorkspace /> },
       { path: "hr/attendance", element: <AttendanceWorkspace /> },
       { path: "hr/communication", element: <HRCommunication /> },

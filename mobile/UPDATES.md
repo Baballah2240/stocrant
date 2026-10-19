@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-19 - Payroll management
+
+- Added shared responsive payroll management and employee-only payslips with English/Arabic layouts, salary versions, attendance/shift calculations, approved source adjustments, independent approvals and confirmed Finance payment records.
+- Payroll access follows backend company, location, ownership and action permissions. Existing accounts and historical records remain intact.
+- Shared source and browser/mobile viewport workflows are verified. A new native APK has not been built or installed for this payroll task; build/save it with the existing mobile workflow when requested.
+
 ## 2026-10-19 ? App logo
 
 - Refined the existing ledger mark into a blue-to-mint app icon on navy. Saved an editable SVG, 1024px PNG and rounded preview in mobile/branding/.

@@ -51,7 +51,7 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
   if (!main) {
     const role = rows("accessRoles").find(role => role.id === next.roleId);
     const grants = Array.isArray(next.permissions) ? next.permissions : Array.isArray(role?.permissions) ? role.permissions : [];
-    const actions = ["view", "create", "edit", "delete", "approve", "reply", "export"] as const;
+    const actions = ["view", "create", "edit", "delete", "approve", "reply", "export", "pay", "configure"] as const;
     for (const grant of grants.map(String)) {
       const [section, action] = grant.split(".");
       if (grant === "*" || !section || !action) policyError("You do not have permission to grant unrestricted access.", 403);

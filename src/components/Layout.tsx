@@ -26,6 +26,8 @@ const navItems: NavEntry[] = [
   { to: "/operations", label: "Operations", icon: "work", section: "operations" },
   { to: "/customer-service", label: "Customer Service", icon: "work", section: "customerService" },
   { to: "/warehouse", label: "Inventory", icon: "inventory", section: "inventory" },
+  { to: "/hr/payroll", label: "Payroll", icon: "finance", section: "payroll" },
+  { to: "/me/payroll", label: "My payslips", icon: "finance" },
   { to: "/finance", label: "Finance", icon: "finance", section: "finance" },
   { to: "/admin", label: "Access & Settings", icon: "settings", section: "access" },
   { to: "/security", label: "App lock", icon: "settings" },
