@@ -1,3 +1,4 @@
+import { redesignTranslations } from "./redesign-translations.ts";
 import payrollTranslations from "./payroll-translations.ts";
 import companyProfileTranslations from "./company-profile-translations.ts";
 import hrCommunicationTranslations from "./hr-communication-translations.ts";
@@ -208,6 +209,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   ...hrCommunicationTranslations,
   ...companyProfileTranslations,
   ...payrollTranslations,
+  ...redesignTranslations,
   "Notifications, {count} unread": "الإشعارات، {count} غير مقروءة",
   "{count} unread updates": "{count} من التحديثات غير المقروءة",
   "{count} updates": "{count} من التحديثات",

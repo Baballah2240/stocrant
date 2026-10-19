@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import { useEffect, useState } from "react";
 import { api, type Store, type Zone } from "../api";
 import { classNames } from "../util";
@@ -8,6 +9,7 @@ interface StoreSummary extends Store {
 }
 
 export default function ReportView() {
+  const { t } = useLanguage();
   const [stores, setStores] = useState<StoreSummary[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,17 +46,17 @@ export default function ReportView() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Occupancy Report</h1>
-          <p className="hint">A snapshot of every location, its people, and zone-level detail.</p>
+          <h1>{t("Occupancy Report")}</h1>
+          <p className="hint">{t("A snapshot of every location, its people, and zone-level detail.")}</p>
         </div>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">{t(error)}</p>}
 
       {loading ? (
-        <p className="hint">Loading report&hellip;</p>
+        <p className="hint">{t("Loading report…")}</p>
       ) : stores.length === 0 ? (
-        <p className="empty">No stores to report on yet.</p>
+        <p className="empty">{t("No stores to report on yet.")}</p>
       ) : (
         <div className="report">
           {groupedZones.map(({ store, zones: storeZones }) => (
@@ -64,18 +66,18 @@ export default function ReportView() {
                 <span className={classNames("badge", badgeClass(store.status))}>{store.status.replace("-", " ")}</span>
               </div>
               <div className="grid-2">
-                <div className="stat"><span className="stat-value">{store.peopleCount}</span><span className="stat-label">People</span></div>
-                <div className="stat"><span className="stat-value">{store.occupancy?.occupancyPct ?? 0}%</span><span className="stat-label">Occupancy</span></div>
-                <div className="stat"><span className="stat-value">{store.occupancy?.capacity ?? 0}</span><span className="stat-label">Capacity</span></div>
-                <div className="stat"><span className="stat-value">{storeZones.length}</span><span className="stat-label">Zones</span></div>
+                <div className="stat"><span className="stat-value">{store.peopleCount}</span><span className="stat-label">{t("People")}</span></div>
+                <div className="stat"><span className="stat-value">{store.occupancy?.occupancyPct ?? 0}%</span><span className="stat-label">{t("Occupancy")}</span></div>
+                <div className="stat"><span className="stat-value">{store.occupancy?.capacity ?? 0}</span><span className="stat-label">{t("Capacity")}</span></div>
+                <div className="stat"><span className="stat-value">{storeZones.length}</span><span className="stat-label">{t("Zones")}</span></div>
               </div>
               <div className="table-wrap">
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Zone</th>
-                      <th className="num">Occupancy</th>
-                      <th className="num">Assigned / Capacity</th>
+                      <th>{t("Zone")}</th>
+                      <th className="num">{t("Occupancy")}</th>
+                      <th className="num">{t("Assigned / Capacity")}</th>
                     </tr>
                   </thead>
                   <tbody>

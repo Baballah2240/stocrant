@@ -33,7 +33,7 @@ export default function BackButton({ label, fallback = "/", onBack, className = 
   return (
     <button type="button" className={`back-button ${className}`} disabled={disabled} onClick={goBack} aria-label={text}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 4-8 8 8 8" /></svg>
-      <span>{text}</span>
+      <span>{t(text)}</span>
     </button>
   );
 }

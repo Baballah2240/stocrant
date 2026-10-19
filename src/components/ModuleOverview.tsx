@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import { useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { useMeta } from "../meta-context";
@@ -10,6 +11,7 @@ interface ModuleOverviewProps {
 }
 
 export default function ModuleOverview({ module }: ModuleOverviewProps) {
+  const { t } = useLanguage();
   const { modules, entities, loading } = useMeta();
   const { user } = useSession();
   const canAddCompany = module === "organization" && user?.roleId === "role-main-manager"
@@ -22,7 +24,7 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
   );
 
   if (loading || !moduleInfo) {
-    return <p className="hint">Loading metadata&hellip;</p>;
+    return <p className="hint">{t("Loading metadata…")}</p>;
   }
 
   return (
@@ -31,32 +33,29 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
         <div>
           <BackButton />
           <h1 className="anim-rise">
-            {moduleInfo.label}
+            {t(moduleInfo.label)}
           </h1>
           <p className="hint">
-            {moduleEntities.length} {moduleEntities.length === 1 ? "entity" : "entities"} · Manage your
-            {module} module from one place
-          </p>
+            {moduleEntities.length} {moduleEntities.length === 1 ? t("entity") : t("entities")}  {t("· Manage your")} {module}  {t("module from one place")} </p>
         </div>
         {canAddCompany && (
           <NavLink className="primary-link" to="/organization/companies/new">
-            Add company
-          </NavLink>
+             {t("Add company")} </NavLink>
         )}
       </div>
 
       {moduleEntities.length === 0 ? (
         <div className="card">
-          <p className="empty">No entities registered for this module yet.</p>
+          <p className="empty">{t("No entities registered for this module yet.")}</p>
         </div>
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Collection</th>
-                <th>Singular</th>
-                <th className="num">Open</th>
+                <th>{t("Collection")}</th>
+                <th>{t("Singular")}</th>
+                <th className="num">{t("Open")}</th>
               </tr>
             </thead>
             <tbody>
@@ -67,14 +66,13 @@ export default function ModuleOverview({ module }: ModuleOverviewProps) {
                     <span className="hint">·</span>
                     <span className="hint">{entity.permission}</span>
                   </td>
-                  <td>{entity.label}</td>
+                  <td>{t(entity.label)}</td>
                   <td className="num">
                     <NavLink
                       to={`/${entity.module}/${entity.collection}`}
                       className="link-row"
                     >
-                      Open list
-                    </NavLink>
+                       {t("Open list")} </NavLink>
                   </td>
                 </tr>
               ))}

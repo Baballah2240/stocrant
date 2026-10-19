@@ -1,5 +1,23 @@
 # Project task log
 
+## 2026-10-20 - Shared management UI/UX redesign
+
+Implemented the attached management-system brief in the existing shared React/Capacitor application:
+
+- Consistent light/dark design tokens and shared styling for dashboards, navigation, module cards, tables, filters, forms, tabs, dialogs, responsive spacing and focus states.
+- Management dashboard prioritizes existing authorized company metrics, workload and items requiring attention. Main Admin uses the same dashboard on phones; employee mobile self-service remains available.
+- Persistent Morning / Night / System preferences, live operating-system changes, and a pre-paint appearance/language script. Selectors are available in the desktop header, mobile account drawer and authentication screen.
+- Extended centralized Arabic translations, RTL alignment, metadata labels, known status/enum displays, date and relative-time formatting. Enum submission values, business names, user content, form drafts and language/theme independence are preserved.
+- Correct module navigation highlights for nested and legacy routes. Fixed a tablet document overflow caused by a visually hidden HR table heading escaping its scroller.
+
+Primary files: `src/enterprise.css`, `src/theme-context.tsx`, `src/components/AppearanceSelector.tsx`, `public/appearance.js`, `index.html`, `src/components/Layout.tsx`, `src/components/WorkspaceDashboard.tsx`, `src/components/ResponsiveHome.tsx`, `src/redesign-translations.ts`, `src/translations.ts`, `src/util.ts`, existing module components, `scripts/verify-redesign.mjs`, `scripts/test-translations.mjs`, `package.json`, `mobile/UPDATES.md` and `docs/UI_REDESIGN.md`.
+
+Verification: full project checks (111 API/unit tests, app-lock/notification tests, five translation tests, backend/frontend TypeScript, storage, frontend production build and production security smoke checks); 348 route/language/theme/viewport combinations across 29 routes; finance form fit and enum stability; live System appearance changes, independent preferences, persistence and form-draft retention. Existing browser workflows passed for payroll, company profiles/employee identities, HR documents and HR communication. Desktop, tablet and mobile screenshots were reviewed. No lint command is configured.
+
+Archive: original brief retained in `2026-10-20-UI-REDESIGN-BRIEF.md`; implementation and verification documented in `../UI_REDESIGN.md`. The committed source is also archived locally with its SHA-256 checksum. Generated QA screenshots, test data and source ZIP remain outside source control.
+
+No backend/schema migration, dependency installation, real payroll action, native build or phone installation was performed. GitHub source publication is separate from hosting deployment and phone updates. Pre-existing untracked scratch files were left untouched and excluded from the commit.
+
 ## 2026-10-19 - HR payroll management
 
 Implemented in the existing Stocrant architecture:

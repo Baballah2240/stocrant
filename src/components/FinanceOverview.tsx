@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import { useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { useMeta } from "../meta-context";
@@ -6,6 +7,7 @@ import { useMeta } from "../meta-context";
 const FINANCE_COLLECTIONS = ["sales", "expenses", "taxes", "purchases", "returns"];
 
 export default function FinanceOverview() {
+  const { t } = useLanguage();
   const { byCollection, loading } = useMeta();
 
   const items = useMemo(
@@ -17,21 +19,21 @@ export default function FinanceOverview() {
   );
 
   if (loading) {
-    return <p className="hint">Loading metadata&hellip;</p>;
+    return <p className="hint">{t("Loading metadata…")}</p>;
   }
 
   return (
     <div className="page">
       <div className="page-head">
         <div>
-          <h1 className="anim-rise">Finance</h1>
-          <p className="hint">Sales, expenses, taxes, purchases and returns across the business.</p>
+          <h1 className="anim-rise">{t("Finance")}</h1>
+          <p className="hint">{t("Sales, expenses, taxes, purchases and returns across the business.")}</p>
         </div>
       </div>
 
       {items.length === 0 ? (
         <div className="card">
-          <p className="empty">No finance entities are registered yet.</p>
+          <p className="empty">{t("No finance entities are registered yet.")}</p>
         </div>
       ) : (
         <div className="module-grid">
@@ -41,8 +43,8 @@ export default function FinanceOverview() {
               to={`/${entity.module}/${entity.collection}`}
               className="card entity-card"
             >
-              <span className="entity-title">{entity.label}</span>
-              <span className="entity-sub">{entity.singular}</span>
+              <span className="entity-title">{t(entity.label)}</span>
+              <span className="entity-sub">{t(entity.singular)}</span>
             </NavLink>
           ))}
         </div>

@@ -1,24 +1,25 @@
 /** Small shared helpers for the frontend. */
 
+function displayLocale() {
+  return typeof document !== "undefined" && document.documentElement.lang === "ar" ? "ar-QA" : "en-GB";
+}
+
 export function formatDate(value: string, fallback = "—"): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return fallback;
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString(displayLocale(), { year: "numeric", month: "short", day: "numeric" });
 }
 
 /** "3 days ago" / "2 weeks ago" style relative label. */
 export function relativeLabel(value: string): string {
   const d = new Date(value).getTime();
   if (Number.isNaN(d)) return "—";
-  const diff = Date.now() - d;
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 30) return `${day}d ago`;
+  const seconds = (d - Date.now()) / 1000;
+  const relative = new Intl.RelativeTimeFormat(displayLocale(), { numeric: "auto" });
+  if (Math.abs(seconds) < 60) return relative.format(0, "second");
+  if (Math.abs(seconds) < 3600) return relative.format(Math.trunc(seconds / 60), "minute");
+  if (Math.abs(seconds) < 86400) return relative.format(Math.trunc(seconds / 3600), "hour");
+  if (Math.abs(seconds) < 2592000) return relative.format(Math.trunc(seconds / 86400), "day");
   return formatDate(value);
 }
 

@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import ChoiceSelect from "./ChoiceSelect";
 import { useEffect, useState } from "react";
 import { api, type Zone, type ZoneKind, type Store } from "../api";
@@ -7,6 +8,7 @@ type FormData = Omit<Zone, "id" | "createdAt" | "updatedAt" | "occupancy" | "sto
 const kindOptions: ZoneKind[] = ["floor", "dining", "counter"];
 
 export default function ZoneList() {
+  const { t } = useLanguage();
   const [zones, setZones] = useState<Zone[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,28 +85,28 @@ export default function ZoneList() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Zones</h1>
-          <p className="hint">Manage the spaces inside each store.</p>
+          <h1>{t("Zones")}</h1>
+          <p className="hint">{t("Manage the spaces inside each store.")}</p>
         </div>
-        <button className="primary" onClick={openCreate}>Add zone</button>
+        <button className="primary" onClick={openCreate}>{t("Add zone")}</button>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">{t(error)}</p>}
 
       {loading ? (
-        <p className="hint">Loading zones&hellip;</p>
+        <p className="hint">{t("Loading zones…")}</p>
       ) : zones.length === 0 ? (
-        <p className="empty">No zones yet. Add one above.</p>
+        <p className="empty">{t("No zones yet. Add one above.")}</p>
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Store</th>
-                <th>Kind</th>
-                <th className="num">Area</th>
-                <th className="num">Capacity</th>
+                <th>{t("Name")}</th>
+                <th>{t("Store")}</th>
+                <th>{t("Kind")}</th>
+                <th className="num">{t("Area")}</th>
+                <th className="num">{t("Capacity")}</th>
               </tr>
             </thead>
             <tbody>
@@ -123,19 +125,19 @@ export default function ZoneList() {
       )}
 
       <section className="card">
-        <h2>{editingId ? "Edit zone" : "Add a new zone"}</h2>
+        <h2>{editingId ? t("Edit zone") : t("Add a new zone")}</h2>
         <form className="form" onSubmit={handleSubmit}>
           <div className="form-grid">
-            <div className="form-field"><label className="field-label">Name</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Store</label><ChoiceSelect value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</ChoiceSelect></div>
-            <div className="form-field"><label className="field-label">Kind</label><ChoiceSelect value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</ChoiceSelect></div>
-            <div className="form-field"><label className="field-label">Area (m&sup2;)</label><input type="number" value={form.area} onChange={(e) => handleChange("area", Number(e.target.value))} /></div>
-            <div className="form-field"><label className="field-label">Capacity</label><input type="number" value={form.capacity} onChange={(e) => handleChange("capacity", Number(e.target.value))} /></div>
-            <div className="form-field"><label className="field-label">Notes</label><input type="text" value={form.notes} onChange={(e) => handleChange("notes", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Name")}</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Store")}</label><ChoiceSelect value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Kind")}</label><ChoiceSelect value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Area (m²)")}</label><input type="number" value={form.area} onChange={(e) => handleChange("area", Number(e.target.value))} /></div>
+            <div className="form-field"><label className="field-label">{t("Capacity")}</label><input type="number" value={form.capacity} onChange={(e) => handleChange("capacity", Number(e.target.value))} /></div>
+            <div className="form-field"><label className="field-label">{t("Notes")}</label><input type="text" value={form.notes} onChange={(e) => handleChange("notes", e.target.value)} /></div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="primary" disabled={submitting}>{editingId ? "Save changes" : "Add zone"}</button>
-            {editingId && <button type="button" onClick={resetForm}>Cancel</button>}
+            <button type="submit" className="primary" disabled={submitting}>{editingId ? t("Save changes") : t("Add zone")}</button>
+            {editingId && <button type="button" onClick={resetForm}>{t("Cancel")}</button>}
           </div>
         </form>
       </section>
@@ -148,10 +150,11 @@ export default function ZoneList() {
 }
 
 function Toolbar({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const { t } = useLanguage();
   return (
     <div className="toolbar">
-      <button className="primary" onClick={onEdit}>Edit</button>
-      <button className="danger" onClick={onDelete}>Delete</button>
+      <button className="primary" onClick={onEdit}>{t("Edit")}</button>
+      <button className="danger" onClick={onDelete}>{t("Delete")}</button>
     </div>
   );
 }

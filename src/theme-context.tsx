@@ -1,56 +1,30 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 export type ThemeMode = "light" | "dark";
-
-interface ThemeContextValue {
-  theme: ThemeMode;
-  toggle: () => void;
-  setTheme: (mode: ThemeMode) => void;
+export type ThemePreference = ThemeMode | "system";
+interface ThemeContextValue { theme: ThemeMode; preference: ThemePreference; toggle: () => void; setTheme: (mode: ThemePreference) => void; }
+const ThemeContext = createContext<ThemeContextValue>({ theme: "light", preference: "system", toggle: () => {}, setTheme: () => {} });
+function initialPreference(): ThemePreference {
+  try { const saved = localStorage.getItem("stocrant-theme"); if (saved === "light" || saved === "dark") return saved; } catch { /* Device storage is optional. */ }
+  return "system";
 }
-
-const ThemeContext = createContext<ThemeContextValue>({
-  theme: "light",
-  toggle: () => {},
-  setTheme: () => {},
-});
-
-function initialTheme(): ThemeMode {
-  try {
-    const saved = localStorage.getItem("stocrant-theme");
-    if (saved === "light" || saved === "dark") return saved;
-  } catch {
-    // ignore
-  }
-  if (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
-    return "dark";
-  }
-  return "light";
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
-
+  const [preference, setPreference] = useState<ThemePreference>(initialPreference);
+  const [system, setSystem] = useState<ThemeMode>(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const theme = preference === "system" ? system : preference;
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => setSystem(media.matches ? "dark" : "light");
+    update(); media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
-    try {
-      localStorage.setItem("stocrant-theme", theme);
-    } catch {
-      // ignore
-    }
-  }, [theme]);
-
-  const setTheme = useCallback((mode: ThemeMode) => setThemeState(mode), []);
-  const toggle = useCallback(() => {
-    const next = theme === "light" ? "dark" : "light";
-    setThemeState(next);
-  }, [theme]);
-
-  const value = useMemo(() => ({ theme, toggle, setTheme }), [theme, toggle, setTheme]);
+    try { localStorage.setItem("stocrant-theme", preference); } catch { /* Device storage is optional. */ }
+  }, [theme, preference]);
+  const setTheme = useCallback((mode: ThemePreference) => setPreference(mode), []);
+  const toggle = useCallback(() => setPreference(theme === "light" ? "dark" : "light"), [theme]);
+  const value = useMemo(() => ({ theme, preference, toggle, setTheme }), [theme, preference, toggle, setTheme]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
-
-export function useTheme(): ThemeContextValue {
-  return useContext(ThemeContext);
-}
+export const useTheme = () => useContext(ThemeContext);

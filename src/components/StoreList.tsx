@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import ChoiceSelect from "./ChoiceSelect";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +11,7 @@ const kindOptions: StoreKind[] = ["store", "restaurant", "office", "warehouse"];
 const statusOptions: StoreStatus[] = ["open", "open-limited", "closed"];
 
 export default function StoreList() {
+  const { t } = useLanguage();
   const [stores, setStores] = useState<Store[]>([]);
   const [companies, setCompanies] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,32 +96,32 @@ export default function StoreList() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Locations</h1>
-          <p className="hint">Manage company restaurants, stores, offices, warehouses and branches. Occupancy updates automatically.</p>
+          <h1>{t("Locations")}</h1>
+          <p className="hint">{t("Manage company restaurants, stores, offices, warehouses and branches. Occupancy updates automatically.")}</p>
         </div>
-        <button className="primary" onClick={openCreate}>Add location</button>
+        <button className="primary" onClick={openCreate}>{t("Add location")}</button>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">{t(error)}</p>}
 
       {loading ? (
-        <p className="hint">Loading locations&hellip;</p>
+        <p className="hint">{t("Loading locations…")}</p>
       ) : stores.length === 0 ? (
-        <p className="empty">No locations yet. Add one above.</p>
+        <p className="empty">{t("No locations yet. Add one above.")}</p>
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Company</th>
-                <th>Kind</th>
-                <th>City</th>
-                <th className="num">Area</th>
-                <th>Status</th>
-                <th className="num">Occupancy</th>
-                <th className="num">People</th>
-                <th className="num">Capacity</th>
+                <th>{t("Name")}</th>
+                <th>{t("Company")}</th>
+                <th>{t("Kind")}</th>
+                <th>{t("City")}</th>
+                <th className="num">{t("Area")}</th>
+                <th>{t("Status")}</th>
+                <th className="num">{t("Occupancy")}</th>
+                <th className="num">{t("People")}</th>
+                <th className="num">{t("Capacity")}</th>
               </tr>
             </thead>
             <tbody>
@@ -128,7 +130,7 @@ export default function StoreList() {
                   <td>
                     <button className="link-row" onClick={() => navigate("/locations")}>
                       {store.name}
-                      <span className="row-detail">Details</span>
+                      <span className="row-detail">{t("Details")}</span>
                     </button>
                   </td>
                   <td>{companyName(store.companyId, companies)}</td>
@@ -147,24 +149,24 @@ export default function StoreList() {
       )}
 
       <section className="card">
-        <h2>{editingId ? "Edit location" : "Add a new location"}</h2>
+        <h2>{editingId ? t("Edit location") : t("Add a new location")}</h2>
         <form className="form" onSubmit={handleSubmit}>
           <div className="form-grid">
-            <div className="form-field"><label className="field-label">Name</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Company</label><ChoiceSelect required value={form.companyId} onChange={(e) => handleChange("companyId", e.target.value)}>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name ?? company.id)}</option>)}</ChoiceSelect></div>
-            <div className="form-field"><label className="field-label">Kind</label><ChoiceSelect value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</ChoiceSelect></div>
-            <div className="form-field"><label className="field-label">Address</label><input type="text" value={form.address} onChange={(e) => handleChange("address", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">City</label><input type="text" value={form.city} onChange={(e) => handleChange("city", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Area (m&sup2;)</label><input type="number" value={form.totalArea} onChange={(e) => handleChange("totalArea", Number(e.target.value))} /></div>
-            <div className="form-field"><label className="field-label">Floor count</label><input type="number" value={form.floorCount} onChange={(e) => handleChange("floorCount", Number(e.target.value))} /></div>
-            <div className="form-field"><label className="field-label">Status</label><ChoiceSelect value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</ChoiceSelect></div>
-            <div className="form-field"><label className="field-label">Responsible employee</label><input type="text" value={form.responsibleEmployee ?? ""} onChange={(e) => handleChange("responsibleEmployee", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Map link</label><input type="url" value={form.mapLink ?? ""} onChange={(e) => handleChange("mapLink", e.target.value)} placeholder="https://maps.example/..." /></div>
-            <div className="form-field field--full"><label className="field-label">Notes</label><textarea value={form.notes ?? ""} onChange={(e) => handleChange("notes", e.target.value)} rows={3} /></div>
+            <div className="form-field"><label className="field-label">{t("Name")}</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Company")}</label><ChoiceSelect required value={form.companyId} onChange={(e) => handleChange("companyId", e.target.value)}>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name ?? company.id)}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Kind")}</label><ChoiceSelect value={form.kind} onChange={(e) => handleChange("kind", e.target.value)}>{kindOptions.map((k) => <option key={k} value={k}>{k}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Address")}</label><input type="text" value={form.address} onChange={(e) => handleChange("address", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("City")}</label><input type="text" value={form.city} onChange={(e) => handleChange("city", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Area (m²)")}</label><input type="number" value={form.totalArea} onChange={(e) => handleChange("totalArea", Number(e.target.value))} /></div>
+            <div className="form-field"><label className="field-label">{t("Floor count")}</label><input type="number" value={form.floorCount} onChange={(e) => handleChange("floorCount", Number(e.target.value))} /></div>
+            <div className="form-field"><label className="field-label">{t("Status")}</label><ChoiceSelect value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Responsible employee")}</label><input type="text" value={form.responsibleEmployee ?? ""} onChange={(e) => handleChange("responsibleEmployee", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Map link")}</label><input type="url" value={form.mapLink ?? ""} onChange={(e) => handleChange("mapLink", e.target.value)} placeholder={t("https://maps.example/...")} /></div>
+            <div className="form-field field--full"><label className="field-label">{t("Notes")}</label><textarea value={form.notes ?? ""} onChange={(e) => handleChange("notes", e.target.value)} rows={3} /></div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="primary" disabled={submitting || !form.companyId}>{editingId ? "Save changes" : "Add location"}</button>
-            {editingId && <button type="button" onClick={resetForm}>Cancel</button>}
+            <button type="submit" className="primary" disabled={submitting || !form.companyId}>{editingId ? t("Save changes") : t("Add location")}</button>
+            {editingId && <button type="button" onClick={resetForm}>{t("Cancel")}</button>}
           </div>
         </form>
       </section>
@@ -187,10 +189,11 @@ function badgeClass(status: string): string {
 }
 
 function Toolbar({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const { t } = useLanguage();
   return (
     <div className="toolbar">
-      <button className="primary" onClick={onEdit}>Edit</button>
-      <button className="danger" onClick={onDelete}>Delete</button>
+      <button className="primary" onClick={onEdit}>{t("Edit")}</button>
+      <button className="danger" onClick={onDelete}>{t("Delete")}</button>
     </div>
   );
 }

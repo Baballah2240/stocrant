@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type StoreSummary } from "../api";
@@ -9,6 +10,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ storeSummaries: initialSummaries }: DashboardProps) {
+  const { t } = useLanguage();
   const [summaries, setSummaries] = useState<StoreSummary[]>(initialSummaries ?? []);
   const [loading, setLoading] = useState(!initialSummaries);
   const navigate = useNavigate();
@@ -44,29 +46,28 @@ export default function Dashboard({ storeSummaries: initialSummaries }: Dashboar
     <div className="dashboard">
       <div className="grid grid--2">
         <section className="card">
-          <h2 className="visually-hidden">Occupancy summary</h2>
+          <h2 className="visually-hidden">{t("Occupancy summary")}</h2>
           <div className="stats">
-            <Stat label="Locations" value={String(totalLocations)} />
-            <Stat label="Assigned people" value={String(totalPeople)} />
-            <Stat label="Capacity" value={formatCount(totalCapacity)} />
-            <Stat label="Overall occupancy" value={`${overallPct}%`} tone={overallPct >= 90 ? "danger" : overallPct >= 70 ? "warning" : "success"} />
+            <Stat label={t("Locations")} value={String(totalLocations)} />
+            <Stat label={t("Assigned people")} value={String(totalPeople)} />
+            <Stat label={t("Capacity")} value={formatCount(totalCapacity)} />
+            <Stat label={t("Overall occupancy")} value={`${overallPct}%`} tone={overallPct >= 90 ? "danger" : overallPct >= 70 ? "warning" : "success"} />
           </div>
           <p className="hint">
-            {over} of {totalLocations} location{description(totalLocations)} currently over capacity.
-          </p>
+            {over}  {t("of")} {totalLocations}  {t("location")}{description(totalLocations)}  {t("currently over capacity.")} </p>
         </section>
 
         <section className="card">
-          <h2 className="visually-hidden">Locations table</h2>
+          <h2 className="visually-hidden">{t("Locations table")}</h2>
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Location</th>
-                  <th>People</th>
-                  <th>Capacity</th>
-                  <th>Occupancy</th>
-                  <th>Remaining</th>
+                  <th>{t("Location")}</th>
+                  <th>{t("People")}</th>
+                  <th>{t("Capacity")}</th>
+                  <th>{t("Occupancy")}</th>
+                  <th>{t("Remaining")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -75,7 +76,7 @@ export default function Dashboard({ storeSummaries: initialSummaries }: Dashboar
                     <td>
                       <button className="link-row" onClick={() => navigate("/locations")}>
                         {truncated(s.storeName, 30)}
-                        <span className="row-detail">See details</span>
+                        <span className="row-detail">{t("See details")}</span>
                       </button>
                     </td>
                     <td className="num">{s.headCount}</td>
@@ -92,7 +93,7 @@ export default function Dashboard({ storeSummaries: initialSummaries }: Dashboar
         </section>
       </div>
 
-      {loading && <p className="hint">Loading occupancy data…</p>}
+      {loading && <p className="hint">{t("Loading occupancy data…")}</p>}
     </div>
   );
 }

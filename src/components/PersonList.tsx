@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import ChoiceSelect from "./ChoiceSelect";
 import { useEffect, useState } from "react";
 import { api, type Person, type PersonStatus, type Store } from "../api";
@@ -33,6 +34,7 @@ function defaultForm(): FormData {
 }
 
 export default function PersonList() {
+  const { t } = useLanguage();
   const [people, setPeople] = useState<Person[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,28 +109,28 @@ export default function PersonList() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>People</h1>
-          <p className="hint">Track who enters the building. Occupancy updates live from staff and guests.</p>
+          <h1>{t("People")}</h1>
+          <p className="hint">{t("Track who enters the building. Occupancy updates live from staff and guests.")}</p>
         </div>
-        <button className="primary" onClick={openCreate}>Add person</button>
+        <button className="primary" onClick={openCreate}>{t("Add person")}</button>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">{t(error)}</p>}
 
       {loading ? (
-        <p className="hint">Loading people&hellip;</p>
+        <p className="hint">{t("Loading people…")}</p>
       ) : people.length === 0 ? (
-        <p className="empty">No people yet. Add one above.</p>
+        <p className="empty">{t("No people yet. Add one above.")}</p>
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Store</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
+                <th>{t("Name")}</th>
+                <th>{t("Store")}</th>
+                <th>{t("Email")}</th>
+                <th>{t("Role")}</th>
+                <th>{t("Status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -148,20 +150,20 @@ export default function PersonList() {
       )}
 
       <section className="card">
-        <h2>{editingId ? "Edit person" : "Add a new person"}</h2>
+        <h2>{editingId ? t("Edit person") : t("Add a new person")}</h2>
         <form className="form" onSubmit={handleSubmit}>
           <div className="form-grid">
-            <div className="form-field"><label className="field-label">Name</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Email</label><input type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Phone</label><input type="text" value={form.phone} onChange={(e) => handleChange("phone", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Hire date</label><input type="date" value={form.hireDate} onChange={(e) => handleChange("hireDate", e.target.value)} /></div>
-            <div className="form-field"><label className="field-label">Store</label><ChoiceSelect value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</ChoiceSelect></div>
-            <div className="form-field"><label className="field-label">Role</label><ChoiceSelect value={form.role} onChange={(e) => handleChange("role", e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}</ChoiceSelect></div>
-            <div className="form-field"><label className="field-label">Status</label><ChoiceSelect value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Name")}</label><input type="text" value={form.name} onChange={(e) => handleChange("name", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Email")}</label><input type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Phone")}</label><input type="text" value={form.phone} onChange={(e) => handleChange("phone", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Hire date")}</label><input type="date" value={form.hireDate} onChange={(e) => handleChange("hireDate", e.target.value)} /></div>
+            <div className="form-field"><label className="field-label">{t("Store")}</label><ChoiceSelect value={form.storeId} onChange={(e) => handleChange("storeId", e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Role")}</label><ChoiceSelect value={form.role} onChange={(e) => handleChange("role", e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}</ChoiceSelect></div>
+            <div className="form-field"><label className="field-label">{t("Status")}</label><ChoiceSelect value={form.status} onChange={(e) => handleChange("status", e.target.value)}>{statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}</ChoiceSelect></div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="primary" disabled={submitting}>{editingId ? "Save changes" : "Add person"}</button>
-            {editingId && <button type="button" onClick={resetForm}>Cancel</button>}
+            <button type="submit" className="primary" disabled={submitting}>{editingId ? t("Save changes") : t("Add person")}</button>
+            {editingId && <button type="button" onClick={resetForm}>{t("Cancel")}</button>}
           </div>
         </form>
       </section>
@@ -180,10 +182,11 @@ function badgeClass(status: string): string {
 }
 
 function Toolbar({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const { t } = useLanguage();
   return (
     <div className="toolbar">
-      <button className="primary" onClick={onEdit}>Edit</button>
-      <button className="danger" onClick={onDelete}>Delete</button>
+      <button className="primary" onClick={onEdit}>{t("Edit")}</button>
+      <button className="danger" onClick={onDelete}>{t("Delete")}</button>
     </div>
   );
 }

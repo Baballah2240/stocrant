@@ -284,7 +284,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
                       type="button"
                       className="button-tiny button-ghost"
                       onClick={() => void markAsRead(notification.id)}
-                      aria-label="Mark as read"
+                      aria-label={t("Mark as read")}
                     >
                       {t("Mark read")}
                     </button>}

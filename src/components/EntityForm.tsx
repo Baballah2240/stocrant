@@ -56,7 +56,7 @@ function Field({ field, value, onChange }: FieldProps) {
       </label>
       {field.type === "select" ? (
         <ChoiceSelect id={`field-${field.key}`} required={field.required} value={value ?? ""} onChange={(e) => onChange(field.key, e.target.value)}>
-          <option value="">Choose&hellip;</option>
+          <option value="">{t("Choose…")}</option>
           {field.options?.map((opt) => (
             <option key={opt} value={opt}>
               {t(opt)}
@@ -194,7 +194,7 @@ export default function EntityForm() {
         : await api.collections.create(collection!, { ...values, ...(collection === "employees" ? { clientRequestId } : {}) });
       navigate(collection === "employees" && !isEdit && result.item?.id ? `/hr/employees/${result.item.id}` : `/${module}/${collection}`, {
         replace: true,
-        state: { success: result.pending ? "Your change was submitted for approval." : `${spec.singular} ${isEdit ? "updated" : "created"} successfully.` },
+        state: { success: result.pending ? "Your change was submitted for approval." : `${t(spec.singular)} ${isEdit ? "updated" : "created"} successfully.` },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -205,7 +205,7 @@ export default function EntityForm() {
   }
 
   if (metaLoading || !spec) {
-    return <p className="hint">Loading metadata&hellip;</p>;
+    return <p className="hint">{t("Loading metadata…")}</p>;
   }
 
   if (!hasPermission(user, sectionForModule(module), isEdit ? "edit" : "create")) return <div className="alert alert--bad" role="alert">{t("You do not have permission to change this section.")}</div>;
@@ -221,37 +221,36 @@ export default function EntityForm() {
     <div className="page entity-form-page">
       <div className="page-head">
         <div>
-          <button type="button" className="back-button" onClick={() => navigate(`/${module}/${collection}`)}>← Back to {spec.label}</button>
+          <button type="button" className="back-button" onClick={() => navigate(`/${module}/${collection}`)}>{t("← Back to")} {t(spec.label)}</button>
           <h1 className="anim-rise">
-            {t(`${isEdit ? "Edit" : "Create"} ${spec.singular}`)}
+            {t(`${isEdit ? "Edit" : "Create"} ${t(spec.singular)}`)}
           </h1>
           <p className="hint">
-            {t(collection === "employees" ? "Keep personal, employment and location details organized in one profile." : `${isEdit ? "Update" : "Add"} ${spec.collection} details`)}
+            {t(collection === "employees" ? "Keep personal, employment and location details organized in one profile." : "Review and save the details below.")}
           </p>
         </div>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">{t(error)}</p>}
 
       {collection === "employees" && !isEdit && <p className="hint">{t("A restricted Employee account is created automatically. Create its private activation invitation in Employee accounts & notifications.")}</p>}
       <form className="form entity-form" onSubmit={handleSubmit}>
         {employeeGroups ? employeeGroups.map((group) => {
           const fields = spec.fields.filter((field) => group.keys.includes(field.key));
-          return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{t(group.title)}</h2><p>{t(group.description)}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">{t("Company")} <span className="required" aria-hidden="true">*</span></label><ChoiceSelect id="employee-company" required disabled={companiesLoading || submitting || companies.length === 1 || Boolean(companyId)} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? "Loading companies…" : "Choose a company"}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</ChoiceSelect>{values.organizationId && <small>{t("Organization")}: {String(companies.find(company => company.id === values.organizationId)?.organizationName || t("Not provided"))}</small>}{!companiesLoading && !companies.length && <p className="hint">Add a company in Organizations before adding an employee.</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>;
+          return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{t(group.title)}</h2><p>{t(group.description)}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">{t("Company")} <span className="required" aria-hidden="true">*</span></label><ChoiceSelect id="employee-company" required disabled={companiesLoading || submitting || companies.length === 1 || Boolean(companyId)} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? t("Loading companies…") : t("Choose a company")}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</ChoiceSelect>{values.organizationId && <small>{t("Organization")}: {String(companies.find(company => company.id === values.organizationId)?.organizationName || t("Not provided"))}</small>}{!companiesLoading && !companies.length && <p className="hint">{t("Add a company in Organizations before adding an employee.")}</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>;
         }) : <section className="card"><div className="form-grid">{spec.fields.map((field) => <Field key={field.key} field={field} value={values[field.key]} onChange={handleChange} />)}</div></section>}
         {collection === "employees" && !isEdit && <section className="card employee-form-section"><h2>{t("Account information")}</h2><div className="form-grid">{[["Username","Assigned automatically when saved"],["Account status","Invited after approval"],["Role","Employee"],["Secure account setup","Private activation invitation"]].map(([label,value])=><label className="form-field" key={label}><span>{t(label)}</span><input readOnly value={t(value)} /></label>)}</div><p className="hint">{t("The employee sets their own password using a private invitation. No email or SMS is sent automatically.")}</p></section>}
         <div className="card entity-form-actions-card">
           <div className="form-actions">
             <button type="submit" className="primary" disabled={submitting || (collection === "employees" && (companiesLoading || !companies.length))}>
-              {submitting ? "Saving\u2026" : isEdit ? "Save changes" : collection === "employees" ? "Add employee" : "Create"}
+              {submitting ? t("Saving…") : isEdit ? t("Save changes") : collection === "employees" ? t("Add employee") : t("Create")}
             </button>
             <button
               type="button"
               className="ghost"
               onClick={() => navigate(`/${module}/${collection}`)}
             >
-              Cancel
-            </button>
+               {t("Cancel")} </button>
           </div>
         </div>
       </form>

@@ -1,3 +1,4 @@
+import { useLanguage } from "../language-context";
 import { useState } from "react";
 import { api, serverUrl } from "../api";
 
@@ -10,6 +11,7 @@ import { api, serverUrl } from "../api";
  * silently breaking every later request.
  */
 export default function ServerSettings() {
+  const { t } = useLanguage();
   const [origin, setOrigin] = useState(serverUrl.current());
   const [status, setStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -67,37 +69,35 @@ export default function ServerSettings() {
     <section className="panel">
       <header className="panel-head">
         <div>
-          <h2>Mobile server connection</h2>
+          <h2>{t("Mobile server connection")}</h2>
           <p className="hint">
-            Enter the address of the STOCRANT server this app should use. Stored on this device only.
-          </p>
+             {t("Enter the address of the STOCRANT server this app should use. Stored on this device only.")} </p>
         </div>
       </header>
       <form className="form" onSubmit={save}>
         <div className="form-field">
-          <label className="field-label" htmlFor="server-url">Server address</label>
+          <label className="field-label" htmlFor="server-url">{t("Server address")}</label>
           <input
             id="server-url"
             inputMode="url"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="https://portal.stocrant.example"
+            placeholder={t("https://portal.stocrant.example")}
             value={origin}
             onChange={(event) => setOrigin(event.target.value)}
           />
           <span className="field-help">
-            Leave empty to use the address this app was built with ({serverUrl.current() || "none configured"}).
+             {t("Leave empty to use the address this app was built with (")}{serverUrl.current() || "none configured"}).
           </span>
         </div>
         {status && <p className={status.startsWith("Connected") ? "hint" : "error"}>{status}</p>}
         <div className="row-actions">
           <button className="primary" disabled={checking} type="submit">
-            {checking ? "Checking…" : "Test and save"}
+            {checking ? t("Checking…") : t("Test and save")}
           </button>
           <button className="ghost" disabled={checking} type="button" onClick={() => void verifyCurrent()}>
-            Test current
-          </button>
+             {t("Test current")} </button>
         </div>
       </form>
     </section>

@@ -1,3 +1,4 @@
+import AppearanceSelector from "./AppearanceSelector";
 import { UrgentEmployeeBanner } from "./HRMessageDetails";
 import MobileIcon, { type MobileIconName } from "./MobileIcon";
 import { useMobile } from "../use-mobile";
@@ -5,7 +6,6 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import ProfilePanel from "./ProfilePanel";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import BackButton from "./BackButton";
-import { useTheme } from "../theme-context";
 import { useSession } from "../session-context";
 import { NotificationBell } from "./NotificationBell";
 import { useLanguage } from "../language-context";
@@ -40,8 +40,16 @@ const aboutItem: NavEntry = {
 
 function NavButton({ item, onNavigate }: { item: NavEntry; onNavigate?: () => void }) {
   const { t } = useLanguage();
+  const { pathname } = useLocation();
+  const sectionActive = item.to === "/hr" ? pathname === "/hr" || (pathname.startsWith("/hr/") && !pathname.startsWith("/hr/payroll"))
+    : item.to === "/organizations" ? pathname.startsWith("/organization/") || pathname === item.to
+    : item.to === "/warehouse" ? pathname.startsWith("/inventory") || pathname.startsWith("/warehouse")
+    : item.to === "/locations" ? ["/locations", "/stores", "/places", "/people"].includes(pathname)
+    : item.to === "/operations" ? pathname.startsWith("/operations") || pathname.startsWith("/stores/") || pathname === "/store"
+    : item.to === "/admin" ? pathname.startsWith("/admin") || pathname === "/access"
+    : undefined;
   return (
-    <NavLink to={item.to} end={item.end} className="nav-item" aria-label={t(item.label)} onClick={onNavigate}>
+    <NavLink to={item.to} end={item.end ?? item.to === "/hr"} className={({ isActive }) => `nav-item${(sectionActive ?? isActive) ? " active" : ""}`} aria-current={sectionActive ? "page" : undefined} aria-label={t(item.label)} onClick={onNavigate}>
       {item.icon && <MobileIcon name={item.icon} />}<span className="nav-label">{t(item.label)}</span>
     </NavLink>
   );
@@ -77,9 +85,7 @@ export default function Layout() {
       // Private browsing or device policies can disable local storage.
     }
   }, [sidebarCollapsed]);
-  const { theme, toggle } = useTheme();
   const { user, signOut } = useSession();
-  const nextTheme = theme === "light" ? "dark" : "light";
   const mainAdmin = user?.roleId === "role-main-manager";
   const canSeeSection = (section?: string) => !section || mainAdmin || Boolean(user?.permissions.includes("*") || user?.permissions.includes(`${section}.*`) || user?.permissions.includes(`${section}.view`));
   const visibleNavItems = navItems.filter(item => canSeeSection(item.section));
@@ -107,16 +113,8 @@ export default function Layout() {
         <NotificationBell />
         <div className="topbar-actions">
           <button className="header-profile" type="button" aria-haspopup="dialog" onClick={() => setProfileOpen(true)}><span className="header-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : user?.name.slice(0, 2).toUpperCase()}</span><span className="header-user-name">{user?.name}<small>{t("My profile")}</small></span></button>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggle}
-            aria-label={t(nextTheme === "dark" ? "Switch to dark mode" : "Switch to light mode")}
-            title={t(nextTheme === "dark" ? "Switch to dark mode" : "Switch to light mode")}
-          >
-            <MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{t(theme === "light" ? "Dark mode" : "Light mode")}</span>
-          </button>
-          <button type="button" className="theme-toggle language-toggle" lang={language === "en" ? "ar" : "en"} dir={language === "en" ? "rtl" : "ltr"} aria-label={t(language === "en" ? "Switch to Arabic" : "Switch to English")} title={t(language === "en" ? "Switch to Arabic" : "Switch to English")} onClick={() => setLanguage(language === "en" ? "ar" : "en")}>{language === "en" ? "العربية" : "EN"}</button>
+          <AppearanceSelector />
+          <button type="button" className="theme-toggle language-toggle" lang={language === "en" ? "ar" : "en"} dir={language === "en" ? "rtl" : "ltr"} aria-label={t(language === "en" ? "Switch to Arabic" : "Switch to English")} title={t(language === "en" ? "Switch to Arabic" : "Switch to English")} onClick={() => setLanguage(language === "en" ? "ar" : "en")}>{language === "en" ? "العربية" : t("EN")}</button>
           <button type="button" className="logout-button" aria-label={t("Sign out")} title={t("Sign out")} onClick={() => void signOut()}>{t("Sign out")}</button>
         </div></>}
       </header>
@@ -133,13 +131,13 @@ export default function Layout() {
             <section className="language-settings" aria-labelledby="language-heading">
               <h3 id="language-heading">{t("Language")}</h3>
               <div className="language-options" role="group" aria-label={t("App language")}>
-                <button type="button" className="language-option" lang="en" dir="ltr" aria-pressed={language === "en"} onClick={() => setLanguage("en")}><span className="language-code" aria-hidden="true">EN</span><span>English</span><span className="language-selected" aria-hidden="true">{language === "en" ? <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg> : null}</span></button>
+                <button type="button" className="language-option" lang="en" dir="ltr" aria-pressed={language === "en"} onClick={() => setLanguage("en")}><span className="language-code" aria-hidden="true">{t("EN")}</span><span>{t("English")}</span><span className="language-selected" aria-hidden="true">{language === "en" ? <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg> : null}</span></button>
                 <button type="button" className="language-option" lang="ar" dir="rtl" aria-pressed={language === "ar"} onClick={() => setLanguage("ar")}><span className="language-code" aria-hidden="true">ع</span><span>العربية</span><span className="language-selected" aria-hidden="true">{language === "ar" ? <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg> : null}</span></button>
               </div>
               <p>{t("Saved on this device")}</p>
             </section>
             <NavLink to={canSeeSection("access") ? "/admin" : "/mobile-more"} onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("Settings")}</span></NavLink>
-            <button type="button" role="switch" aria-checked={theme === "dark"} aria-label={t("Dark mode")} onClick={toggle}><MobileIcon name={theme === "light" ? "moon" : "sun"} /><span>{t("Dark mode")}</span><span className="mobile-drawer-switch" aria-hidden="true" /></button>
+            <AppearanceSelector />
           </nav>
           <footer className="mobile-drawer-footer"><NavLink to="/about" onClick={() => setMenuOpen(false)}><MobileIcon name="info" /><span>{t("About")}</span></NavLink><span>{t("STOCRANT")}</span></footer>
         </div>

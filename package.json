@@ -38,7 +38,8 @@
     "mobile:save": "node scripts/save-mobile-update.mjs",
     "test:company-profile": "npm run build:full && node scripts/verify-company-profile.mjs",
     "test:payroll": "npm run build:full && node scripts/verify-payroll.mjs",
-    "mobile:icons": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-mobile-app-icons.ps1"
+    "mobile:icons": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-mobile-app-icons.ps1",
+    "test:redesign": "npm run build:full && node scripts/verify-redesign.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "9.1.2",

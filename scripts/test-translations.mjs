@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
+import ts from "typescript";
 import { test } from "node:test";
 import { arabicTranslations, languageDirection, languageLocale, translate } from "../src/translations.ts";
 
@@ -41,5 +43,23 @@ test("entity metadata labels and non-identifier choices have Arabic copy", () =>
   for (const label of new Set([...labels, ...options])) {
     if (/^[A-Z]{3}$/.test(label)) continue; // Currency codes must remain stable.
     assert.notEqual(translate(label, "ar"), label, `Missing metadata translation: ${label}`);
+  }
+});
+
+test("literal interface translation calls have Arabic copy across every component", () => {
+  const components = new URL("../src/components/", import.meta.url);
+  const identifiers = new Set(["AWB:", "EN", "en-GB"]);
+  for (const filename of readdirSync(components).filter(name => name.endsWith(".tsx"))) {
+    const source = ts.createSourceFile(filename, readFileSync(new URL(filename, components), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    function visit(node) {
+      if (ts.isCallExpression(node) && node.expression.getText(source) === "t" && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
+        const label = node.arguments[0].text;
+        if (!identifiers.has(label) && !label.startsWith("https://") && !/[\u0600-\u06ff]/u.test(label)) {
+          assert.notEqual(translate(label, "ar"), label, `${filename}: missing translation for ${label}`);
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
   }
 });
