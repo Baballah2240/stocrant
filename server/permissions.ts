@@ -140,11 +140,15 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
 
 export function redactRecord(collection: string, row: Record<string, unknown>, user: AuthenticatedUser): Record<string, unknown> {
   const result = { ...row };
-  if (collection === "employees" && !canViewPersonalData(user) && row.email !== user.email) {
+  if (collection === "employees" && !canViewPersonalData(user) && row.id !== user.employeeId) {
     delete result.email;
     delete result.phone;
+    delete result.address;
     delete result.birthday;
-    delete result.salary;
+  }
+  if (collection === "employees" && !canViewSalaryData(user) && row.id !== user.employeeId) delete result.salary;
+  if (collection === "employeeHistory" && row.event === "salary-change" && !canViewSalaryData(user)) {
+    for (const key of ["details","salary","amount","before","after"]) delete result[key];
   }
   if ((collection === "payroll" || collection === "financeTransactions") && !canViewSalaryData(user)) {
     for (const key of ["basic", "allowances", "deductions", "tax", "netPay", "amount"]) delete result[key];

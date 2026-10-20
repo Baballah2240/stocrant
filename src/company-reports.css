@@ -1,0 +1,43 @@
+.report-page { display:grid;gap:1rem;min-width:0; }
+.report-controls { display:flex;gap:.75rem;align-items:center;flex-wrap:wrap; }
+.report-controls p { flex-basis:100%;margin:0; }
+ .report-sheet { background:var(--ios-cell);color:var(--ios-label);padding:clamp(1rem,3vw,2.5rem);border:1px solid var(--ios-separator);border-radius:12px;min-width:0; }
+.report-brand { display:flex;align-items:center;gap:1rem;padding-block-end:1rem;border-bottom:2px solid var(--brand-link); }
+.report-brand img { width:64px;height:64px;object-fit:contain; }
+.report-brand p { font-weight:700;letter-spacing:.1em;font-size:.75rem;color:var(--brand-link);margin:0; }
+.report-brand h1 { margin:.3rem 0; }
+.report-brand span,.report-title span,.report-count,.report-sheet footer { font-size:.8rem;color:var(--ios-label-2);overflow-wrap:anywhere; }
+.report-title { display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-block:1.5rem .5rem; }
+.report-title h2 { margin:0; }
+.report-table-scroll { overflow:auto;max-width:100%; }
+.report-sheet table { width:100%;border-collapse:collapse;font-size:.85rem;text-align:start; }
+.report-sheet th,.report-sheet td { border-bottom:1px solid var(--ios-separator);padding:.65rem;text-align:start;overflow-wrap:anywhere;vertical-align:top; }
+.report-sheet th { background:var(--ios-fill);font-weight:650; }
+.report-sheet footer { border-top:1px solid var(--ios-separator);margin-block-start:1.5rem;padding-block-start:.75rem; }
+@page companyReport { size:A4 landscape;margin:14mm;@bottom-right { content:counter(page) " / " counter(pages);font-size:9pt;direction:ltr;unicode-bidi:isolate;color:#444; } }
+@page employeeProfileReport { size:A4 portrait;margin:14mm;@bottom-right { content:counter(page) " / " counter(pages);font-size:9pt;direction:ltr;unicode-bidi:isolate;color:#444; } }
+@media print {
+ body:has(.report-page[data-report-kind="profile"]) { page:employeeProfileReport!important; }
+ body:has(.report-page[data-report-kind="company"]) { page:employeeProfileReport!important; }
+ html:has(.report-page) { background:white!important;color-scheme:only light!important; }
+ body:has(.report-page) { page:companyReport;background:white!important;color:#111!important;margin:0!important;padding:0!important;min-height:0!important; }
+ body:has(.report-page) *:not(:has(.report-page)):not(.report-page):not(.report-page *) { display:none!important; }
+ body:has(.report-page) :has(.report-page) { display:block!important;position:static!important;min-height:0!important;height:auto!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important;background:white!important; }
+ body:has(.report-page) * { visibility:hidden; }
+ .report-page,.report-page * { visibility:visible!important; }
+ .report-page { --ios-bg:white;--ios-cell:white;--ios-fill:#eef2f6;--ios-label:#111;--ios-label-2:#444;--ios-separator:#ccc;--brand-link:#2459b7;position:static!important;inset:auto!important;width:100%!important;max-width:none!important;padding:0!important;margin:0!important;display:block!important;background:white!important; }
+ .report-sheet footer { background:white!important; }
+ .report-controls,.report-controls * { display:none!important; }
+ .report-sheet { background:white!important;color:#111!important;border:0!important;border-radius:0;padding:0!important; }
+ .report-brand span,.report-title span,.report-count,.report-sheet footer { color:#444!important; }
+ .report-brand { break-inside:avoid; }
+ .report-sheet h1,.report-sheet h2 { color:#111!important; }
+ .report-table-scroll { overflow:visible; }
+ .report-sheet table { table-layout:fixed;font-size:10pt; }
+ .report-sheet th { background:#eef2f6!important;color:#111!important; }
+ .report-sheet td,.report-sheet th { border-color:#ccc!important;padding:7pt; }
+ .report-sheet thead { display:table-header-group; }
+ .report-sheet tr { break-inside:avoid; }
+ .report-title { break-after:avoid; }
+ .report-sheet img { max-width:64px; }
+}

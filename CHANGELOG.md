@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-20 — Complete organization, employee profiles and reporting
+
+### Completed
+
+- Improved organization-to-company context, company logo/ID/contact summaries and scoped attendance statistics. Retained company switching, search, filters, sorting, pagination and automatic employee/account identities.
+- Added employee sections for personal, employment, contact/address, account/access, attendance/shifts/leave, payroll, documents and activity. Profile edits and cancellation return to the profile; linked account setup URLs still open the correct section.
+- Expanded company-directory role/contact/salary details using backend-redacted data. Added optional editable employee addresses without rewriting existing records.
+- Separated salary access from general HR editing and personal-data access. Restricted editors cannot overwrite salary through default form values. Personal-data self-access uses the employee link, and salary-change history is redacted without salary permission.
+- Added backend-authorized report datasets and previews for company information, complete employee lists, contact directories, employee profiles, attendance, shifts and leave. Existing payroll reports/payslips remain connected to the authorized payroll workflow.
+- Added Print and Export PDF actions with fresh permission checks, company branding, report dates, repeating table headings, page counters, appropriate portrait/landscape pages, English/Arabic layout, white paper in both themes and no printed navigation or buttons.
+- Preserved employee/account relationship validation, secure activation and password management, audit events, payroll rules and retained-record deletion safeguards.
+
+### Verification and remaining limits
+
+- The final frozen build passed all 348 route/language/theme/viewport combinations with no uncaught errors.
+
+- Full project checks passed 126 API/unit tests plus 10 lock/notification/translation tests, TypeScript, storage/backup verification, production frontend build and security smoke checks. Focused company, private-document and complete-workspace browser tests cover actual edits, save/cancel, employee creation/activation, protected deletion, company selection and responsive Arabic/English layouts.
+- Generated and inspected one-page company/profile PDFs and five-page, 68-employee English/Arabic directories. Verified every row, repeated headings, visible text, page numbers, white print margins and hidden controls. Detailed results are in `docs/COMPANY_WORKSPACE.md`.
+- Export PDF uses the browser print dialog's Save as PDF destination. Physical printers and native device dialogs were not tested. Existing guards may block deletion of employees with linked logins, payroll or retained documents; deactivate/archive through existing workflows instead of forcing deletion.
+- No destructive migration, application dependency upgrade, production deployment, APK build or phone installation was performed. Shared mobile source notes accompany this change.
+
 ## 2026-10-20 — Dedicated company management workspace
 
 - Reorganized company profiles into permission-aware Overview, Employees, HR & Attendance, Payroll, Notifications, Users & Permissions, Reports and Company Settings sections.

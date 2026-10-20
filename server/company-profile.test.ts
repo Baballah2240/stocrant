@@ -23,6 +23,34 @@ before(async()=>{server=createApp().listen(0,"127.0.0.1");await new Promise<void
 });
 after(async()=>{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));const target=resolve(TEST_DATA_DIR);assert.ok(target.startsWith(resolve(tmpdir())+sep)&&target.includes("stocrant-test-data-"));rmSync(target,{recursive:true,force:true});});
 describe("Company profiles and employee identities",()=>{
+ it("enforces export permission, salary privacy and company isolation for reports and employee profiles",async()=>{
+  const local=(await expect(await req("/collections/employees","POST",values({name:"Report Subject",salary:7711,address:"Private address",phone:"+97412345678"})),201)).item;
+  const outside=(await expect(await req("/collections/employees","POST",values({name:"Outside Report Subject",organizationId:foreign.id})),201)).item;
+  const profile=await expect(await req(`/workspace/company-profiles/employees/${local.id}`,"GET",undefined,hr),200);
+  assert.equal(profile.employee.salary,undefined);assert.equal(profile.employee.address,"Private address");assert.equal(profile.permissions.payroll,false);assert.deepEqual(profile.payroll,[]);assert.ok(!JSON.stringify(profile).includes("passwordHash"));
+  transaction(()=>{getStore().collections.attendance=[...rows("attendance"),{id:"report-related-attendance",employeeId:local.id,organizationId:"company-primary",date:"2026-10-20"},{id:"report-other-attendance",employeeId:outside.id,organizationId:foreign.id,date:"2026-10-20"}];saveStore(getStore());});
+  transaction(()=>{getStore().collections.shifts=[...rows("shifts"),{id:"report-assigned-shift",name:"Assigned employee shift",organizationId:"company-primary",start:"08:00",end:"16:00"}];getStore().collections.payrollSalaries=[...rows("payrollSalaries"),{id:"report-assigned-salary",employeeId:local.id,organizationId:"company-primary",shiftId:"report-assigned-shift",base:"7711"}];saveStore(getStore());});
+  const related=await expect(await req(`/workspace/company-profiles/employees/${local.id}`,"GET",undefined,hr),200);assert.ok(related.records.attendance.some((row:Row)=>row.id==="report-related-attendance"));assert.ok(related.records.shifts.some((row:Row)=>row.id==="report-assigned-shift"));assert.ok(!JSON.stringify(related.records).includes("report-other-attendance"));
+  await expect(await req(`/collections/employees/${local.id}`,"PATCH",{salary:0,jobTitle:"Updated privately"},hr),200);assert.equal(rows("employees").find(row=>row.id===local.id)!.salary,7711);
+  await expect(await req(`/workspace/company-profiles/employees/${outside.id}`,"GET",undefined,hr),404);
+  await expect(await req(`/workspace/company-profiles/employees/${local.id}?report=profile`,"GET",undefined,hr),403);
+  for(const kind of ["company","employees","contacts","attendance","shifts","leave"]){await expect(await req(`/workspace/company-profiles/company-primary/reports/${kind}`,"GET",undefined,hr),403);const report=await expect(await req(`/workspace/company-profiles/company-primary/reports/${kind}`),200);assert.equal(report.company.id,"company-primary");assert.ok(!JSON.stringify(report).includes(outside.employeeCode));}
+  const report=await expect(await req(`/workspace/company-profiles/employees/${local.id}?report=profile`),200);assert.ok(report.rows.some((row:Row)=>row.value===7711));
+  const hrAccount=rows("accessUsers").find(row=>row.email==="hr@company.test")!;
+  await expect(await req(`/workspace/access/users/${hrAccount.id}`,"PATCH",{permissions:["hr.view","hr.export"]}),200);
+  const limited=await expect(await req(`/workspace/company-profiles/employees/${local.id}?report=profile`,"GET",undefined,hr),200);assert.ok(!JSON.stringify(limited).includes("Private address"));assert.ok(!JSON.stringify(limited).includes("7711"));
+  const shiftReport=await expect(await req(`/workspace/company-profiles/employees/${local.id}?report=shifts`,"GET",undefined,hr),200);assert.ok(shiftReport.rows.some((row:Row)=>row.name==="Assigned employee shift"));assert.ok(!JSON.stringify(shiftReport).includes("7711"));
+  await expect(await req(`/workspace/access/users/${hrAccount.id}`,"PATCH",{permissions:["hr.view","payroll.view"]}),200);
+  const salaryReader=await expect(await req(`/workspace/company-profiles/employees/${local.id}`,"GET",undefined,hr),200);assert.equal(salaryReader.employee.salary,7711);assert.equal(salaryReader.employee.address,undefined);
+  await expect(await req(`/workspace/company-profiles/${foreign.id}/reports/employees`,"GET",undefined,hr),404);
+  await expect(await req(`/workspace/access/users/${hrAccount.id}`,"PATCH",{permissions:["hr.view","hr.create","hr.edit"]}),200);
+ });
+ it("deletes only authorized unlinked employee records and retains the audit event",async()=>{
+  const id=`unlinked-${randomUUID()}`;
+  transaction(()=>{getStore().collections.employees=[...rows("employees"),{id,name:"Unlinked legacy employee",employeeCode:`LEGACY-${randomUUID()}`,organizationId:"company-primary",status:"inactive"}];saveStore(getStore());});
+  await expect(await req(`/collections/employees/${id}`,"DELETE",undefined,hr),403);
+  await expect(await req(`/collections/employees/${id}`,"DELETE"),200);assert.ok(!rows("employees").some(row=>row.id===id));assert.ok(rows("auditLog").some(row=>row.targetId===id));
+ });
  it("saves and clears a company logo through the existing edit permission and rejects unsafe URLs",async()=>{
   await expect(await req("/collections/companies/company-primary","PATCH",{logo:"javascript:alert(1)"}),400);
   await expect(await req("/collections/companies/company-primary","PATCH",{logo:"https://user:secret@example.test/logo.png"}),400);

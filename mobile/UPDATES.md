@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-20 - Complete employee workspace and reports
+
+- Added dedicated employee sections for personal/employment/contact/address details, account setup, HR records, payroll, documents and history. Save and Cancel return to the employee profile; legacy account-setup links remain supported.
+- Expanded permission-aware directory details and company attendance summaries. Salary visibility and updates are protected independently from general HR editing; existing records and relationships remain intact.
+- Added authorized company/employee report previews with Print and Export PDF actions. PDF saving uses the platform print dialog; report styles support Arabic/English and exclude application controls.
+- Verified responsive browser layouts and generated English/Arabic short and multi-page PDFs. Native print dialogs, APK builds and phone installation remain separate platform checks; none was performed here.
+
 ## 2026-10-20 - Dedicated company workspace
 
 - Added shared company navigation for overview, employees, HR/attendance, payroll, communication, users, reports and settings, shown according to permissions.

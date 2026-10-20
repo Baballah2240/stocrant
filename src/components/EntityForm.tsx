@@ -137,10 +137,11 @@ export default function EntityForm() {
   const formFields = useMemo<FieldSpec[]>(() => {
     if (!spec) return [];
     const scopedModule = ["hr", "stores", "warehouse"].includes(module ?? "");
-    return scopedModule && !spec.fields.some(field => ["organizationId", "companyId"].includes(field.key))
-      ? [{ key: "organizationId", label: "Company", type: "select", required: true }, ...spec.fields]
-      : spec.fields;
-  }, [spec, module]);
+    const fields=spec.fields.filter(field=>collection!=="employees"||field.key!=="salary"||hasPermission(user,"finance")||hasPermission(user,"payroll")||hasPermission(user,"hr","salary.view"));
+    return scopedModule && !fields.some(field => ["organizationId", "companyId"].includes(field.key))
+      ? [{ key: "organizationId", label: "Company", type: "select", required: true }, ...fields]
+      : fields;
+  }, [spec, module, collection, user]);
 
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
   const [values, setValues] = useState<Record<string, string | number | null>>({});
@@ -226,9 +227,9 @@ export default function EntityForm() {
       const result = isEdit
         ? await api.collections.update(collection!, id!, values)
         : await api.collections.create(collection!, { ...values, ...(collection === "employees" ? { clientRequestId } : {}) });
-      navigate(collection === "employees" && !isEdit && result.item?.id ? `/hr/employees/${result.item.id}` : `/${module}/${collection}`, {
+      navigate(collection === "employees" && (result.item?.id || isEdit && id) ? `/hr/employees/${result.item?.id || id}` : `/${module}/${collection}`, {
         replace: true,
-        state: { success: result.pending ? "Your change was submitted for approval." : `${t(spec.singular)} ${isEdit ? "updated" : "created"} successfully.` },
+        state: { success: result.pending ? "Your change was submitted for approval." : "Changes saved." },
       });
     } catch (err) {
       if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
@@ -245,13 +246,13 @@ export default function EntityForm() {
     return <p className="hint">{t("Loading metadata…")}</p>;
   }
   if (isEdit && loadingItem) return <div className="page"><p className="hint" role="status">{t("Loading record…")}</p></div>;
-  if (isEdit && !item) return <div className="page"><p className="error" role="alert">{t(error || "Record not found.")}</p><button type="button" onClick={() => navigate(`/${module}/${collection}`)}>{t("Back")}</button></div>;
+  if (isEdit && !item) return <div className="page"><p className="error" role="alert">{t(error || "Record not found.")}</p><button type="button" onClick={() => navigate(collection === "employees" && isEdit ? `/hr/employees/${id}` : `/${module}/${collection}`)}>{t("Back")}</button></div>;
 
   if (!hasPermission(user, sectionForModule(module), isEdit ? "edit" : "create")) return <div className="alert alert--bad" role="alert">{t("You do not have permission to change this section.")}</div>;
 
   const employeeGroups = collection === "employees" ? [
     { title: "Company assignment", description: "Which company are you adding this employee to?", keys: ["organizationId"] },
-    { title: "Personal details", description: "Contact details and identity information.", keys: ["employeeCode", "name", "email", "phone", "birthday"] },
+    { title: "Personal details", description: "Contact details and identity information.", keys: ["employeeCode", "name", "email", "phone", "address", "birthday"] },
     { title: "Employment", description: "Role, status and reporting details.", keys: ["department", "jobTitle", "employmentType", "status", "hireDate", "manager", "salary"] },
     { title: "Location & notes", description: "Workplace assignment and internal notes.", keys: ["locationId", "location", "notes"] },
   ] : null;
@@ -275,7 +276,7 @@ export default function EntityForm() {
       {collection === "employees" && !isEdit && <p className="hint">{t("A restricted Employee account is created automatically. Create its private activation invitation in Employee accounts & notifications.")}</p>}
       <form className="form entity-form" onSubmit={handleSubmit}>
         {employeeGroups ? employeeGroups.map((group) => {
-          const fields = spec.fields.filter((field) => group.keys.includes(field.key));
+          const fields = formFields.filter((field) => group.keys.includes(field.key));
           return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{t(group.title)}</h2><p>{t(group.description)}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">{t("Company")} <span className="required" aria-hidden="true">*</span></label><ChoiceSelect id="employee-company" required disabled={companiesLoading || submitting || companies.length === 1 || Boolean(companyId)} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? t("Loading companies…") : t("Choose a company")}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</ChoiceSelect>{values.organizationId && <small>{t("Organization")}: {String(companies.find(company => company.id === values.organizationId)?.organizationName || t("Not provided"))}</small>}{!companiesLoading && !companies.length && <p className="hint">{t("Add a company in Organizations before adding an employee.")}</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} error={fieldErrors[field.key]} onChange={handleChange} />)}</div></section>;
         }) : <section className="card"><div className="form-grid">{formFields.map((field) => <Field key={field.key} field={field} value={values[field.key]} error={fieldErrors[field.key]} onChange={handleChange} />)}</div></section>}
         {collection === "employees" && !isEdit && <section className="card employee-form-section"><h2>{t("Account information")}</h2><div className="form-grid">{[["Username","Assigned automatically when saved"],["Account status","Invited after approval"],["Role","Employee"],["Secure account setup","Private activation invitation"]].map(([label,value])=><label className="form-field" key={label}><span>{t(label)}</span><input readOnly value={t(value)} /></label>)}</div><p className="hint">{t("The employee sets their own password using a private invitation. No email or SMS is sent automatically.")}</p></section>}
@@ -287,7 +288,7 @@ export default function EntityForm() {
             <button
               type="button"
               className="ghost"
-              onClick={() => navigate(`/${module}/${collection}`)}
+              onClick={() => navigate(collection === "employees" && isEdit ? `/hr/employees/${id}` : `/${module}/${collection}`)}
             >
                {t("Cancel")} </button>
           </div>

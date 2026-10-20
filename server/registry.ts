@@ -106,6 +106,7 @@ registry.push(
       { key: "name", label: "Full name", type: "text", required: true },
       { key: "email", label: "Email", type: "email" },
       { key: "phone", label: "Phone", type: "tel" },
+      { key: "address", label: "Address", type: "textarea" },
       { key: "department", label: "Department", type: "text" },
       { key: "jobTitle", label: "Job title", type: "text" },
       { key: "employmentType", label: "Employment", type: "select", options: ["full-time", "part-time", "contract", "intern"] },

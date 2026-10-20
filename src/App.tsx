@@ -1,3 +1,4 @@
+const CompanyReport = lazy(() => import("./components/CompanyReport"));
 const PayrollWorkspace = lazy(() => import("./components/PayrollWorkspace"));
 const CompanyProfile = lazy(() => import("./components/CompanyProfile"));
 const HRCommunication = lazy(() => import("./components/HRCommunication"));
@@ -70,6 +71,7 @@ const router = createBrowserRouter([
 
       // ── Module overviews ──
       { path: "organizations", element: <OrganizationWorkspace /> },
+      { path: "company-report", element: <CompanyReport /> },
       { path: "organization/companies/:id", element: <CompanyProfile /> },
       { path: "organization/companies/:id/edit", element: <CompanyProfile /> },
       { path: "hr/payroll", element: <PayrollWorkspace /> },

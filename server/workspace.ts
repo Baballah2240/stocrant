@@ -3,7 +3,7 @@ import { syncEmployeeAccount } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { validateHierarchyMutation } from "./organization-policy.js";
-import { can, canManageHr, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
+import { can, canViewSalaryData, canManageHr, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
 import { createNotification } from "./notifications.js";
 import { newProductAwb } from "./product-awb.js";
 import { applyDocumentApproval, managesDocuments, documentCompanyScope } from "./documents.js";
@@ -194,6 +194,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
   payload = { ...payload };
   for (const field of ["createdAt", "createdBy", "createdByName", "updatedAt", "updatedBy", "updatedByName", "__proto__", "constructor", "prototype"]) delete payload[field];
   if (collection === "employees") for (const key of ["accountId", "passwordHash", "roleId", "permissions", "activationRequired", "username", "employeeRequestKey"]) delete payload[key];
+  if (collection === "employees" && !canViewSalaryData(user)) delete payload.salary;
   if (collection === "employees" && action === "create" && payload.clientRequestId !== undefined) {
     const key = String(payload.clientRequestId);
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) throw new Error("Use a valid employee submission identifier.");

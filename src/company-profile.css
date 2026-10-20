@@ -36,6 +36,12 @@
 .company-avatar img { width:100%;height:100%;object-fit:cover;border-radius:inherit; }
 
 .company-profile .card + .card { margin-block-start:0; }
+.employee-complete-avatar { width:64px;height:64px;flex-basis:64px;font-size:1.25rem; }
+.employee-complete-profile .employee-detail-grid { margin-block-start:1rem; }
+.employee-complete-profile .employee-detail-item strong { white-space:pre-wrap;overflow-wrap:anywhere; }
+.company-contact-details { margin-block-start:.5rem;font-size:.75rem; }
+.company-contact-details small { overflow-wrap:anywhere; }
+.company-contact-details summary { color:var(--accent);cursor:pointer; }
 .company-profile-header { border-block-start:3px solid var(--accent); background:var(--surface); }
 .company-monogram img { width:100%;height:100%;object-fit:contain;border-radius:inherit; }
 .company-identity { display:flex;flex-wrap:wrap;gap:.45rem 1rem;font-size:.78rem;color:var(--muted);overflow-wrap:anywhere; }

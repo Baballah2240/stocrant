@@ -1,0 +1,22 @@
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { request } from "../api";
+import { useLanguage } from "../language-context";
+import "../company-reports.css";
+
+export function reportLink(companyId:string,kind:string,employeeId?:string){return `/company-report?${new URLSearchParams({company:companyId,kind,...(employeeId?{employee:employeeId}:{})})}`;}
+export function ReportLink({companyId,kind,label="Print / Export PDF",employeeId}:{companyId:string;kind:string;label?:string;employeeId?:string}){const {t}=useLanguage();return <Link className="secondary-link" to={reportLink(companyId,kind,employeeId)}>{t(label)}</Link>;}
+type Report={title:string;company:{id:string;name:string;logo?:string};generatedAt:string;columns:{key:string;label:string}[];rows:Record<string,unknown>[]};
+const text=(v:unknown)=>Array.isArray(v)?v.join(", "):typeof v==="string"||typeof v==="number"?String(v):"";
+export default function CompanyReport(){
+ const {t,language}=useLanguage(),[params]=useSearchParams();
+ const company=params.get("company")||"",employee=params.get("employee")||"",kind=params.get("kind")||"company";
+ const [printing,setPrinting]=useState(false);
+ const [data,setData]=useState<Report|null>(null),[error,setError]=useState("");
+ useEffect(()=>{let active=true;setData(null);setError("");const path=employee?`/workspace/company-profiles/employees/${encodeURIComponent(employee)}?report=${encodeURIComponent(kind)}`:`/workspace/company-profiles/${encodeURIComponent(company)}/reports/${encodeURIComponent(kind)}`;void request<Report>(path).then(result=>{if(active)setData(result);}).catch(reason=>{if(active)setError(reason.message);});return()=>{active=false;};},[company,employee,kind]);
+ async function print(){if(printing)return;setPrinting(true);try{const path=employee?'/workspace/company-profiles/employees/'+encodeURIComponent(employee)+'?report='+encodeURIComponent(kind):'/workspace/company-profiles/'+encodeURIComponent(company)+'/reports/'+encodeURIComponent(kind);const fresh=await request<Report>(path);setData(fresh);setError("");await document.fonts.ready;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));window.print();}catch(reason){setData(null);setError((reason as Error).message);}finally{setPrinting(false);}}
+ return <main className="page report-page" data-report-kind={kind} dir={language==="ar"?"rtl":"ltr"}>
+  <div className="report-controls"><Link to={employee?`/hr/employees/${encodeURIComponent(employee)}`:`/organization/companies/${encodeURIComponent(company)}?section=reports`}>{t("Back to workspace")}</Link>{data&&<><button type="button" disabled={printing} onClick={()=>void print()}>{t("Print")}</button><button className="primary" type="button" disabled={printing} onClick={()=>void print()}>{t("Export PDF")}</button><p className="hint">{t("For a PDF file, choose Save as PDF in the print dialog. The report includes all authorized records, across all pages.")}</p></>}</div>
+  {error?<p className="alert alert--bad" role="alert">{t(error)}</p>:!data?<p role="status">{t("Loading report…")}</p>:<article className="report-sheet"><header className="report-brand">{data.company.logo&&<img src={data.company.logo} alt="" referrerPolicy="no-referrer" onError={event=>{event.currentTarget.hidden=true;}}/>}<div><p>STOCRANT</p><h1>{text(data.company.name)}</h1><span>{t("Company ID")}: <b dir="ltr">{data.company.id}</b></span></div></header><div className="report-title"><h2>{t(data.title)}</h2><span>{t("Generated")}: {new Date(data.generatedAt).toLocaleString(language==="ar"?"ar-QA":"en-US")}</span></div>{kind!=="company"&&kind!=="profile"&&<p className="report-count">{data.rows.length} {t("records")}</p>}{data.rows.length?<div className="report-table-scroll"><table><thead><tr>{data.columns.map(column=><th key={column.key}>{t(column.label)}</th>)}</tr></thead><tbody>{data.rows.map((row,index)=><tr key={index}>{data.columns.map(column=><td key={column.key}>{(["status","label","employmentType","type"].includes(column.key)||column.key==="value"&&["Status","Employment status","Employment","Organization type","Business category"].includes(text(row.label)))?t(text(row[column.key])):text(row[column.key])||"—"}</td>)}</tr>)}</tbody></table></div>:<p>{t("No company records yet.")}</p>}<footer>{t("Company records")} · {text(data.company.name)}</footer></article>}
+ </main>;
+}

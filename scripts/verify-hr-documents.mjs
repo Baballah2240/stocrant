@@ -54,7 +54,7 @@ try {
   const fileResponse = await fetch(`${base}/api/workspace/documents/${item.id}/file`, { headers: { Cookie: cookie } }); assert.equal(fileResponse.status, 200); assert.ok((await fileResponse.arrayBuffer()).byteLength > 0);
   await evaluate('document.querySelector(".document-attachment-card button").click()'); await until('Boolean(document.querySelector(".document-preview[open] img")) && document.querySelector(".document-preview img").naturalWidth === 1');
   await evaluate('document.querySelector(".document-preview header button").click()');
-  await navigate(`/hr/employees/${employee.id}`); await until('document.querySelector(".employee-document-section")?.textContent.includes("Browser Employee Permit")');
+  await navigate(`/hr/employees/${employee.id}?section=documents`); await until('document.querySelector(".employee-document-section")?.textContent.includes("Browser Employee Permit")');
   await navigate(`/hr/documents/${item.id}/edit`); await until('Boolean(document.querySelector(".document-editor form"))');
   await fill("Document title", "Browser Employee Permit updated"); await evaluate('document.querySelector(".document-editor form").requestSubmit()');
   await until('document.querySelector(".document-detail-page h1")?.textContent === "Browser Employee Permit updated"');
