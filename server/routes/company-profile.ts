@@ -1,3 +1,4 @@
+import { readableCompanyTasks } from "../company-work.js";
 import { canManageAccount } from "../organization-policy.js";
 import { Router } from "express";
 import { can, isWithinScope, ownRecordsRequired, redactRecord, isMainManager } from "../permissions.js";
@@ -21,7 +22,7 @@ router.get("/employees/:id",(req,res)=>{
  const payroll=payrollData?payrollData.entries.filter(row=>row.employeeId===employee.id).map(row=>{const run=payrollData.runs.find(run=>run.id===row.runId);return {...row,start:run?.start,end:run?.end};}):[];
  const records=Object.fromEntries(["attendance","leaveRequests","employeeHistory"].map(name=>[name,linkedEmployeeRows(user,name,employee).map(row=>redactRecord(name,row,user))]));
  records.shifts=employeeShiftRows(user,employee);
- return res.json({employee:redactRecord("employees",employee,user),company:{id:company.id,name:company.name,parentOrganizationId:company.parentOrganizationId},records,payroll,account:accountVisible&&account?{id:account.id,username:account.username,status:account.status,avatar:typeof account.avatar==="string"&&/^(https:\/\/|data:image\/(?:png|jpeg|webp);base64,)/.test(account.avatar)?account.avatar:undefined,roleName:rows("accessRoles").find(role=>role.id===account.roleId)?.name}:null,permissions:{edit:can(user,"hr","edit"),delete:can(user,"hr","delete"),export:can(user,"hr","export"),salary:canViewSalaryData(user),payroll:payrollCan(user,"view")}});
+ return res.json({employee:redactRecord("employees",employee,user),company:{id:company.id,name:company.name,parentOrganizationId:company.parentOrganizationId},records,payroll,account:accountVisible&&account?{id:account.id,username:account.username,status:account.status,avatar:typeof account.avatar==="string"&&/^(https:\/\/|data:image\/(?:png|jpeg|webp);base64,)/.test(account.avatar)?account.avatar:undefined,roleName:rows("accessRoles").find(role=>role.id===account.roleId)?.name}:null,permissions:{notes:can(user,"operations","view"),edit:can(user,"hr","edit"),delete:can(user,"hr","delete"),export:can(user,"hr","export"),salary:canViewSalaryData(user),payroll:payrollCan(user,"view")}});
 });
 router.get("/:id/reports/:kind",(req,res)=>{
  const user=req.auth!,company=rows("companies").find(row=>row.id===req.params.id&&isWithinScope(user,{...row,organizationId:row.id}));
@@ -49,8 +50,8 @@ router.get("/:id", (req, res) => {
   const payroll = payrollCan(user,"view") ? scoped("payrollRuns").map(row=>({id:row.id,start:row.start,end:row.end,status:row.status,currency:row.currency,createdAt:row.createdAt})) : [];
   const companies = rows("companies").filter(row=>isWithinScope(user,{...row,organizationId:row.id})).map(row=>({id:row.id,name:row.name}));
   res.json({ company: redactRecord("companies",company,user), organization: parent ? { name: parent.name, ...(can(user,"organizations","view") ? { id:parent.id } : {}) } : null,
-    companies, records, payroll,
+    companies, records, payroll, tasks:readableCompanyTasks(user,company.id),
     employees, users,
-    permissions: { exportCompany:can(user,"organizations","export")&&can(user,"organizations","view"), exportHr:can(user,"hr","export")&&readEmployees, viewUsers:manageAccounts, viewPayroll:payrollCan(user,"view"), sendNotification:readEmployees && hrAccountSummary, editCompany:can(user,"organizations","edit"), viewEmployees:readEmployees, addEmployee:can(user,"hr","create") && !ownRecordsRequired(user) && company.status !== "inactive" && parent?.status !== "inactive", editEmployee:can(user,"hr","edit") && !ownRecordsRequired(user), manageAccount:can(user,"access","edit"), hrAccountSetup:hrAccountSummary, viewOrganization:can(user,"organizations","view"), main:isMainManager(user) } });
+    permissions: { viewWork:can(user,"operations","view"), exportCompany:can(user,"organizations","export")&&can(user,"organizations","view"), exportHr:can(user,"hr","export")&&readEmployees, viewUsers:manageAccounts, viewPayroll:payrollCan(user,"view"), sendNotification:readEmployees && hrAccountSummary, editCompany:can(user,"organizations","edit"), viewEmployees:readEmployees, addEmployee:can(user,"hr","create") && !ownRecordsRequired(user) && company.status !== "inactive" && parent?.status !== "inactive", editEmployee:can(user,"hr","edit") && !ownRecordsRequired(user), manageAccount:can(user,"access","edit"), hrAccountSetup:hrAccountSummary, viewOrganization:can(user,"organizations","view"), main:isMainManager(user) } });
 });
 export default router;

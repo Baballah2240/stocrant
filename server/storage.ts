@@ -241,7 +241,7 @@ function migrateSecureWorkspace(data: StoreData): boolean {
   for (const product of products) if (!product.awb) { product.awb = newProductAwb(usedAwbs); changed = true; }
   const required = [
     "accessRoles", "accessUsers", "sessions", "approvalRules", "approvalRequests", "auditLog",
-    "locationUpdates", "workItems", "workActivity", "inventoryItems", "inventoryMovements",
+    "locationUpdates", "workItems", "workActivity", "companyNotes", "inventoryItems", "inventoryMovements",
     "financeAccounts", "financeTransactions", "workspaceSettings", "attendanceSettings", "attendanceCorrectionRequests", "attendancePayrollAdjustments",
   ];
   for (const name of required) {

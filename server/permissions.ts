@@ -9,7 +9,7 @@ const COLLECTION_SECTIONS: Record<string, WorkspaceSection> = {
   organizations: "organizations",
   companies: "organizations",
   departments: "hr", employees: "hr", attendance: "hr", shifts: "hr", leaveRequests: "hr", documents: "hr", employeeHistory: "hr", performanceReviews: "hr",
-  tasks: "operations", workItems: "operations", workActivity: "operations", suppliers: "operations", customers: "operations", products: "operations",
+  companyNotes: "operations", tasks: "operations", workItems: "operations", workActivity: "operations", suppliers: "operations", customers: "operations", products: "operations",
   customerAppointments: "customerService", customerQuestions: "customerService", customerReplies: "customerService",
   warehouses: "inventory", bins: "inventory", inventory: "inventory", inventoryItems: "inventory", stockMovements: "inventory", inventoryMovements: "inventory", stockTransfers: "inventory", warehouseOrders: "inventory",
   payroll: "payroll", sales: "finance", expenses: "finance", taxes: "finance", purchases: "finance", returns: "finance", financeAccounts: "finance", financeTransactions: "finance",
@@ -41,7 +41,8 @@ export function can(user: AuthenticatedUser | undefined, section: WorkspaceSecti
 }
 
 /** HR write access is granted by explicit permission strings (`hr.*`, `hr.create`,
- * `hr.edit`, `hr.delete`, `hr.approve`). Account administration stays Main-Admin-only. */
+ * `hr.edit`, `hr.delete`, `hr.approve`). Account administration has separate
+ * delegated-admin permission and company-scope checks. */
 export function canManageHr(user: AuthenticatedUser | undefined, action: PermissionAction): boolean {
   if (!user) return false;
   if (isMainManager(user)) return true;
@@ -49,9 +50,9 @@ export function canManageHr(user: AuthenticatedUser | undefined, action: Permiss
   return permissions.includes("*") || permissions.includes("hr.*") || permissions.includes(`hr.${action}`);
 }
 
-/** Personal employee data (email/phone/birthday/salary) is visible to the Main Admin,
+/** Personal employee data (email/phone/address/birthday) is visible to the Main Admin,
  * delegated admins, HR users with record-management permission, and the employee
- * viewing their own record. Everyone else receives a redacted record. */
+ * viewing their own record. Salary uses the separate salary permission below. */
 export function canViewPersonalData(user: AuthenticatedUser | undefined): boolean {
   if (!user) return false;
   if (isMainManager(user) || isDelegatedAdmin(user)) return true;
@@ -122,7 +123,7 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   if (Array.isArray(inventoryItem?.allowedEmployeeIds) && inventoryItem.allowedEmployeeIds.includes(user.employeeId ?? "")) return true;
   if (!(user.ownRecordsOnly || role?.ownRecordsOnly === true)) return true;
   const identities = new Set([user.id, user.employeeId].filter(Boolean));
-  const owners = [row.accountId, row.employeeId, row.assigneeId, row.responsibleEmployeeId].filter((value): value is string => typeof value === "string" && Boolean(value));
+  const owners = [row.accountId, row.employeeId, row.assigneeId, row.responsibleEmployeeId,...(Array.isArray(row.assigneeIds)?row.assigneeIds:[])].filter((value): value is string => typeof value === "string" && Boolean(value));
   if (owners.length) return owners.some(id => identities.has(id));
   const employees = getCollection("employees") as Record<string, unknown>[];
   const employeeRecord = employees.find(employee => employee.id === row.id);

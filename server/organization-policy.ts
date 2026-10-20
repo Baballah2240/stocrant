@@ -105,6 +105,7 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
     if (!related || !isWithinScope(user, related) || (relatedCompany && !activeCompany(relatedCompany)) || (companyId && relatedCompany && relatedCompany !== companyId)) policyError("Choose a related record from the assigned company.");
   }
   if (collection === "employees") {
+    if (current && (action === "delete" || action === "edit" && companyId !== current.organizationId) && (rows("companyNotes").some(note=>note.employeeId===current.id)||rows("workItems").some(task=>task.assigneeId===current.id||Array.isArray(task.assigneeIds)&&task.assigneeIds.includes(current.id)))) policyError("This employee has linked tasks or notes. Deactivate the profile to preserve its history.");
     if (action !== "delete") {
       if (!current || (input.name !== undefined && input.name !== current.name)) {
         if (typeof next.name !== "string" || next.name.trim().length < 2 || next.name.trim().length > 120) policyError("Enter an employee name of 2–120 characters.");

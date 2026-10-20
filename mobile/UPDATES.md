@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-20 - Organization Manager company work
+
+- Added company Tasks, Notes, separate HR & Leave navigation and live task counts; employee profiles can show permitted tasks and notes.
+- Shared task forms support employee/team assignment, dates, status, priority, progress, comments and filters. Notes support linked records, follow-up dates, author timestamps and restricted visibility.
+- Updated shipped organization-manager permissions additively for payroll and company reports. Account and cross-organization safeguards remain on the API; employees require Operations view to see assigned work.
+- Added authorized task/note report previews and Arabic/English Print / Save as PDF layouts. Responsive browser checks passed; physical native dialogs and phone installation were not tested. No APK build or installation was requested/performed.
+
 ## 2026-10-20 - Complete employee workspace and reports
 
 - Added dedicated employee sections for personal/employment/contact/address details, account setup, HR records, payroll, documents and history. Save and Cancel return to the employee profile; legacy account-setup links remain supported.

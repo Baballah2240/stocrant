@@ -1,3 +1,4 @@
+import CompanyWork from "./CompanyWork";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api, request } from "../api";
@@ -10,7 +11,7 @@ import { ReportLink } from "./CompanyReport";
 import "../company-profile.css";
 
 type Profile={employee:CollectionItem;company:{id:string;name:string;parentOrganizationId:string};records:Record<string,CollectionItem[]>;payroll:CollectionItem[];account:null|{id:string;username:string;status:string;avatar?:string;roleName:string};permissions:Record<string,boolean>};
-const tabs=[["personal","Personal information"],["employment","Employment information"],["contact","Contact information"],["account","Account & access"],["records","HR & Attendance"],["payroll","Payroll"],["documents","Documents"],["history","Activity history"]];
+const tabs=[["personal","Personal information"],["employment","Employment information"],["contact","Contact information"],["account","Account & access"],["records","HR & Attendance"],["payroll","Payroll"],["tasks","Tasks"],["notes","Notes"],["documents","Documents"],["history","Activity history"]];
 const text=(v:unknown)=>typeof v==="string"||typeof v==="number"?String(v):"";
 const fields:Record<string,[string,string][]>={personal:[["employeeCode","Employee ID"],["name","Full name"],["birthday","Birthday"]],employment:[["jobTitle","Job title"],["department","Department"],["employmentType","Employment"],["status","Employment status"],["hireDate","Joining date"],["manager","Manager"],["location","Location"],["salary","Base salary"],["notes","Notes"]],contact:[["email","Email"],["phone","Phone"],["address","Address"]]};
 export default function EmployeeProfile({id}:{id:string}){
@@ -20,7 +21,7 @@ export default function EmployeeProfile({id}:{id:string}){
  useEffect(()=>{let active=true;setData(null);setError("");void request<Profile>(`/workspace/company-profiles/employees/${encodeURIComponent(id)}`).then(result=>{if(active)setData(result);}).catch(reason=>{if(active)setError(reason.message);});return()=>{active=false;};},[id]);
  if(!data)return <main className="page"><p role={error?"alert":"status"}>{t(error||"Loading employee profile…")}</p>{error&&<button onClick={()=>window.location.reload()}>{t("Try again")}</button>}</main>;
  const {employee,company,permissions,account}=data;
- const available=tabs.filter(([key])=>key!=="payroll"||permissions.payroll);
+ const available=tabs.filter(([key])=>key==="tasks"||key==="notes"?permissions.notes:key!=="payroll"||permissions.payroll);
  const requested=params.get("section")||location.hash.replace("#","")||"personal";
  const section=available.some(([key])=>key===requested)?requested:"personal";
  async function remove(){if(busy||!window.confirm(t("Delete this employee? Linked accounts and retained business records may prevent deletion.")))return;setBusy(true);setError("");try{const result=await api.collections.remove("employees",id);if(result.pending)setNotice("Your change was submitted for approval.");else navigate(`/organization/companies/${company.id}?section=employees`,{state:{success:"Record deleted."}});}catch(reason){setError((reason as Error).message);}finally{setBusy(false);}}
@@ -33,6 +34,7 @@ export default function EmployeeProfile({id}:{id:string}){
  {section==="records"&&<div className="company-panel-stack">{recordTable("attendance","Attendance records",[["date","Date"],["checkIn","Clock in"],["checkOut","Clock out"],["status","Status"]])}{recordTable("shifts","Shifts",[["name","Name"],["start","Start"],["end","End"]])}{recordTable("leaveRequests","Leave records",[["type","Type"],["from","From"],["to","To"],["status","Status"]])}</div>}
  {section==="history"&&recordTable("employeeHistory","Activity history",[["date","Date"],["event","Event"],["details","Details"],["changedBy","Changed by"]])}
  {section==="payroll"&&permissions.payroll&&<section className="card company-record-panel"><header><h2>{t("Payroll history")}</h2><Link to={`/hr/payroll?company=${encodeURIComponent(company.id)}&employee=${encodeURIComponent(id)}`}>{t("Payroll & payslips")}</Link></header>{data.payroll.length?<div className="table-wrap"><table className="table"><thead><tr>{["Period","Gross pay","Overtime","Deductions","Net pay"].map(label=><th key={label}>{t(label)}</th>)}</tr></thead><tbody>{data.payroll.map(row=><tr key={row.id}><td>{text(row.start)} — {text(row.end)}</td><td>{text(row.gross)} {text(row.currency)}</td><td>{text(row.overtimePay)}</td><td>{text(row.deductions)}</td><td>{text(row.netPay)}</td></tr>)}</tbody></table></div>:<p>{t("No payroll records match these filters.")}</p>}</section>}
+ {(section==="tasks"||section==="notes")&&permissions.notes&&<CompanyWork key={company.id+id+section} companyId={company.id} employeeId={id} mode={section}/>}
  {section==="documents"&&<EmployeeDocuments employeeId={id} companyId={company.id}/>}
  <div className="company-actions"><Link to={`/organization/companies/${company.id}?section=employees`}>{t("Back to company")}</Link><button type="button" onClick={()=>{setParams({section:"personal"});}}>{t("Personal information")}</button></div>
  </main>;

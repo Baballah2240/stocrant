@@ -1,3 +1,4 @@
+import companyWorkRouter from "./routes/company-work.js";
 import payrollRouter from "./routes/payroll.js";
 import companyProfileRouter from "./routes/company-profile.js";
 import hrMessagesRouter from "./hr-messages.js";
@@ -97,6 +98,7 @@ export function createApp() {
   app.use("/api/collections", collectionsRouter);
   app.use("/api/workspace/payroll", payrollRouter);
   app.use("/api/workspace/attendance", attendanceRouter);
+  app.use("/api/workspace/company-work/:companyId", companyWorkRouter);
   app.use("/api/workspace/company-profiles", companyProfileRouter);
   app.use("/api/workspace/hr/communication", hrMessagesRouter);
   app.use("/api/workspace", workspaceRouter);

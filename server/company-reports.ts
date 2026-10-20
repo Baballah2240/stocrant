@@ -1,3 +1,4 @@
+import { readableCompanyTasks, readableCompanyNotes } from "./company-work.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { can, isWithinScope, redactRecord, canViewSalaryData } from "./permissions.js";
 import { getCollection } from "./storage.js";
@@ -17,6 +18,12 @@ const configs:Record<string,{title:string;collection:string;columns:[string,stri
  leave:{title:"Leave records",collection:"leaveRequests",columns:[["employee","Employee"],["type","Type"],["from","From"],["to","To"],["days","Days"],["status","Status"]]},
 };
 export function companyReport(user:AuthenticatedUser,company:Row,kind:string){
+ if(kind==="tasks"||kind==="notes"){
+  if(!can(user,"operations","view")||!can(user,"operations","export"))return {error:"You do not have permission to export this report.",status:403};
+  const columns=kind==="tasks"?[["title","Title"],["assignee","Assignee"],["priority","Priority"],["status","Status"],["dueDate","Due"],["progress","Progress"]]:[["title","Title"],["body","Note"],["category","Category"],["createdByName","Author"],["createdAt","Created"],["followUpDate","Follow-up date"]];
+  const items=kind==="tasks"?readableCompanyTasks(user,company.id):readableCompanyNotes(user,company.id);
+  return {report:{title:kind==="tasks"?"Task progress report":"Company notes report",company:{id:company.id,name:company.name},generatedAt:new Date().toISOString(),columns:columns.map(([key,label])=>({key,label})),rows:items.map(item=>Object.fromEntries(columns.map(([key])=>[key,item[key]??""])))}};
+ }
  const hr=Object.hasOwn(configs,kind);
  if(kind!=="company"&&!hr)return {error:"Unknown company report.",status:400};
  if(!can(user,hr?"hr":"organizations","view")||!can(user,hr?"hr":"organizations","export"))return {error:"You do not have permission to export this report.",status:403};
@@ -31,6 +38,14 @@ export function companyReport(user:AuthenticatedUser,company:Row,kind:string){
  return {report:{title:config?.title??"Company information",company:{name:company.name,id:company.id,logo:typeof company.logo==="string"&&company.logo.startsWith("https://")?company.logo:undefined},generatedAt:new Date().toISOString(),columns:columns.map(([key,label])=>({key,label})),rows:items.map(row=>Object.fromEntries(columns.map(([key])=>[key,row[key]??""])))}};
 }
 export function employeeReport(user:AuthenticatedUser,employee:Row,company:Row,kind="profile"){
+ if(kind==="tasks"||kind==="notes"){
+  if(!can(user,"operations","view")||!can(user,"operations","export"))return {error:"You do not have permission to export this report.",status:403};
+  const assigned=readableCompanyTasks(user,company.id).filter(task=>task.assigneeId===employee.id||Array.isArray(task.assigneeIds)&&task.assigneeIds.includes(employee.id));
+  const ids=new Set(assigned.map(task=>task.id));
+  const items=kind==="tasks"?assigned:readableCompanyNotes(user,company.id).filter(note=>note.employeeId===employee.id||ids.has(String(note.workItemId)));
+  const columns=kind==="tasks"?[["title","Title"],["assignee","Assignee"],["status","Status"],["priority","Priority"],["dueDate","Due"],["progress","Progress"]]:[["title","Title"],["body","Note"],["category","Category"],["createdByName","Author"],["createdAt","Created"]];
+  return {report:{title:kind==="tasks"?"Task progress report":"Employee notes report",company:{id:company.id,name:company.name},generatedAt:new Date().toISOString(),columns:columns.map(([key,label])=>({key,label})),rows:items.map(item=>Object.fromEntries(columns.map(([key])=>[key,item[key]??""])))}};
+ }
  if(!can(user,"hr","export"))return {error:"You do not have permission to export this report.",status:403};
  if(kind!=="profile"){
   const config=configs[kind];

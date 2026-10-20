@@ -1,5 +1,11 @@
 # Project task log
 
+## 2026-10-20 - Organization Manager full company access
+
+Extended the existing Organization Admin role and company workspace with scoped payroll/report permissions, real team task management, authored follow-up comments, restricted company/employee/task notes, live counts, employee task visibility and task/note reports. Preserved custom permission overrides, global admin protections, approval stages, existing account identity/reset flows and data relationships.
+
+Implementation, tests and limitations: `../ORGANIZATION_MANAGER.md`, CHANGELOG.md and mobile/UPDATES.md. Original brief: `2026-10-20-ORGANIZATION-MANAGER-BRIEF.md`. Tests use isolated temporary data and generated report fixtures; no hosting deployment or native installation was performed.
+
 ## 2026-10-20 - Complete organization, employee profiles and PDF reports
 
 Extended the existing company workspace with complete employee sections, address editing, account/document/payroll connections, profile return after Save/Cancel, protected deletion and independent salary/personal-data authorization. Added scoped server report datasets and browser Print/Save as PDF previews for company, employee, contact, attendance, shift and leave records. Improved organization/company context and retained existing identity/account/audit business rules.

@@ -36,7 +36,7 @@ function normalized(value: unknown) {
 
 function matchesUser(row: Row, user: NonNullable<import("express").Request["auth"]>) {
   const identities = new Set([user.id, user.employeeId, user.email, user.name].map(normalized).filter(Boolean));
-  return [row.id, row.employeeId, row.assigneeId, row.assignee, row.employee, row.email, row.assignedTo, row.createdById]
+  return [row.id, row.employeeId, row.assigneeId, row.assignee, row.employee, row.email, row.assignedTo, row.createdById,...(Array.isArray(row.assigneeIds)?row.assigneeIds:[])]
     .map(normalized)
     .some((value) => identities.has(value));
 }
@@ -428,7 +428,7 @@ router.get("/work", requirePermission("operations", "view"), (req, res) => {
   const view = String(req.query.view ?? "all");
   const today = new Date().toISOString().slice(0, 10);
   let items = scoped(req, rows("workItems"), "workItems");
-  if (view === "mine") items = items.filter((item) => item.assigneeId === req.auth!.employeeId || item.assignee === req.auth!.name || item.assignee === req.auth!.email);
+  if (view === "mine") items = items.filter((item) => item.assigneeId === req.auth!.employeeId || Array.isArray(item.assigneeIds) && item.assigneeIds.includes(req.auth!.employeeId) || item.assignee === req.auth!.name || item.assignee === req.auth!.email);
   if (view === "upcoming") items = items.filter((item) => String(item.dueDate) >= today && !["Completed", "Cancelled"].includes(String(item.status)));
   if (view === "overdue") items = items.filter((item) => String(item.dueDate) < today && !["Completed", "Cancelled"].includes(String(item.status)));
   res.json({ companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), items: items.sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate))), activity: scoped(req, rows("workActivity"), "workActivity") });
@@ -437,7 +437,7 @@ router.get("/work", requirePermission("operations", "view"), (req, res) => {
 const workSchema = z.object({
     title: z.string().trim().min(1).max(180), organizationId: z.string().optional(), locationId: z.string().optional(),
     assignee: z.string().trim().max(120).optional(), assigneeId: z.string().optional(), dueDate: z.string().date("Choose a valid date.").optional(),
-    priority: z.enum(["Low", "Medium", "High", "Urgent"]).default("Medium"), status: z.enum(["Planned", "Assigned", "In Progress", "Awaiting Approval", "Completed", "Cancelled"]).default("Planned"),
+    priority: z.enum(["Low", "Medium", "High", "Urgent"]).default("Medium"), status: z.enum(["Pending", "Planned", "Assigned", "In Progress", "Awaiting Approval", "Completed", "Cancelled"]).default("Planned"),
     workflow: z.string().trim().max(120).optional(), progress: z.coerce.number().min(0).max(100).default(0), comments: z.string().max(4000).optional(), attachments: z.string().max(2000).optional(), inventoryUsage: z.string().max(1000).optional(),
   }).strict();
 
@@ -462,7 +462,7 @@ router.patch("/work/:id", requirePermission("operations", "edit"), (req, res) =>
 });
 
 router.post("/work/:id/activity", requirePermission("operations", "edit"), (req, res) => {
-  const parsed = z.object({ message: z.string().trim().min(1).max(2000), progress: z.coerce.number().min(0).max(100).optional(), status: z.enum(["Planned", "Assigned", "In Progress", "Awaiting Approval", "Completed", "Cancelled"]).optional(), attachments: z.string().max(2000).optional() }).safeParse(req.body);
+  const parsed = z.object({ message: z.string().trim().min(1).max(2000), progress: z.coerce.number().min(0).max(100).optional(), status: z.enum(["Pending", "Planned", "Assigned", "In Progress", "Awaiting Approval", "Completed", "Cancelled"]).optional(), attachments: z.string().max(2000).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Enter an activity update." });
   const existing = rows("workItems").find((item) => item.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Work item not found." });

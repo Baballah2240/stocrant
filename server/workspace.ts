@@ -117,7 +117,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
     if (!isWithinScope(user, existing)) throw new Error("Record not found.");
     data.collections[collection] = list.filter((row) => row.id !== targetId);
     saveStore(data);
-    audit(user, `${collection}.deleted`, { collection, targetId, section: sectionForCollection(collection) });
+    audit(user, `${collection}.deleted`, { collection, targetId, organizationId:existing.organizationId??existing.companyId, locationId:existing.locationId, section: sectionForCollection(collection) });
     return existing;
   }
 

@@ -9,7 +9,7 @@ import BackButton from "./BackButton";
 import type { CollectionItem } from "../types";
 
 const views = ["mine", "upcoming", "overdue", "all"] as const;
-const statuses = ["Planned", "Assigned", "In Progress", "Awaiting Approval", "Completed", "Cancelled"];
+const statuses = ["Pending", "Planned", "Assigned", "In Progress", "Awaiting Approval", "Completed", "Cancelled"];
 
 export default function OperationsWorkspace() {
   const { t } = useLanguage();

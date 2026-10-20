@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-20 — Organization Manager company access, tasks and notes
+
+- Extended the shipped Organization Admin role with scoped payroll and company report/delete permissions. Existing shipped-role grants upgrade additively; explicit custom roles/account restrictions remain intact. Global administrator accounts and settings remain protected.
+- Added dedicated Tasks, Notes and HR & Leave company sections, live task counts, employee task/note sections and scoped report links. Existing employee/user/attendance/payroll/document workflows remain connected.
+- Reused work items/activity for validated individual/team assignments, dates, priority, status, progress, reassignment, completion/cancellation and authored comments. Added search, employee/status/priority/date/overdue filters and pagination. Team members' permitted personal work lists now include their assignments.
+- Added company/employee/task notes with categories, follow-up dates, immutable authors/creation timestamps, search/filtering, management-only defaults and explicit linked-employee visibility. Current task assignments determine shared-note access after reassignment.
+- Enforced scope and related-record checks on every new API. Added authorized task/note printing/PDF reports, private-note export redaction, deletion audit scope and safeguards against orphaning retained tasks/notes.
+- The shared route matrix passed all 348 route/language/theme/viewport combinations with no uncaught errors. Final company-work filter sizing was additionally checked at desktop, tablet and phone widths.
+- Verified 133 API/unit plus 10 UI support tests, TypeScript, build, storage/security checks, organization-manager browser workflows, company/profile/document/payroll regressions and rendered Arabic task/note PDFs. Details: `docs/ORGANIZATION_MANAGER.md`.
+- Employee task viewing requires Operations view, granted through existing Users & Access; automatic employee accounts keep their existing HR-only defaults. Existing approval stages, self-approval rules, inactive-scope policies and retained-record protections remain authoritative. PDF export uses the platform print dialog. No production deployment, native build or phone installation was performed.
+
 ## 2026-10-20 — Complete organization, employee profiles and reporting
 
 ### Completed
