@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useSearchParams } from "react-router-dom";
 import ChoiceSelect from "./ChoiceSelect";
 import { api } from "../api";
 import { useLanguage } from "../language-context";
@@ -39,12 +39,13 @@ function Metric({ label, value: total, detail, tone }: { label: string; value: s
 export default function AttendanceWorkspace() {
   const { t, language } = useLanguage();
   const { user } = useSession();
+  const [params] = useSearchParams();
   const [tab, setTab] = useState<Tab>("overview");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [companies, setCompanies] = useState<CollectionItem[]>([]);
   const [roles, setRoles] = useState<CollectionItem[]>([]);
   const [corrections, setCorrections] = useState<CollectionItem[]>([]);
-  const [filters, setFilters] = useState({ organizationId: "", employeeId: "", department: "", status: "all", from: today(), to: today(), month: "", year: "", query: "", page: 1, limit: 25 });
+  const [filters, setFilters] = useState({ organizationId: params.get("company")||"", employeeId: "", department: "", status: "all", from: today(), to: today(), month: "", year: "", query: "", page: 1, limit: 25 });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

@@ -23,6 +23,23 @@ before(async()=>{server=createApp().listen(0,"127.0.0.1");await new Promise<void
 });
 after(async()=>{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));const target=resolve(TEST_DATA_DIR);assert.ok(target.startsWith(resolve(tmpdir())+sep)&&target.includes("stocrant-test-data-"));rmSync(target,{recursive:true,force:true});});
 describe("Company profiles and employee identities",()=>{
+ it("saves and clears a company logo through the existing edit permission and rejects unsafe URLs",async()=>{
+  await expect(await req("/collections/companies/company-primary","PATCH",{logo:"javascript:alert(1)"}),400);
+  await expect(await req("/collections/companies/company-primary","PATCH",{logo:"https://user:secret@example.test/logo.png"}),400);
+  await expect(await req("/collections/companies/company-primary","PATCH",{logo:"https://example.test/logo.png"},hr),403);
+  await expect(await req("/collections/companies/company-primary","PATCH",{logo:"https://example.test/logo.png"}),200);
+  assert.equal((await expect(await req("/workspace/company-profiles/company-primary"),200)).company.logo,"https://example.test/logo.png");
+  await expect(await req("/collections/companies/company-primary","PATCH",{logo:""}),200);
+ });
+ it("scopes company workspace records and switching, and withholds payroll and users without permission",async()=>{
+  const stamp=randomUUID();
+  transaction(()=>{for(const name of ["attendance","shifts","leaveRequests","payrollRuns"]){getStore().collections[name]=[...rows(name),{id:`workspace-${name}-${stamp}`,organizationId:"company-primary",name:"Scoped record",status:"pending",start:"2026-10-01",end:"2026-10-20"},{id:`foreign-${name}-${stamp}`,organizationId:foreign.id,name:"Foreign record",status:"pending"}];}saveStore(getStore());});
+  const restricted=await expect(await req("/workspace/company-profiles/company-primary","GET",undefined,hr),200);
+  assert.ok(restricted.companies.every((item:Row)=>item.id==="company-primary"));
+  assert.equal(restricted.permissions.viewPayroll,false);assert.equal(restricted.permissions.viewUsers,false);assert.deepEqual(restricted.payroll,[]);assert.deepEqual(restricted.users,[]);
+  for(const name of ["attendance","shifts","leaveRequests"]){assert.ok(restricted.records[name].some((item:Row)=>item.id===`workspace-${name}-${stamp}`));assert.ok(restricted.records[name].every((item:Row)=>item.organizationId==="company-primary"));}
+  const full=await expect(await req("/workspace/company-profiles/company-primary"),200);assert.ok(full.permissions.viewPayroll);assert.ok(full.payroll.some((item:Row)=>item.id===`workspace-payrollRuns-${stamp}`));assert.ok(full.payroll.every((item:Row)=>!String(item.id).startsWith("foreign-")));
+ });
  it("generates readable IDs globally, retries collisions and creates unique usernames for repeated or Arabic names",()=>{
   const existing=[{employeeCode:"EMP-2026-COLLISION"}];let attempts=0;assert.equal(generateEmployeeCode(existing,2026,()=>++attempts===1?"COLLISION":"UNIQUE"),"EMP-2026-UNIQUE");assert.equal(attempts,2);
   const first=generateUsername([],"Same Name"),second=generateUsername([{username:first}],"Same Name");assert.notEqual(first,second);assert.ok(validUsername(first)&&validUsername(second));assert.ok(validUsername(generateUsername([],"محمد علي","EMP-2026-12345678")));

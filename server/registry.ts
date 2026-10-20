@@ -67,6 +67,7 @@ registry.push({
     { key: "name", label: "Company name", type: "text", required: true },
     { key: "parentOrganizationId", label: "Organization", type: "select", required: true },
     { key: "tradeName", label: "Trading name", type: "text" },
+    { key: "logo", label: "Company logo URL", type: "text", placeholder: "https://example.com/logo.png" },
     { key: "organizationType", label: "Organization type", type: "select", options: ["shop", "store", "office", "restaurant", "mixed"], required: true },
     { key: "industry", label: "Industry", type: "select", options: ["restaurant", "retail", "hospitality", "services", "mixed"], required: true },
     { key: "taxId", label: "Tax / registration ID", type: "text" },

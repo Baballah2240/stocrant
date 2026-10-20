@@ -50,6 +50,7 @@ export function buildSchema(fields: FieldSpec[], existing: Record<string, unknow
         base = field.required ? z.string().trim().min(1, "This field is required.") : z.string().optional();
         break;
     }
+    if (field.key === "logo") base = z.string().trim().max(2000).refine(value=>{if(!value)return true;try{const url=new URL(value);return url.protocol==="https:"&&!url.username&&!url.password;}catch{return false;}},"Use an HTTPS logo URL without credentials.").optional();
     shape[field.key] = field.required && field.type !== "email" ? base : base;
     if (!field.required && (field.type === "number" || field.type === "currency" || field.type === "percent")) {
       shape[field.key] = base.optional().default(0);

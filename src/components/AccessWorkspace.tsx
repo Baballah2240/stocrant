@@ -121,7 +121,7 @@ interface UsersProps {
 }
 function UsersPanel(props: UsersProps) {
   const { t, language } = useLanguage();
-  const [query, setQuery] = useState(""); const [status, setStatus] = useState(""); const [companyId, setCompanyId] = useState(""); const [page, setPage] = useState(1);
+  const [query, setQuery] = useState(""); const [status, setStatus] = useState(""); const [companyId, setCompanyId] = useState(new URLSearchParams(window.location.search).get("company")||""); const [page, setPage] = useState(1);
   const [sort, setSort] = useState("name"); const [params] = useSearchParams(); const pageSize = 10;
   const filtered = useMemo(() => props.users.filter(user => {
     const companyNames = props.companies.filter(company => values(user.organizationIds).includes(company.id)).map(company => company.name).join(" ");

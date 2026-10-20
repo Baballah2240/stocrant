@@ -16,11 +16,11 @@ export default function HRCommunication() {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [history, setHistory] = useState<Campaign[]>([]);
   const [selected, setSelected] = useState<string[]>(params.get("employee") ? [params.get("employee")!] : []);
-  const [query, setQuery] = useState(""); const [company, setCompany] = useState(""); const [position, setPosition] = useState("");
+  const [query, setQuery] = useState(""); const [company, setCompany] = useState(params.get("company")||""); const [position, setPosition] = useState("");
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false);
   const [invitation, setInvitation] = useState<{ url: string; expiresAt: string } | null>(null);
   const [preview, setPreview] = useState(false); const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
-  const [form, setForm] = useState({ title: "", message: "", type: "General Message", priority: "Normal", url: "", effectiveAt: "", shiftTime: "", location: "", acknowledgmentRequired: false, scheduledAt: "" });
+  const [form, setForm] = useState({ title: "", message: "", type: types.includes(params.get("type")||"")?params.get("type")!:"General Message", priority: params.get("type")==="Urgent Shift Change"?"Urgent":"Normal", url: "", effectiveAt: "", shiftTime: "", location: "", acknowledgmentRequired: false, scheduledAt: "" });
   async function load() { const [directory, messages] = await Promise.all([request<{ employees: Employee[]; companies: { id: string; name: string }[] }>(`${base}/employees`), request<{ items: Campaign[] }>(`${base}/messages`)]); setEmployees(directory.employees); setCompanies(directory.companies); setHistory(messages.items.reverse()); setLoaded(true); }
   useEffect(() => { void load().catch(err => setError(err.message)); const timer = setInterval(() => { void load().catch(() => {}); }, 30000); return () => clearInterval(timer); }, []);
   const shown = employees.filter(employee => (!company || employee.organizationId === company) && (!position || employee.jobTitle === position) && `${employee.name} ${employee.email || ""} ${employee.phone || ""} ${employee.employeeCode || employee.id} ${employee.department || ""}`.toLowerCase().includes(query.toLowerCase()));

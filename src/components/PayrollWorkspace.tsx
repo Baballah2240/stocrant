@@ -19,7 +19,7 @@ function Status({value}:{value:string}){const {t}=useLanguage();return <span cla
 
 export default function PayrollWorkspace(){
  const {t,language}=useLanguage(),[params]=useSearchParams();
- const [data,setData]=useState<Dashboard|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[tab,setTab]=useState("history"),[companyId,setCompany]=useState(""),[runId,setRun]=useState(""),[query,setQuery]=useState(""),[department,setDepartment]=useState(""),[status,setStatus]=useState(""),[sort,setSort]=useState("employee"),[page,setPage]=useState(1),[generate,setGenerate]=useState(false),[detail,setDetail]=useState<Row|null>(null),[action,setAction]=useState<Row|null>(null),[notice,setNotice]=useState("");
+ const [data,setData]=useState<Dashboard|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[tab,setTab]=useState("history"),[companyId,setCompany]=useState(params.get("company")||""),[runId,setRun]=useState(params.get("run")||""),[query,setQuery]=useState(""),[department,setDepartment]=useState(""),[status,setStatus]=useState(""),[sort,setSort]=useState("employee"),[page,setPage]=useState(1),[generate,setGenerate]=useState(false),[detail,setDetail]=useState<Row|null>(null),[action,setAction]=useState<Row|null>(null),[notice,setNotice]=useState("");
  const employeeFilter=params.get("employee")||"";
  const load=useCallback(async()=>{try{const result=await call<Dashboard>("");setData(result);setError("");}catch(e){setError((e as Error).message);}},[]);
  useEffect(()=>{void load();},[load]);

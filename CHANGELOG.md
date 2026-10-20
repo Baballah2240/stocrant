@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-20 — Dedicated company management workspace
+
+- Reorganized company profiles into permission-aware Overview, Employees, HR & Attendance, Payroll, Notifications, Users & Permissions, Reports and Company Settings sections.
+- Added persistent section navigation, company switching, company identity/contact header, summary cards, recent employee records, pending leave updates and primary actions.
+- Added editable HTTPS company logo URLs with server validation, clear/reset support and image-failure fallback.
+- Retained company edit/save/cancel and employee/account workflows; added employee sorting alongside existing search, department/status filters and pagination.
+- Added scoped company HR records and payroll-period summaries to the existing profile API. Payroll/user data and actions require their existing permissions; company switching uses authorized companies only.
+- Connected company-filtered payroll, attendance, message composer, user management and registry lists. No sample statistics, invented workflows, migrations or business-data rewrites.
+- Verified through project checks, company scope API regression tests and real browser editing, employee creation/activation, switching, navigation and responsive English/Arabic checks. Shared mobile notes accompany source changes; no deployment or native installation performed.
+
 ## 2026-10-20 — Application audit and reliability fixes
 
 ### Security and financial integrity

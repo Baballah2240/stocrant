@@ -1,5 +1,11 @@
 # Project task log
 
+## 2026-10-20 - Dedicated company workspace redesign
+
+Reorganized the existing company profile into eight permission-aware sections with persistent navigation, company switching, real summary cards, recent employee records, pending leave updates and a company identity/contact/logo header. Retained company editing and employee creation/account activation; added directory sorting and validated HTTPS logo settings. Connected company-selected payroll, attendance, communication, registry and user-management workflows without changing business relationships.
+
+Details and verification: [Company workspace](../COMPANY_WORKSPACE.md), CHANGELOG.md and mobile/UPDATES.md. Local tests use isolated temporary data. No production deployment, native build or phone installation was performed.
+
 ## 2026-10-20 - Full application audit and repairs
 
 Repaired temporary-password enforcement, approval visibility and linked-employee ownership checks, atomic internal transfer decisions, CSV formula escaping, work/registry validation, generic company assignment and field errors, draft protection, stale sessions, task routes, safe connection settings, Arabic enum values and accessible controls. Reduced repeated dashboard/ledger work and removed verified unreachable modules. Archived 24 scratch files locally with checksums; business data was preserved.

@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-20 - Dedicated company workspace
+
+- Added shared company navigation for overview, employees, HR/attendance, payroll, communication, users, reports and settings, shown according to permissions.
+- Added company switching, identity/contact header, compact statistics, recent employee records, pending leave updates and searchable/filterable/sortable employee management.
+- Company settings supports a validated HTTPS logo URL; unavailable images use the shared fallback icon.
+- Company links preselect payroll, attendance, notification recipients and record lists. Responsive wrapping navigation supports Arabic RTL and English LTR with light/dark surfaces.
+- Preserved existing editing, employee creation, account activation and business data. Source-only update; no native build or phone installation performed.
+
 ## 2026-10-20 - Application audit and workflow repairs
 
 - Enforced flagged temporary-password setup in the shared UI and business APIs, improved session refresh handling, and retained existing password/session policies. Unflagged accounts remain unchanged.
