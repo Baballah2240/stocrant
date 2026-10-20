@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-21 - Light blue project-wide recoloring
+
+- Changed the primary accent color from blue-600 (`#2563eb`) to light blue (`#3b82f6`) across the shared website/mobile themes (`src/theme.css`, `src/ui-refresh.css`) and the public website (`public-website/src/theme.css`), covering light, dark and iOS premium layers plus `--ios-blue`.
+- Updated hardcoded accent instances (buttons, badges, focus rings, avatar/hero gradients, finance trend chart stroke) to the new light blue.
+- No native binary was rebuilt or installed. Source publication does not deploy hosting or update a phone.
+
 ## 2026-10-20 - Work Activity chart and Today filter
 
 - Added the shared Chart.js Work Activity line/area chart to desktop and manager/employee phone homes, with point/table drill-down, exact totals, recent work events and permission-scoped record links.

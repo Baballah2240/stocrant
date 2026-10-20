@@ -7,8 +7,8 @@
   --ios-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.08);
   --ios-shadow-lg: 0 24px 48px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.08);
   --ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --color-primary: #2563eb;
-  --color-primary-soft: rgba(37, 99, 235, 0.12);
+  --color-primary: #3b82f6;
+  --color-primary-soft: rgba(59, 130, 246, 0.12);
   --color-success: #16a34a;
   --color-success-soft: rgba(22, 163, 74, 0.12);
   --color-warning: #d97706;
@@ -102,7 +102,7 @@ button.primary {
 }
 
 button.primary:hover {
-  background: #1d4ed8;
+  background: #2563eb;
 }
 
 button.danger {
@@ -292,7 +292,7 @@ label {
 .badge--counter { background: var(--color-primary-soft); color: var(--color-primary); }
 .badge--back { background: #6b7280; color: #fff; }
 .badge--floor { background: var(--color-neutral-soft); color: var(--color-neutral); }
-.badge--outdoor { background: #2563eb; color: #fff; }
+.badge--outdoor { background: #3b82f6; color: #fff; }
 .badge--restroom { background: #059669; color: #fff; }
 .badge--storage { background: #db2777; color: #fff; }
 
@@ -417,7 +417,7 @@ label {
 }
 
 .link-row:hover {
-  color: #1d4ed8;
+  color: #2563eb;
 }
 
 .row-detail {
@@ -612,8 +612,8 @@ label {
 
 /* ── iOS premium layer ─────────────────────────────────────────────── */
 [data-theme="dark"] {
-  --color-primary: #0a84ff;
-  --color-primary-soft: rgba(10, 132, 255, 0.22);
+  --color-primary: #3b82f6;
+  --color-primary-soft: rgba(59, 130, 246, 0.22);
   --color-success: #30d158;
   --color-success-soft: rgba(48, 209, 88, 0.2);
   --color-warning: #ff9f0a;
@@ -634,13 +634,13 @@ label {
 [data-theme="light"] {
   --ios-well: #e9e9ee;
   --ios-separator: rgba(60, 60, 67, 0.12);
-  --ios-blue: #007aff;
+  --ios-blue: #3b82f6;
   --ios-sheet: rgba(255, 255, 255, 0.82);
 }
 
 [data-theme="dark"] {
   --ios-separator: rgba(255, 255, 255, 0.12);
-  --ios-blue: #0a84ff;
+  --ios-blue: #3b82f6;
   --ios-sheet: rgba(28, 28, 30, 0.82);
 }
 
@@ -1073,8 +1073,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   --ios-fill: rgba(120, 120, 128, 0.16);
   --ios-field: rgba(120, 120, 128, 0.12);
   --ios-hairline: rgba(60, 60, 67, 0.29);
-  --color-primary: #007aff;
-  --color-primary-soft: rgba(0, 122, 255, 0.12);
+  --color-primary: #3b82f6;
+  --color-primary-soft: rgba(59, 130, 246, 0.12);
   --color-danger: #ff3b30;
 }
 
@@ -1086,8 +1086,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   --ios-fill: rgba(118, 118, 128, 0.24);
   --ios-field: rgba(118, 118, 128, 0.28);
   --ios-hairline: rgba(84, 84, 88, 0.65);
-  --color-primary: #0a84ff;
-  --color-primary-soft: rgba(10, 132, 255, 0.18);
+  --color-primary: #3b82f6;
+  --color-primary-soft: rgba(59, 130, 246, 0.18);
 }
 
 /* Base — flat grouped background, no gradients */
