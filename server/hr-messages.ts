@@ -7,6 +7,7 @@ import { getCollection, getStore, nextCollectionId, saveStore, transaction } fro
 import { createNotification, getNotificationStore, saveNotificationStore } from "./notifications.js";
 import { audit } from "./workspace.js";
 import { issueEmployeeInvitation, employmentInactive } from "./employee-accounts.js";
+import { onboardingStatus } from "./onboarding.js";
 
 type Row = Record<string, unknown> & { id: string };
 const rows = (key: string) => getCollection(key) as Row[];
@@ -68,7 +69,7 @@ router.get("/employees/:id/account", (req, res) => {
   if (!employee) return res.status(404).json({ error: "Employee not found." });
   const account = rows("accessUsers").find(row => row.employeeId === employee.id);
   const company = rows("companies").find(row => row.id === employee.organizationId);
-  res.json({ employeeCode:employee.employeeCode, companyName:company?.name, organizationName:rows("organizations").find(row=>row.id===company?.parentOrganizationId)?.name,
+  res.json({ delivery:onboardingStatus(employee.id), employeeCode:employee.employeeCode, companyName:company?.name, organizationName:rows("organizations").find(row=>row.id===company?.parentOrganizationId)?.name,
     account:account ? { id:account.id,username:account.username,status:account.status,roleName:rows("accessRoles").find(row=>row.id===account.roleId)?.name || "Employee",activationRequired:account.activationRequired === true } : null });
 });
 router.post("/employees/:id/invitation", (req, res) => {

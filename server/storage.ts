@@ -240,7 +240,7 @@ function migrateSecureWorkspace(data: StoreData): boolean {
   const usedAwbs = new Set(products.map(row => String(row.awb ?? "")));
   for (const product of products) if (!product.awb) { product.awb = newProductAwb(usedAwbs); changed = true; }
   const required = [
-    "accessRoles", "accessUsers", "sessions", "approvalRules", "approvalRequests", "auditLog",
+    "accessRoles", "accessUsers", "sessions", "approvalRules", "approvalRequests", "auditLog", "onboardingEmails", "employeeIdentities",
     "locationUpdates", "workItems", "workActivity", "companyNotes", "inventoryItems", "inventoryMovements",
     "financeAccounts", "financeTransactions", "workspaceSettings", "attendanceSettings", "attendanceCorrectionRequests", "attendancePayrollAdjustments",
   ];

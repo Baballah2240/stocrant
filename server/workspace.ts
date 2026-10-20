@@ -1,4 +1,5 @@
 import { generateEmployeeCode } from "./employee-identity.js";
+import { eligibleSelfApproval } from "./admin-policy.js";
 import { syncEmployeeAccount } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
@@ -124,7 +125,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   const existing = targetId ? list.find((row) => row.id === targetId) : undefined;
   if (targetId && !existing) throw new Error("Record not found.");
   if (existing && !isWithinScope(user, existing)) throw new Error("Record not found.");
-  if (collection === "employees" && !existing && !String(payload.employeeCode || "").trim()) payload = { ...payload, employeeCode: generateEmployeeCode(rows("employees")) };
+  if (collection === "employees" && !existing && !String(payload.employeeCode || "").trim()) payload = { ...payload, employeeCode: generateEmployeeCode([...rows("employees"),...rows("employeeIdentities")]) };
   const item: Row = existing
     ? { ...existing, ...payload, id: existing.id, updatedAt: now, updatedBy: user.id, updatedByName: user.name }
     : {
@@ -139,6 +140,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
       dataClassification: payload.dataClassification ?? "company",
     };
   data.collections[collection] = existing ? list.map((row) => row.id === item.id ? item : row) : [...list, item];
+  if(collection==="employees"&&!existing){data.collections.employeeIdentities=[...rows("employeeIdentities"),{id:rowId("employeeIdentities"),employeeCode:item.employeeCode,organizationId:item.organizationId,employeeId:item.id,issuedAt:now}];}
   if (["products", "inventoryItems"].includes(collection)) {
     const used = new Set([...rows("products"), ...rows("inventoryItems")].map(row => String(row.awb ?? "")));
     item.awb = existing?.awb || newProductAwb(used);
@@ -343,7 +345,9 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
   if (!approvalWithinScope(user, request)) throw new Error("Approval request not found.");
   if (request.collection === "documents" && !managesDocuments(user, request.action)) throw new Error("You do not have permission to decide HR document requests.");
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
-  if (request.requestedBy === user.id) throw new Error("A requester cannot approve their own request.");
+  const selfApproved=request.requestedBy===user.id;
+  if(selfApproved&&(!isMainManager(user)||!eligibleSelfApproval(request)))throw new Error("A requester cannot approve their own request.");
+  if(selfApproved&&String(note||"").trim().length<8)throw new Error("Enter a reason of at least 8 characters for Main Administrator self-approval.");
   if (!pairedTransfer && request.collection === "financeTransactions" && request.payload?.type === "transfer" && request.payload.transferGroupId) {
     const pair = list.filter(row => row.collection === "financeTransactions" && row.payload?.type === "transfer" && row.payload.transferGroupId === request.payload!.transferGroupId);
     if (pair.length !== 2 || pair.some(row => row.status !== "pending")) throw new Error("Both sides of a transfer must be pending for joint review.");
@@ -368,10 +372,11 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
     decidedBy: user.id,
     decidedByName: user.name,
     decisionNote: note ?? "",
+    selfApproved,
   };
   data.collections.approvalRequests = list.map((row) => row.id === requestId ? updated : row);
   saveStore(data);
-  audit(user, approve ? "approval.approved" : "approval.rejected", { approvalRequestId: requestId, section: request.section, action: request.action });
+  audit(user, approve ? "approval.approved" : "approval.rejected", { approvalRequestId: requestId, section: request.section, action: request.action,collection:request.collection,targetId:request.targetId,organizationId:request.organizationId,requesterId:request.requestedBy,approverId:user.id,decidedAt:updated.decidedAt,selfApproved,reason:note||"",outcome:updated.status });
   const requester = rows("accessUsers").find(row => row.id === request.requestedBy);
   if (requester) createNotification({ userId: requester.id, user: String(requester.name), type: "message", severity: "info", message: `${user.name} ${approve ? "approved" : "rejected"} your ${request.action} request in ${request.section}.${note ? `\n${note}` : ""}`, target: request.id });
   return updated;

@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-20 - Access, settings and employee onboarding
+
+- Redesigned the shared administration center with grouped/searchable navigation, compact summaries, roles/permission matrices, policy controls and request review history. Phone navigation uses a compact scrolling bar with RTL support.
+- Added Main-only administrative policy configuration and reasoned eligible self-approval, while preserving independent payroll/finance/inventory and attendance controls. Company/organization writes are Main-only under the latest brief.
+- New employee creation opens account confirmation with generated identity and delivery status. Automatic accounts and encrypted activation-email delivery are configurable; existing private activation and no-login workflows remain available.
+- Role changes revoke affected sessions, scope can be restricted to departments/sections/own records, and system-role protections remain server-enforced. Added English/Arabic copy and theme-aware responsive validation.
+- Live mail requires the documented server environment/provider setup. No native build, phone installation or hosting deployment was performed for this source update.
+
 ## 2026-10-20 - Dashboard and company management upgrade
 
 - Shared company navigation now includes inline information editing, managers, department/section dashboards, documents and activity. The responsive directory adds reporting filters, sorting, column choices, page sizes and authorized bulk status changes.

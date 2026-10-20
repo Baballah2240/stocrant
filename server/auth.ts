@@ -131,7 +131,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     tenantOrganizationIds: Array.isArray(account.tenantOrganizationIds) ? account.tenantOrganizationIds.filter((id): id is string => typeof id === "string") : [],
     locationIds: Array.isArray(account.locationIds) ? account.locationIds.filter((id): id is string => typeof id === "string") : [],
     ownRecordsOnly: account.ownRecordsOnly === true,
-    permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && permission !== "*" && (delegated || (!permission.startsWith("access.") && !permission.startsWith("audit.")))),
+    permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && permission !== "*" && (delegated || (!permission.startsWith("access.") && !permission.startsWith("audit.")))).flatMap(permission=>permission==="organizations.*"?["organizations.view","organizations.export"]:/^organizations\.(create|edit|delete|approve|configure)$/.test(permission)?[]:[permission]),
   };
 }
 
@@ -149,6 +149,7 @@ function activeAccountById(id: string) {
 
 export function accountScopeActive(account: Record<string, unknown>): boolean {
   if (account.roleId === "role-main-manager") return true;
+  if((getCollection("accessRoles") as Record<string,unknown>[]).find(role=>role.id===account.roleId)?.status==="inactive")return false;
   const organizations = getCollection("organizations") as Record<string, unknown>[];
   const parents = Array.isArray(account.tenantOrganizationIds) ? account.tenantOrganizationIds : [];
   if (account.roleId === "role-organization-admin") return parents.length === 1 && organizations.some(org => org.id === parents[0] && org.status === "active");

@@ -1,5 +1,6 @@
 import { redesignTranslations } from "./redesign-translations.ts";
 import { workspaceUpgradeTranslations } from "./workspace-upgrade-translations.ts";
+import { administrationTranslations } from "./administration-translations.ts";
 import { auditTranslations } from "./audit-translations.ts";
 import payrollTranslations from "./payroll-translations.ts";
 import companyProfileTranslations from "./company-profile-translations.ts";
@@ -208,6 +209,7 @@ const existingArabic: Readonly<Record<string, string>> = {
 
 export const arabicTranslations: Readonly<Record<string, string>> = {
   ...workspaceUpgradeTranslations,
+  ...administrationTranslations,
   ...documentTranslations,
   ...hrCommunicationTranslations,
   ...companyProfileTranslations,

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-20 — Access, settings and secure employee onboarding
+
+- Added a searchable administration center, grouped responsive navigation, live settings summaries, custom role creation, supported permission matrices, scope controls, confirmation and protected Main Administrator roles.
+- Added configurable, reasoned Main-only self-approval for eligible administrative requests; retained mandatory independent financial/payroll/inventory and attendance review. Request Changes and submission/decision history are now available in approval review.
+- Added encrypted durable onboarding mail, configurable activation policy, provider idempotency/retry, account confirmation and email status. Reserved employee IDs survive deletion; concurrent creation with an email is idempotent.
+- Company and organization writes are now Main-only, as required by the latest brief. Existing delegated company HR, account, task, payroll and report scopes remain available.
+- Added isolated provider/API tests, administration browser checks, Arabic/English and responsive theme validation. Required mail environment, migrations and limits: `docs/ACCESS_ONBOARDING.md`.
+
 ## 2026-10-20 — Dashboard and company management upgrade
 
 - Added structured company management, inline company editing, richer employee directory controls, managers, department/section dashboards and direct private-document/activity views.

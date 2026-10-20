@@ -1,5 +1,13 @@
 # Project task log
 
+## 2026-10-20 - Access, settings and employee account automation
+
+Implemented the administration center, protected/custom roles and permission matrix, scoped session revalidation, configurable Main-only reasoned self-approval, approval history/Request Changes, configurable employee accounts and encrypted durable onboarding email. Added durable employee-code reservations, idempotent email-bearing creation, safe token expiry/consumption and account/delivery confirmation.
+
+Latest authorization requirement: company/organization writes are Main-only; the delegated-organization regression expectation was updated intentionally. Existing delegated HR/accounts/tasks/payroll/report workflows remain scoped and tested. The original brief is in `ACCESS_ONBOARDING_BRIEF.md`; implementation, four required mail environment variables, additive collections, setup and limitations are documented in `../ACCESS_ONBOARDING.md`.
+
+Validation: 148 API tests plus 10 UI support tests, TypeScript, translation/whitespace checks, storage restoration and production security smoke checks; isolated provider acceptance/retry/token tests; administration browser workflows, 348 route/language/theme/viewport combinations and organization-manager regressions. Final checks passed for 21 administration/company API tests, the 12-case administration route matrix, and Chrome administration, payroll, company profiles, complete workspace/PDF reports, HR documents and HR communication/activation workflows. English desktop and Arabic dark mobile screenshots were visually reviewed. Dependency audit: zero vulnerabilities. Live provider/domain setup and mailbox delivery were not configured or claimed. No native build, hosting deployment or phone installation was performed.
+
 ## 2026-10-20 - Dashboard and company management upgrade
 
 Extended the shared company workspace with inline information editing, technical-ID disclosure, managers, validated departments/sections, richer employee directory controls, private documents and activity. Added reusable, permission-scoped administrator/manager/employee analytics, date/category/chart/table controls and device-local layout preferences. Improved notification history, synchronized read counts, offline states, Arabic department/section terminology and personal reporting context.

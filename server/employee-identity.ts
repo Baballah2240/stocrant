@@ -30,6 +30,9 @@ export function generateUsername(accounts: Row[], name: unknown, fallback: unkno
 export function migrateEmployeeIdentities(data: StoreData) {
   let changed = false;
   const accounts = (data.collections.accessUsers || []) as Row[];
+  if(!Array.isArray(data.collections.employeeIdentities)){data.collections.employeeIdentities=[];changed=true;}
+  const reservations=data.collections.employeeIdentities as Row[];
+  for(const raw of data.collections.employees||[]){const employee=raw as Row;if(employee.employeeCode&&!reservations.some(row=>row.employeeId===employee.id)){reservations.push({id:"reserved-"+String(employee.id),employeeId:employee.id,employeeCode:employee.employeeCode,organizationId:employee.organizationId||employee.companyId,issuedAt:employee.createdAt});changed=true;}}
   if (!Array.isArray(accounts)) throw new Error("Invalid account collection.");
   for (const account of accounts) if (!account.username) {
     const employee = (data.collections.employees || []).find(raw => (raw as Row).id === account.employeeId) as Row | undefined;

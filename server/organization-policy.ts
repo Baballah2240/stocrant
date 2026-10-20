@@ -23,6 +23,7 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
   const main = isMainManager(actor);
   if (!main && existing && !canManageAccount(actor, existing)) policyError("User not found.", 404);
   if (!rows("accessRoles").some(role => role.id === next.roleId)) policyError("Choose a valid role.");
+  if(rows("accessRoles").some(role=>role.id===next.roleId&&role.status==="inactive"))policyError("Choose an active role.");
   if (!main && ["role-main-manager", "role-organization-admin"].includes(String(next.roleId))) policyError("You do not have permission to assign this role.", 403);
   if (!main && next.id === actor.id) policyError("You cannot change your own administrative access.", 403);
   const companies = Array.isArray(next.organizationIds) ? next.organizationIds.map(String) : [];
@@ -72,6 +73,8 @@ export function canManageAccount(actor: AuthenticatedUser, account: Row) {
 
 export function validateHierarchyMutation(user: AuthenticatedUser, collection: string, action: string, input: Row, current?: Row): Row {
   const next = { ...current, ...input };
+  if(collection==="accessRoles"&&current?.id==="role-main-manager")policyError("The Main Administrator system role is protected.",403);
+  if(collection==="employees"&&input.loginAccount!==undefined&&input.loginAccount!==current?.loginAccount&&(!isMainManager(user)||typeof input.loginAccount!=="boolean"))policyError("Only the Main Admin can choose whether an employee receives a login account.",403);
   if (collection === "attendance" && ["create", "edit", "delete"].includes(action)) policyError("Use the Attendance & Timesheets workflow to create or change attendance records.", 409);
   if (["roles", "users", "accessRoles", "accessUsers", "approvalRules"].includes(collection) && !isMainManager(user)) policyError("Only the Main Admin has permission to change global access settings.", 403);
   if (collection === "organizations") {
@@ -106,6 +109,7 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
     if (!related || !isWithinScope(user, related) || (relatedCompany && !activeCompany(relatedCompany)) || (companyId && relatedCompany && relatedCompany !== companyId)) policyError("Choose a related record from the assigned company.");
   }
   if (collection === "employees") {
+    if(action==="create"&&next.employeeCode&&rows("employeeIdentities").some(row=>row.organizationId===companyId&&normalized(row.employeeCode)===normalized(next.employeeCode)))policyError("This Employee ID was previously issued and cannot be reused.",409);
     if (current && (action === "delete" || action === "edit" && companyId !== current.organizationId) && (rows("companyNotes").some(note=>note.employeeId===current.id)||rows("workItems").some(task=>task.assigneeId===current.id||Array.isArray(task.assigneeIds)&&task.assigneeIds.includes(current.id)))) policyError("This employee has linked tasks or notes. Deactivate the profile to preserve its history.");
     if (action !== "delete") {
       if (!current || (input.name !== undefined && input.name !== current.name)) {
@@ -117,7 +121,7 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
     if (current?.employeeCode && input.employeeCode !== undefined && input.employeeCode !== current.employeeCode) policyError("Employee IDs are assigned once and cannot be changed.", 409);
     if ((action === "delete" || (current && action === "edit" && companyId !== current.organizationId)) && (rows("documents").some(document => document.employeeId === current?.id))) policyError("This employee has retained HR documents. Preserve the profile and archive its records before any reassignment.");
     if (action !== "delete" && !companyId) policyError("Choose a valid company for this employee.");
-    for (const key of ["employeeCode", "email"]) if (action !== "delete" && normalized(next[key]) && rows("employees").some(employee => employee.id !== current?.id && normalized(employee[key]) === normalized(next[key]) && (key === "email" || employee.organizationId === companyId))) policyError(key === "email" ? "An employee with this email already exists." : "This employee ID already exists in the company.", 409);
+    for (const key of ["employeeCode", "email"]) if (action !== "delete" && normalized(next[key]) && rows("employees").some(employee => employee.id !== current?.id && !(action==="create"&&input.clientRequestId&&employee.employeeRequestKey===input.clientRequestId&&employee.createdBy===user.id) && normalized(employee[key]) === normalized(next[key]) && (key === "email" || employee.organizationId === companyId))) policyError(key === "email" ? "An employee with this email already exists." : "This employee ID already exists in the company.", 409);
     if (current && action === "edit" && companyId !== current.organizationId && rows("accessUsers").some(account => account.employeeId === current.id)) policyError("Transfer the linked login account before moving this employee.");
     if (action === "delete" && rows("accessUsers").some(account => account.employeeId === current?.id)) policyError("This employee has a login account. Deactivate the employee instead.");
   }

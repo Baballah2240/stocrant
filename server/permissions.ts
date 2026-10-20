@@ -35,6 +35,7 @@ export function sectionForCollection(collection: string): WorkspaceSection {
 export function can(user: AuthenticatedUser | undefined, section: WorkspaceSection, action: PermissionAction): boolean {
   if (!user) return false;
   if (isMainManager(user)) return true;
+  if(section==="organizations"&&!["view","export"].includes(action))return false;
   if (["access", "audit"].includes(section) && !isDelegatedAdmin(user)) return false;
   const permissions = permissionsFor(user);
   return permissions.includes("*") || permissions.includes(`${section}.*`) || permissions.includes(`${section}.${action}`);
@@ -120,6 +121,12 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   if (roleOrganizations.length && !roleOrganizations.includes(String(organizationId))) return false;
   if (companyRow) return true;
   if (locationIds.length && (!locationId || !locationIds.includes(String(locationId)))) return false;
+  if(role?.scope==="department"||role?.scope==="section"){
+    const field=role.scope==="department"?"departmentId":"sectionId",ids=Array.isArray(role[role.scope==="department"?"departmentIds":"sectionIds"])?role[role.scope==="department"?"departmentIds":"sectionIds"] as unknown[]:[];
+    const people=getCollection("employees") as Record<string,unknown>[];
+    const owners=[row.employeeId,row.assigneeId,...(Array.isArray(row.assigneeIds)?row.assigneeIds:[])];
+    if(!ids.includes(row[field])&&!ids.includes(row.id)&&!people.some(person=>owners.includes(person.id)&&ids.includes(person[field])))return false;
+  }
   if (Array.isArray(inventoryItem?.allowedEmployeeIds) && inventoryItem.allowedEmployeeIds.includes(user.employeeId ?? "")) return true;
   if (!(user.ownRecordsOnly || role?.ownRecordsOnly === true)) return true;
   const identities = new Set([user.id, user.employeeId].filter(Boolean));

@@ -133,7 +133,8 @@ describe("Organization hierarchy migration and scoped administration", () => {
     await expectStatus(await request("/workspace/access/approval-rules", "POST", { section: "finance", action: "create", active: true }, orgAdminCookie), 403);
     const crossAccount = await request("/workspace/access/users", "POST", { name: "Cross tenant account", email: "cross-tenant@example.test", password: randomBytes(20).toString("base64url"), roleId: "role-employee", organizationIds: [companyB.id] }, orgAdminCookie);
     await expectStatus(crossAccount, 403);
-    const extraChild = await create("companies", companyInput("Alpha New Branch", orgA.id), orgAdminCookie);
+    await expectStatus(await request("/collections/companies", "POST", companyInput("Delegated forbidden branch", orgA.id), orgAdminCookie), 403);
+    const extraChild = await create("companies", companyInput("Alpha New Branch", orgA.id));
     assert.equal(extraChild.parentOrganizationId, orgA.id);
     await expectStatus(await request("/collections/companies", "POST", companyInput("Beta illegal branch", orgB.id), orgAdminCookie), 403);
     await expectStatus(await request(`/collections/companies/${companyA.id}`, "PATCH", { parentOrganizationId: orgB.id }, orgAdminCookie), 403);

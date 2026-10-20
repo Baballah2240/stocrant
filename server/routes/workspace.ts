@@ -1,5 +1,7 @@
 import { payrollCan } from "../payroll.js";
 import analyticsRouter from "./analytics.js";
+import administrationRouter from "./administration.js";
+import { eligibleSelfApproval } from "../admin-policy.js";
 import { randomUUID } from "node:crypto";
 import { csvCell } from "../csv.js";
 import { generateUsername, validUsername } from "../employee-identity.js";
@@ -16,6 +18,7 @@ import { canReadDocument, safeDocument } from "../documents.js";
 
 const router = Router();
 router.use("/analytics", analyticsRouter);
+router.use("/administration", administrationRouter);
 
 function sendError(res: import("express").Response, error: unknown) {
   const message = error instanceof Error ? error.message : "Request failed.";
@@ -709,6 +712,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
   if (parsed.data.permissions?.some(permission => /^(access|audit)\./.test(permission)) && !["role-main-manager", "role-organization-admin", "role-company-manager"].includes(String(parsed.data.roleId ?? existing.roleId))) return res.status(400).json({ error: "Account administration requires an administrator role." });
   if (parsed.data.roleId && !rows("accessRoles").some((role) => role.id === parsed.data.roleId)) return res.status(400).json({ error: "Choose a valid role." });
   if (parsed.data.email && users.some((user) => user.id !== existing.id && normalized(user.email) === normalized(parsed.data.email))) return res.status(409).json({ error: "An account with that email already exists." });
+  if(parsed.data.email&&rows("employees").some(row=>row.id!==existing.employeeId&&normalized(row.email)===normalized(parsed.data.email)))return res.status(409).json({error:"This email is already in use."});
   if (parsed.data.username && users.some(user => user.id !== existing.id && normalized(user.username) === parsed.data.username)) return res.status(409).json({ error: "This username is already in use." });
   const { password, employeeId, ...changes } = parsed.data;
   const next: Row = {
@@ -729,7 +733,8 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
   const data = getStore();
   data.collections.accessUsers = users.map((user) => user.id === existing.id ? next : user);
   if (existing.employeeId && existing.employeeId !== next.employeeId) { const oldEmployee = rows("employees").find(row => row.id === existing.employeeId); if (oldEmployee?.accountId === existing.id) delete oldEmployee.accountId; }
-  if (next.employeeId) { const employee = rows("employees").find(row => row.id === next.employeeId); if (employee) employee.accountId = next.id; }
+  if (next.employeeId) { const employee = rows("employees").find(row => row.id === next.employeeId); if (employee) {employee.accountId = next.id;if(parsed.data.email)employee.email=next.email;} }
+  if(["email","employeeId","roleId","organizationIds","tenantOrganizationIds"].some(field=>JSON.stringify(existing[field])!==JSON.stringify(next[field])))data.collections.employeeInvitations=rows("employeeInvitations").filter(row=>row.accountId!==existing.id);
   const accessRevoked = next.status !== "active" || next.roleId !== existing.roleId || passwordHash !== undefined;
   if (accessRevoked) data.collections.sessions = rows("sessions").filter((session) => session.accountId !== existing.id);
   saveStore(data);
@@ -767,7 +772,13 @@ router.delete("/access/users/:id", requirePermission("access", "delete"), (req, 
   res.json({ ok: true });
 });
 
-router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)) }));
+router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)).map(row=>({...row,canSelfApprove:row.requestedBy===req.auth!.id&&isMainManager(req.auth)&&eligibleSelfApproval(row),canDecide:can(req.auth,"approvals","approve")&&(row.requestedBy!==req.auth!.id||isMainManager(req.auth)&&eligibleSelfApproval(row))})) }));
+router.post("/approvals/:id/changes",requirePermission("approvals","approve"),(req,res)=>{
+ const parsed=z.object({note:z.string().trim().min(8).max(2000)}).strict().safeParse(req.body);if(!parsed.success)return res.status(400).json({error:"Explain the required changes in at least 8 characters."});
+ const row=rows("approvalRequests").find(row=>row.id===req.params.id&&canReadApproval(req.auth!,row));if(!row)return res.status(404).json({error:"Approval request not found."});
+ if(row.status!=="pending"||row.requestedBy===req.auth!.id)return res.status(400).json({error:"Only another pending request can be returned for changes."});
+ transaction(()=>{Object.assign(row,{status:"changes-requested",decisionNote:parsed.data.note,decidedBy:req.auth!.id,decidedByName:req.auth!.name,decidedAt:new Date().toISOString()});saveStore(getStore());audit(req.auth,"approval.changes-requested",{targetId:row.id,collection:row.collection,organizationId:row.organizationId,requesterId:row.requestedBy,reason:parsed.data.note,outcome:"changes-requested"});createNotification({userId:String(row.requestedBy),user:String(row.requestedByName||""),type:"message",severity:"info",message:"Changes were requested. Revise and submit through the original workflow: "+parsed.data.note,target:row.id});});res.json({item:row});
+});
 router.post("/approvals/:id", requirePermission("approvals", "approve"), (req, res) => {
   const parsed = z.object({ decision: z.enum(["approve", "reject"]), note: z.string().max(2000).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose approve or reject." });
