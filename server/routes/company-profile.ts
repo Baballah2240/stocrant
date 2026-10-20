@@ -46,7 +46,7 @@ router.get("/:id", (req, res) => {
   }) : [];
   const users = manageAccounts ? rows("accessUsers").filter(account => ((Array.isArray(account.organizationIds) && account.organizationIds.includes(company.id)) || (account.roleId === "role-organization-admin" && Array.isArray(account.tenantOrganizationIds) && account.tenantOrganizationIds.includes(company.parentOrganizationId))) && canManageAccount(user,account)).map(account => ({ id:account.id,name:account.name,username:account.username,status:account.status,roleName:rows("accessRoles").find(role=>role.id===account.roleId)?.name || "Employee" })) : [];
   const scoped = (name: string) => rows(name).filter(row => (row.organizationId ?? row.companyId) === company.id && isWithinScope(user,row));
-  const records = readEmployees ? Object.fromEntries(["shifts","attendance","leaveRequests"].map(name => [name,scoped(name).map(row=>redactRecord(name,row,user))])) : {};
+  const records = readEmployees ? Object.fromEntries(["departments","shifts","attendance","leaveRequests","employeeHistory"].map(name => [name,scoped(name).map(row=>redactRecord(name,row,user))])) : {};
   const payroll = payrollCan(user,"view") ? scoped("payrollRuns").map(row=>({id:row.id,start:row.start,end:row.end,status:row.status,currency:row.currency,createdAt:row.createdAt})) : [];
   const companies = rows("companies").filter(row=>isWithinScope(user,{...row,organizationId:row.id})).map(row=>({id:row.id,name:row.name}));
   res.json({ company: redactRecord("companies",company,user), organization: parent ? { name: parent.name, ...(can(user,"organizations","view") ? { id:parent.id } : {}) } : null,

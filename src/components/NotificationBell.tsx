@@ -142,8 +142,10 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
         setLoading(false);
       });
     void refresh();
+    const changed = () => { void refresh(); };
+    window.addEventListener("stocrant:notifications-changed", changed);
     const interval = window.setInterval(() => { if (!document.hidden) void refresh(); }, 30000);
-    return () => { active = false; window.clearInterval(interval); };
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener("stocrant:notifications-changed", changed); };
   }, [user?.id, refreshKey]);
 
   useEffect(() => {
@@ -164,6 +166,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
         prev.map((item) => (item.id === id ? { ...item, read: true } : item)),
       );
       setUnreadCount((prev) => Math.max(prev - 1, 0));
+      window.dispatchEvent(new Event("stocrant:notifications-changed"));
     } catch {
       setError("Could not mark notification as read. Try again.");
     } finally { setBusy(false); }
@@ -174,6 +177,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
       await api.notifications.readAll();
       setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
       setUnreadCount(0);
+      window.dispatchEvent(new Event("stocrant:notifications-changed"));
       setNotice("All notifications marked as read.");
     } catch {
       setError("Could not update notifications. Try again.");

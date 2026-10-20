@@ -27,9 +27,12 @@ export default function AccessWorkspace() {
   const { t, language } = useLanguage();
   const main = actor?.roleId === "role-main-manager";
   const permitted = (action: string) => main || allows(actor?.permissions, "access", action);
-  const canView = permitted("view");
+  const canAccess = permitted("view");
+  const canApprovals = main || allows(actor?.permissions,"approvals","view");
+  const canDecide = main || allows(actor?.permissions,"approvals","approve");
+  const canView = canAccess || canApprovals;
   const canAudit = main || allows(actor?.permissions, "audit", "view");
-  const visibleTabs: Tab[] = main ? allTabs : ["Users", ...(canAudit ? ["Audit" as Tab] : []), "App lock"];
+  const visibleTabs: Tab[] = main ? allTabs : [...(canAccess ? ["Users" as Tab] : []), ...(canApprovals ? ["Approvals" as Tab] : []), ...(canAudit ? ["Audit" as Tab] : []), "App lock"];
   const [tab, setTab] = useWorkspaceTab(visibleTabs, "Users");
   const [companies, setCompanies] = useState<CollectionItem[]>([]);
   const [organizations, setOrganizations] = useState<CollectionItem[]>([]);
@@ -52,17 +55,17 @@ export default function AccessWorkspace() {
     setError(null);
     try {
       const [userData, roleData, hrData, organizationData, ruleData, approvalData, auditData] = await Promise.all([
-        api.workspace.users(), api.workspace.roles(), api.workspace.hrCompanies(),
+        canAccess ? api.workspace.users() : Promise.resolve({items:[]}), canAccess ? api.workspace.roles() : Promise.resolve({items:[]}), allows(actor?.permissions,"hr","view") || main ? api.workspace.hrCompanies() : Promise.resolve({companies:[],employees:[]}),
         main || actor?.roleId === "role-organization-admin" ? api.collections.list("organizations") : Promise.resolve({ items: [] }),
         main ? api.workspace.approvalRules() : Promise.resolve({ items: [] }),
-        main ? api.workspace.approvals() : Promise.resolve({ items: [] }),
+        canApprovals ? api.workspace.approvals() : Promise.resolve({ items: [] }),
         canAudit ? api.workspace.audit() : Promise.resolve({ items: [] }),
       ]);
       setUsers(userData.items); setRoles(roleData.items); setCompanies(hrData.companies); setEmployees(hrData.employees);
       setOrganizations(organizationData.items); setRules(ruleData.items); setApprovals(approvalData.items); setAudit(auditData.items);
     } catch (err) { setError(err instanceof Error ? err.message : "Could not load access settings."); }
     finally { setLoading(false); }
-  }, [canView, main, canAudit, actor?.roleId]);
+  }, [canView, canAccess, canApprovals, main, canAudit, actor?.roleId]);
   useEffect(() => { void load(); }, [load]);
 
   async function perform(operation: () => Promise<unknown>, message: string) {
@@ -106,7 +109,7 @@ export default function AccessWorkspace() {
         {tab === "Roles" && main && <div className="stack-list">{roles.map(role => <RoleEditor key={role.id} role={role} saving={saving} onSave={input => perform(() => api.workspace.updateRole(role.id, input), "Role permissions saved.")} />)}</div>}
         {tab === "Manage app" && main && <><div className="hr-link-grid">{[{ to: "/organizations", label: "Organizations & companies", detail: "Manage your organization structure" }, { to: "/stores", label: "Locations", detail: "Manage company locations" }, { to: "/hr", label: "Employees & HR", detail: "Add employees and manage HR records" }, { to: "/operations", label: "Operations", detail: "Assignments and business records" }, { to: "/inventory", label: "Inventory", detail: "Items, employee access and movements" }, { to: "/finance", label: "Finance", detail: "Accounts and financial movements" }].map(link => <NavLink className="hr-record-link" key={link.to} to={link.to}><div><strong>{t(link.label)}</strong><span>{t(link.detail)}</span></div></NavLink>)}</div><h3>{t("All records")}</h3><div className="hr-link-grid">{entities.filter(entity => entity.module !== "admin").map(entity => <NavLink className="hr-record-link" key={entity.collection} to={`/${entity.module}/${entity.collection}`}><strong>{t(entity.label)}</strong><span>{t("View, add and edit records")}</span></NavLink>)}</div></>}
         {tab === "Approval rules" && main && <><form className="inline-form" onSubmit={event => { event.preventDefault(); void perform(() => api.workspace.saveApprovalRule({ ...ruleForm, active: true }), "Approval rule saved."); }}><label className="form-field"><span className="field-label">{t("Section")}</span><ChoiceSelect value={ruleForm.section} onChange={event => setRuleForm({ ...ruleForm, section: event.target.value })}>{sections.filter(section => !["audit", "approvals"].includes(section)).map(section => <option value={section} key={section}>{t(sectionLabels[section])}</option>)}</ChoiceSelect></label><label className="form-field"><span className="field-label">{t("Action")}</span><ChoiceSelect value={ruleForm.action} onChange={event => setRuleForm({ ...ruleForm, action: event.target.value })}>{["create", "edit", "delete"].map(action => <option key={action} value={action}>{t(action)}</option>)}</ChoiceSelect></label><button className="primary" disabled={saving}>{t("Require approval")}</button></form><div className="stack-list">{rules.length ? rules.map(rule => <div className="approval-row" key={rule.id}><div><strong>{t(sectionLabels[String(rule.section)] || String(rule.section))} · {t(String(rule.action))}</strong><span>{t(rule.active ? "Approval required before change is applied" : "Approval not required")}</span></div><label className="switch-field"><input type="checkbox" checked={rule.active === true} disabled={saving} onChange={event => void perform(() => api.workspace.updateApprovalRule(rule.id, { active: event.target.checked }), "Approval rule saved.")} />{t("Active")}</label></div>) : <p className="empty">{t("No approval rules configured.")}</p>}</div></>}
-        {tab === "Approvals" && main && <div className="stack-list">{approvals.length ? approvals.map(request => <div className="approval-row" key={request.id}><div><strong>{t(sectionLabels[String(request.section)] || String(request.section))} · {t(String(request.action))}</strong><span>{String(request.requestedByName ?? request.requestedBy)} · {dateLabel(request.requestedAt, language)}</span><small>{t(String(request.collection))} {String(request.targetId || "")}</small>{request.collection === "documents" && <NavLink to={`/hr/documents/requests/${request.id}`}>{t("Review document change")}</NavLink>}</div>{request.status === "pending" ? <div className="inline-actions"><button disabled={saving} onClick={() => { if (window.confirm(t("Reject this request?"))) void perform(() => api.workspace.decideApproval(request.id, { decision: "reject" }), "Request rejected."); }}>{t("Reject")}</button><button className="primary" disabled={saving} onClick={() => void perform(() => api.workspace.decideApproval(request.id, { decision: "approve" }), "Request approved.")}>{t("Approve")}</button></div> : <span className="badge">{t(String(request.status))}</span>}</div>) : <p className="empty">{t("No approval requests.")}</p>}</div>}
+        {tab === "Approvals" && canApprovals && <div className="stack-list">{approvals.length ? approvals.map(request => <div className="approval-row" key={request.id}><div><strong>{t(sectionLabels[String(request.section)] || String(request.section))} · {t(String(request.action))}</strong><span>{String(request.requestedByName ?? request.requestedBy)} · {dateLabel(request.requestedAt, language)}</span><small>{t(String(request.collection))} {String(request.targetId || "")}</small>{request.collection === "documents" && <NavLink to={`/hr/documents/requests/${request.id}`}>{t("Review document change")}</NavLink>}</div>{request.status === "pending" && canDecide && request.requestedBy !== actor?.id ? <div className="inline-actions"><button disabled={saving} onClick={() => { if (window.confirm(t("Reject this request?"))) void perform(() => api.workspace.decideApproval(request.id, { decision: "reject" }), "Request rejected."); }}>{t("Reject")}</button><button className="primary" disabled={saving} onClick={() => void perform(() => api.workspace.decideApproval(request.id, { decision: "approve" }), "Request approved.")}>{t("Approve")}</button></div> : <span className="badge">{t(String(request.status))}</span>}</div>) : <p className="empty">{t("No approval requests.")}</p>}</div>}
         {tab === "Audit" && canAudit && <AuditPanel entries={audit} />}
         {tab === "App lock" && <LockSettings />}{tab === "Mobile app" && main && <ServerSettings />}
       </div>

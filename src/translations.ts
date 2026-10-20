@@ -1,4 +1,5 @@
 import { redesignTranslations } from "./redesign-translations.ts";
+import { workspaceUpgradeTranslations } from "./workspace-upgrade-translations.ts";
 import { auditTranslations } from "./audit-translations.ts";
 import payrollTranslations from "./payroll-translations.ts";
 import companyProfileTranslations from "./company-profile-translations.ts";
@@ -138,7 +139,7 @@ const existingArabic: Readonly<Record<string, string>> = {
   "recorded": "مسجلة",
   "present today": "حاضرين اليوم",
   "All employees": "كل الموظفين",
-  "All departments": "كل الأقسام",
+  "All departments": "كل الإدارات",
   "All statuses": "كل الحالات",
   "Employee, ID or date": "الموظف أو الرقم أو التاريخ",
   "Apply filters": "تطبيق الفلاتر",
@@ -206,6 +207,7 @@ const existingArabic: Readonly<Record<string, string>> = {
 };
 
 export const arabicTranslations: Readonly<Record<string, string>> = {
+  ...workspaceUpgradeTranslations,
   ...documentTranslations,
   ...hrCommunicationTranslations,
   ...companyProfileTranslations,
@@ -266,7 +268,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   "No organizations yet.": "لا توجد مؤسسات بعد.", "No companies yet.": "لا توجد شركات بعد.", "No employees yet.": "لا يوجد موظفون بعد.", "No users yet.": "لا يوجد مستخدمون بعد.", "Create an organization to get started.": "أنشئ مؤسسة للبدء.", "Add companies to this organization.": "أضف شركات إلى هذه المؤسسة.", "Choose an organization to view its companies.": "اختر مؤسسة لعرض شركاتها.", "Choose a company to view its employees and users.": "اختر شركة لعرض موظفيها ومستخدميها.", "Organization → Companies → Employees → Users": "المؤسسة ← الشركات ← الموظفون ← المستخدمون",
   "Trading name": "الاسم التجاري", "Industry": "النشاط", "Tax / registration ID": "الرقم الضريبي أو رقم التسجيل", "Primary contact": "جهة الاتصال الرئيسية", "Contact email": "البريد الإلكتروني للتواصل", "Contact phone": "هاتف التواصل", "Country": "الدولة", "Primary currency": "العملة الرئيسية", "Currency": "العملة", "Linked locations": "المواقع المرتبطة", "Location IDs or names": "معرّفات المواقع أو أسماؤها", "Notes": "ملاحظات",
   "Locations": "المواقع", "Location": "الموقع", "Location ID": "معرّف الموقع", "Branches": "الفروع", "Branch": "الفرع", "Branch name": "اسم الفرع", "Address": "العنوان", "City": "المدينة", "Area": "المنطقة", "Zones": "المناطق", "Zone": "المنطقة", "Zone name": "اسم المنطقة",
-  "Departments": "الأقسام", "Department": "القسم", "Employees": "الموظفون", "Employee ID": "الرقم الوظيفي", "Add employee": "إضافة موظف", "Create employee": "إنشاء موظف", "Edit employee": "تعديل بيانات الموظف", "Choose employee": "اختر الموظف", "Link employee": "ربط موظف", "Standalone account": "حساب مستقل", "Linked employee ID": "معرّف الموظف المرتبط",
+  "Departments": "الإدارات", "Department": "الإدارة", "Employees": "الموظفون", "Employee ID": "الرقم الوظيفي", "Add employee": "إضافة موظف", "Create employee": "إنشاء موظف", "Edit employee": "تعديل بيانات الموظف", "Choose employee": "اختر الموظف", "Link employee": "ربط موظف", "Standalone account": "حساب مستقل", "Linked employee ID": "معرّف الموظف المرتبط",
   "Mobile number": "رقم الجوال", "Code": "الرمز", "Manager": "المدير", "Cost center": "مركز التكلفة", "Headcount": "عدد الموظفين", "Job title": "المسمى الوظيفي", "Employment": "نوع التوظيف", "Hire date": "تاريخ التعيين", "Birthday": "تاريخ الميلاد", "Base salary": "الراتب الأساسي",
   "Date": "التاريخ", "Time": "الوقت", "Date and time": "التاريخ والوقت", "You're checked in": "تم تسجيل حضورك", "Ready for your next session?": "هل أنت مستعد لفترة العمل التالية؟", "Three sessions completed": "اكتملت ثلاث فترات عمل", "Work mode": "نمط العمل", "Hours worked": "ساعات العمل", "Shifts": "فترات العمل", "Shift": "فترة العمل", "Shift name": "اسم فترة العمل", "Start": "البداية", "End": "النهاية", "Mon–Fri": "الاثنين إلى الجمعة", "Break (min)": "الاستراحة بالدقائق", "Assigned to": "مُسنَد إلى",
   "Type": "النوع", "Documents": "المستندات", "Document": "المستند", "Title": "العنوان", "Issued on": "تاريخ الإصدار", "Expires on": "تاريخ الانتهاء", "File link": "رابط الملف", "Contracts": "العقود", "Contract": "العقد", "Salary": "الراتب", "Probation ends": "نهاية فترة التجربة", "Payroll": "الرواتب", "Payslip": "كشف الراتب", "Period": "الفترة", "Basic": "الأساسي", "Allowances": "البدلات", "Deductions": "الخصومات", "Tax": "الضريبة", "Net pay": "صافي الراتب",

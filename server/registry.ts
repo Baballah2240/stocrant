@@ -92,6 +92,8 @@ registry.push(
       { key: "name", label: "Name", type: "text", required: true },
       { key: "code", label: "Code", type: "text" },
       { key: "manager", label: "Manager", type: "text" },
+      { key: "kind", label: "Structure type", type: "select", options: ["department", "section"] },
+      { key: "status", label: "Status", type: "select", options: ["active", "inactive"] },
       { key: "costCenter", label: "Cost center", type: "text" },
       { key: "headcount", label: "Headcount", type: "number", min: 0 },
       { key: "notes", label: "Notes", type: "textarea" },

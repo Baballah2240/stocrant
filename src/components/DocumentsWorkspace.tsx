@@ -72,6 +72,14 @@ export function EmployeeDocuments({ employeeId, companyId }: { employeeId: strin
   return <section className="card employee-document-section"><header className="document-section-head"><div><h2>{t("Employee documents")}</h2><p className="hint">{t("Private documents linked to this employee profile.")}</p></div>{data?.permissions.create && <Link className="primary-link" to={`/hr/documents/new?employee=${encodeURIComponent(employeeId)}&company=${encodeURIComponent(companyId)}`}>{t("Add document")}</Link>}</header>{error ? <p className="error">{t(error)}</p> : !data ? <p role="status">{t("Loading documents…")}</p> : data.items.length ? <DocumentTable {...data} refresh={load} /> : <p className="empty">{t("No documents are linked to this employee yet.")}</p>}</section>;
 }
 
+export function CompanyDocuments({companyId}:{companyId:string}) {
+  const {t}=useLanguage();const [data,setData]=useState<DocumentsResponse|null>(null),[error,setError]=useState("");
+  const load=()=>documentApi.list().then(result=>{setData(result);setError("");}).catch(err=>setError(err.message));
+  useEffect(()=>{void load();},[companyId]);
+  const items=data?.items.filter(item=>item.organizationId===companyId&&item.lifecycle!=="archived")||[];
+  return <section className="card documents-workspace"><header className="section-heading"><h2>{t("Company documents")}</h2><Link to={`/hr/documents?company=${encodeURIComponent(companyId)}`}>{t("Open documents")}</Link>{data?.permissions.create&&<Link to={`/hr/documents/new?company=${encodeURIComponent(companyId)}`}>{t("Upload document")}</Link>}</header>{error&&<p role="alert">{t(error)}</p>}{!data&&!error&&<p role="status">{t("Loading…")}</p>}{data&&<DocumentTable items={items} companies={data.companies} permissions={data.permissions} refresh={()=>void load()}/ >}{data&&!items.length&&<p>{t("No company records yet.")}</p>}</section>;
+}
+
 export function DocumentsSummary() {
   const { t } = useLanguage(); const [summary, setSummary] = useState<DocumentsResponse["summary"] | null>(null);
   useEffect(() => { let active = true; documentApi.list().then(data => { if (active) setSummary(data.summary); }).catch(() => {}); return () => { active = false; }; }, []);

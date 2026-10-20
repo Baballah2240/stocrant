@@ -1,5 +1,13 @@
 # Project task log
 
+## 2026-10-20 - Dashboard and company management upgrade
+
+Extended the shared company workspace with inline information editing, technical-ID disclosure, managers, validated departments/sections, richer employee directory controls, private documents and activity. Added reusable, permission-scoped administrator/manager/employee analytics, date/category/chart/table controls and device-local layout preferences. Improved notification history, synchronized read counts, offline states, Arabic department/section terminology and personal reporting context.
+
+Validation: 140 API tests plus 10 UI support tests, server/frontend TypeScript, storage restore/security smoke checks and a clean dependency audit. Browser checks cover actual editing/assignment, role scoping, all chart types, date filters, saved preferences, notifications, responsive English/Arabic themes, organization-manager tasks/notes, complete employee reports and the 348-case route matrix. Final focused regression results and constraints are documented in `../DASHBOARD_COMPANY_UPGRADE.md`. Original brief: `DASHBOARD_COMPANY_UPGRADE_BRIEF.md`.
+
+Source-only archive and review-branch push are part of completion. Production data, credentials, signing material and native build artifacts stay excluded. No hosting deployment or phone installation is implied.
+
 ## 2026-10-20 - Organization Manager full company access
 
 Extended the existing Organization Admin role and company workspace with scoped payroll/report permissions, real team task management, authored follow-up comments, restricted company/employee/task notes, live counts, employee task visibility and task/note reports. Preserved custom permission overrides, global admin protections, approval stages, existing account identity/reset flows and data relationships.

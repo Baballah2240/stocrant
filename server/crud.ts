@@ -114,7 +114,7 @@ export function createCollectionRouter(spec: EntitySpec): Router {
         if (!company || !isWithinScope(req.auth, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company for this employee." });
       }
       const result = mutateCollection(req.auth, spec.collection, "create", input);
-      res.status(result.pending ? 202 : 201).json({ ...result, entity: spec.collection });
+      res.status(result.pending ? 202 : 201).json({ ...result, ...(result.item?{item:redactRecord(spec.collection,result.item,req.auth)}:{}), entity: spec.collection });
     } catch (err) {
       sendError(res, err);
     }
@@ -132,7 +132,7 @@ export function createCollectionRouter(spec: EntitySpec): Router {
         if (!company || !isWithinScope(req.auth, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company for this employee." });
       }
       const result = mutateCollection(req.auth, spec.collection, "edit", input, req.params.id as string);
-      res.status(result.pending ? 202 : 200).json({ ...result, entity: spec.collection });
+      res.status(result.pending ? 202 : 200).json({ ...result, ...(result.item?{item:redactRecord(spec.collection,result.item,req.auth)}:{}), entity: spec.collection });
     } catch (err) {
       sendError(res, err);
     }
@@ -144,7 +144,7 @@ export function createCollectionRouter(spec: EntitySpec): Router {
     if (!existing || !isWithinScope(req.auth, existing)) return res.status(404).json({ error: `${spec.singular} not found.` });
     try {
       const result = mutateCollection(req.auth, spec.collection, "delete", {}, req.params.id as string);
-      res.status(result.pending ? 202 : 200).json({ ...result, ok: !result.pending, entity: spec.collection });
+      res.status(result.pending ? 202 : 200).json({ ...result, ...(result.item?{item:redactRecord(spec.collection,result.item,req.auth)}:{}), ok: !result.pending, entity: spec.collection });
     } catch (err) {
       sendError(res, err);
     }

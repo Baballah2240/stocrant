@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-20 — Dashboard and company management upgrade
+
+- Added structured company management, inline company editing, richer employee directory controls, managers, department/section dashboards and direct private-document/activity views.
+- Added permission-scoped analytics for administrator, manager and employee dashboards, with Chart.js chart/table views, date/category filters and persisted personal widget preferences.
+- Upgraded notification history with read/category/date/search filtering, pagination, synchronized counts and offline/error states. Existing HR message retention remains enforced.
+- Validated same-company reporting links and cycles in the shared server mutation policy. Preserved legacy strings/history and applied salary redaction to CRUD responses as well as reads.
+- Extended Arabic/English and light/dark responsive verification. Implementation details, metric definitions and limits: `docs/DASHBOARD_COMPANY_UPGRADE.md`.
+
 ## 2026-10-20 — Organization Manager company access, tasks and notes
 
 - Extended the shipped Organization Admin role with scoped payroll and company report/delete permissions. Existing shipped-role grants upgrade additively; explicit custom roles/account restrictions remain intact. Global administrator accounts and settings remain protected.

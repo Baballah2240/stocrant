@@ -1,4 +1,5 @@
 import type { AuthenticatedUser } from "./auth.js";
+import { validateStructure } from "./company-structure.js";
 import { getCollection, getStore } from "./storage.js";
 import { can, companyIdsFor, effectiveLocationIds, hasLocationRestriction, isMainManager, isWithinScope, ownRecordsRequired } from "./permissions.js";
 type Row = Record<string, unknown>;
@@ -120,5 +121,5 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
     if (current && action === "edit" && companyId !== current.organizationId && rows("accessUsers").some(account => account.employeeId === current.id)) policyError("Transfer the linked login account before moving this employee.");
     if (action === "delete" && rows("accessUsers").some(account => account.employeeId === current?.id)) policyError("This employee has a login account. Deactivate the employee instead.");
   }
-  return input;
+  return validateStructure(user, collection, action, input, current);
 }

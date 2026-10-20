@@ -249,7 +249,7 @@ function fireMutationAlerts(
   collection: string,
   action: MutationAction,
   payload: Record<string, unknown>,
-  _item?: Row,
+  item?: Row,
 ): void {
   if (collection === "workItems" && action === "create") {
     const dueDate = String(payload.dueDate ?? "");
@@ -262,7 +262,7 @@ function fireMutationAlerts(
         type: "overdue_work",
         severity: "warning",
         message: `Work item "${String(payload.title ?? "Untitled")}" is overdue.`,
-        target: dueDate,
+        target: item?.id ?? dueDate,
       });
     }
   }
@@ -277,7 +277,7 @@ function fireMutationAlerts(
         type: "low_stock",
         severity: "warning",
         message: `New inventory item "${String(payload.name ?? "Untitled")}" is at or below its reorder point.`,
-        target: String(payload.id ?? ""),
+        target: String(item?.id ?? payload.id ?? ""),
       });
     }
   }

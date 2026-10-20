@@ -1,0 +1,75 @@
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { Chart, BarController, BarElement, LineController, LineElement, PointElement, DoughnutController, ArcElement, CategoryScale, LinearScale, Tooltip, Legend, Filler } from "chart.js";
+import { request } from "../api";
+import { useLanguage } from "../language-context";
+import { useSession } from "../session-context";
+import { useTheme } from "../theme-context";
+import ChoiceSelect from "./ChoiceSelect";
+import "../workspace-upgrade.css";
+Chart.register(BarController,BarElement,LineController,LineElement,PointElement,DoughnutController,ArcElement,CategoryScale,LinearScale,Tooltip,Legend,Filler);
+type Choice={id:string;name:string;companyId?:string;kind?:string;parentDepartmentId?:string};
+type Result={activityEnabled:boolean;metrics:string[];points:{label:string;value:number;statuses:Record<string,number>}[];total:number;snapshot:boolean;companies:Choice[];departments:Choice[];managers:Choice[];statuses:string[];summary:{label:string;value:number;to:string}[];activity:{id:string;action:string;actorName:string;occurredAt:string}[]};
+type Settings={metric:string;type:string;range:string;group:string;company:string;department:string;section:string;manager:string;status:string;start:string;end:string;legend:boolean};
+const metricLabels:Record<string,string>={workforce:"Workforce distribution",hires:"New hires",attendance:"Attendance records",leave:"Leave requests",tasks:"Tasks created",notifications:"Notifications",companies:"Company status"};
+const groupLabels:Record<string,string>={company:"Company",department:"Department",section:"Section",manager:"Manager",status:"Status",day:"Day",week:"Week",month:"Month"};
+const typeLabels:Record<string,string>={bar:"Bar chart",stacked:"Stacked bar chart",doughnut:"Doughnut chart",line:"Line chart",area:"Area chart",table:"Table"};
+const widgetLabels:Record<string,string>={summary:"Key statistics",chart:"Analytics",activity:"Recent activity"};
+const activityCollections:Record<string,string>={employees:"Employees",departments:"Departments",companies:"Companies",organizations:"Organizations",workItems:"Tasks",companyNotes:"Notes",documents:"Documents",accessUsers:"Users",payrollRuns:"Payroll",financeTransactions:"Finance"};
+const defaults=(metric:string,company:string):Settings=>({metric,type:"bar",range:"30",group:"status",company,department:"",section:"",manager:"",status:"",start:"",end:"",legend:true});
+function readSettings(key:string,initial:Settings){try{const saved=JSON.parse(localStorage.getItem(key)||"null");if(saved&&Object.keys(initial).every(k=>typeof saved[k]===typeof initial[k as keyof Settings]))return {...initial,...saved} as Settings;}catch{/* Optional device preferences. */}return initial;}
+export default function AnalyticsWorkspace({companyId="",compact=false}:{companyId?:string;compact?:boolean}){
+ const {t,language}=useLanguage(),{user}=useSession(),{theme}=useTheme();
+ const canHr=Boolean(user?.permissions.some(p=>["*","hr.*","hr.view"].includes(p)));
+ const key=`stocrant.analytics.${user?.id}.${companyId||"dashboard"}`;
+ const [settings,setSettings]=useState(()=>readSettings(key,defaults(canHr?"workforce":companyId?"companies":"notifications",companyId)));
+ const [result,setResult]=useState<Result|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(false),[refresh,setRefresh]=useState(0);
+ const [widgets,setWidgets]=useState<string[]>(()=>{try{const v=JSON.parse(localStorage.getItem(key+".layout")||"null");if(Array.isArray(v)&&v.every(x=>Object.keys(widgetLabels).includes(x))&&new Set(v).size===v.length)return v;}catch{/* Device storage unavailable. */}return compact?["chart"]:["summary","chart","activity"];});
+ const change=(patch:Partial<Settings>)=>setSettings(old=>({...old,...patch}));
+ useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(settings));localStorage.setItem(key+".layout",JSON.stringify(widgets));}catch{/* Preferences still work in session. */}},[key,settings,widgets]);
+ useEffect(()=>{
+  let active=true;const end=new Date().toISOString().slice(0,10),startDate=new Date(end+"T12:00:00Z");startDate.setUTCDate(startDate.getUTCDate()-(Number(settings.range)||30)+1);
+  const snapshot=["workforce","companies"].includes(settings.metric);
+  const start=settings.range==="custom"?settings.start:settings.range==="year"?end.slice(0,4)+"-01-01":startDate.toISOString().slice(0,10);
+  const finish=settings.range==="custom"?settings.end:end;
+  if(!snapshot&&(!start||!finish)){setLoading(false);setError("Choose both dates for a custom range.");return;}
+  const params=new URLSearchParams({metric:settings.metric,group:settings.group,company:companyId||settings.company,department:settings.department,section:settings.section,manager:settings.manager,status:settings.status,...(!snapshot?{start,end:finish}:{})});
+  setLoading(true);setError("");const timer=setTimeout(()=>void request<Result>("/workspace/analytics?"+params).then(data=>{if(active){setResult(data);setLoading(false);}}).catch(err=>{if(active){setError(err.message);setLoading(false);}}),150);
+  return()=>{active=false;clearTimeout(timer);};
+ },[settings.metric,settings.group,settings.range,settings.company,settings.department,settings.section,settings.manager,settings.status,settings.start,settings.end,companyId,refresh]);
+ const snapshot=["workforce","companies"].includes(settings.metric),temporal=["day","week","month"].includes(settings.group),peopleFilters=!["companies","notifications"].includes(settings.metric);
+ const metricChange=(metric:string)=>change({metric,group:"status",type:"bar",department:"",section:"",manager:"",status:"",company:companyId});
+ const move=(id:string,delta:number)=>setWidgets(old=>{const next=[...old],index=next.indexOf(id),other=index+delta;if(other<0||other>=next.length)return old;[next[index],next[other]]=[next[other],next[index]];return next;});
+ const dateLabel=(label:string)=>temporal&&/^\d{4}-\d{2}(-\d{2})?$/.test(label)?new Date(label+(label.length===7?"-01":"")+"T12:00:00Z").toLocaleDateString(language==="ar"?"ar-QA":"en-US",{year:"numeric",month:"short",...(settings.group!=="month"?{day:"numeric"}:{} )}):settings.group==="status"||label==="Unassigned"?t(label):label;
+ const selector=(label:string,value:string,choices:[string,string][],onChange:(value:string)=>void)=><label>{t(label)}<ChoiceSelect searchable={choices.length>8} value={value} onChange={e=>onChange(e.target.value)}>{choices.map(([id,name])=><option value={id} key={id}>{name}</option>)}</ChoiceSelect></label>;
+ return <section className={`analytics-workspace ${compact?"is-compact":"manager-dashboard"}`} aria-label={t("Analytics")}><header className="section-heading"><div><h2>{t(compact?"Company analytics":"Workspace insights")}</h2><p className="hint">{t("Live data within your access scope")}</p></div><button type="button" onClick={()=>setRefresh(v=>v+1)} disabled={loading}>{t("Refresh")}</button></header>
+  <details className="card widget-preferences"><summary>{t("Customize dashboard")}</summary><p className="hint">{t("Saved for your account on this device.")}</p>{Object.entries(widgetLabels).filter(([id])=>(!compact||id==="chart")&&(id!=="activity"||result?.activityEnabled)).map(([id,label])=><div key={id}><label><input type="checkbox" checked={widgets.includes(id)} onChange={e=>setWidgets(old=>e.target.checked?[...old,id]:old.filter(x=>x!==id))}/>{t(label)}</label>{widgets.includes(id)&&<><button aria-label={t("Move up")} disabled={widgets.indexOf(id)===0} onClick={()=>move(id,-1)}>↑</button><button aria-label={t("Move down")} disabled={widgets.indexOf(id)===widgets.length-1} onClick={()=>move(id,1)}>↓</button></>}</div>)}</details>
+  {error&&<p role="alert">{t(error)}</p>}{loading&&<p role="status">{t("Updating analytics…")}</p>}
+  {widgets.map(widget=>widget==="summary"&&!compact&&result?<div className="dashboard-grid" key={widget}>{result.summary.map(item=><Link className="card metric-card" key={item.label} to={item.to}><span>{t(item.label)}</span><strong>{item.value.toLocaleString(language)}</strong><small>{t("Open")}</small></Link>)}</div>:widget==="activity"&&!compact&&result?.activity.length?<section key={widget} className="card"><header className="section-heading"><h2>{t("Recent activity")}</h2><Link to="/admin?tab=Audit">{t("View all")}</Link></header>{result.activity.map(item=><div className="dashboard-row" key={item.id}><span>{item.actorName} · {t(activityCollections[item.action.split(".")[0]]||"Recent activity")} · {t(/delete/.test(item.action)?"Deleted":/creat/.test(item.action)?"Created":/edit|updat/.test(item.action)?"Updated":"Activity")}</span><time>{new Date(item.occurredAt).toLocaleString(language)}</time></div>)}</section>:widget==="chart"?<section className="card analytics-panel" key={widget} aria-busy={loading}><div className="workspace-filters">
+   {selector("Metric",settings.metric,(result?.metrics||[settings.metric]).map(metric=>[metric,t(metricLabels[metric])]),metricChange)}
+   {selector("Group by",settings.group,Object.entries(groupLabels).filter(([id])=>(!snapshot||!["day","week","month"].includes(id))&&(peopleFilters||["status","company","day","week","month"].includes(id))&&(settings.metric!=="notifications"||id!=="company")).map(([id,label])=>[id,t(label)]),group=>change({group,type:"bar"}))}
+   {selector("Chart type",settings.type,(temporal?["line","bar","area","table"]:["bar","stacked","doughnut","table"]).map(id=>[id,t(typeLabels[id])]),type=>change({type}))}
+   {!snapshot&&selector("Date range",settings.range,[["7",t("Last 7 days")],["30",t("Last 30 days")],["90",t("Last 90 days")],["year",t("This year")],["custom",t("Custom range")]],range=>change({range}))}
+   {!snapshot&&settings.range==="custom"&&<><label>{t("From")}<input type="date" value={settings.start} max={settings.end||undefined} onChange={e=>change({start:e.target.value})}/></label><label>{t("To")}<input type="date" value={settings.end} min={settings.start||undefined} onChange={e=>change({end:e.target.value})}/></label></>}
+   {!companyId&&settings.metric!=="notifications"&&selector("Company",settings.company,[["",t("All companies")],...(result?.companies||[]).map(c=>[c.id,c.name] as [string,string])],company=>change({company,department:"",section:"",manager:""}))}
+   {peopleFilters&&<>{selector("Department",settings.department,[["",t("All departments")],...(result?.departments||[]).filter(d=>d.kind!=="section").map(d=>[d.id,d.name] as [string,string])],department=>change({department,section:""}))}{selector("Section",settings.section,[["",t("All sections")],...(result?.departments||[]).filter(d=>d.kind==="section"&&(!settings.department||d.parentDepartmentId===settings.department)).map(d=>[d.id,d.name] as [string,string])],section=>change({section}))}{selector("Manager",settings.manager,[["",t("All managers")],...(result?.managers||[]).map(d=>[d.id,d.name] as [string,string])],manager=>change({manager}))}</>}
+   {selector("Status",settings.status,[["",t("All statuses")],...(result?.statuses||[]).map(status=>[status,t(status)] as [string,string])],status=>change({status}))}
+  </div><div className="company-actions"><label><input type="checkbox" checked={settings.legend} onChange={e=>change({legend:e.target.checked})}/>{t("Show legend")}</label><button type="button" onClick={()=>change(defaults(canHr?"workforce":companyId?"companies":"notifications",companyId))}>{t("Reset filters")}</button></div>
+   {settings.metric==="tasks"&&<p className="hint">{t("Team task categories use the primary assignee; team filters include every assignee.")}</p>}
+   {companyId&&settings.metric==="notifications"&&<p className="hint">{t("Only notifications linked to this company are included.")}</p>}
+   <p className="hint">{t(snapshot?"Current records. Date ranges apply to dated metrics.":settings.metric==="tasks"?"Tasks grouped by creation date; current status, not completion history.":"Only records with a recorded date are included.")}</p>
+   {result&&!loading&&!error&&<><h3>{t(metricLabels[settings.metric])} <span className="badge">{result.total.toLocaleString(language)}</span></h3>{!result.total?<p className="empty">{t("No data matches these filters.")}</p>:<>{settings.type!=="table"&&<AnalyticsChart data={result} settings={settings} theme={theme} language={language} label={t(metricLabels[settings.metric])} translate={t} dateLabel={dateLabel}/>}<details open={settings.type==="table"} className="analytics-table"><summary>{t("View data table")}</summary><div className="table-wrap"><table className="table"><thead><tr><th>{t(groupLabels[settings.group])}</th><th>{t("Count")}</th><th>{t("Status distribution")}</th></tr></thead><tbody>{result.points.map((point,index)=><tr key={index}><td>{dateLabel(point.label)}</td><td>{point.value.toLocaleString(language)}</td><td>{Object.entries(point.statuses).map(([status,count])=>`${t(status)}: ${count.toLocaleString(language)}`).join(" · ")}</td></tr>)}</tbody></table></div></details></>}</>}
+  </section>:null)}
+ </section>;
+}
+function AnalyticsChart({data,settings,theme,language,label,translate,dateLabel}:{data:Result;settings:Settings;theme:string;language:string;label:string;translate:(text:string)=>string;dateLabel:(text:string)=>string}){
+ const canvas=useRef<HTMLCanvasElement>(null);
+ useEffect(()=>{if(!canvas.current)return;const colors=theme==="dark"?["#9dc2ff","#85d5b3","#e6bf77","#c6b4ed","#f0a3b1"]:["#386bb1","#258363","#a27628","#8060ad","#b85c74"];
+ const text=theme==="dark"?"#edf2fa":"#18283d",grid=theme==="dark"?"#344359":"#dce4ee";
+ const stacked=settings.type==="stacked",doughnut=settings.type==="doughnut",line=["line","area"].includes(settings.type);
+ const statuses=[...new Set(data.points.flatMap(point=>Object.keys(point.statuses)))];
+ const chart=new Chart(canvas.current,{type:doughnut?"doughnut":line?"line":"bar",data:{labels:data.points.map(point=>dateLabel(point.label)),datasets:stacked?statuses.map((status,index)=>({label:translate(status),data:data.points.map(point=>point.statuses[status]||0),backgroundColor:colors[index%colors.length]})):[{label,data:data.points.map(point=>point.value),backgroundColor:doughnut?data.points.map((_,i)=>colors[i%colors.length]):settings.type==="area"?colors[0]+"44":colors[0],borderColor:colors[0],borderWidth:line?2:0,fill:settings.type==="area",tension:0,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,animation:false,locale:language==="ar"?"ar-QA":"en-US",plugins:{legend:{display:settings.legend,rtl:language==="ar",textDirection:language==="ar"?"rtl":"ltr",labels:{color:text}},tooltip:{rtl:language==="ar",textDirection:language==="ar"?"rtl":"ltr"}},...(!doughnut?{scales:{x:{stacked,ticks:{color:text,autoSkip:true,maxRotation:35},grid:{display:false}},y:{stacked,beginAtZero:true,ticks:{color:text,precision:0},grid:{color:grid}}}}:{})}});
+ return()=>chart.destroy();
+ },[data,settings.type,settings.legend,settings.group,theme,language,label]);
+ return <div className="analytics-canvas"><canvas ref={canvas} role="img" aria-label={label}/></div>;
+}

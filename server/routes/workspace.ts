@@ -1,4 +1,5 @@
 import { payrollCan } from "../payroll.js";
+import analyticsRouter from "./analytics.js";
 import { randomUUID } from "node:crypto";
 import { csvCell } from "../csv.js";
 import { generateUsername, validUsername } from "../employee-identity.js";
@@ -14,6 +15,7 @@ import { approveRequest, audit, canReadApproval, financeSummary, inventorySummar
 import { canReadDocument, safeDocument } from "../documents.js";
 
 const router = Router();
+router.use("/analytics", analyticsRouter);
 
 function sendError(res: import("express").Response, error: unknown) {
   const message = error instanceof Error ? error.message : "Request failed.";
@@ -161,10 +163,11 @@ router.get("/overview", (req, res) => {
         email: user.email,
         employeeCode: employee?.employeeCode,
         jobTitle: employee?.jobTitle,
-        department: employee?.department,
+        department: rows("departments").find(row=>row.id===employee?.departmentId&&row.organizationId===employee?.organizationId)?.name??employee?.department,
+        section: rows("departments").find(row=>row.id===employee?.sectionId&&row.organizationId===employee?.organizationId)?.name,
         location: employee?.location,
         employmentStatus: employee?.status,
-        manager: employee?.manager,
+        manager: rows("employees").find(row=>row.id===employee?.managerId&&row.organizationId===employee?.organizationId)?.name??employee?.manager,
       },
       lastLoginAt: account?.lastLoginAt,
       attendance: todayAttendance ? {

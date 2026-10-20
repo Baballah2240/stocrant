@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-20 - Dashboard and company management upgrade
+
+- Shared company navigation now includes inline information editing, managers, department/section dashboards, documents and activity. The responsive directory adds reporting filters, sorting, column choices, page sizes and authorized bulk status changes.
+- Mobile and web dashboards share scoped interactive analytics, chart/table views, date filters and device-local widget/chart preferences. Existing themes and Arabic RTL apply to charts and controls.
+- Notification history adds read/category/date/search filters, pagination, synchronized read counts and offline feedback. Existing HR retention and acknowledgment rules remain enforced.
+- Reporting relationships use validated same-company links with cycle and orphan protection. Existing employee/account/payroll data remains in the same source/storage architecture.
+- Verified through isolated API and Chrome workflows, including phone-width rendering. No native build, installation or hosting deployment was performed.
+
 ## 2026-10-20 - Organization Manager company work
 
 - Added company Tasks, Notes, separate HR & Leave navigation and live task counts; employee profiles can show permitted tasks and notes.

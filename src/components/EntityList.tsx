@@ -20,11 +20,13 @@ export default function EntityList() {
   const navigate = useNavigate();
   const location = useLocation();
   const companyFilter = new URLSearchParams(location.search).get("company") || "";
+  const managersOnly = new URLSearchParams(location.search).get("managers")==="true";
+  const [departmentManagerIds,setDepartmentManagerIds] = useState<string[]>([]);
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(new URLSearchParams(location.search).get("status")||"all");
   const spec = useMemo(() => module && collection ? (entities ?? []).find((entity) => entity.module === module && entity.collection === collection) : undefined, [module, collection, entities]);
   const section = sectionFor(module);
   const canCreate = can(user?.permissions, section, "create");
@@ -36,13 +38,14 @@ export default function EntityList() {
   useEffect(() => {
     if (!collection || !spec) return;
     let active = true; setLoading(true); setError(null);
-    api.collections.list(collection).then((result) => { if (active) setItems((result.items ?? []).filter(item=>!companyFilter||(item.organizationId??item.companyId)===companyFilter)); }).catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : "Failed to load records."); }).finally(() => { if (active) setLoading(false); });
+    Promise.all([api.collections.list(collection),managersOnly?api.collections.list("departments"):Promise.resolve({items:[]})]).then(([result,departments]) => { if (active) {setItems((result.items ?? []).filter(item=>!companyFilter||(item.organizationId??item.companyId)===companyFilter));setDepartmentManagerIds(departments.items.map(row=>String(row.managerId||"")).filter(Boolean));} }).catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : "Failed to load records."); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [collection, spec, companyFilter]);
+  }, [collection, spec, companyFilter, managersOnly]);
 
   const columns = useMemo(() => { if (!spec) return []; const fields = new Map<string, EntitySpec["fields"][number]>(); for (const field of spec.fields) fields.set(field.key, field); return spec.columns.map((key) => fields.get(key)).filter((field): field is EntitySpec["fields"][number] => Boolean(field)); }, [spec]);
   const statusOptions = useMemo(() => [...new Set(items.map((item) => typeof item.status === "string" ? item.status : "").filter(Boolean))].sort(), [items]);
-  const filteredItems = useMemo(() => { const needle = query.trim().toLowerCase(); return items.filter((item) => (statusFilter === "all" || item.status === statusFilter) && (!needle || Object.values(item).some((value) => String(value ?? "").toLowerCase().includes(needle)))); }, [items, query, statusFilter]);
+  const managerIds = useMemo(()=>new Set([...items.map(row=>row.managerId).filter(Boolean),...departmentManagerIds]),[items,departmentManagerIds]);
+  const filteredItems = useMemo(() => { const needle = query.trim().toLowerCase(); return items.filter((item) => (!managersOnly||managerIds.has(item.id)) && (statusFilter === "all" || item.status === statusFilter) && (!needle || Object.values(item).some((value) => String(value ?? "").toLowerCase().includes(needle)))); }, [items, query, statusFilter, managersOnly, managerIds]);
 
   async function handleDelete(id: string) { if (!spec || !collection || !window.confirm(t("Delete this record? This cannot be undone."))) return; try { await api.collections.remove(collection, id); setItems((current) => current.filter((item) => item.id !== id)); } catch (err) { setError(err instanceof Error ? err.message : "Failed to delete the record."); } }
   async function handleExport() { if (!collection) return; try { const { filename, csv } = await api.workspace.exportCollection(collection); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); } catch (err) { setError(err instanceof Error ? err.message : "Failed to export records."); } }
