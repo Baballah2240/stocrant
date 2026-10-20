@@ -1,5 +1,13 @@
 # Project task log
 
+## 2026-10-20 - Work Activity chart and Today filter
+
+Implemented the actual Chart.js completion/activity chart, Today/7/30/custom calendar periods, user-selected IANA timezone, hourly/daily buckets, consistent KPIs and scoped task/activity drill-down. Desktop and separate employee/manager mobile homes share the component. Outstanding tasks remain independent of creation date. Dated analytics and audit activity follow the header selection; current snapshots retain their meanings.
+
+Added completion-transition metadata to new activity, conservative legacy status-history aggregation and single-entry task comment logging. Existing business records and historical entries are preserved. Implementation, timezone rules, permissions, migration and validation details: `../WORK_ACTIVITY.md`.
+
+Validation: 153 API tests plus 10 UI support tests, TypeScript, translations, storage restoration, production build/security smoke and existing dashboard/organization-manager browser regressions. The new chart browser suite passed actual canvas/table drill-down, date changes, consistent totals, timezone persistence, one summary request per change, empty/loading/error/retry states, manager/employee phone homes and 12 language/theme/viewport layouts. The final 48-case dashboard/operations/attendance/administration route matrix passed. English dark desktop and Arabic dark phone screenshots were reviewed visually. Tests use isolated temporary stores. No hosting deployment, native build or phone installation was performed.
+
 ## 2026-10-20 - Access, settings and employee account automation
 
 Implemented the administration center, protected/custom roles and permission matrix, scoped session revalidation, configurable Main-only reasoned self-approval, approval history/Request Changes, configurable employee accounts and encrypted durable onboarding email. Added durable employee-code reservations, idempotent email-bearing creation, safe token expiry/consumption and account/delivery confirmation.

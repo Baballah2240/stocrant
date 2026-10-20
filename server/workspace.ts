@@ -84,7 +84,7 @@ function updateEmployeeHistory(user: AuthenticatedUser, employee: Row, event: st
   saveStore(data);
 }
 
-function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
+function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string, previous?: Row) {
   const activity: Row = {
     id: rowId("workActivity"),
     workItemId: item.id,
@@ -93,6 +93,8 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
     message: event,
     progress: item.progress ?? 0,
     status: item.status ?? "Planned",
+    completionTransition: item.status === "Completed" && previous?.status !== "Completed",
+    previousStatus: previous?.status,
     createdBy: user.name,
     createdById: user.id,
     occurredAt: timestamp(),
@@ -104,6 +106,7 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string) {
 }
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
+  if (collection === "workActivity") payload = { ...payload, completionTransition: false };
   protectPayrollMutation(collection, action, payload, targetId);
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   if (sectionForCollection(collection) === "hr" && !canManageHr(user, action)) throw new Error("You do not have permission to manage HR records.");
@@ -152,7 +155,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   saveStore(data);
   revokeTenantSessions(collection, action, payload, existing, targetId);
   if (collection === "employees") { syncEmployeeAccount(user, item, existing); updateEmployeeHistory(user, item, existing ? "updated" : "hired"); }
-  if (collection === "workItems") updateWorkActivity(user, item, existing ? "Work item updated." : "Work item created.");
+  if (collection === "workItems") updateWorkActivity(user, item, String(payload.comments || (existing ? "Work item updated." : "Work item created.")), existing);
   audit(user, `${collection}.${action}`, { collection, targetId: item.id, section: sectionForCollection(collection) });
   return item;
 }

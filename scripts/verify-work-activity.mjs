@@ -1,0 +1,62 @@
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
+import { browserQa } from "./browser-qa.mjs";
+const root = mkdtempSync(join(tmpdir(), "stocrant-test-data-work-activity-"));
+process.env.STOCRANT_DATA_DIR = root; process.env.NODE_ENV = "development";
+const { createApp } = await import("../dist/app.js"), { getStore, saveStore } = await import("../dist/storage.js");
+const server = createApp().listen(0, "127.0.0.1"); await new Promise(resolve => server.once("listening", resolve));
+const base = `http://127.0.0.1:${server.address().port}`;
+let browser, cookie = "", password = randomBytes(24).toString("hex");
+async function req(path, method = "GET", body) { const response = await fetch(base + "/api" + path, { method, headers: { Cookie: cookie, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) }); const data = await response.json(); assert.ok(response.ok, path + ": " + JSON.stringify(data)); return { data, response }; }
+try {
+ const setup = await req("/auth/setup", "POST", { name: "Activity Owner", email: "owner@activity-browser.test", password, setupKey: "local-setup" }); cookie = setup.response.headers.get("set-cookie").split(";")[0]; const mainCookie = cookie, mainPassword = password;
+ const organization = (await req("/collections/organizations", "POST", { name: "Activity Organization", status: "active" })).data.item;
+ const company = (await req("/collections/companies", "POST", { name: "Activity Company", parentOrganizationId: organization.id, status: "active", organizationType: "office", industry: "services", currency: "QAR" })).data.item;
+ const employee = (await req("/collections/employees", "POST", { name: "Activity Employee", organizationId: company.id, status: "active", hireDate: "2026-01-01" })).data.item;
+ getStore().collections.workItems = []; getStore().collections.workActivity = []; saveStore(getStore());
+ const today = (await req("/workspace/dashboard-activity?timezone=UTC")).data.period.start;
+ const shift = days => { const date = new Date(today + "T12:00:00Z"); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); };
+ const task = (await req(`/workspace/company-work/${company.id}/tasks`, "POST", { title: "Completed activity browser task", assigneeIds: [employee.id], status: "Pending" })).data.item;
+ getStore().collections.workActivity.find(row => row.workItemId === task.id).occurredAt = shift(-8) + "T09:00:00Z";
+ await req(`/workspace/work/${task.id}`, "PATCH", { status: "Completed" }); getStore().collections.workActivity.at(-1).occurredAt = today + "T10:30:00Z";
+ const pending = (await req(`/workspace/company-work/${company.id}/tasks`, "POST", { title: "Old outstanding task", assigneeIds: [employee.id], status: "Pending", dueDate: shift(-2) })).data.item;
+ getStore().collections.workActivity.find(row => row.workItemId === pending.id).occurredAt = shift(-20) + "T12:00:00Z"; saveStore(getStore());
+ browser = await browserQa(root); const { send, evaluate, until } = browser;
+ await send("Network.enable"); const setCookie = () => send("Network.setCookie", { name: "stocrant_session", value: cookie.slice(cookie.indexOf("=") + 1), url: base, path: "/" }); await setCookie();
+ await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
+ async function fill(selector, value) { await evaluate(`(()=>{const node=document.querySelector(${JSON.stringify(selector)});if(!node)throw Error('Missing '+${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(Object.getPrototypeOf(node),'value').set.call(node,${JSON.stringify(value)});node.dispatchEvent(new Event(node.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`); }
+ async function navigate() { await send("Page.navigate", { url: base + "/" }); await until('Boolean(document.querySelector(".app-lock-screen input[type=password]"))'); await fill('.app-lock-screen input', password); await evaluate('document.querySelector(".app-lock-screen form").requestSubmit()'); await until('Boolean(document.querySelector(".work-activity-dashboard"))'); }
+ const ready = () => until('Boolean(document.querySelector(".work-activity-panel"))&&!document.querySelector(".work-activity-dashboard [role=status]")&&!document.querySelector(".work-activity-dashboard [role=alert]")');
+ const summary = async () => evaluate('Object.fromEntries(Array.from(document.querySelectorAll("[data-activity-kpi]")).map(node=>[node.dataset.activityKpi,node.textContent]))');
+ await navigate(); await ready(); await fill('.work-activity-controls label:nth-child(2) select', 'UTC'); await ready();
+ assert.equal(await evaluate('document.querySelector(".work-activity-controls select").value'), 'today'); assert.deepEqual(await summary(), { completed: '1', activity: '1', pending: '1', overdue: '1' });
+ await evaluate('window.__activityFetch=window.fetch;window.__activityRequests=0;window.fetch=(url,...args)=>{if(String(url).includes("/dashboard-activity?"))window.__activityRequests++;return window.__activityFetch(url,...args)}');
+ for (const [range, activity, size] of [['7', '1', 7], ['30', '3', 30], ['today', '1', 24]]) {
+  const count = await evaluate('window.__activityRequests'); await fill('.work-activity-controls select', range); await ready(); assert.equal((await summary()).activity, activity); assert.equal((await summary()).pending, '1'); assert.equal(await evaluate('document.querySelectorAll(".work-activity-panel tbody tr").length'), size); assert.equal(await evaluate('window.__activityRequests'), count + 1);
+ }
+ await evaluate('document.querySelector(".work-activity-panel details").open=true;Array.from(document.querySelectorAll(".work-activity-panel tbody tr"))[10].querySelector("button").click()'); await until('document.querySelector(".work-activity-detail")?.textContent.includes("Completed activity browser task")'); assert.ok(await evaluate('document.querySelector(".work-activity-detail a")?.getAttribute("href").startsWith("/operations/work/")'));
+ await evaluate('document.querySelector(".work-activity-detail header button").click();document.querySelector(".work-activity-canvas canvas").scrollIntoView({block:"center"})');
+ const point = await evaluate('(()=>{const r=document.querySelector(".work-activity-canvas canvas").getBoundingClientRect();return {x:r.x+r.width*.5,y:r.y+r.height*.5}})()');
+ await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 }); await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 }); await until('Boolean(document.querySelector(".work-activity-detail"))');
+ await fill('.work-activity-controls select', 'custom'); await until('Boolean(document.querySelector(".work-activity-custom"))'); await fill('.work-activity-custom input', shift(-8)); await fill('.work-activity-custom label:nth-child(2) input', today); await ready(); assert.equal((await summary()).activity, '2'); assert.equal((await summary()).completed, '1');
+ await fill('.work-activity-custom input', '2000-01-01'); await fill('.work-activity-custom label:nth-child(2) input', '2000-01-01'); await ready(); assert.equal((await summary()).activity, '0'); assert.equal((await summary()).pending, '1'); assert.ok(!await evaluate('Boolean(document.querySelector(".work-activity-canvas"))'));
+ await fill('.work-activity-controls select', 'today'); await ready();
+ await evaluate('window.fetch=(url,...args)=>String(url).includes("/dashboard-activity?")?new Promise(resolve=>setTimeout(()=>resolve(new Response(JSON.stringify({error:"Activity temporarily unavailable."}),{status:503,headers:{"Content-Type":"application/json"}})),700)):window.__activityFetch(url,...args);document.querySelector(".work-activity-controls > button").click()'); await until('Boolean(document.querySelector(".work-activity-dashboard [role=status]"))'); await until('document.querySelector(".work-activity-dashboard [role=alert]")?.textContent.includes("temporarily unavailable")'); await evaluate('window.fetch=window.__activityFetch;document.querySelector(".work-activity-dashboard [role=alert] button").click()'); await ready();
+ const directory = resolve('.local-preview/qa/work-activity'); mkdirSync(directory, { recursive: true });
+ for (const [language, theme] of [['en', 'light'], ['en', 'dark'], ['ar', 'light'], ['ar', 'dark']]) {
+  await evaluate(`localStorage.setItem("stocrant.language",${JSON.stringify(language)});localStorage.setItem("stocrant-theme",${JSON.stringify(theme)})`);
+  for (const width of [1440, 1024, 390]) { await send('Emulation.setDeviceMetricsOverride', { width, height: 1100, deviceScaleFactor: 1, mobile: width < 700 }); await navigate(); await ready(); assert.equal(await evaluate('document.documentElement.dir'), language === 'ar' ? 'rtl' : 'ltr'); assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'), `Dashboard overflow ${language}/${theme}/${width}`); await evaluate('document.querySelector(".work-activity-heading").scrollIntoView({block:"start"})'); writeFileSync(join(directory, `${language}-${theme}-${width}.png`), Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64')); }
+ }
+ await evaluate('localStorage.setItem("stocrant.language","en");localStorage.setItem("stocrant-theme","light")');
+ // A company manager receives only scoped data; an Employee needs explicit Operations-view access.
+ const temporary = randomBytes(24).toString('hex'); await req('/workspace/access/users', 'POST', { name: 'Activity Manager', email: 'manager@activity-browser.test', password: temporary, roleId: 'role-company-manager', organizationIds: [company.id] });
+ let login = await req('/auth/login', 'POST', { email: 'manager@activity-browser.test', password: temporary }); cookie = login.response.headers.get('set-cookie').split(';')[0]; password = randomBytes(24).toString('hex'); await req('/auth/password', 'POST', { currentPassword: temporary, newPassword: password }); cookie = (await req('/auth/login', 'POST', { email: 'manager@activity-browser.test', password })).response.headers.get('set-cookie').split(';')[0]; await setCookie(); await navigate(); await ready(); assert.equal((await summary()).completed, '1');
+ cookie = mainCookie; password = mainPassword; const invite = (await req(`/workspace/hr/communication/employees/${employee.id}/invitation`, 'POST')).data;
+ password = randomBytes(24).toString('hex'); await req('/auth/activate-employee', 'POST', { token: invite.token, email: 'employee@activity-browser.test', password }); cookie = (await req('/auth/login', 'POST', { email: 'employee@activity-browser.test', password })).response.headers.get('set-cookie').split(';')[0]; await setCookie(); await navigate(); await ready(); assert.equal((await summary()).activity, '0');
+ const employeeCookie = cookie; cookie = mainCookie; const employeeAccount = getStore().collections.accessUsers.find(row => row.employeeId === employee.id); await req(`/workspace/access/users/${employeeAccount.id}`, 'PATCH', { permissions: ['hr.view', 'operations.view'] }); cookie = (await req('/auth/login', 'POST', { email: 'employee@activity-browser.test', password })).response.headers.get('set-cookie').split(';')[0]; assert.ok(employeeCookie); await setCookie(); await navigate(); await ready(); assert.equal((await summary()).completed, '1');
+ console.log('Work Activity browser checks passed: Today/7/30/custom filters, hourly/daily chart, exact totals and backlog, one request per change, keyboard/table and canvas drill-down, record links, empty/loading/error/retry, timezone persistence, root/manager/employee permissions and 12 English/Arabic light/dark desktop/tablet/mobile layouts.');
+} catch (error) { if (browser) console.log(await browser.evaluate('(()=>{const node=document.querySelector(".work-activity-dashboard")?.cloneNode(true);node?.querySelectorAll("select").forEach(select=>select.remove());return node?.innerText||node?.textContent})()')); throw error; }
+finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep) && root.includes('stocrant-test-data-work-activity-')); rmSync(root, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 }); }

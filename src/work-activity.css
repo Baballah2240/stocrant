@@ -1,0 +1,23 @@
+.work-activity-dashboard { margin-block: 1rem 1.5rem; min-width: 0; }
+.work-activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap; }
+.work-activity-heading h2 { margin-block: .25rem; }
+.work-activity-heading { scroll-margin-top: 95px; }
+.work-activity-controls { display: flex; align-items: end; gap: .65rem; flex-wrap: wrap; }
+.work-activity-controls label { display: grid; gap: .35rem; min-width: 145px; max-width: 240px; font-size: .85rem; }
+.work-activity-custom { display: flex; gap: 1rem; flex-wrap: wrap; margin-block: 1rem; }
+.work-activity-custom label { display: grid; gap: .3rem; }
+.work-activity-kpis { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .85rem; margin-block: .85rem; }
+.work-activity-kpis .card { display: grid; gap: .45rem; margin: 0; padding: 1.1rem; }
+.work-activity-kpis strong { font-size: 1.9rem; color: var(--text); }
+.work-activity-kpis small { color: var(--muted); }
+.work-activity-panel, .work-activity-detail, .work-activity-recent { margin-block: .85rem; min-width: 0; }
+.work-activity-canvas { position: relative; height: 310px; width: 100%; }
+.work-activity-canvas .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.work-activity-records article { display: flex; justify-content: space-between; gap: 1rem; padding-block: .85rem; border-bottom: 1px solid var(--border); }
+.work-activity-records article > div { min-width: 0; overflow-wrap: anywhere; }
+.work-activity-records p { margin-block: .35rem; }
+.work-activity-records time, .work-activity-records small { font-size: .8rem; color: var(--muted); }
+.work-activity-records time { flex-shrink: 0; }
+.activity-period-label { overflow-wrap: anywhere; }
+@media(max-width:1000px) { .work-activity-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .work-activity-controls { width: 100%; display: grid; grid-template-columns: 1fr 1fr; } .work-activity-controls label { min-width: 0; max-width: 100%; } .work-activity-controls > button { justify-self: start; } .work-activity-kpis { gap: .5rem; } .work-activity-kpis .card { padding: .8rem; } .work-activity-kpis strong { font-size: 1.5rem; } .work-activity-canvas { height: 260px; } .work-activity-records article { flex-direction: column; gap: .4rem; } }

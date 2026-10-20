@@ -7,7 +7,9 @@ import { resolve,sep } from "node:path";
 import { tmpdir } from "node:os";
 import type { Server } from "node:http";
 import { createApp } from "./app.js";
-import { getStore } from "./storage.js";
+import { getStore, saveStore } from "./storage.js";
+import { publicUser } from "./auth.js";
+import { activityQuery, activityPeriod, dashboardActivity } from "./dashboard-activity.js";
 import { createNotification } from "./notifications.js";
 type Row=Record<string,any>;
 let server:Server,base="",main="",manager="",orgManager="",staff="",company:Row,sister:Row,foreign:Row,lead:Row,employee:Row,outsider:Row,department:Row,section:Row;
@@ -26,6 +28,66 @@ before(async()=>{
  lead=await create("employees",person("Team Lead",company.id));employee=await create("employees",person("Scoped Employee",company.id));outsider=await create("employees",person("Foreign Employee",foreign.id));await create("employees",person("Sister Employee",sister.id));
  manager=await loginManager("company@analytics.test","role-company-manager",{organizationIds:[company.id]});orgManager=await loginManager("org@analytics.test","role-organization-admin",{tenantOrganizationIds:[org.id],organizationIds:[]});
  const invite=await json(await req(`/workspace/hr/communication/employees/${employee.id}/invitation`,"POST")),password=secret();await json(await req("/auth/activate-employee","POST",{token:invite.token,email:"staff@analytics.test",password},""));const response=await req("/auth/login","POST",{email:"staff@analytics.test",password},"");await json(response);staff=cookie(response);
+});
+describe("Work Activity and timezone-aware dashboard periods",()=>{
+ const fixed=new Date("2026-10-20T10:00:00Z");
+ const account=(email:string)=>publicUser((getStore().collections.accessUsers as Row[]).find(row=>row.email===email)! as Parameters<typeof publicUser>[0]);
+ const options=(extra:Row={})=>activityQuery.parse({range:"custom",start:"2026-10-20",end:"2026-10-20",timezone:"Asia/Riyadh",...extra});
+ let task:Row;
+ it("uses calendar-day boundaries for Today, seven, thirty and custom periods",()=>{
+  for(const [range,start] of [["today","2026-10-20"],["7","2026-10-14"],["30","2026-09-21"]]){const p=activityPeriod(activityQuery.parse({range}),"Asia/Riyadh",new Date("2026-10-19T21:00:00Z"));assert.equal(p.start,start);assert.equal(p.end,"2026-10-20");}
+  assert.equal(activityPeriod(activityQuery.parse({}),"America/Los_Angeles",new Date("2026-10-20T01:00:00Z")).start,"2026-10-19");
+  assert.throws(()=>activityPeriod(options({start:"2026-10-21"}),"UTC",fixed));assert.throws(()=>activityPeriod(activityQuery.parse({range:"custom"}),"UTC",fixed));
+  for(const invalid of [{timezone:"Invalid/Zone"},{start:"2026-02-30"},{page:0},{range:"90"}])assert.equal(activityQuery.safeParse(invalid).success,false);
+ });
+ it("records actual completion transitions, avoids duplicate activity on comments and preserves outstanding work",async()=>{
+  task=(await json(await req(`/workspace/company-work/${company.id}/tasks`,"POST",{title:"Midnight boundary task",assigneeIds:[employee.id],status:"Pending",dueDate:"2026-10-19"}),201)).item;
+  const collection=getStore().collections.workActivity as Row[];collection.find(row=>row.workItemId===task.id)!.occurredAt="2026-10-19T20:59:59Z";
+  await json(await req(`/workspace/work/${task.id}`,"PATCH",{status:"Completed"}));
+  let events=(getStore().collections.workActivity as Row[]).filter(row=>row.workItemId===task.id);assert.equal(events.length,2);events[1].occurredAt="2026-10-19T21:00:00Z";assert.equal(events[1].completionTransition,true);
+  await json(await req(`/workspace/work/${task.id}/activity`,"POST",{message:"Confirmed completed work",status:"Completed"}),201);
+  events=(getStore().collections.workActivity as Row[]).filter(row=>row.workItemId===task.id);assert.equal(events.length,3);events[2].occurredAt="2026-10-20T20:59:59Z";assert.equal(events[2].completionTransition,false);
+  await json(await req(`/workspace/work/${task.id}`,"PATCH",{status:"In Progress"}));(getStore().collections.workActivity as Row[]).at(-1)!.occurredAt="2026-10-21T10:00:00Z";
+  saveStore(getStore());
+  const data=dashboardActivity(account("company@analytics.test"),options(),fixed);assert.equal(data.points.length,24);assert.equal(data.summary.completed,1);assert.equal(data.summary.activity,2);assert.equal(data.points[0].completed,1);assert.equal(data.points[23].activity,1);assert.ok(data.summary.pending>=1);assert.ok(data.summary.overdue>=1);
+  assert.equal(data.points.reduce((sum,row)=>sum+row.completed,0),data.summary.completed);assert.equal(data.points.reduce((sum,row)=>sum+row.activity,0),data.summary.activity);
+  const utc=dashboardActivity(account("company@analytics.test"),options({timezone:"UTC"}),fixed);assert.equal(utc.summary.completed,0);assert.equal(utc.summary.activity,1);
+  const daily=dashboardActivity(account("company@analytics.test"),options({start:"2026-10-19",end:"2026-10-21"}),fixed);assert.equal(daily.points.length,3);assert.equal(daily.summary.completed,1);
+ });
+ it("enforces role/company/own-record permissions on summary, history and point drill-down endpoints",async()=>{
+  const path="/workspace/dashboard-activity?range=custom&start=2026-10-20&end=2026-10-20&timezone=Asia/Riyadh";
+  await json(await req(path,"GET",undefined,""),401);
+  const data=await json(await req(path+"&bucket=2026-10-20T00","GET",undefined,manager));assert.equal(data.recordCount,1);assert.equal(data.records[0].taskId,task.id);assert.equal(data.records[0].to,"/operations/work/"+task.id);
+  await json(await req(path+"&bucket=2026-10-21T00","GET",undefined,manager),400);await json(await req(path+"&page=0"),400);
+  const denied=await json(await req(path,"GET",undefined,staff));assert.equal(denied.enabled,false);assert.equal(denied.recordCount,0);assert.equal(denied.summary.completed,0);
+  const employeeAccount=(getStore().collections.accessUsers as Row[]).find(row=>row.employeeId===employee.id)!;employeeAccount.permissions=["hr.view","operations.view"];saveStore(getStore());
+  const own=await json(await req(path,"GET",undefined,staff));assert.equal(own.enabled,true);assert.equal(own.summary.completed,1);assert.ok(own.records.every((row:Row)=>row.taskId===task.id));
+  const privateTask=(await json(await req(`/workspace/company-work/${foreign.id}/tasks`,"POST",{title:"Private external completed task",assigneeIds:[outsider.id],status:"Completed"}),201)).item;(getStore().collections.workActivity as Row[]).find(row=>row.workItemId===privateTask.id)!.occurredAt="2026-10-20T04:00:00Z";saveStore(getStore());
+  const root=await json(await req(path));assert.equal(root.summary.completed,2);
+  for(const token of [manager,orgManager,staff]){const scoped=await json(await req(path,"GET",undefined,token));assert.equal(scoped.summary.completed,1);assert.ok(!JSON.stringify(scoped).includes("Private external"));}
+ });
+ it("handles daylight saving, half-hour zones, empty data and missing legacy timestamps without invented history",()=>{
+  const store=getStore(),previous=store.collections.workActivity;
+  const event=(id:string,occurredAt?:string)=>({id,workItemId:task.id,organizationId:company.id,status:"Completed",completionTransition:id==="first",occurredAt});
+  try{
+   store.collections.workActivity=[event("first","2026-11-01T05:30:00Z"),event("second","2026-11-01T06:30:00Z"),event("missing")];
+   const fall=dashboardActivity(account("company@analytics.test"),options({start:"2026-11-01",end:"2026-11-01",timezone:"America/New_York"}),fixed);assert.equal(fall.points.length,24);assert.equal(fall.points[1].activity,2);assert.equal(fall.summary.completed,1);assert.equal(fall.summary.activity,2);
+   store.collections.workActivity=[event("first","2026-03-08T06:30:00Z"),event("second","2026-03-08T07:30:00Z")];
+   const spring=dashboardActivity(account("company@analytics.test"),options({start:"2026-03-08",end:"2026-03-08",timezone:"America/New_York"}),fixed);assert.equal(spring.points[2].activity,0);assert.equal(spring.points[3].activity,1);
+   store.collections.workActivity=[event("first","2026-10-19T18:30:00Z")];
+   const half=dashboardActivity(account("company@analytics.test"),options({timezone:"Asia/Kolkata"}),fixed);assert.equal(half.points[0].completed,1);
+   store.collections.workActivity=[{id:"legacy",workItemId:task.id,status:"Completed",occurredAt:"2026-10-20T09:00:00Z"}];const legacy=dashboardActivity(account("company@analytics.test"),options(),fixed);assert.equal(legacy.summary.activity,1);assert.equal(legacy.summary.completed,0);
+   store.collections.workActivity=[event("naive","2026-10-20T09:00:00")];assert.equal(dashboardActivity(account("company@analytics.test"),options(),fixed).summary.activity,0);
+   store.collections.workActivity=[];const empty=dashboardActivity(account("company@analytics.test"),options(),fixed);assert.equal(empty.summary.activity,0);assert.ok(empty.points.every(row=>row.completed===0&&row.activity===0));assert.ok(empty.summary.pending>0);
+   assert.equal(dashboardActivity(account("company@analytics.test"),options({start:"9999-12-30",end:"9999-12-31"}),fixed).points.length,2);
+  }finally{store.collections.workActivity=previous;saveStore(store);}
+ });
+ it("uses configured company timezone by default and filters analytics audit timestamps consistently",async()=>{
+  getStore().collections.attendanceSettings.push({id:"dashboard-timezone-test",organizationId:company.id,timezone:"Pacific/Auckland"});saveStore(getStore());
+  const data=await json(await req("/workspace/dashboard-activity?range=today","GET",undefined,manager));assert.equal(data.period.timezone,"Pacific/Auckland");
+  const audit=await json(await req("/workspace/analytics?metric=workforce&start=2000-01-01&end=2000-01-01&timezone=Asia/Riyadh"));assert.deepEqual(audit.activity,[]);assert.ok(audit.total>0);
+  const far=await json(await req("/workspace/analytics?metric=hires&group=day&start=9999-12-30&end=9999-12-31"));assert.equal(far.points.length,2);
+ });
 });
 after(async()=>{server.closeAllConnections();await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()));assert.ok(resolve(TEST_DATA_DIR).startsWith(resolve(tmpdir())+sep));rmSync(TEST_DATA_DIR,{recursive:true,force:true});});
 describe("Structured company management and analytics",()=>{

@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-20 - Work Activity chart and Today filter
+
+- Added the shared Chart.js Work Activity line/area chart to desktop and manager/employee phone homes, with point/table drill-down, exact totals, recent work events and permission-scoped record links.
+- Added Today, 7-day, 30-day and custom dashboard periods, hourly/daily buckets and a per-account saved timezone preference. Date changes update dated insights; outstanding/overdue tasks remain current across all creation dates.
+- Added empty/loading/error/retry states, accessible data tables, cyan/blue theme-aware colors, Arabic RTL and responsive layout checks. Actual completion transitions prevent repeated completed-task comments from inflating completion counts.
+- No native binary was rebuilt or installed. Source publication does not deploy hosting or update a phone. Details: `docs/WORK_ACTIVITY.md`.
+
 ## 2026-10-20 - Access, settings and employee onboarding
 
 - Redesigned the shared administration center with grouped/searchable navigation, compact summaries, roles/permission matrices, policy controls and request review history. Phone navigation uses a compact scrolling bar with RTL support.

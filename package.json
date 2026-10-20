@@ -45,7 +45,8 @@
     "test:complete-workspace": "npm run build:full && node scripts/verify-complete-workspace.mjs",
     "test:organization-manager": "npm run build:full && node scripts/verify-organization-manager.mjs",
     "test:dashboard-upgrade": "npm run build:full && node scripts/verify-dashboard-upgrade.mjs",
-    "test:administration": "npm run build:full && node scripts/verify-administration.mjs"
+    "test:administration": "npm run build:full && node scripts/verify-administration.mjs",
+    "test:work-activity": "npm run build:full && node scripts/verify-work-activity.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "9.1.2",

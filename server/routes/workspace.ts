@@ -1,6 +1,7 @@
 import { payrollCan } from "../payroll.js";
 import analyticsRouter from "./analytics.js";
 import administrationRouter from "./administration.js";
+import dashboardActivityRouter from "./dashboard-activity.js";
 import { eligibleSelfApproval } from "../admin-policy.js";
 import { randomUUID } from "node:crypto";
 import { csvCell } from "../csv.js";
@@ -19,6 +20,7 @@ import { canReadDocument, safeDocument } from "../documents.js";
 const router = Router();
 router.use("/analytics", analyticsRouter);
 router.use("/administration", administrationRouter);
+router.use("/dashboard-activity", dashboardActivityRouter);
 
 function sendError(res: import("express").Response, error: unknown) {
   const message = error instanceof Error ? error.message : "Request failed.";
@@ -474,7 +476,6 @@ router.post("/work/:id/activity", requirePermission("operations", "edit"), (req,
   if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Work item not found." });
   try {
     const result = mutateCollection(req.auth!, "workItems", "edit", { ...parsed.data, comments: parsed.data.message }, existing.id);
-    if (!result.pending) mutateCollection(req.auth!, "workActivity", "create", { workItemId: existing.id, message: parsed.data.message, progress: parsed.data.progress ?? existing.progress, status: parsed.data.status ?? existing.status, occurredAt: new Date().toISOString() });
     res.status(result.pending ? 202 : 201).json(result);
   } catch (error) { sendError(res, error); }
 });

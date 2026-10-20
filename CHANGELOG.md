@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-20 — Work Activity and Today dashboard filter
+
+- Added real completion/activity history charts, hourly Today and daily longer ranges, saved timezone/date preferences, scoped point drill-down and record links on desktop and phone home screens.
+- Synchronized selected dashboard periods with dated analytics and recent activity while preserving current backlog and snapshot metrics. Recorded completion transitions prevent repeated comments/edits from inflating completed-task counts; task updates now produce one activity entry.
+- Added timezone/DST/role/API coverage and browser checks for date changes, totals, errors, empty/loading states, English/Arabic, both themes and responsive layouts. No new dependencies or storage collections. See `docs/WORK_ACTIVITY.md`.
+
 ## 2026-10-20 — Access, settings and secure employee onboarding
 
 - Added a searchable administration center, grouped responsive navigation, live settings summaries, custom role creation, supported permission matrices, scope controls, confirmation and protected Main Administrator roles.

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Chart, BarController, BarElement, LineController, LineElement, PointElement, DoughnutController, ArcElement, CategoryScale, LinearScale, Tooltip, Legend, Filler } from "chart.js";
+import type { DashboardPeriod } from "./WorkActivityDashboard";
 import { request } from "../api";
 import { useLanguage } from "../language-context";
 import { useSession } from "../session-context";
@@ -18,25 +19,26 @@ const widgetLabels:Record<string,string>={summary:"Key statistics",chart:"Analyt
 const activityCollections:Record<string,string>={employees:"Employees",departments:"Departments",companies:"Companies",organizations:"Organizations",workItems:"Tasks",companyNotes:"Notes",documents:"Documents",accessUsers:"Users",payrollRuns:"Payroll",financeTransactions:"Finance"};
 const defaults=(metric:string,company:string):Settings=>({metric,type:"bar",range:"30",group:"status",company,department:"",section:"",manager:"",status:"",start:"",end:"",legend:true});
 function readSettings(key:string,initial:Settings){try{const saved=JSON.parse(localStorage.getItem(key)||"null");if(saved&&Object.keys(initial).every(k=>typeof saved[k]===typeof initial[k as keyof Settings]))return {...initial,...saved} as Settings;}catch{/* Optional device preferences. */}return initial;}
-export default function AnalyticsWorkspace({companyId="",compact=false}:{companyId?:string;compact?:boolean}){
+export default function AnalyticsWorkspace({companyId="",compact=false,dashboardPeriod}:{companyId?:string;compact?:boolean;dashboardPeriod?:DashboardPeriod}){
  const {t,language}=useLanguage(),{user}=useSession(),{theme}=useTheme();
  const canHr=Boolean(user?.permissions.some(p=>["*","hr.*","hr.view"].includes(p)));
  const key=`stocrant.analytics.${user?.id}.${companyId||"dashboard"}`;
  const [settings,setSettings]=useState(()=>readSettings(key,defaults(canHr?"workforce":companyId?"companies":"notifications",companyId)));
  const [result,setResult]=useState<Result|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(false),[refresh,setRefresh]=useState(0);
  const [widgets,setWidgets]=useState<string[]>(()=>{try{const v=JSON.parse(localStorage.getItem(key+".layout")||"null");if(Array.isArray(v)&&v.every(x=>Object.keys(widgetLabels).includes(x))&&new Set(v).size===v.length)return v;}catch{/* Device storage unavailable. */}return compact?["chart"]:["summary","chart","activity"];});
+ useEffect(()=>{if(dashboardPeriod){setSettings(old=>({...old,range:"custom",start:dashboardPeriod.start,end:dashboardPeriod.end}));setRefresh(value=>value+1);}},[dashboardPeriod]);
  const change=(patch:Partial<Settings>)=>setSettings(old=>({...old,...patch}));
  useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(settings));localStorage.setItem(key+".layout",JSON.stringify(widgets));}catch{/* Preferences still work in session. */}},[key,settings,widgets]);
  useEffect(()=>{
-  let active=true;const end=new Date().toISOString().slice(0,10),startDate=new Date(end+"T12:00:00Z");startDate.setUTCDate(startDate.getUTCDate()-(Number(settings.range)||30)+1);
+  let active=true;const end=new Intl.DateTimeFormat("en-CA",{timeZone:dashboardPeriod?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),startDate=new Date(end+"T12:00:00Z");startDate.setUTCDate(startDate.getUTCDate()-(Number(settings.range)||30)+1);
   const snapshot=["workforce","companies"].includes(settings.metric);
   const start=settings.range==="custom"?settings.start:settings.range==="year"?end.slice(0,4)+"-01-01":startDate.toISOString().slice(0,10);
   const finish=settings.range==="custom"?settings.end:end;
   if(!snapshot&&(!start||!finish)){setLoading(false);setError("Choose both dates for a custom range.");return;}
-  const params=new URLSearchParams({metric:settings.metric,group:settings.group,company:companyId||settings.company,department:settings.department,section:settings.section,manager:settings.manager,status:settings.status,...(!snapshot?{start,end:finish}:{})});
+  const params=new URLSearchParams({...(dashboardPeriod?{timezone:dashboardPeriod.timezone}:{}),metric:settings.metric,group:settings.group,company:companyId||settings.company,department:settings.department,section:settings.section,manager:settings.manager,status:settings.status,...(start&&finish?{start,end:finish}:{})});
   setLoading(true);setError("");const timer=setTimeout(()=>void request<Result>("/workspace/analytics?"+params).then(data=>{if(active){setResult(data);setLoading(false);}}).catch(err=>{if(active){setError(err.message);setLoading(false);}}),150);
   return()=>{active=false;clearTimeout(timer);};
- },[settings.metric,settings.group,settings.range,settings.company,settings.department,settings.section,settings.manager,settings.status,settings.start,settings.end,companyId,refresh]);
+ },[settings.metric,settings.group,settings.range,settings.company,settings.department,settings.section,settings.manager,settings.status,settings.start,settings.end,companyId,refresh,dashboardPeriod?.timezone]);
  const snapshot=["workforce","companies"].includes(settings.metric),temporal=["day","week","month"].includes(settings.group),peopleFilters=!["companies","notifications"].includes(settings.metric);
  const metricChange=(metric:string)=>change({metric,group:"status",type:"bar",department:"",section:"",manager:"",status:"",company:companyId});
  const move=(id:string,delta:number)=>setWidgets(old=>{const next=[...old],index=next.indexOf(id),other=index+delta;if(other<0||other>=next.length)return old;[next[index],next[other]]=[next[other],next[index]];return next;});
@@ -49,7 +51,7 @@ export default function AnalyticsWorkspace({companyId="",compact=false}:{company
    {selector("Metric",settings.metric,(result?.metrics||[settings.metric]).map(metric=>[metric,t(metricLabels[metric])]),metricChange)}
    {selector("Group by",settings.group,Object.entries(groupLabels).filter(([id])=>(!snapshot||!["day","week","month"].includes(id))&&(peopleFilters||["status","company","day","week","month"].includes(id))&&(settings.metric!=="notifications"||id!=="company")).map(([id,label])=>[id,t(label)]),group=>change({group,type:"bar"}))}
    {selector("Chart type",settings.type,(temporal?["line","bar","area","table"]:["bar","stacked","doughnut","table"]).map(id=>[id,t(typeLabels[id])]),type=>change({type}))}
-   {!snapshot&&selector("Date range",settings.range,[["7",t("Last 7 days")],["30",t("Last 30 days")],["90",t("Last 90 days")],["year",t("This year")],["custom",t("Custom range")]],range=>change({range}))}
+   {!snapshot&&selector("Date range",settings.range,[["1",t("Today")],["7",t("Last 7 days")],["30",t("Last 30 days")],["90",t("Last 90 days")],["year",t("This year")],["custom",t("Custom range")]],range=>change({range}))}
    {!snapshot&&settings.range==="custom"&&<><label>{t("From")}<input type="date" value={settings.start} max={settings.end||undefined} onChange={e=>change({start:e.target.value})}/></label><label>{t("To")}<input type="date" value={settings.end} min={settings.start||undefined} onChange={e=>change({end:e.target.value})}/></label></>}
    {!companyId&&settings.metric!=="notifications"&&selector("Company",settings.company,[["",t("All companies")],...(result?.companies||[]).map(c=>[c.id,c.name] as [string,string])],company=>change({company,department:"",section:"",manager:""}))}
    {peopleFilters&&<>{selector("Department",settings.department,[["",t("All departments")],...(result?.departments||[]).filter(d=>d.kind!=="section").map(d=>[d.id,d.name] as [string,string])],department=>change({department,section:""}))}{selector("Section",settings.section,[["",t("All sections")],...(result?.departments||[]).filter(d=>d.kind==="section"&&(!settings.department||d.parentDepartmentId===settings.department)).map(d=>[d.id,d.name] as [string,string])],section=>change({section}))}{selector("Manager",settings.manager,[["",t("All managers")],...(result?.managers||[]).map(d=>[d.id,d.name] as [string,string])],manager=>change({manager}))}</>}
