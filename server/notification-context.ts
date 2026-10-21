@@ -18,7 +18,9 @@ export function notificationContext(user: AuthenticatedUser, item: Notification)
     const company = find("companies", String(row.organizationId || row.companyId || ""));
     if (company) details.company = company.name;
   };
-  if (item.type === "overdue_work") {
+  if(target.startsWith("task:")){
+    const row=find("workItems",target.slice(5));if(row&&can(user,"operations","view")&&isWithinScope(user,row)){add(row,["title","description","status","priority","dueDate","assignee","progress"]);link={to:`/operations/work/${encodeURIComponent(String(row.id))}`,label:"Open work item"};}
+  } else if (item.type === "overdue_work") {
     const row = find("workItems", target);
     if (row && can(user, "operations", "view") && isWithinScope(user, row)) {
       add(row, ["title", "status", "priority", "dueDate", "assignee", "description"]);

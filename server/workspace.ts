@@ -1,3 +1,4 @@
+import { applySmartTaskApproval, applyTaskManagementApproval, prepareTaskMutation } from "./operations.js";
 import { appendFinancialHistory, ledgerSummary, validateFinancialMutation } from "./finance-ledger.js";
 import { generateEmployeeCode } from "./employee-identity.js";
 import { eligibleSelfApproval } from "./admin-policy.js";
@@ -108,6 +109,8 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string, p
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
   if (collection === "workActivity") payload = { ...payload, completionTransition: false };
+  if(collection==="workItems")payload=prepareTaskMutation(user,action,payload,targetId?rows(collection).find(row=>row.id===targetId):undefined);
+  if(["workFiles","taskNotificationEvents"].includes(collection)||collection==="workActivity"&&targetId&&rows(collection).some(e=>e.id===targetId&&e.taskVersion===2))throw new Error("Use the secure task workflow. Task history and files are immutable.");
   protectPayrollMutation(collection, action, payload, targetId);
   payload = validateFinancialMutation(user, collection, action, payload, targetId ? rows(collection).find(row => row.id === targetId) : undefined);
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
@@ -379,7 +382,9 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
     return decisions.find(row => row.id === requestId)!;
   }
   if (approve) {
-    if (request.collection === "documents") applyDocumentApproval(user, request);
+    if(request.collection==="workItems"&&request.payload?.smartTaskManagement)applyTaskManagementApproval(user,request);
+    else if(request.collection==="workItems"&&request.payload?.smartTaskInput)applySmartTaskApproval(user,request);
+    else if (request.collection === "documents") applyDocumentApproval(user, request);
     else {
     validateHierarchyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId ? rows(request.collection).find(row => row.id === request.targetId) : undefined);
     applyMutation(user, request.collection, request.action, {...request.payload,...(request.section==="finance"?{approvedBy:user.id,approvedAt:timestamp()}:{})}, request.targetId);

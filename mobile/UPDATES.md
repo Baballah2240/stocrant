@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-22 - Shared Operations and task collaboration
+
+- Replace the shared phone/website Operations list with a central task workspace, searchable assignment selectors, dashboard counts, scoped filters and detailed task pages.
+- Keep one parent task for company/team/group assignments; add individual progress, checklists, review/rework, blockers, extension requests, chronological replies/mentions and private supporting files.
+- Connect scoped, deduplicated task/deadline notifications and secure task links; preserve legacy tasks, personal work, notes, approval policies and historical activity through additive migration and explicit in-place upgrade.
+- Automated backend/build/translation checks are documented in `docs/OPERATIONS_TASKS.md`. Browser E2E was attempted but Chrome exited before verification; mobile/RTL visual QA remains pending.
+- No native app binary was rebuilt or installed and no hosting deployment was performed.
+
 ## 2026-10-21 - Connected payroll and financial ledger
 
 - Shared phone/website payroll now records full or partial employee payments with immutable ledger allocations, paid/outstanding amounts, payment histories and retry protection.

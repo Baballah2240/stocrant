@@ -9,7 +9,7 @@ const COLLECTION_SECTIONS: Record<string, WorkspaceSection> = {
   organizations: "organizations",
   companies: "organizations",
   departments: "hr", employees: "hr", attendance: "hr", shifts: "hr", leaveRequests: "hr", documents: "hr", employeeHistory: "hr", performanceReviews: "hr",
-  companyNotes: "operations", tasks: "operations", workItems: "operations", workActivity: "operations", suppliers: "operations", customers: "operations", products: "operations",
+  companyNotes: "operations", tasks: "operations", workFiles:"operations", taskNotificationEvents:"operations", workItems: "operations", workActivity: "operations", suppliers: "operations", customers: "operations", products: "operations",
   customerAppointments: "customerService", customerQuestions: "customerService", customerReplies: "customerService",
   warehouses: "inventory", bins: "inventory", inventory: "inventory", inventoryItems: "inventory", stockMovements: "inventory", inventoryMovements: "inventory", stockTransfers: "inventory", warehouseOrders: "inventory",
   payroll: "payroll", sales: "finance", expenses: "finance", taxes: "finance", purchases: "finance", returns: "finance", financeAccounts: "finance", financeTransactions: "finance", financeHistory: "finance",
@@ -120,7 +120,10 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   if (!organizationId || !organizationIds.includes(String(organizationId))) return false;
   if (roleOrganizations.length && !roleOrganizations.includes(String(organizationId))) return false;
   if (companyRow) return true;
-  if (locationIds.length && (!locationId || !locationIds.includes(String(locationId)))) return false;
+  if (locationIds.length && (!locationId || !locationIds.includes(String(locationId)))) {
+    const participant=row.taskVersion===2&&Array.isArray(row.assigneeIds)&&row.assigneeIds.includes(user.employeeId||"")&&(getCollection("employees") as Record<string,unknown>[]).some(e=>e.id===user.employeeId&&e.organizationId===organizationId&&locationIds.includes(String(e.locationId)));
+    if(!participant)return false;
+  }
   if(role?.scope==="department"||role?.scope==="section"){
     const field=role.scope==="department"?"departmentId":"sectionId",ids=Array.isArray(role[role.scope==="department"?"departmentIds":"sectionIds"])?role[role.scope==="department"?"departmentIds":"sectionIds"] as unknown[]:[];
     const people=getCollection("employees") as Record<string,unknown>[];

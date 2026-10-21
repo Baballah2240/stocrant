@@ -1,3 +1,4 @@
+import { dispatchTaskDeadlines } from "./operations.js";
 import { dispatchHrMessages } from "./hr-messages.js";
 /**
  * Action-required notification engine.
@@ -48,6 +49,8 @@ export function createNotification(input: {
   type: Notification["type"];
   severity: Notification["severity"];
   message: string;
+  messageKey?: string;
+  messageValues?: Record<string,string>;
   target: string | null;
 }): Notification {
   const notification: Notification = {
@@ -57,6 +60,7 @@ export function createNotification(input: {
     type: input.type,
     severity: input.severity,
     message: input.message,
+    ...(input.messageKey?{messageKey:input.messageKey,messageValues:input.messageValues}:{}),
     target: input.target,
     createdAt: new Date().toISOString(),
     read: false,
@@ -159,6 +163,7 @@ notificationsRouter.post("/:id/respond", (req, res) => {
 
 notificationsRouter.get("/", (req, res) => {
   dispatchHrMessages();
+  if(req.auth)dispatchTaskDeadlines(req.auth);
   const now = new Date().toISOString();
   const notices = getNotificationStore();
   let changed = false;

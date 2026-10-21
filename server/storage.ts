@@ -1,3 +1,4 @@
+import { migrateOperations } from "./operations-migration.js";
 import { assertFinanceIntegrity } from "./finance-integrity.js";
 import { migrateFinance } from "./finance-migration.js";
 import { migratePayroll } from "./payroll-migration.js";
@@ -338,6 +339,7 @@ function read(): StoreData {
       migrateEmployeeIdentities(seeded);
       migratePayroll(seeded);
       migrateFinance(seeded);
+      migrateOperations(seeded);
       write(seeded);
       return seeded;
     }
@@ -351,7 +353,8 @@ function read(): StoreData {
     const identitiesChanged = migrateEmployeeIdentities(parsed);
     const payrollChanged = migratePayroll(parsed);
     const financeChanged = migrateFinance(parsed);
-    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged || payrollChanged || financeChanged) {
+    const operationsChanged = migrateOperations(parsed);
+    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged || payrollChanged || financeChanged || operationsChanged) {
       // Capture the on-disk original before its first v2 migration. The backup
       // stays beside the JSON store and is ignored by Git with the data folder.
       if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
@@ -360,6 +363,7 @@ function read(): StoreData {
       if (identitiesChanged && !existsSync(join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"));
       if (payrollChanged && !existsSync(join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"));
       if (financeChanged && !existsSync(join(DATA_DIR, "stocrant.pre-finance-v7-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-finance-v7-backup.json"));
+      if (operationsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-operations-v8-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-operations-v8-backup.json"));
       write(parsed);
     }
     return parsed;

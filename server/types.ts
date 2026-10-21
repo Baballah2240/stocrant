@@ -101,6 +101,7 @@ export type NotificationType =
 export type NotificationSeverity = "info" | "warning" | "critical";
 
 export interface Notification {
+  messageKey?: string; messageValues?: Record<string,string>;
   title?: string; senderName?: string; hrType?: string; priority?: string;
   url?: string; effectiveAt?: string; shiftTime?: string; location?: string;
   acknowledgmentRequired?: boolean; acknowledgedAt?: string; readAt?: string; deliveredAt?: string; remindedAt?: string; campaignId?: string;

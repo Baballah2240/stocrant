@@ -1,3 +1,4 @@
+import { taskOverdue, taskToday } from "../operations.js";
 import { reverseFinancialTransaction } from "../finance-ledger.js";
 import { attendanceDate as dateStamp, attendanceDate, settingsFor } from "../attendance.js";
 import { payrollCan } from "../payroll.js";
@@ -112,7 +113,7 @@ router.get("/overview", (req, res) => {
     organizations: can(req.auth, "organizations", "view") ? scoped(req, rows("companies"), "companies").length : 0,
     locations: can(req.auth, "locations", "view") ? data.stores.filter((store) => isWithinScope(req.auth!, store as unknown as Row)).length : 0,
     activeEmployees: can(req.auth, "hr", "view") ? scoped(req, rows("employees"), "employees").filter((employee) => employee.status === "active").length : 0,
-    work: { total: work.length, overdue: work.filter((item) => String(item.dueDate) < new Date().toISOString().slice(0, 10) && !["Completed", "Cancelled"].includes(String(item.status))).length },
+    work: { total: work.length, overdue: work.filter(item=>taskOverdue(item)).length },
     inventory: { lowStockCount: inventory.lowStockCount },
     finance: { net: finance.net },
     pendingApprovals,
@@ -152,7 +153,7 @@ router.get("/overview", (req, res) => {
       pendingLeaveCount: personalLeave.filter((item) => item.status === "pending").length,
       work: personalWork.slice(0, 5),
       workCount: personalWork.length,
-      overdueWorkCount: personalWork.filter((item) => String(item.dueDate) < new Date().toISOString().slice(0, 10) && !["Completed", "Cancelled"].includes(String(item.status))).length,
+      overdueWorkCount: personalWork.filter(item=>taskOverdue(item)).length,
       notifications: notifications.slice(0, 4),
       unreadNotificationCount: notifications.filter((item) => !item.read).length,
       policyUpdates: policies,
@@ -323,12 +324,11 @@ router.get("/hr/overview", requirePermission("hr", "view"), (req, res) => {
 
 router.get("/work", requirePermission("operations", "view"), (req, res) => {
   const view = String(req.query.view ?? "all");
-  const today = new Date().toISOString().slice(0, 10);
   let items = scoped(req, rows("workItems"), "workItems");
   if (view === "mine") items = items.filter((item) => item.assigneeId === req.auth!.employeeId || Array.isArray(item.assigneeIds) && item.assigneeIds.includes(req.auth!.employeeId) || item.assignee === req.auth!.name || item.assignee === req.auth!.email);
-  if (view === "upcoming") items = items.filter((item) => String(item.dueDate) >= today && !["Completed", "Cancelled"].includes(String(item.status)));
-  if (view === "overdue") items = items.filter((item) => String(item.dueDate) < today && !["Completed", "Cancelled"].includes(String(item.status)));
-  res.json({ companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), items: items.sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate))), activity: scoped(req, rows("workActivity"), "workActivity") });
+  if (view === "upcoming") items = items.filter((item) => Boolean(item.dueDate) && String(item.dueDate) >= taskToday(item) && !["Completed", "Cancelled"].includes(String(item.status)));
+  if (view === "overdue") items = items.filter((item) => taskOverdue(item));
+  res.json({ companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), items: items.sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate))), activity: scoped(req, rows("workActivity"), "workActivity").filter(event=>rows("workItems").some(task=>task.id===event.workItemId&&isWithinScope(req.auth!,task))) });
 });
 
 const workSchema = z.object({

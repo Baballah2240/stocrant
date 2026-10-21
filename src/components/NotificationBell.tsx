@@ -56,7 +56,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
   const totalUnread = unreadCount + activity.filter(item => !item.read).length;
   const needle = query.trim().toLocaleLowerCase();
   const visibleActivity = activity.filter(item => category !== "requests" && (!unreadOnly || !item.read) && (!needle || t(item.message).toLocaleLowerCase().includes(needle)));
-  const visibleNotifications = notifications.filter(item => category !== "activity" && (!unreadOnly || !item.read) && (category !== "requests" || (!item.decision && ["registration_request", "leave_request", "password_reset", "pending_approval"].includes(item.type))) && (!needle || `${item.title || ""} ${item.message} ${item.senderName || ""} ${item.location || ""} ${item.shiftTime || ""} ${t(typeLabel(item.type))}`.toLocaleLowerCase().includes(needle)));
+  const visibleNotifications = notifications.filter(item => category !== "activity" && (!unreadOnly || !item.read) && (category !== "requests" || (!item.decision && ["registration_request", "leave_request", "password_reset", "pending_approval"].includes(item.type))) && (!needle || `${item.title || ""} ${t(item.messageKey||item.message,item.messageValues)} ${item.senderName || ""} ${item.location || ""} ${item.shiftTime || ""} ${t(typeLabel(item.type))}`.toLocaleLowerCase().includes(needle)));
   const timeline = [
     ...visibleNotifications.map(item => ({ kind: "notification" as const, item })),
     ...visibleActivity.map(item => ({ kind: "activity" as const, item })),
@@ -244,7 +244,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
           {selected ? <section className="notification-detail">
             <BackButton disabled={detailBusy} onBack={() => setSelected(null)} label={t("Notifications")} />
             <h3 dir="auto">{selected.item.title || t(typeLabel(selected.item.type))}</h3>
-            <p className="notification-detail-message" dir="auto">{selected.item.message}</p>
+            <p className="notification-detail-message" dir="auto">{t(selected.item.messageKey||selected.item.message,selected.item.messageValues)}</p>
             <NotificationInformation item={selected.item} formatDate={formatDate}/>
             <p className="hint notification-timezone">{t("Times shown in {timezone}",{timezone})}</p>
             {selected.item.type === "hr_message" && <HrMessageDetails item={selected.item} onChange={() => { void showDetails(selected.item.id); setRefreshKey(value=>value+1); }}/>}
@@ -277,7 +277,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
                     >
                       {t(typeLabel(notification.type))}
                     </span>
-                    <button className="notification-message-button" disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{notification.title ? `${notification.priority === "Urgent" ? t("URGENT") + " · " : ""}${notification.title}: ` : ""}{notification.message}</button>
+                    <button className="notification-message-button" disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{notification.title ? `${notification.priority === "Urgent" ? t("URGENT") + " · " : ""}${notification.title}: ` : ""}{t(notification.messageKey||notification.message,notification.messageValues)}</button>
                     <p className="notification-list__meta"><time dateTime={notification.createdAt}>{formatDate(notification.createdAt)}</time></p>
                     <NotificationInformation item={notification} formatDate={formatDate} compact/>
                   </div>
