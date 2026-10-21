@@ -59,9 +59,9 @@ describe("Work Activity and timezone-aware dashboard periods",()=>{
   await json(await req(path,"GET",undefined,""),401);
   const data=await json(await req(path+"&bucket=2026-10-20T00","GET",undefined,manager));assert.equal(data.recordCount,1);assert.equal(data.records[0].taskId,task.id);assert.equal(data.records[0].to,"/operations/work/"+task.id);
   await json(await req(path+"&bucket=2026-10-21T00","GET",undefined,manager),400);await json(await req(path+"&page=0"),400);
-  const denied=await json(await req(path,"GET",undefined,staff));assert.equal(denied.enabled,false);assert.equal(denied.recordCount,0);assert.equal(denied.summary.completed,0);
+  const denied=await json(await req(path,"GET",undefined,staff));assert.equal(denied.enabled,false);assert.equal(denied.recordCount,0);assert.equal(denied.summary.completed,0);assert.equal(denied.workload.total,0);
   const employeeAccount=(getStore().collections.accessUsers as Row[]).find(row=>row.employeeId===employee.id)!;employeeAccount.permissions=["hr.view","operations.view"];saveStore(getStore());
-  const own=await json(await req(path,"GET",undefined,staff));assert.equal(own.enabled,true);assert.equal(own.summary.completed,1);assert.ok(own.records.every((row:Row)=>row.taskId===task.id));
+  const own=await json(await req(path,"GET",undefined,staff));assert.equal(own.enabled,true);assert.equal(own.summary.completed,1);assert.ok(own.records.every((row:Row)=>row.taskId===task.id));assert.equal(own.workload.completed,0);assert.equal(own.workload.total,own.workload.completed+own.workload.inProgress+own.workload.pending+own.workload.cancelled);
   const privateTask=(await json(await req(`/workspace/company-work/${foreign.id}/tasks`,"POST",{title:"Private external completed task",assigneeIds:[outsider.id],status:"Completed"}),201)).item;(getStore().collections.workActivity as Row[]).find(row=>row.workItemId===privateTask.id)!.occurredAt="2026-10-20T04:00:00Z";saveStore(getStore());
   const root=await json(await req(path));assert.equal(root.summary.completed,2);
   for(const token of [manager,orgManager,staff]){const scoped=await json(await req(path,"GET",undefined,token));assert.equal(scoped.summary.completed,1);assert.ok(!JSON.stringify(scoped).includes("Private external"));}

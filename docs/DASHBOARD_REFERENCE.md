@@ -1,0 +1,18 @@
+# Reference-inspired dashboard — 2026-10-21
+
+Implemented the supplied dashboard reference directly in STOCRANT's existing React application. The home route has a charcoal dark appearance, compact sidebar, teal selected navigation, a real profile shortcut, rounded cards and a balanced analytical grid. Light mode retains a matching light variant. This styling is scoped to the dashboard; the separate project-wide light-blue theme update is preserved elsewhere.
+
+The Work Activity line chart now uses distinct teal and violet series, gradient areas, smooth bounded interpolation, visible nonzero markers, a hover guide and readable date/timezone tooltips. Interactive legend buttons show exact series totals and can hide either series while keeping at least one visible. Selected points retain their record drill-down; the keyboard-accessible data table remains available. Sparse records stay sparse, and missing history is never filled with invented activity.
+
+Added two real visualizations using the existing Chart.js dependency:
+
+- Task completion: the backend returns current scoped task counts for Completed, In Progress, Pending/other open statuses and Cancelled. The ring shows the rounded percentage of all currently readable tasks that are Completed. The status legend gives exact counts and the total. It is explicitly an all-dates snapshot, independent of the selected activity period. Zero tasks produce an empty state rather than a fabricated percentage.
+- Activity volume: hourly/daily bars reuse the same recorded activity buckets as the line chart. Active hours/days and the busiest interval are calculated from those buckets. Bar clicks open the same filtered record panel. No extra API request is needed for these cards.
+
+Colored KPI icons, a compact recent-activity list, task initials and a lower profile strip complete the reference-style composition. Existing attendance, pending work, notifications, analytics controls, reports, account/profile controls and authorized navigation remain available. Desktop and the separate employee/manager phone homes share the chart components. Arabic RTL, English LTR, dark/light modes, reduced-motion preferences and responsive table/phone layouts are supported.
+
+Files: `src/dashboard-reference.css`, `InteractiveActivityChart.tsx`, `WorkActivityVisuals.tsx`, existing `WorkActivityDashboard`, `WorkspaceDashboard`, `Layout`, translations and activity CSS; additive `workload` response fields in `server/dashboard-activity.ts`. No new storage collections, migration, credentials, packages or production fixture records were added. The workload response uses the same backend task permissions and scope filters as the existing activity endpoint.
+
+Validation: `npm run check` passed with 153 API tests, 10 UI support tests, both TypeScript checks, translation checks, storage restore/backup tests, the production frontend build and security smoke tests. Backend assertions verify that workload categories sum to the scoped total and that users lacking task access receive zero task data. Chrome checks cover real record totals, series toggles, profile opening, canvas/table drill-down, date filters, missing/error/loading states and 12 English/Arabic light/dark device combinations. The existing dashboard workflow suite and 48-case dashboard/operations/attendance/administration route matrix also passed. Screenshots under ignored `.local-preview/qa/work-activity/` were visually reviewed. The colorful screenshot fixtures are created through the real API in isolated temporary stores, never in production.
+
+Source archive and GitHub review-branch publication do not deploy hosting, rebuild an Android/iOS binary, or install an update on a phone.

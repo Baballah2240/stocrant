@@ -17,6 +17,7 @@ try {
  const company = (await req("/collections/companies", "POST", { name: "Activity Company", parentOrganizationId: organization.id, status: "active", organizationType: "office", industry: "services", currency: "QAR" })).data.item;
  const employee = (await req("/collections/employees", "POST", { name: "Activity Employee", organizationId: company.id, status: "active", hireDate: "2026-01-01" })).data.item;
  getStore().collections.workItems = []; getStore().collections.workActivity = []; saveStore(getStore());
+ getStore().collections.attendanceSettings.push({id:'activity-browser-timezone',organizationId:company.id,timezone:'UTC'});saveStore(getStore());
  const today = (await req("/workspace/dashboard-activity?timezone=UTC")).data.period.start;
  const shift = days => { const date = new Date(today + "T12:00:00Z"); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); };
  const task = (await req(`/workspace/company-work/${company.id}/tasks`, "POST", { title: "Completed activity browser task", assigneeIds: [employee.id], status: "Pending" })).data.item;
@@ -45,6 +46,14 @@ try {
  await fill('.work-activity-custom input', '2000-01-01'); await fill('.work-activity-custom label:nth-child(2) input', '2000-01-01'); await ready(); assert.equal((await summary()).activity, '0'); assert.equal((await summary()).pending, '1'); assert.ok(!await evaluate('Boolean(document.querySelector(".work-activity-canvas"))'));
  await fill('.work-activity-controls select', 'today'); await ready();
  await evaluate('window.fetch=(url,...args)=>String(url).includes("/dashboard-activity?")?new Promise(resolve=>setTimeout(()=>resolve(new Response(JSON.stringify({error:"Activity temporarily unavailable."}),{status:503,headers:{"Content-Type":"application/json"}})),700)):window.__activityFetch(url,...args);document.querySelector(".work-activity-controls > button").click()'); await until('Boolean(document.querySelector(".work-activity-dashboard [role=status]"))'); await until('document.querySelector(".work-activity-dashboard [role=alert]")?.textContent.includes("temporarily unavailable")'); await evaluate('window.fetch=window.__activityFetch;document.querySelector(".work-activity-dashboard [role=alert] button").click()'); await ready();
+ assert.equal(await evaluate('document.querySelectorAll(".activity-series-controls button").length'),2);
+ await evaluate('document.querySelector(".activity-series-controls button").click()');assert.equal(await evaluate('document.querySelector(".activity-series-controls button").getAttribute("aria-pressed")'),'false');await evaluate('document.querySelector(".activity-series-controls button").click()');
+ assert.equal(await evaluate('document.querySelector(".activity-ring-value strong").textContent'),'50%');assert.equal(await evaluate('Array.from(document.querySelectorAll(".activity-status-legend dd")).reduce((sum,node)=>sum+Number(node.textContent),0)'),2);
+ await evaluate('document.querySelector(".dashboard-sidebar-profile").click()');await until('Boolean(document.querySelector(".profile-dialog[open]"))');await evaluate('document.querySelector(".profile-panel .list-heading button").click()');await until('!document.querySelector(".profile-dialog")');
+ // Create actual API updates in this isolated fixture to exercise colorful multi-point charts.
+ await req(`/workspace/company-work/${company.id}/tasks`, 'POST', {title:'Active operations task',assigneeIds:[employee.id],status:'In Progress'});
+ for(const [hour,count] of [[0,1],[3,2],[5,1],[7,3],[9,4],[11,2],[13,3],[15,1],[17,2],[20,1]])for(let index=0;index<count;index++){await req(`/workspace/work/${task.id}/activity`,'POST',{message:'Verified work update '+hour+':'+index});getStore().collections.workActivity.at(-1).occurredAt=today+'T'+String(hour).padStart(2,'0')+':15:00Z';}
+ saveStore(getStore());await evaluate('document.querySelector(".work-activity-controls > button").click()');await ready();assert.equal(await evaluate('document.querySelector(".activity-ring-value strong").textContent'),'33%');assert.ok(await evaluate('Boolean(document.querySelector(".activity-volume-chart canvas"))'));
  const directory = resolve('.local-preview/qa/work-activity'); mkdirSync(directory, { recursive: true });
  for (const [language, theme] of [['en', 'light'], ['en', 'dark'], ['ar', 'light'], ['ar', 'dark']]) {
   await evaluate(`localStorage.setItem("stocrant.language",${JSON.stringify(language)});localStorage.setItem("stocrant-theme",${JSON.stringify(theme)})`);

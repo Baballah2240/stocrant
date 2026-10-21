@@ -9,6 +9,7 @@ import BackButton from "./BackButton";
 import { useSession } from "../session-context";
 import { NotificationBell } from "./NotificationBell";
 import { useLanguage } from "../language-context";
+import "../dashboard-reference.css";
 
 interface NavEntry {
   to: string;
@@ -94,7 +95,7 @@ export default function Layout() {
   };
 
   return (
-    <div className={`ios-app ${mobile ? "mobile-layout" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <div className={`ios-app ${location.pathname === "/" ? "dashboard-shell" : ""} ${mobile ? "mobile-layout" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">{t("Skip to content")}</a><header className="topbar">
         {mobile ? <>{location.pathname !== "/" && <BackButton className="mobile-header-back" fallback={backFallback} />}<button className="mobile-header-control" type="button" aria-label={t("Open account menu")} aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="topbar-spacer" /><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
           <button className="workspace-sidebar-toggle" type="button" aria-label={t("Primary navigation")} aria-controls="primary-navigation" aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
@@ -152,6 +153,7 @@ export default function Layout() {
             ))}
           </nav>
           <div className="nav-bottom">
+            {location.pathname === "/" && <button type="button" className="dashboard-sidebar-profile" onClick={() => setProfileOpen(true)}><span className="dashboard-sidebar-avatar">{user?.avatar ? <img src={user.avatar} alt=""/> : user?.name.slice(0, 2).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{t("My profile")}</small></span><span aria-hidden="true">↗</span></button>}
             <NavButton item={aboutItem} onNavigate={closeSidebarAfterNavigation} />
           </div>
         </aside>

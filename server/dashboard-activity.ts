@@ -54,6 +54,7 @@ export function dashboardActivity(user: AuthenticatedUser, input: z.infer<typeof
  }
  const selected = events.filter(row => !input.bucket || row.bucket === input.bucket).reverse();
  const outstanding = tasks.filter(row => !["Completed", "Cancelled"].includes(String(row.status)));
+ const workload = { total: tasks.length, completed: tasks.filter(row => row.status === "Completed").length, inProgress: tasks.filter(row => row.status === "In Progress").length, cancelled: tasks.filter(row => row.status === "Cancelled").length, pending: tasks.filter(row => !["Completed", "In Progress", "Cancelled"].includes(String(row.status))).length };
  return { period, enabled: operations, points: [...buckets.values()], summary: { completed: completed.size, activity: events.length, pending: outstanding.length, overdue: outstanding.filter(row => /^\d{4}-\d{2}-\d{2}$/.test(String(row.dueDate)) && String(row.dueDate) < period.today).length },
-  records: selected.slice((input.page - 1) * 20, input.page * 20), recordCount: selected.length, page: input.page };
+  workload, records: selected.slice((input.page - 1) * 20, input.page * 20), recordCount: selected.length, page: input.page };
 }

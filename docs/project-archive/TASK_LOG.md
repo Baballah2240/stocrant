@@ -1,5 +1,13 @@
 # Project task log
 
+## 2026-10-21 - Reference-inspired dashboard redesign
+
+Implemented the supplied image's charcoal/teal, compact navigation and rounded analytical card composition in the existing STOCRANT dashboard. Added colorful real-data task-status and activity-volume visualizations, clearer Work Activity series/legends, a functional sidebar profile card and responsive recent-activity rows. Preserved the separate light-blue theme commit and scoped dashboard styling to the home route.
+
+Actual current task-status counts are added to the existing permission-scoped activity response. The ring percentage uses current readable tasks, while line/bar charts retain the selected date range. No new dependency, database collection, migration or production sample data was added. Details and limits: `../DASHBOARD_REFERENCE.md`.
+
+Validation: 153 API tests, 10 UI support tests, TypeScript, translations, storage restoration, production build/security smoke; Chrome chart/profile/toggle workflows in 12 language/theme/device combinations, existing dashboard regressions and the 48-case neighboring-route matrix. Screenshots were reviewed visually. Tests use isolated temporary data. No hosting deployment, native build or phone installation was performed.
+
 ## 2026-10-20 - Work Activity chart and Today filter
 
 Implemented the actual Chart.js completion/activity chart, Today/7/30/custom calendar periods, user-selected IANA timezone, hourly/daily buckets, consistent KPIs and scoped task/activity drill-down. Desktop and separate employee/manager mobile homes share the component. Outstanding tasks remain independent of creation date. Dated analytics and audit activity follow the header selection; current snapshots retain their meanings.

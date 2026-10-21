@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-21 - Reference-inspired dashboard and colorful activity charts
+
+- Updated the shared desktop and phone dashboard with a rounded analytical card grid, clearer colorful KPI icons, teal/violet Work Activity lines, actual status rings and activity-volume bars.
+- Preserved real data, timezone filters, scoped task permissions, drill-down, current backlog and existing self-service controls. New chart summaries reuse the existing activity request; task completion is explicitly a current all-dates snapshot.
+- Added interactive series toggles, sparse-data markers, accessible status counts and compact recent-activity rows. Arabic/English and both themes remain supported; dashboard styling is scoped so the project-wide light-blue theme remains elsewhere.
+- No native binary was built or installed. Source publication does not deploy hosting or update a phone. Details: `docs/DASHBOARD_REFERENCE.md`.
+
 ## 2026-10-21 - Light blue project-wide recoloring
 
 - Changed the primary accent color from blue-600 (`#2563eb`) to light blue (`#3b82f6`) across the shared website/mobile themes (`src/theme.css`, `src/ui-refresh.css`) and the public website (`public-website/src/theme.css`), covering light, dark and iOS premium layers plus `--ios-blue`.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-21 — Reference-inspired dashboard
+
+- Added dashboard-scoped charcoal/teal styling, compact navigation, a functional profile shortcut, rounded KPI/chart cards and a balanced responsive grid based on the supplied reference.
+- Improved real Work Activity charts with teal/violet gradients, toggleable total legends, clear markers and point drill-down. Added permission-scoped current task-status rings and date-filtered activity-volume bars without extra API requests or fabricated values.
+- Preserved the light-blue project theme elsewhere, shared mobile/website source, Arabic RTL, light mode and existing management/self-service controls. Validation and data semantics: `docs/DASHBOARD_REFERENCE.md`.
+
 ## 2026-10-20 — Work Activity and Today dashboard filter
 
 - Added real completion/activity history charts, hourly Today and daily longer ranges, saved timezone/date preferences, scoped point drill-down and record links on desktop and phone home screens.

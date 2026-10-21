@@ -1,0 +1,57 @@
+/* The reference-inspired home is scoped to its route; other workspaces retain their theme. */
+.dashboard-shell { --dashboard-accent: #008a70; --dashboard-card: #fff; --dashboard-canvas: #f2f4f5; --dashboard-border: #e3e7e8; --dashboard-muted: #647174; }
+html[data-theme="dark"] .dashboard-shell { --dashboard-accent: #27d5ac; --dashboard-card: #2b2d35; --dashboard-canvas: #212228; --dashboard-border: #34363e; --dashboard-muted: #adb0bd; --ios-bg: #212228; --ios-cell: #2b2d35; --ios-field: #25272e; --ios-fill: #363941; --ios-label: #f3f3f7; --ios-label-2: #adb0bd; --ios-separator: #3b3d47; --brand-link: #7be1c6; --color-primary: #7be1c6; }
+.dashboard-shell { background: var(--dashboard-canvas); }
+.dashboard-shell .topbar { background: var(--dashboard-canvas); border-bottom-color: var(--dashboard-border); box-shadow: none; }
+.dashboard-shell .brand-name { font-size: 15px; letter-spacing: .03em; }
+.dashboard-shell .workspace-label { display: none; }
+.dashboard-shell .sidebar { background: var(--dashboard-card); border-inline-end-color: var(--dashboard-border); }
+.dashboard-shell .nav-item { border-radius: 7px; min-height: 38px; font-size: 12px; padding: 9px 10px; font-weight: 450; }
+.dashboard-shell .nav-item.active { color: #fff; background: #009c80; border: 0; box-shadow: none; }
+.dashboard-shell .nav-item .mobile-icon { width: 17px; height: 17px; }
+.dashboard-shell .nav-item:hover:not(.active) { background: color-mix(in srgb,var(--dashboard-accent) 10%,transparent); }
+.dashboard-shell .topbar-brand { gap: 10px; }
+.dashboard-shell .brand-logo { color: var(--dashboard-accent); }
+.dashboard-shell .main { background: var(--dashboard-canvas); }
+.dashboard-shell .page { max-width: 1440px; }
+.dashboard-sidebar-profile { width: 100%; display: flex; align-items: center; gap: 9px; padding: 12px 10px; margin-block: 8px 12px; border: 0; border-radius: 11px; color: #243d36; background: #eaf4ef; text-align: start; }
+.dashboard-sidebar-profile > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.dashboard-sidebar-profile strong { font-size: 12px; overflow-wrap: anywhere; }
+.dashboard-sidebar-profile small { color: #4a645b; font-size: 10px; }
+.dashboard-sidebar-avatar { width: 35px; height: 35px; border-radius: 50%; background: #c5e7da; display: grid; place-items: center; flex-shrink: 0; font-size: 12px; font-weight: 650; }
+.dashboard-sidebar-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.dashboard-shell .personal-dashboard { display: flex; flex-direction: column; gap: 20px; }
+.dashboard-shell .personal-dashboard > * { min-width: 0; margin-block: 0; }
+.dashboard-shell .personal-hero { order: 0; background: none; border: 0; padding: 0; box-shadow: none; min-height: 0; }
+.dashboard-shell .personal-hero h1 { font-size: clamp(22px,2vw,28px); margin: 0 0 5px; font-weight: 550; letter-spacing: -.04em; }
+.dashboard-shell .personal-hero .eyebrow { display: none; }
+.dashboard-shell .personal-hero p { color: var(--dashboard-muted); font-size: 12px; margin-block: 0; }
+.dashboard-shell .personal-hero .attendance-unavailable { max-width: 230px; font-size: 10px; }
+.dashboard-shell .personal-dashboard > .work-activity-dashboard { order: 1; }
+.dashboard-shell .personal-dashboard > .personal-summary-grid { order: 2; }
+.dashboard-shell .personal-dashboard > .personal-dashboard-grid { order: 3; }
+.dashboard-shell .personal-dashboard > .profile-strip { order: 4; }
+.dashboard-shell .personal-dashboard > .personal-assignment { order: 5; }
+.dashboard-shell .personal-dashboard > .analytics-workspace { order: 6; }
+.dashboard-shell .personal-dashboard > .manager-dashboard { order: 7; }
+.dashboard-shell .personal-dashboard > .dashboard-pull-indicator { order: -1; }
+.dashboard-shell .card { border: 1px solid var(--dashboard-border); border-radius: 16px; background: var(--dashboard-card); box-shadow: none; }
+.dashboard-shell .personal-summary-card, .dashboard-shell .metric-card { padding: 18px; }
+.dashboard-shell .personal-summary-card strong { font-size: 28px; }
+.dashboard-shell .profile-strip { padding: 14px 18px; }
+.dashboard-shell .dashboard-section { padding: 20px; }
+.dashboard-shell .dashboard-section h2 { font-size: 15px; }
+.dashboard-shell .personal-dashboard-grid { gap: 16px; }
+.dashboard-shell .work-activity-heading h2 { font-size: 15px; font-weight: 550; }
+.dashboard-shell .work-activity-heading .eyebrow { display: none; }
+.dashboard-shell .work-activity-heading .hint { font-size: 11px; }
+.dashboard-shell .work-activity-controls label { min-width: 130px; font-size: 10px; }
+.dashboard-shell .work-activity-controls select, .dashboard-shell .work-activity-controls .choice-trigger, .dashboard-shell .work-activity-controls > button { min-height: 35px; font-size: 11px; border-radius: 8px; }
+@media(min-width:861px) { .ios-app.dashboard-shell:not(.mobile-layout):not(.sidebar-collapsed) .sidebar { width: 190px; min-width: 0; flex: 0 0 190px; padding-inline: 12px; } .dashboard-shell .main { padding: 22px 26px 64px; } }
+@media(max-width:800px) { .dashboard-sidebar-profile { display: none; } .dashboard-shell .work-activity-heading { gap: 12px; } .dashboard-shell .personal-hero .attendance-unavailable { display: none; } }
+html[data-theme] .ios-app.dashboard-shell .sidebar .nav-item { min-height: 36px; margin-block: 2px; font-size: 12px; padding: 8px 10px; }
+html[data-theme] .ios-app.dashboard-shell .sidebar .nav-item.active { background: #009c80; color: #fff; box-shadow: none; }
+html[data-theme] .ios-app.dashboard-shell .sidebar .nav-item.active::before { display: none; }
+html[data-theme] .ios-app.dashboard-shell .dashboard-sidebar-profile { background: #eaf4ef; color: #243d36; }
+html[data-theme] .ios-app.dashboard-shell .dashboard-sidebar-profile small { color: #4a645b; }
+html[data-theme] .ios-app.dashboard-shell .activity-series-controls button { background: transparent; color: var(--ios-label); border: 0; box-shadow: none; }
