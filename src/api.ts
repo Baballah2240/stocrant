@@ -335,7 +335,7 @@ export const api = {
   },
 
   notifications: {
-    detail: (id: string) => request<{ item: Notification; details: Record<string, unknown>; canDecide: boolean; canReply: boolean }>(`/notifications/${encodeURIComponent(id)}`),
+    detail: (id: string) => request<{ item: Notification; details: Record<string, unknown>; link?: {to:string;label:string}; canDecide: boolean; canReply: boolean }>(`/notifications/${encodeURIComponent(id)}`),
     remove: (id: string) => request<{ success: boolean }>(`/notifications/${encodeURIComponent(id)}`, { method: "DELETE" }),
     respond: (id: string, action: "approve" | "reject" | "comment", comment: string) => request<{ success: boolean }>(`/notifications/${encodeURIComponent(id)}/respond`, { method: "POST", body: JSON.stringify({ action, comment }) }),
     list: () => request<{ items: Notification[] }>("/notifications"),

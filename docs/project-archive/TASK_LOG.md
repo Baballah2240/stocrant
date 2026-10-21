@@ -1,5 +1,11 @@
 # Project task log
 
+## 2026-10-21 - Necessary notification details
+
+User request: "in the notifcation panel, show all the details neccary notifcations".
+
+Expanded the shared notification panel with complete message text, sender/priority/status, exact timestamps, labeled HR schedule/location and acknowledgment information, and permission-scoped related record details/navigation. Kept existing request decisions and account isolation. Implementation and verification: `../NOTIFICATION_DETAILS.md`.
+
 ## 2026-10-21 - Mobile attendance clock and history
 
 Implemented the archived `MOBILE_ATTENDANCE_BRIEF.md`: live seconds, persistent timestamp-derived working timer, unified safe check-in/out, configured schedules and own paginated history with read-only details. Preserved shared source, existing collection, approval/HR controls, three-session limit and payroll break formulas. Full implementation and validation details: `../MOBILE_ATTENDANCE.md`.

@@ -1,0 +1,5 @@
+export const notificationDetailsTranslations:Readonly<Record<string,string>>={
+ "Yes":"نعم","No":"لا",
+ "Working hours":"ساعات العمل","Approval status":"حالة الاعتماد","Payroll period":"فترة الرواتب",
+ "Notification information":"معلومات الإشعار","Received at":"تاريخ الاستلام","Delivered at":"تاريخ التسليم","Read at":"تاريخ القراءة","Acknowledged at":"تاريخ تأكيد الاطلاع","Acknowledgment required":"يتطلب تأكيد الاطلاع","Shift time":"وقت الوردية","Related record details":"تفاصيل السجل المرتبط","Details unavailable":"التفاصيل غير متاحة","Available stock":"المخزون المتاح","Late arrival (minutes)":"التأخر في الحضور (دقائق)","Early departure (minutes)":"الانصراف المبكر (دقائق)","Requested check-in":"وقت الحضور المطلوب","Requested check-out":"وقت الانصراف المطلوب","Requested at":"تاريخ الطلب","Decision note":"ملاحظة القرار","Received":"تم الاستلام","Times shown in {timezone}":"الأوقات معروضة حسب المنطقة الزمنية {timezone}","Open work item":"فتح المهمة","Open leave request":"فتح طلب الإجازة","Sender":"المرسل","Requested by":"مقدم الطلب","Created at":"تاريخ الإنشاء"
+};

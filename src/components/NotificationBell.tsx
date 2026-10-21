@@ -1,4 +1,5 @@
 import { HrMessageDetails } from "./HRMessageDetails";
+import { NotificationInformation, NotificationRecordDetails } from "./NotificationInformation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSession } from "../session-context";
 import { api } from "../api";
@@ -55,8 +56,9 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
   const totalUnread = unreadCount + activity.filter(item => !item.read).length;
   const needle = query.trim().toLocaleLowerCase();
   const visibleActivity = activity.filter(item => category !== "requests" && (!unreadOnly || !item.read) && (!needle || t(item.message).toLocaleLowerCase().includes(needle)));
-  const visibleNotifications = notifications.filter(item => category !== "activity" && (!unreadOnly || !item.read) && (category !== "requests" || (!item.decision && ["registration_request", "leave_request", "password_reset", "pending_approval"].includes(item.type))) && (!needle || `${item.message} ${t(typeLabel(item.type))}`.toLocaleLowerCase().includes(needle))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const formatDate = (date: string) => Number.isNaN(Date.parse(date)) ? t("Date unavailable") : new Intl.DateTimeFormat(t("en-GB"), { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(date));
+  const visibleNotifications = notifications.filter(item => category !== "activity" && (!unreadOnly || !item.read) && (category !== "requests" || (!item.decision && ["registration_request", "leave_request", "password_reset", "pending_approval"].includes(item.type))) && (!needle || `${item.title || ""} ${item.message} ${item.senderName || ""} ${item.location || ""} ${item.shiftTime || ""} ${t(typeLabel(item.type))}`.toLocaleLowerCase().includes(needle))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const formatDate = (date: string) => Number.isNaN(Date.parse(date)) ? t("Date unavailable") : new Intl.DateTimeFormat(language === "ar" ? "ar-QA" : "en-GB", { year:"numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second:"2-digit", timeZone:timezone }).format(new Date(date));
   function updateActivity(update: (items: RecentActivity[]) => RecentActivity[]) {
     setActivity(items => {
       const next = update(items);
@@ -94,7 +96,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
     listScrollPosition.current = scrollRef.current?.scrollTop ?? 0;
     setDetailBusy(true); setDetailError(""); setComment("");
     try { const detail = await api.notifications.detail(id); if (requestId !== detailRequest.current) return; setSelected(detail); await markAsRead(id); }
-    catch (err) { setDetailError(err instanceof Error ? err.message : "Could not load notification."); }
+    catch (err) { if (requestId === detailRequest.current) setDetailError(err instanceof Error ? err.message : "Could not load notification."); }
     finally { if (requestId === detailRequest.current) setDetailBusy(false); }
   }
   async function removeNotification(id: string) {
@@ -116,7 +118,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
   function showActivity(item: RecentActivity) {
     listScrollPosition.current = scrollRef.current?.scrollTop ?? 0;
     setDetailError("");
-    setSelected({ item: { ...item, userId: user?.id ?? null, user: user?.name ?? "", type: "message", severity: "info", target: null }, details: {}, canDecide: false, canReply: false });
+    setSelected({ item: { ...item, read: true, userId: user?.id ?? null, user: user?.name ?? "", type: "message", severity: "info", target: null }, details: {}, canDecide: false, canReply: false });
     updateActivity(items => items.map(current => current.id === item.id ? { ...current, read: true } : current));
   }
 
@@ -161,7 +163,8 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
   const markAsRead = async (id: string) => {
     if (busy || notifications.find(item => item.id === id)?.read) return; setBusy(true);
     try {
-      await api.notifications.markAsRead(id);
+      const result = await api.notifications.markAsRead(id);
+      setSelected(current => current?.item.id === id ? {...current, item: result.item} : current);
       setNotifications((prev) =>
         prev.map((item) => (item.id === id ? { ...item, read: true } : item)),
       );
@@ -236,22 +239,14 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
           {detailBusy && <p className="hint" role="status">{t("Please wait…")}</p>}
           {selected ? <section className="notification-detail">
             <BackButton disabled={detailBusy} onBack={() => setSelected(null)} label={t("Notifications")} />
-            <h3>{selected.item.title || t(typeLabel(selected.item.type))}</h3>{selected.item.type === "hr_message" && <HrMessageDetails item={selected.item} onChange={() => void showDetails(selected.item.id)} />}<p className="notification-detail-message" dir="auto">{selected.item.message}</p><p className="notification-list__meta">{formatDate(selected.item.createdAt)}</p>
-            <dl>{Object.entries(selected.details).map(([field, value]) => <div key={field}><dt>{t(field.charAt(0).toUpperCase() + field.slice(1))}</dt><dd>{String(value)}</dd></div>)}</dl>
-            {selected.item.response && <p className="notification-response">{selected.item.response}</p>}
-            {selected.item.type === "document_expiry" && selected.item.target?.startsWith("document:") && <Link to={`/hr/documents/${encodeURIComponent(selected.item.target.slice(9))}`} onClick={() => setOpen(false)}>{t("Open document")}</Link>}
-            {user?.roleId === "role-main-manager" && <div className="notification-list__actions">
-              {selected.item.type === "password_reset" && <Link to={`/admin?tab=Users&user=${encodeURIComponent(selected.item.target ?? "")}`} onClick={() => setOpen(false)}>{t("Manage password & account")}</Link>}
-              {selected.item.type === "registration_request" && <Link to={`/admin?tab=Users&user=${encodeURIComponent(selected.item.target ?? "")}`} onClick={() => setOpen(false)}>{t("Manage company & permissions")}</Link>}
-              {selected.item.type === "leave_request" && <Link to="/hr" onClick={() => setOpen(false)}>{t("Open workforce & HR")}</Link>}
-              {selected.item.type === "low_stock" && <Link to="/warehouse" onClick={() => setOpen(false)}>{t("Manage inventory")}</Link>}
-              {selected.item.type === "overdue_work" && <Link to="/operations" onClick={() => setOpen(false)}>{t("Manage work")}</Link>}
-              {selected.item.type === "pending_approval" && <Link to={selected.details.collection === "documents" ? `/hr/documents/requests/${encodeURIComponent(selected.item.target || "")}` : "/admin?tab=Approvals"} onClick={() => setOpen(false)}>{t("Open approvals")}</Link>}
-              {selected.item.target?.startsWith("attendance:") && <Link to="/hr/attendance" onClick={() => setOpen(false)}>{t("Open attendance")}</Link>}
-              {selected.item.target?.startsWith("attendance-missing:") && <Link to="/hr/attendance" onClick={() => setOpen(false)}>{t("Review missing attendance")}</Link>}
-              {selected.item.target?.startsWith("attendance-correction:") && <Link to="/hr/attendance" onClick={() => setOpen(false)}>{t("Open correction requests")}</Link>}
-              {selected.item.target?.startsWith("attendance-adjustment:") && <Link to="/finance" onClick={() => setOpen(false)}>{t("Open payroll adjustments")}</Link>}
-            </div>}
+            <h3 dir="auto">{selected.item.title || t(typeLabel(selected.item.type))}</h3>
+            <p className="notification-detail-message" dir="auto">{selected.item.message}</p>
+            <NotificationInformation item={selected.item} formatDate={formatDate}/>
+            <p className="hint notification-timezone">{t("Times shown in {timezone}",{timezone})}</p>
+            {selected.item.type === "hr_message" && <HrMessageDetails item={selected.item} onChange={() => { void showDetails(selected.item.id); setRefreshKey(value=>value+1); }}/>}
+            <NotificationRecordDetails details={selected.details} formatDate={formatDate}/>
+            {selected.item.response && <p className="notification-response" dir="auto">{selected.item.response}</p>}
+            {selected.link && <div className="notification-list__actions"><Link to={selected.link.to} onClick={()=>setOpen(false)}>{t(selected.link.label)}</Link></div>}
             {selected.canReply && <div className="notification-reply"><label className="form-field"><span>{t("Comment to sender")}</span><textarea rows={3} maxLength={2000} disabled={detailBusy} value={comment} onChange={event => setComment(event.target.value)} /></label><div className="inline-actions">{selected.canDecide && <><button className="primary" disabled={detailBusy} onClick={() => void respond("approve")}>{t("Approve")}</button><button className="danger" disabled={detailBusy} onClick={() => void respond("reject")}>{t("Reject")}</button></>}<button disabled={detailBusy || !comment.trim()} onClick={() => void respond("comment")}>{t("Send comment")}</button></div></div>}
             {selected.item.type !== "hr_message" && <button className="notification-delete" disabled={detailBusy} onClick={() => void removeNotification(selected.item.id)}>{t("Delete notification")}</button>}
           </section> : <>
@@ -275,10 +270,9 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
                     >
                       {t(typeLabel(notification.type))}
                     </span>
-                    <button className="notification-message-button" disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{notification.title ? `${notification.priority === "Urgent" ? t("URGENT") + " ? " : ""}${notification.title}: ` : ""}{notification.message}</button>
-                    <p className="notification-list__meta">
-                      {notification.senderName ? `${notification.senderName} ? ` : ""}{notification.priority ? `${t(notification.priority)} ? ` : ""}{formatDate(notification.createdAt)}
-                    </p>
+                    <button className="notification-message-button" disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{notification.title ? `${notification.priority === "Urgent" ? t("URGENT") + " · " : ""}${notification.title}: ` : ""}{notification.message}</button>
+                    <p className="notification-list__meta"><time dateTime={notification.createdAt}>{formatDate(notification.createdAt)}</time></p>
+                    <NotificationInformation item={notification} formatDate={formatDate} compact/>
                   </div>
                   <div className="notification-list__actions">
                     <button disabled={detailBusy} onClick={() => void showDetails(notification.id)}>{user?.roleId === "role-main-manager" && ["registration_request", "leave_request", "pending_approval", "password_reset"].includes(notification.type) ? t("Review & act") : t("Details")}</button>

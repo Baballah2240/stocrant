@@ -31,6 +31,18 @@ dialog.notification-panel.inbox-panel {
 .inbox-panel .notification-list__meta { order: 1; margin: 0; margin-inline-start: auto; color: var(--ios-label-2); font-size: 10px; line-height: 1.4; }
 .inbox-panel .notification-message-button { order: 2; width: 100%; min-height: 40px; padding: 2px 0 7px; font-size: 13px; line-height: 1.6; font-weight: 500; text-align: start; color: var(--ios-label); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 .inbox-panel .notification-list__item--unread .notification-message-button { font-weight: 600; }
+.inbox-panel .notification-message-button { display: block; -webkit-line-clamp: unset; overflow: visible; overflow-wrap: anywhere; white-space: pre-wrap; }
+.notification-summary-facts { order: 3; width: 100%; display: flex; flex-wrap: wrap; gap: 7px 12px; color: var(--ios-label-2); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.notification-summary-facts > span { max-width: 100%; }
+.notification-priority { border-radius: 6px; padding: 2px 6px; background: var(--brand-blue-soft); color: var(--brand-link); }
+.notification-priority.priority-warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.notification-priority.priority-critical { background: var(--color-danger-soft); color: var(--color-danger); }
+.inbox-panel .notification-detail :is(p, dd, h3) { white-space: pre-wrap; overflow-wrap: anywhere; }
+.inbox-panel .notification-detail dl > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.7fr); align-items: start; gap: 12px; padding-block: 10px; border-bottom: 1px solid var(--ios-separator); }
+.inbox-panel .notification-detail dt { color: var(--ios-label-2); font-size: 12px; }
+.inbox-panel .notification-detail dd { min-width: 0; margin: 0; font-size: 13px; }
+.inbox-panel .notification-detail h4 { margin: 20px 0 10px; font-size: 14px; }
+.inbox-panel .notification-timezone { font-size: 11px; overflow-wrap: anywhere; }
 .inbox-panel .notification-list__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 3px; }
 .inbox-panel .notification-list__actions button, .inbox-panel .notification-list__actions a { min-height: 34px; padding: 6px 9px; font-size: 11px; border: 0; background: var(--ios-bg); border-radius: 9px; }
 .inbox-panel .notification-activity > h3 { margin: 4px 12px; font-size: 12px; color: var(--ios-label); }

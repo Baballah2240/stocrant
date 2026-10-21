@@ -1,0 +1,9 @@
+# Notification panel details
+
+The panel now shows complete messages, clear priority and read state, sender when recorded, exact date/time, and available HR effective date, shift, location and acknowledgment requirement. Search includes title, sender, shift and location. Opening a notice shows labeled information, delivery/read/acknowledgment timestamps when present, the device timezone, full message, and existing HR meeting/reference and acknowledgment controls. Business text remains unchanged; interface labels support Arabic RTL and English in both themes.
+
+The owned-notification detail endpoint adds live, allowlisted context for overdue tasks, current stock (including movements), document expiry, leave requests, attendance/corrections/missing punches, payroll adjustments, approvals and account requests. Read permissions and record scope are checked on the backend. Sensitive credentials, financial fields outside the allowlist, arbitrary payloads and private storage paths are not returned. Links are supplied only for accessible existing records. Missing/deleted/restricted targets retain the original notification without invented details. Existing Main Administrator decisions/replies and HR acknowledgment rules remain intact.
+
+Validation: full `npm run check` (TypeScript, API/storage/support/translation tests, frontend production build and production security smoke), new context tests for live stock, scope/permission changes, own attendance and credential redaction, plus `test:notification-panel`. Chrome checks cover full messages, sender search, acknowledgment, read timestamps/counts, related stock details/navigation, account isolation, scroll/focus/keyboard behavior and 12 English/Arabic light/dark desktop/tablet/mobile layouts. Screenshots/logs use isolated data and stay ignored under `.local-preview/`.
+
+This is shared website/mobile source. Native compilation, phone installation and live hosting deployment are separate actions.

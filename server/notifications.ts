@@ -19,6 +19,7 @@ import type { Notification } from "./types.js";
 import { z } from "zod";
 import { approveRequest, audit } from "./workspace.js";
 import { getCollection } from "./storage.js";
+import { notificationContext } from "./notification-context.js";
 
 const NOTIFICATIONS_COLLECTION = "notifications" as const;
 
@@ -109,7 +110,8 @@ notificationsRouter.get("/:id", (req, res) => {
   if (manager && target) for (const field of ["name", "email", "organizationIds", "type", "from", "to", "days", "reason", "status", "section", "action", "collection", "requestedByName", "createdAt", "requestedAt", "decisionNote"]) {
     if (target.row[field] !== undefined) details[field] = target.row[field];
   }
-  res.json({ item, details, canDecide: Boolean(manager && target?.row.status === "pending" && ["registration_request", "leave_request", "pending_approval"].includes(item.type)), canReply: Boolean(manager && target) });
+  const context = notificationContext(req.auth!, item);
+  res.json({ item, details: { ...details, ...context.details }, link: context.link, canDecide: Boolean(manager && target?.row.status === "pending" && ["registration_request", "leave_request", "pending_approval"].includes(item.type)), canReply: Boolean(manager && target) });
 });
 
 notificationsRouter.delete("/:id", (req, res) => {

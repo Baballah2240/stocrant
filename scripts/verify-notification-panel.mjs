@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 
@@ -12,6 +12,7 @@ process.env.STOCRANT_DATA_DIR = root;
 process.env.NODE_ENV = "development";
 const { createApp } = await import("../dist/app.js");
 const { createNotification } = await import("../dist/notifications.js");
+const { getStore, saveStore } = await import("../dist/storage.js");
 const server = createApp().listen(0, "127.0.0.1");
 await new Promise(resolve => server.once("listening", resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
@@ -24,6 +25,11 @@ try {
   const { user } = await setup.json();
   console.log("Panel QA: isolated fixtures ready.");
   for (let index = 0; index < 22; index++) createNotification({ userId: user.id, user: user.name, type: index === 0 ? "pending_approval" : "message", severity: index === 0 ? "warning" : "info", message: `Inventory update ${String(index).padStart(2, "0")}: Review your company records.`, target: null });
+  const notices=getStore().collections.notifications;
+  const shift=notices.find(item=>item.userId===user.id&&item.message.includes('Inventory update 21:'));
+  Object.assign(shift,{type:'hr_message',title:'Shift briefing',message:'Please attend the complete shift briefing.\n'+('Read the operating instructions before your shift. '.repeat(8))+'END OF IMPORTANT DETAILS',senderName:'Scheduling Office',priority:'Urgent',severity:'critical',hrType:'Meeting Invitation',effectiveAt:'2026-10-22T07:30:00Z',shiftTime:'10:30–18:30',location:'Main Office — Meeting Room 2',url:'https://example.test/meeting',acknowledgmentRequired:true});
+  const stock=notices.find(item=>item.userId===user.id&&item.message.includes('Inventory update 20:'));Object.assign(stock,{type:'low_stock',target:'panel-stock',severity:'warning'});
+  getStore().collections.inventoryItems=[{id:'panel-stock',organizationId:'company-primary',name:'Packaging boxes',sku:'BOX-20',openingStock:10,reorderPoint:5,unit:'box'}];getStore().collections.inventoryMovements=[{id:'panel-stock-move',organizationId:'company-primary',inventoryItemId:'panel-stock',type:'outgoing',quantity:7}];saveStore(getStore());
   createNotification({ userId: "other-account", user: "Other account", type: "message", severity: "critical", message: "PRIVATE_OTHER_ACCOUNT", target: null });
   chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--remote-debugging-pipe", `--user-data-dir=${join(root, "chrome")}`, "about:blank"], { windowsHide: true, stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] });
   const pending = new Map(); let sequence = 0;
@@ -64,6 +70,18 @@ try {
   await until('document.querySelectorAll(".notification-message-button").length === 1');
   await evaluate('document.querySelectorAll(".notification-filters button")[0].click()');
   await until('document.querySelectorAll(".notification-message-button").length === 22');
+  async function search(value){await evaluate(`(()=>{const input=document.querySelector('.inbox-search input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));})()`);}
+  await search('Scheduling Office');await until('document.querySelectorAll(".notification-message-button").length===1');
+  assert.ok(await evaluate('document.querySelector(".notification-summary-facts").textContent.includes("Main Office")'));
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".notification-message-button")).webkitLineClamp'),'none');
+  await evaluate('document.querySelector(".notification-message-button").click()');await until('Boolean(document.querySelector(".notification-hr-details"))');
+  assert.ok(await evaluate('document.querySelector(".notification-detail-message").textContent.endsWith("END OF IMPORTANT DETAILS")'));
+  assert.equal(await evaluate('document.querySelector(".notification-hr-details a").href'),'https://example.test/meeting');
+  await until('document.querySelector(".notification-facts")?.textContent.includes("Read at")');
+  await evaluate('document.querySelector(".notification-hr-details button").click()');await until('!document.querySelector(".notification-hr-details button")');
+  await evaluate('document.querySelector(".notification-detail .back-button").click()');await until('Boolean(document.querySelector(".inbox-search input"))');await search('Inventory update 20:');await until('document.querySelectorAll(".notification-message-button").length===1');await evaluate('document.querySelector(".notification-message-button").click()');await until('Boolean(document.querySelector(".notification-record-details"))');
+  assert.ok(await evaluate('document.querySelector(".notification-record-details").textContent.includes("Packaging boxes")'));assert.equal(await evaluate('document.querySelector(".notification-detail .notification-list__actions a").getAttribute("href")'),'/warehouse');
+  await evaluate('document.querySelector(".notification-detail .back-button").click()');await until('Boolean(document.querySelector(".inbox-search input"))');await search('');await until('document.querySelectorAll(".notification-message-button").length===22');
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await until('Boolean(document.querySelector(".mobile-layout .notification-trigger"))');
   await evaluate('if (!document.querySelector("dialog[open]")) document.querySelector(".notification-trigger").click()');
@@ -86,7 +104,17 @@ try {
   await until('Boolean(document.querySelector(".inbox-search input"))');
   assert.equal(await evaluate('document.querySelector(".inbox-search input").placeholder'), "البحث في الإشعارات");
   assert.equal(await evaluate('document.documentElement.dataset.theme'), "dark");
-  console.log("Notification browser checks passed: account privacy, search, requests, read-count regression, full-screen mobile, scrolling, Escape/focus restoration and Arabic RTL in dark mode.");
+  const directory=resolve('.local-preview/qa/notification-details');mkdirSync(directory,{recursive:true});
+  for(const language of ['en','ar'])for(const theme of ['light','dark'])for(const width of [1280,768,390]){
+    await evaluate(`localStorage.setItem('stocrant.language',${JSON.stringify(language)});localStorage.setItem('stocrant-theme',${JSON.stringify(theme)})`);
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});await send('Page.reload');
+    await until('Boolean(document.querySelector(".app-lock-screen input[type=password]"))');
+    await evaluate(`(()=>{const input=document.querySelector('.app-lock-screen input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(password)});input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('.app-lock-screen form').requestSubmit()})()`);
+    await until('Boolean(document.querySelector(".notification-trigger"))');await evaluate('document.querySelector(".notification-trigger").click()');await until('Boolean(document.querySelector(".inbox-search input"))');await search('Scheduling Office');await until('document.querySelectorAll(".notification-message-button").length===1');await evaluate('document.querySelector(".notification-message-button").click()');await until('Boolean(document.querySelector(".notification-hr-details"))');
+    assert.equal(await evaluate('document.documentElement.dir'),language==='ar'?'rtl':'ltr');assert.ok(await evaluate('(()=>{const n=document.querySelector(".inbox-panel");return n.scrollWidth<=n.clientWidth+2&&document.documentElement.scrollWidth<=innerWidth+2})()'),`Notification overflow ${language}/${theme}/${width}`);
+    await until('document.querySelector(".inbox-panel").getAnimations().every(animation=>animation.playState==="finished")');writeFileSync(join(directory,`${language}-${theme}-${width}.png`),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+  }
+  console.log("Notification browser checks passed: account privacy, sender search, full messages, HR schedule/location/link and acknowledgment, read timestamps/counts, live stock details and record link, requests, full-screen mobile, scrolling, Escape/focus and 12 English/Arabic light/dark responsive layouts.");
 } finally {
   try { chrome?.stdio[3]?.write(JSON.stringify({ id: 999999, method: "Browser.close" }) + "\0"); } catch { /* Already closed. */ }
   if (chrome) { chrome.kill(); await new Promise(resolve => { if (chrome.exitCode !== null) return resolve(); chrome.once("exit", resolve); setTimeout(resolve, 3000).unref(); }); }

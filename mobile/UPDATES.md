@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-21 - Complete notification details
+
+- Show full notification messages with priority, sender, read state, exact timestamps, shift/location and acknowledgment requirements in the shared phone/website panel.
+- Add clear labeled details and permission-checked links for related tasks, stock, documents, leave, attendance and approval records; preserve existing HR acknowledgment and administrator decisions.
+- Verified Arabic/English, both themes and responsive layouts. Source changes do not deploy hosting, rebuild an APK or install a phone update.
+
 ## 2026-10-21 - Accurate personal attendance clock and history
 
 - Added a server-calibrated HH:MM:SS clock, saved-timestamp working timer, clear check-in/out actions, schedule summary and late/early indicators to shared mobile and website screens.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-21 - Complete notification details
+
+- Expanded notification messages and added readable sender, priority, read/delivery timestamps, schedule/location, acknowledgment and related-record information.
+- Related details and navigation use live record permissions and company scope; existing reply, approval, deletion and read-count behavior is preserved. See `docs/NOTIFICATION_DETAILS.md`.
+
 ## 2026-10-21 - Personal attendance clock and history
 
 - Added a live clock, persistent working-duration timer, schedule indicators, prominent check-in/out and paginated personal attendance history in the shared mobile/website application.

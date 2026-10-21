@@ -3,6 +3,7 @@ import { workspaceUpgradeTranslations } from "./workspace-upgrade-translations.t
 import { administrationTranslations } from "./administration-translations.ts";
 import { workActivityTranslations } from "./work-activity-translations.ts";
 import { personalAttendanceTranslations } from "./personal-attendance-translations.ts";
+import { notificationDetailsTranslations } from "./notification-details-translations.ts";
 import { auditTranslations } from "./audit-translations.ts";
 import payrollTranslations from "./payroll-translations.ts";
 import companyProfileTranslations from "./company-profile-translations.ts";
@@ -214,6 +215,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   ...administrationTranslations,
   ...workActivityTranslations,
   ...personalAttendanceTranslations,
+  ...notificationDetailsTranslations,
   ...documentTranslations,
   ...hrCommunicationTranslations,
   ...companyProfileTranslations,
