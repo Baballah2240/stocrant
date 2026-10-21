@@ -2,6 +2,11 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-21 - Release CI SDK setup repair
+
+- Explicitly select the supported `platform-tools` package for Android CI setup. The action's old default requested the retired `tools` package and failed before compiling the app, preventing a fully passing release check.
+- Retained website verification, SDK license handling, Android package compilation and artifact publication. No generated APK, credentials or runtime data is committed.
+
 ## 2026-10-21 - Reference-inspired dashboard and colorful activity charts
 
 - Updated the shared desktop and phone dashboard with a rounded analytical card grid, clearer colorful KPI icons, teal/violet Work Activity lines, actual status rings and activity-volume bars.

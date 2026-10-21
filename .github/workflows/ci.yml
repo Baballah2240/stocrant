@@ -58,6 +58,9 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+        with:
+          # The retired 'tools' package is no longer served by Google.
+          packages: 'platform-tools'
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci --include=dev
       - name: Build mobile UI from this source commit
