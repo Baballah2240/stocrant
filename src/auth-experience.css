@@ -2,6 +2,12 @@
 .auth-page-nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; max-width: 1320px; margin: auto; padding: max(22px, env(safe-area-inset-top)) 36px 22px; position: relative; z-index: 1; }
 .auth-home-link { display: grid; gap: 4px; color: var(--ios-label); font-weight: 800; letter-spacing: 1px; }
 .auth-home-link span { font-size: 11px; font-weight: 400; letter-spacing: 0; color: var(--ios-label-2); }
+.auth-page-nav { flex-wrap: wrap; }
+.auth-page-nav .auth-appearance { margin-inline-start: auto; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.auth-website-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--ios-separator); border-radius: 13px; background: var(--brand-blue-soft); color: var(--brand-link); font-size: 12px; font-weight: 600; }
+.auth-website-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+.auth-website-link:focus-visible { outline: 3px solid var(--brand-link); outline-offset: 3px; }
+.auth-website-link:hover { background: var(--brand-green-soft); color: var(--brand-link); }
 .auth-theme-switch { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--ios-cell); color: var(--ios-label); border: 1px solid var(--ios-separator); font-size: 12px; border-radius: 12px; min-height: 44px; }
 .auth-theme-switch > span { font-size: 20px; }
 .auth-experience .auth-page { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 64px; align-items: center; max-width: 1250px; margin: 0 auto; padding: 40px 36px 70px; min-height: calc(100dvh - 92px); background: transparent; position: relative; z-index: 1; }

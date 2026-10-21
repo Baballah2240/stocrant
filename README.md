@@ -1,6 +1,6 @@
 # STOCRANT
 
-The management web app and mobile app share this project's API and business data. The public marketing website is now a separate, independently buildable project in [`public-website/`](public-website/README.md). The management app opens directly to login and no longer hosts public website pages or a website contact inbox.
+The management web app and mobile app share this project's API and business data. The public marketing website is now a separate, independently buildable project in [`public-website/`](public-website/README.md). The management app opens directly to login, with a top-side link to the public website at `/website/`. The workspace server serves the independently built marketing files without sharing business data or a contact inbox. Set `VITE_PUBLIC_WEBSITE_URL` at build time to link a separately hosted public website instead.
 
 **App lock:** every account can open **App lock** from the navigation or Settings. The default inactivity timeout is 5 minutes, configurable from 1 to 60 minutes per account/device. Restored sessions open locked. Web unlock asks only for the existing account password and uses the normal rate-limited sign-in endpoint. Native mobile can enable strong fingerprint/Face ID authentication after confirming the account password and device biometric prompt. Passwords and biometric data are not saved for this feature. The mobile app can also lock immediately when backgrounded. This is a device privacy lock for the workspace UI; normal server authorization and session expiration continue to apply. Biometric unlock requires a valid server session. Run `npm run test:lock` for timing boundary and clock rollback checks.
 
@@ -82,13 +82,13 @@ Company → Locations → Areas / zones → Workforce assignments
 ## Production
 
 ```bash
-npm run build:full   # vite build -> dist/web/, then tsc -> dist/
+npm run build:full   # public website, workspace -> dist/web/, server -> dist/
 npm run start        # build:full, then node dist/index.js
 ```
 
 In production a single Node process serves both the API and the built frontend:
 `GET /` returns `dist/web/index.html`, `/assets/*` are served statically, and
-non-`/api` GET routes fall back to the SPA shell. API routes live under `/api/*`.
+`/website/` serves the independent marketing build from `public-website/dist/`. Other non-`/api` GET routes fall back to the workspace SPA shell. API routes live under `/api/*`.
 
 To run the server without rebuilding:
 
@@ -166,7 +166,7 @@ HTTPS verification steps.
 | `npm run dev:frontend`    | Vite dev server with `/api` proxy                         |
 | `npm run build`           | Compile server TypeScript to `dist/`                      |
 | `npm run build:frontend`  | Vite production build to `dist/web/`                          |
-| `npm run build:full`      | Frontend into `dist/web/`; server into `dist/`      |
+| `npm run build:full`      | Public website, workspace into `dist/web/`, server into `dist/` |
 | `npm run start`           | `build:full` then serve                                   |
 | `npm test`                | Build server, run `node --test dist/routes.test.js`       |
 | `npm run typecheck`       | `tsc --noEmit` for the server                             |

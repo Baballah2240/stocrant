@@ -116,6 +116,15 @@ export function createApp() {
     res.status(status).json({ error: status === 413 ? "Request is too large." : status === 400 ? "Invalid request body." : "An unexpected server error occurred." });
   });
 
+  // The independently built marketing website is public, without API access.
+  // Mount before the workspace SPA so /website/ never falls through to login.
+  const websiteDir = join(__dirname, "../public-website/dist");
+  app.get("/website", (req, res, next) => req.path === "/website" ? res.redirect(302, "/website/") : next());
+  app.use("/website", express.static(websiteDir, { dotfiles: "deny", setHeaders(res, path) {
+    res.setHeader("Cache-Control", path.includes(`${join("assets", "")}`) ? "public, max-age=31536000, immutable" : "no-cache");
+  } }));
+  app.use("/website", (_req, res) => res.status(404).send("Website page not found."));
+
   // Serve the built frontend (dist/) when present so `npm run start` works
   // as a single production process.
   const distDir = join(__dirname, "web");

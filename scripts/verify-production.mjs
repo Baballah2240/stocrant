@@ -36,6 +36,19 @@ try {
   assert.equal((await fetch(`${base}/missing-script.js`)).status, 404);
   assert.equal((await fetch(`${base}/app.js`)).status, 404);
   assert.equal((await fetch(`${base}/data/stocrant.json`)).status, 404);
+  const websiteRedirect = await fetch(`${base}/website`, { redirect: "manual" });
+  assert.equal(websiteRedirect.headers.get("location"), "/website/");
+  const website = await fetch(`${base}/website/`);
+  assert.equal(website.status, 200);
+  assert.equal(website.headers.get("cache-control"), "no-cache");
+  const websiteHtml = await website.text();
+  const websiteAsset = websiteHtml.match(/src="(\.\/assets\/[^" ]+\.js)"/)?.[1];
+  assert.ok(websiteAsset, "public website must use its independently built assets");
+  const websiteScript = await fetch(new URL(websiteAsset, `${base}/website/`));
+  assert.equal(websiteScript.status, 200);
+  assert.match(websiteScript.headers.get("cache-control"), /immutable/);
+  assert.equal((await fetch(`${base}/website/missing.js`)).status, 404);
+  assert.equal((await fetch(`${base}/website/src/main.tsx`)).status, 404);
   const status = await (await fetch(`${base}/api/auth/status`)).json();
   assert.equal(status.setupRequired, true);
   const denied = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://untrusted.example" }, body: "{}" });
@@ -48,7 +61,7 @@ try {
   const unknown = await fetch(`${base}/api/not-a-route`, { headers: { Cookie: cookie } });
   assert.equal(unknown.status, 404);
   assert.match(unknown.headers.get("content-type"), /application\/json/);
-  console.log("Production smoke checks passed: built SPA, security headers, secure sessions, private data, trusted origins, and cache policy.");
+  console.log("Production smoke checks passed: built SPA and public website, security headers, secure sessions, private data, trusted origins, and cache policy.");
 } finally {
   await new Promise(resolve => server.close(resolve));
   if (!resolve(testDirectory).startsWith(temporaryRoot + sep) || !testDirectory.includes("stocrant-production-check-")) throw new Error("Refusing to clean an unexpected test directory.");

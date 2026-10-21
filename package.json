@@ -9,7 +9,7 @@
     "demo:accounts": "npm run build && node scripts/create-demo-accounts.mjs",
     "build": "tsc -p server/tsconfig.build.json",
     "build:frontend": "node ./node_modules/vite/bin/vite.js build",
-    "build:full": "npm run build:frontend && npm run build",
+    "build:full": "npm run build:website && npm run build:frontend && npm run build",
     "dev:api": "npm run build && node dist/index.js",
     "dev:frontend": "node ./node_modules/vite/bin/vite.js",
     "dev": "node ./node_modules/concurrently/dist/bin/concurrently.js \"npm run dev:api\" \"npm run dev:frontend\"",
@@ -27,7 +27,7 @@
     "mobile:add:android": "npx cap add android",
     "mobile:add:ios": "npx cap add ios",
     "check:data": "node scripts/check-data.mjs",
-    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run test:financial-money && npm run test:translations && npm run build:frontend && npm run test:production",
+    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run test:financial-money && npm run test:translations && npm run build:website && npm run build:frontend && npm run test:production",
     "test:translations": "node --test scripts/test-translations.mjs",
     "test:production": "node scripts/verify-production.mjs",
     "test:notifications": "node --test scripts/test-notification-activity.mjs",
@@ -49,7 +49,8 @@
     "test:work-activity": "npm run build:full && node scripts/verify-work-activity.mjs",
     "test:mobile-attendance": "npm run build:full && node scripts/verify-mobile-attendance.mjs",
     "test:financial-money": "node --test scripts/test-financial-money.mjs",
-    "test:operations": "npm run build:full && node scripts/verify-operations.mjs"
+    "test:operations": "npm run build:full && node scripts/verify-operations.mjs",
+    "build:website": "npm --prefix public-website run build"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "9.1.2",

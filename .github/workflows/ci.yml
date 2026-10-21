@@ -39,6 +39,7 @@ jobs:
           name: stocrant-website-${{ github.sha }}
           path: |
             dist/
+            public-website/dist/
             package.json
             package-lock.json
           retention-days: 30

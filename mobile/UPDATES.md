@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-22 - Public website link on sign-in
+
+- Add a translated STOCRANT website link at the side of the login header, alongside language and appearance controls, with a wrapping layout for small phones.
+- Open the public website separately, using the configured server's `/website/` address in the native app. A separately hosted public URL can be supplied at build time.
+- Source update only; no native app build or phone installation performed.
+
 ## 2026-10-22 - Shared Operations and task collaboration
 
 - Replace the shared phone/website Operations list with a central task workspace, searchable assignment selectors, dashboard counts, scoped filters and detailed task pages.

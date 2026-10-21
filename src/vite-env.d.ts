@@ -12,6 +12,7 @@
  * Users can override it per device from Settings → Mobile server connection.
  */
 interface ImportMetaEnv {
+  readonly VITE_PUBLIC_WEBSITE_URL?: string;
   readonly VITE_API_BASE_URL?: string;
 }
 
