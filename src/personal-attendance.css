@@ -1,0 +1,63 @@
+.personal-attendance { display: grid; gap: 16px; margin-block: 16px; min-width: 0; }
+.dashboard-shell .personal-dashboard > .personal-attendance { order: 1; }
+.personal-attendance .card { margin: 0; padding: 22px; min-width: 0; }
+.attendance-live-card > header, .personal-attendance-history > header, .personal-attendance-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.attendance-live-card h2, .personal-attendance-history h2 { margin: 3px 0; font-size: 18px; }
+.attendance-live-card > header > button { display: grid; place-items: center; width: 42px; height: 42px; padding: 9px; }
+.attendance-live-face { display: grid; justify-items: center; gap: 10px; padding-block: 20px 16px; }
+.attendance-live-face > p { margin: 0; font-size: 13px; }
+.attendance-live-face > small { color: var(--color-neutral-muted); font-size: 11px; }
+.attendance-digital-clock { font-size: clamp(36px,8vw,54px); line-height: 1.25; font-weight: 600; letter-spacing: .025em; font-variant-numeric: tabular-nums; }
+.attendance-live-status { display: flex; align-items: center; gap: 7px; border-radius: 20px; background: var(--color-neutral-soft); color: var(--color-neutral); padding: 6px 12px; font-size: 12px; }
+.attendance-live-status i { width: 7px; height: 7px; border-radius: 50%; background: #8293a6; }
+.attendance-live-status.status-checked-in { background: #139c7d16; color: #007b63; }
+.attendance-live-status.status-checked-in i { background: #0ba982; box-shadow: 0 0 0 4px #0ba98214; }
+html[data-theme="dark"] .attendance-live-status.status-checked-in { color: #62dec0; background: #2bd7aa16; }
+.attendance-running-duration { display: grid; justify-items: center; gap: 9px; border: 1px solid var(--color-border); border-radius: 14px; background: color-mix(in srgb,var(--color-primary) 5%,transparent); padding: 17px 12px; }
+.attendance-running-duration > span { font-size: 12px; color: var(--color-neutral-muted); }
+.attendance-running-duration > strong { font-size: 33px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.attendance-running-duration > small { max-width: 370px; text-align: center; font-size: 10px; color: var(--color-neutral-muted); line-height: 1.7; }
+.attendance-punch-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(100px,1fr)); gap: 12px; margin-block: 18px; }
+.attendance-punch-summary > div { display: grid; gap: 7px; text-align: center; }
+.attendance-punch-summary span { font-size: 11px; color: var(--color-neutral-muted); }
+.attendance-punch-summary strong { font-size: 16px; font-weight: 550; font-variant-numeric: tabular-nums; }
+.attendance-punch-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-block: 18px 12px; }
+.personal-attendance .attendance-punch-actions > button { min-height: 54px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 14px; font-weight: 600; border: 1px solid transparent; }
+html[data-theme] .ios-app .attendance-punch-actions > .attendance-punch-in { background: #008a70; color: white; }
+html[data-theme] .ios-app .attendance-punch-actions > .attendance-punch-out { background: #3768c9; color: white; }
+.attendance-punch-actions > button .mobile-icon { width: 19px; height: 19px; }
+.attendance-punch-actions > button:disabled { opacity: .4; cursor: not-allowed; }
+.attendance-schedule-hint { font-size: 11px; color: var(--color-neutral-muted); text-align: center; line-height: 1.7; }
+.attendance-timing-indicators { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; }
+.attendance-timing-indicators > span { padding: 6px 8px; border-radius: 7px; background: #c1781114; color: #935a0e; }
+.attendance-inline-warning { background: #c1781114; border: 1px solid #c1781140; padding: 12px; border-radius: 10px; font-size: 12px; overflow-wrap: anywhere; }
+.attendance-inline-success { background: #16a34a14; color: #147344; padding: 12px; border-radius: 10px; font-size: 12px; }
+html[data-theme="dark"] .attendance-inline-success { color: #8ce8b7; }
+html[data-theme="dark"] .attendance-timing-indicators > span { color: #f2cc89; }
+.personal-attendance-filters { margin-block: 18px; display: grid; gap: 12px; }
+.personal-attendance-filters label { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
+.personal-attendance-filters > form { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+.personal-attendance-filters > form > label { flex: 1; min-width: 120px; }
+.attendance-history-list { display: grid; gap: 12px; }
+html[data-theme] .ios-app .attendance-history-row { width: 100%; display: grid; gap: 14px; padding: 16px; text-align: start; border: 1px solid var(--color-border); background: transparent; color: var(--color-neutral); border-radius: 12px; box-shadow: none; }
+.attendance-history-row > div { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.attendance-history-row strong { font-size: 12px; }
+.attendance-history-row > div > span { font-size: 10px; color: var(--color-neutral-muted); }
+.attendance-history-row dl { margin: 0; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.attendance-history-row dt { font-size: 10px; color: var(--color-neutral-muted); }
+.attendance-history-row dd { margin: 6px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.attendance-history-row > small { font-size: 10px; color: var(--color-primary); }
+.attendance-history-pages { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 20px; font-size: 12px; }
+.attendance-history-empty { padding: 32px 12px; display: grid; justify-items: center; gap: 10px; text-align: center; color: var(--color-neutral-muted); font-size: 12px; }
+.attendance-history-empty > .mobile-icon { width: 30px; height: 30px; }
+.personal-attendance-dialog { width: min(520px,calc(100vw - 24px)); max-height: calc(100dvh - 36px); padding: 22px; border: 1px solid var(--color-border); border-radius: 18px; color: var(--color-neutral); background: var(--color-surface); }
+.personal-attendance-dialog::backdrop { background: #071b2b88; backdrop-filter: blur(4px); }
+.personal-attendance-dialog h2 { font-size: 18px; }
+.personal-attendance-dialog h3 { font-size: 14px; }
+.personal-attendance-dialog p { font-size: 12px; }
+.attendance-detail-values { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-block: 20px; }
+.attendance-detail-values dt { font-size: 11px; color: var(--color-neutral-muted); }
+.attendance-detail-values dd { margin: 7px 0 0; font-size: 16px; }
+.attendance-detail-session { display: flex; align-items: center; gap: 12px; padding-block: 12px; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+@media(min-width:1000px) { .personal-attendance:has(.personal-attendance-history) { grid-template-columns: minmax(300px,.9fr) minmax(0,1.3fr); align-items: start; } .personal-dashboard > .personal-attendance .attendance-live-card { display: grid; grid-template-columns: 1fr 1fr; column-gap: 26px; } .personal-dashboard > .personal-attendance .attendance-live-card > header, .personal-dashboard > .personal-attendance .attendance-live-card > .attendance-punch-actions, .personal-dashboard > .personal-attendance .attendance-live-card > [role], .personal-dashboard > .personal-attendance .attendance-live-card > .hint { grid-column: 1 / -1; } }
+@media(max-width:480px) { .personal-attendance .card { padding: 16px; } .personal-attendance-dialog { padding: 18px; } .attendance-punch-summary { gap: 6px; } .attendance-punch-summary > div { min-width: 0; } .attendance-punch-summary strong { font-size: 14px; } }

@@ -1,4 +1,5 @@
 import { notifyAction, actionMessage } from "./action-feedback";
+import type { PersonalAttendanceSnapshot, PersonalAttendanceRecord } from "./attendance-model";
 
 export class ApiError extends Error {
   constructor(message: string, public status: number, public fieldErrors: Record<string, string> = {}) { super(message); this.name = "ApiError"; }
@@ -288,8 +289,10 @@ export const api = {
     selfService: () => request<{ employee: CollectionItem | null; attendance: CollectionItem[]; leave: CollectionItem[]; documents: CollectionItem[] }>("/workspace/self-service"),
     requestLeave: (input: { type: string; from: string; to: string; reason: string }) => request<{ item: CollectionItem }>("/workspace/self-service/leave", { method: "POST", body: JSON.stringify(input) }),
     cancelLeave: (id: string) => request<{ ok: boolean }>(`/workspace/self-service/leave/${id}/cancel`, { method: "POST" }),
-    checkIn: () => request<{ item: CollectionItem }>("/workspace/attendance/check-in", { method: "POST" }),
-    checkOut: () => request<{ item: CollectionItem }>("/workspace/attendance/check-out", { method: "POST" }),
+    checkIn: (requestId?: string) => request<{ item: CollectionItem }>("/workspace/attendance/check-in", { method: "POST", body: JSON.stringify({requestId}) }),
+    checkOut: (requestId?: string) => request<{ item: CollectionItem }>("/workspace/attendance/check-out", { method: "POST", body: JSON.stringify({requestId}) }),
+    personalAttendance: (filters:Record<string,string|number>={},signal?:AbortSignal) => request<PersonalAttendanceSnapshot>("/workspace/attendance/self?"+new URLSearchParams(Object.entries(filters).map(([key,value])=>[key,String(value)])),{signal}),
+    personalAttendanceDetail: (id:string) => request<{item:PersonalAttendanceRecord;timezone:string;serverNow:string}>("/workspace/attendance/self/"+encodeURIComponent(id)),
     attendanceDashboard: (filters: Record<string, string | number | undefined> = {}) => {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") params.set(key, String(value));

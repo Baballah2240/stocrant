@@ -1,5 +1,11 @@
 # Project task log
 
+## 2026-10-21 - Mobile attendance clock and history
+
+Implemented the archived `MOBILE_ATTENDANCE_BRIEF.md`: live seconds, persistent timestamp-derived working timer, unified safe check-in/out, configured schedules and own paginated history with read-only details. Preserved shared source, existing collection, approval/HR controls, three-session limit and payroll break formulas. Full implementation and validation details: `../MOBILE_ATTENDANCE.md`.
+
+Validated TypeScript, API/storage/UI support suites, production build/security smoke, employee browser workflow in 12 language/theme/size combinations, existing payroll/dashboard workflows and neighboring routes. No native APK build, phone installation or new hosting deployment was performed.
+
 ## 2026-10-21 - Reference-inspired dashboard redesign
 
 Implemented the supplied image's charcoal/teal, compact navigation and rounded analytical card composition in the existing STOCRANT dashboard. Added colorful real-data task-status and activity-volume visualizations, clearer Work Activity series/legends, a functional sidebar profile card and responsive recent-activity rows. Preserved the separate light-blue theme commit and scoped dashboard styling to the home route.

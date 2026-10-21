@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { personalAttendance, personalAttendanceDetail, selfAttendanceQuery } from "../self-attendance.js";
 import {
   attendanceDashboard,
   attendanceCompanyForUser,
@@ -17,6 +18,10 @@ import {
 } from "../attendance.js";
 
 const router = Router();
+const clockSchema = z.object({requestId:z.string().uuid().optional()}).strict();
+router.get("/self", (req, res) => {const parsed=selfAttendanceQuery.safeParse(req.query);if(!parsed.success)return res.status(400).json({error:"Choose valid personal attendance filters."});try{return res.json(personalAttendance(req.auth!,parsed.data));}catch(error){return sendError(res,error);}});
+router.get("/self/:id", (req, res) => {try{return res.json(personalAttendanceDetail(req.auth!,req.params.id));}catch(error){return sendError(res,error);}});
+for(const action of ["check-in","check-out"] as const)router.post("/"+action,(req,res)=>{const parsed=clockSchema.safeParse(req.body||{});if(!parsed.success)return res.status(400).json({error:"Use a valid attendance request."});try{const item=action==="check-in"?clockIn(req.auth!,true,parsed.data.requestId):clockOut(req.auth!,true,parsed.data.requestId);return res.status(action==="check-in"&&Array.isArray(item.sessions)&&item.sessions.length===1?201:200).json({item});}catch(error){return sendError(res,error);}});
 
 function sendError(res: import("express").Response, error: unknown) {
   const message = error instanceof Error ? error.message : "Attendance request failed.";
@@ -65,10 +70,12 @@ router.put("/settings", (req, res) => {
 });
 
 router.post("/clock-in", (_req, res) => {
-  try { res.status(201).json({ item: clockIn(_req.auth!) }); } catch (error) { sendError(res, error); }
+  const parsed=clockSchema.safeParse(_req.body||{});if(!parsed.success)return res.status(400).json({error:"Use a valid attendance request."});
+  try { res.status(201).json({ item: clockIn(_req.auth!,false,parsed.data.requestId) }); } catch (error) { sendError(res, error); }
 });
 router.post("/clock-out", (req, res) => {
-  try { res.json({ item: clockOut(req.auth!) }); } catch (error) { sendError(res, error); }
+  const parsed=clockSchema.safeParse(req.body||{});if(!parsed.success)return res.status(400).json({error:"Use a valid attendance request."});
+  try { res.json({ item: clockOut(req.auth!,false,parsed.data.requestId) }); } catch (error) { sendError(res, error); }
 });
 
 const manualSchema = z.object({ organizationId: companyId, employeeId: z.string().trim().min(1).max(160), date, checkIn: time.optional(), checkOut: time.optional(), status: attendanceStatus.optional(), note: z.string().trim().max(2_000).optional() });

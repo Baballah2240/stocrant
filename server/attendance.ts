@@ -12,7 +12,7 @@ export type AttendanceDecision = "approve" | "reject" | "return";
 
 type AttendanceRow = Row & {
   organizationId: string;
-  employeeId: string;
+  employeeId?: string;
   employee?: string;
   date: string;
   sessions?: AttendanceSession[];
@@ -25,7 +25,7 @@ type AttendanceRow = Row & {
   approvalHistory?: AttendanceApprovalEntry[];
 };
 
-type AttendanceSession = { checkIn: string; checkOut?: string; hours?: number };
+type AttendanceSession = { checkIn: string; checkOut?: string; hours?: number; precision?: "minute" | "second" };
 type AttendanceApprovalEntry = {
   stage: string;
   roleId: string;
@@ -189,12 +189,14 @@ function sessionHours(session: AttendanceSession) {
   return Number.isNaN(legacyStart) || Number.isNaN(legacyEnd) || legacyEnd < legacyStart ? 0 : (legacyEnd - legacyStart) / 60;
 }
 
-function sessionsFor(record?: Partial<AttendanceRow>): AttendanceSession[] {
+export function attendanceSessionsUtc(record?: Partial<AttendanceRow>): AttendanceSession[] {
   if (!record) return [];
-  if (Array.isArray(record.sessions)) return record.sessions.filter((session): session is AttendanceSession => Boolean(session && typeof session.checkIn === "string"));
-  if (typeof record.checkIn === "string") return [{ checkIn: record.checkIn, ...(typeof record.checkOut === "string" ? { checkOut: record.checkOut } : {}) }];
-  return [];
+  const source = Array.isArray(record.sessions) ? record.sessions.filter((session): session is AttendanceSession => Boolean(session && typeof session.checkIn === "string")) : typeof record.checkIn === "string" ? [{checkIn: record.checkInAt || record.checkIn, ...(record.checkOutAt || record.checkOut ? {checkOut: record.checkOutAt || record.checkOut} : {})}] : [];
+  const timezone = settingsFor(String(record.organizationId || "")).timezone;
+  const normalize = (value: string) => validTime(value) && record.date ? zonedDateTimeToIso(record.date, value, timezone) : value;
+  return source.map(session => ({...session, checkIn: normalize(session.checkIn), ...(session.checkOut ? {checkOut: normalize(session.checkOut)} : {}), precision: session.precision || (validTime(session.checkIn) ? "minute" : "second")}));
 }
+const sessionsFor = attendanceSessionsUtc;
 
 function existingSetting(companyId: string) {
   return rows("attendanceSettings").find((row) => row.organizationId === companyId) as AttendanceSettings | undefined;
@@ -240,11 +242,11 @@ export function attendanceSettingsForUser(user: AuthenticatedUser, companyId: st
   return settingsFor(companyId);
 }
 
-function employeeById(employeeId: string) {
+function employeeById(employeeId?: string) {
   return rows("employees").find((employee) => employee.id === employeeId);
 }
 
-function employeeForUser(user: AuthenticatedUser) {
+export function employeeForUser(user: AuthenticatedUser) {
   const employee = user.employeeId ? employeeById(user.employeeId) : undefined;
   return employee ?? rows("employees").find((candidate) => text(candidate.email).toLowerCase() === user.email.toLowerCase());
 }
@@ -443,10 +445,23 @@ function notifyEmployee(employee: Row, message: string, target: string) {
   if (account?.id) createNotification({ userId: account.id, user: String(account.name ?? employee.name), type: "message", severity: "info", message, target });
 }
 
-export function clockIn(user: AuthenticatedUser) {
+export function attendanceClockEmployee(user: AuthenticatedUser, accountOnly = false): Row {
+  if (isMainManager(user)) failure("The Main Admin account cannot check in or check out.", 403);
+  const linked = employeeForUser(user);
+  if (linked) { if (!isWithinScope(user, linked)) failure("Your employee attendance profile is outside your assigned scope.", 403); return linked; }
+  if (!accountOnly) failure("Your account must be linked to an active employee profile before you can clock in.", 403);
+  return {id:user.id, name:user.name, email:user.email, organizationId:user.organizationIds[0], locationId:user.locationIds[0], status:"active", accountOnly:true};
+}
+export function ownAttendanceRows(user: AuthenticatedUser, employee: Row) {
+  const uniqueName = rows("employees").filter(row => row.organizationId === employee.organizationId && row.name === employee.name).length === 1;
+  return (rows("attendance") as AttendanceRow[]).filter(row => row.organizationId === employee.organizationId && (employee.accountOnly ? row.accountId === user.id && (!row.employeeId || row.employeeId === user.id) : row.employeeId === employee.id || !row.employeeId && (row.accountId === user.id || !row.accountId && (row.email === user.email || uniqueName && row.employee === employee.name))) && isWithinScope(user, row));
+}
+function editableClockRecord(record?: AttendanceRow) {
+  if (record && !["Draft", "Rejected", "Returned for Correction"].includes(record.approvalStatus || "Draft")) failure("This attendance record is under review or finalized. Ask HR for a correction.", 409);
+}
+export function clockIn(user: AuthenticatedUser, accountOnly = false, requestId?: string) {
   return transaction(() => {
-    const employee = employeeForUser(user);
-    if (!employee) failure("Your account must be linked to an active employee profile before you can clock in.", 403);
+    const employee = attendanceClockEmployee(user, accountOnly);
     if (!activeEmployee(employee)) failure("Only active employees can clock in.", 403);
     const companyId = companyForEmployee(employee);
     ensureCompanyScope(user, companyId);
@@ -454,13 +469,24 @@ export function clockIn(user: AuthenticatedUser) {
     if (!settings.trackingEnabled) failure("Attendance tracking is disabled for this company.", 409);
     const instant = new Date();
     const date = attendanceDate(instant, settings.timezone);
-    const active = recordFor(employee.id, date);
+    const own = ownAttendanceRows(user, employee);
+    const requestKey = requestId ? `${user.id}:in:${requestId}` : "";
+    const replay = requestKey && own.find(row => Array.isArray(row.clockRequests) && row.clockRequests.includes(requestKey));
+    if (replay) return enrichAttendance(replay, employee, settings);
+    if (own.some(row => sessionsFor(row).some(session => !session.checkOut))) failure("Clock out of your current attendance session before clocking in again.", 409);
+    const active = own.find(row => row.date === date);
+    editableClockRecord(active);
     const sessions = sessionsFor(active);
+    if (sessions.length >= 3) failure("You have completed the maximum of three attendance sessions today.", 409);
     if (sessions.some((session) => !session.checkOut)) failure("Clock out of your current attendance session before clocking in again.", 409);
     const next: AttendanceRow = {
       ...(active ?? { id: nextCollectionId("attendance"), organizationId: companyId, employeeId: employee.id, employee: employee.name, date, approvalStatus: "Draft" as const }),
       organizationId: companyId,
-      employeeId: employee.id,
+      employeeId: employee.accountOnly ? undefined : employee.id,
+      accountId: user.id,
+      locationId: employee.locationId,
+      clockRequests: [...(Array.isArray(active?.clockRequests) ? active.clockRequests : []), ...(requestKey ? [requestKey] : [])].slice(-6),
+      createdAt: active?.createdAt || instant.toISOString(),
       employee: String(employee.name),
       date,
       sessions: [...sessions, { checkIn: instant.toISOString() }],
@@ -473,20 +499,24 @@ export function clockIn(user: AuthenticatedUser) {
     };
     writeRow("attendance", next);
     audit(user, "attendance.clocked-in", { collection: "attendance", targetId: next.id, employeeId: employee.id, date });
-    return enrichAttendance(next, employee, settings);
+    return {...enrichAttendance(next, employee, settings), status: "present"};
   });
 }
 
-export function clockOut(user: AuthenticatedUser) {
+export function clockOut(user: AuthenticatedUser, accountOnly = false, requestId?: string) {
   return transaction(() => {
-    const employee = employeeForUser(user);
-    if (!employee) failure("Your account must be linked to an active employee profile before you can clock out.", 403);
+    const employee = attendanceClockEmployee(user, accountOnly);
     const companyId = companyForEmployee(employee);
     ensureCompanyScope(user, companyId);
     const settings = settingsFor(companyId);
-    const date = attendanceDate(new Date(), settings.timezone);
-    const record = recordFor(employee.id, date);
+    const own = ownAttendanceRows(user, employee), requestKey = requestId ? `${user.id}:out:${requestId}` : "";
+    const replay = requestKey && own.find(row => Array.isArray(row.clockRequests) && row.clockRequests.includes(requestKey));
+    if (replay) return enrichAttendance(replay, employee, settings);
+    const open = own.filter(row => sessionsFor(row).some(session => !session.checkOut));
+    if (open.length > 1) failure("Multiple open attendance records need HR review.", 409);
+    const record = open[0];
     if (!record) failure("No open attendance session was found for today.", 409);
+    editableClockRecord(record);
     const sessions = sessionsFor(record);
     let sessionIndex = -1;
     for (let index = sessions.length - 1; index >= 0; index -= 1) {
@@ -499,6 +529,7 @@ export function clockOut(user: AuthenticatedUser) {
     sessions[sessionIndex] = { ...complete, hours: Number(sessionHours(complete).toFixed(2)) };
     const next: AttendanceRow = {
       ...record,
+      clockRequests: [...(Array.isArray(record.clockRequests) ? record.clockRequests : []), ...(requestKey ? [requestKey] : [])].slice(-6),
       sessions,
       checkOutAt: instant.toISOString(),
       checkOut: attendanceTime(instant, settings.timezone),
@@ -507,7 +538,7 @@ export function clockOut(user: AuthenticatedUser) {
     writeRow("attendance", next);
     const enriched = enrichAttendance(next, employee, settings);
     writeRow("attendance", { ...next, status: enriched.status, hours: enriched.hours, lateMinutes: enriched.lateMinutes, earlyDepartureMinutes: enriched.earlyDepartureMinutes, missingMinutes: enriched.missingMinutes, overtimeMinutes: enriched.overtimeMinutes, estimatedDeduction: enriched.estimatedDeduction });
-    audit(user, "attendance.clocked-out", { collection: "attendance", targetId: next.id, employeeId: employee.id, date });
+    audit(user, "attendance.clocked-out", { collection: "attendance", targetId: next.id, employeeId: employee.id, date: record.date });
     return enrichAttendance({ ...next, status: enriched.status }, employee, settings);
   });
 }

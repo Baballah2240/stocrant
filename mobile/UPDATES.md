@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-21 - Accurate personal attendance clock and history
+
+- Added a server-calibrated HH:MM:SS clock, saved-timestamp working timer, clear check-in/out actions, schedule summary and late/early indicators to shared mobile and website screens.
+- Unified mobile and HR punches on the existing attendance collection with UTC timestamps, safe repeated requests, duplicate prevention, overnight check-out and existing approval/session rules.
+- Added own-record history with Today/week/month/custom filters, pagination and session details; preserved legacy minute precision and existing payroll break calculations.
+- Verified English/Arabic RTL, light/dark and phone/tablet/desktop browser layouts. No native APK was built or installed, and no live hosting deployment is included. Details: `docs/MOBILE_ATTENDANCE.md`.
+
 ## 2026-10-21 - Release CI SDK setup repair
 
 - Explicitly select the supported `platform-tools` package for Android CI setup. The action's old default requested the retired `tools` package and failed before compiling the app, preventing a fully passing release check.

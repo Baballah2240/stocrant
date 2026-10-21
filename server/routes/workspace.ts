@@ -1,3 +1,4 @@
+import { attendanceDate as dateStamp, attendanceDate, settingsFor } from "../attendance.js";
 import { payrollCan } from "../payroll.js";
 import analyticsRouter from "./analytics.js";
 import administrationRouter from "./administration.js";
@@ -55,24 +56,6 @@ function newestAt(row: Row) {
   return "";
 }
 
-const attendanceTimeZone = process.env.STOCRANT_TIME_ZONE || "Asia/Qatar";
-function dateStamp(date: Date) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: attendanceTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-}
-function timeStamp(date: Date) {
-  return new Intl.DateTimeFormat("en-GB", { timeZone: attendanceTimeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
-}
-
-function attendanceTimeInMinutes(value: unknown) {
-  if (typeof value !== "string") return undefined;
-  const match = value.match(/^(\d{2}):(\d{2})$/);
-  if (!match) return undefined;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return undefined;
-  return (hours * 60) + minutes;
-}
-
 type AttendanceSession = { checkIn: string; checkOut?: string; hours: number };
 function attendanceSessions(row?: Row): AttendanceSession[] {
   if (Array.isArray(row?.sessions)) return row.sessions as AttendanceSession[];
@@ -87,34 +70,6 @@ function employeeFor(user: NonNullable<import("express").Request["auth"]>) {
     if (linkedEmployee) return linkedEmployee;
   }
   return employees.find((item) => normalized(item.email) === normalized(user.email));
-}
-
-function attendanceForEmployee(user: NonNullable<import("express").Request["auth"]>, employee: Row, date: string) {
-  return rows("attendance")
-    .filter((item) => item.date === date && (item.accountId ? item.accountId === user.id : item.employeeId === employee.id || matchesUser(item, user)))
-    .sort((a, b) => newestAt(b).localeCompare(newestAt(a)))[0];
-}
-
-function persistAttendance(user: NonNullable<import("express").Request["auth"]>, item: Record<string, unknown>, existing?: Row): Row {
-  const data = getStore();
-  const timestamp = new Date().toISOString();
-  const attendance: Row = existing
-    ? { ...existing, ...item, id: existing.id, updatedAt: timestamp, updatedBy: user.id, updatedByName: user.name }
-    : {
-      ...item,
-      id: nextCollectionId("attendance"),
-      createdAt: timestamp,
-      createdBy: user.id,
-      createdByName: user.name,
-      updatedAt: timestamp,
-      updatedBy: user.id,
-      updatedByName: user.name,
-      dataClassification: "company",
-    };
-  const list = rows("attendance");
-  data.collections.attendance = existing ? list.map((row) => row.id === existing.id ? attendance : row) : [...list, attendance];
-  saveStore(data);
-  return attendance;
 }
 
 function isCompanyPolicy(row: Row, user: NonNullable<import("express").Request["auth"]>) {
@@ -136,7 +91,7 @@ router.get("/overview", (req, res) => {
     ? rows("workItems").filter((item) => isWithinScope(user, item) && matchesUser(item, user)).sort((a, b) => String(a.dueDate ?? "").localeCompare(String(b.dueDate ?? "")))
     : [];
   const personalLeave = rows("leaveRequests").filter((item) => isWithinScope(user, item) && matchesUser(item, user)).sort((a, b) => String(b.updatedAt ?? b.from ?? "").localeCompare(String(a.updatedAt ?? a.from ?? "")));
-  const todayAttendance = rows("attendance").filter((item) => item.date === dateStamp(new Date()) && (item.accountId ? item.accountId === user.id : matchesUser(item, user))).sort((a, b) => newestAt(b).localeCompare(newestAt(a)))[0];
+  const todayAttendance = rows("attendance").filter((item) => item.date === attendanceDate(new Date(), settingsFor(String(employee?.organizationId || user.organizationIds[0] || "")).timezone) && (item.accountId ? item.accountId === user.id : matchesUser(item, user))).sort((a, b) => newestAt(b).localeCompare(newestAt(a)))[0];
   const nextShift = rows("shifts").find((item) => isWithinScope(user, item) && matchesUser(item, user));
   const notifications = listNotifications(user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const account = rows("accessUsers").find((item) => item.id === user.id);
@@ -240,75 +195,6 @@ router.post("/self-service/leave/:id/cancel", (req, res) => {
   if (item.status !== "pending") return res.status(409).json({ error: "Only pending requests can be cancelled." });
   const data = getStore(); data.collections.leaveRequests = rows("leaveRequests").map((row) => row.id === item.id ? { ...row, status: "cancelled", updatedAt: new Date().toISOString(), updatedBy: user.id } : row); saveStore(data);
   audit(user, "leave.self-service-cancelled", { collection: "leaveRequests", targetId: item.id }); res.json({ ok: true });
-});
-
-router.post("/attendance/check-in", (req, res) => {
-  const user = req.auth!;
-  if (isMainManager(user)) return res.status(403).json({ error: "The Main Admin account cannot check in or check out." });
-  const employee = employeeFor(user) ?? { id: user.id, name: user.name, email: user.email, status: "active" };
-
-  const now = new Date();
-  const date = dateStamp(now);
-  const existing = attendanceForEmployee(user, employee, date);
-  const sessions = attendanceSessions(existing);
-  if (sessions.some(session => !session.checkOut)) {
-    return res.status(409).json({ error: "You have already checked in today." });
-  }
-  if (sessions.length >= 3) return res.status(409).json({ error: "You have completed the maximum of three attendance sessions today." });
-  sessions.push({ checkIn: timeStamp(now), hours: 0 });
-
-  const item = persistAttendance(user, {
-    employee: String(employee.name ?? user.name),
-    employeeId: employeeFor(user)?.id,
-    accountId: user.id,
-    organizationId: employee.organizationId ?? user.organizationIds[0],
-    locationId: employee.locationId ?? user.locationIds[0],
-    email: String(employee.email ?? user.email),
-    date,
-    checkIn: timeStamp(now),
-    checkOut: undefined,
-    sessions,
-    workMode: existing?.workMode ?? "office",
-    status: "present",
-    hours: existing?.hours ?? 0,
-  }, existing);
-  audit(user, "attendance.checked-in", { collection: "attendance", targetId: item.id, employeeId: employee.id, date });
-  res.status(existing ? 200 : 201).json({ item });
-});
-
-router.post("/attendance/check-out", (req, res) => {
-  const user = req.auth!;
-  if (isMainManager(user)) return res.status(403).json({ error: "The Main Admin account cannot check in or check out." });
-  const employee = employeeFor(user) ?? { id: user.id, name: user.name, email: user.email, status: "active" };
-
-  const now = new Date();
-  const date = dateStamp(now);
-  const existing = attendanceForEmployee(user, employee, date);
-  const sessions = attendanceSessions(existing);
-  const current = sessions[sessions.length - 1];
-  const checkInMinutes = attendanceTimeInMinutes(current?.checkIn);
-  if (!existing || checkInMinutes === undefined) return res.status(409).json({ error: "Check in before checking out." });
-  if (Boolean(current.checkOut)) {
-    return res.status(409).json({ error: "You have already checked out today." });
-  }
-
-  const checkOut = timeStamp(now);
-  const workedMinutes = (attendanceTimeInMinutes(checkOut) ?? checkInMinutes) - checkInMinutes;
-  if (workedMinutes < 0) return res.status(409).json({ error: "Check-out time must be after check-in time." });
-  const completed = sessions.map((session, index) => index === sessions.length - 1 ? { ...session, checkOut, hours: Number((workedMinutes / 60).toFixed(2)) } : session);
-  const item = persistAttendance(user, {
-    ...existing,
-    employee: String(employee.name ?? user.name),
-    employeeId: employee.id,
-    email: String(employee.email ?? user.email),
-    date,
-    checkOut,
-    status: "present",
-    sessions: completed,
-    hours: Number(completed.reduce((sum, session) => sum + session.hours, 0).toFixed(2)),
-  }, existing);
-  audit(user, "attendance.checked-out", { collection: "attendance", targetId: item.id, employeeId: employee.id, date, hours: item.hours });
-  res.json({ item });
 });
 
 router.get("/export/:collection", (req, res) => {

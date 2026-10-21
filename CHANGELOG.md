@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-21 - Personal attendance clock and history
+
+- Added a live clock, persistent working-duration timer, schedule indicators, prominent check-in/out and paginated personal attendance history in the shared mobile/website application.
+- Unified backend clock routes with UTC timestamps, idempotent retries, own-record access controls and overnight check-out. Preserved existing approvals, payroll rules and historical data. Details: `docs/MOBILE_ATTENDANCE.md`.
+
 ## 2026-10-21 — Reference-inspired dashboard
 
 - Added dashboard-scoped charcoal/teal styling, compact navigation, a functional profile shortcut, rounded KPI/chart cards and a balanced responsive grid based on the supplied reference.
