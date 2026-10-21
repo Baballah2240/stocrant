@@ -40,6 +40,7 @@ export const sourceSchema = z.object({
   attendanceId: z.string().max(160).default(""),
   reference: z.string().trim().min(1).max(160), reason: z.string().trim().min(5).max(1000),
   adjustsEntryId: z.string().max(160).default(""),
+  financeTransactionId: z.string().max(160).default(""),
 }).strict();
 export const periodSchema = z.object({
   companyId: z.string().min(1), frequency: z.enum(["weekly","biweekly","monthly","custom"]),
@@ -87,6 +88,7 @@ export type InputRow = Record<string, any>;
 interface CalculationInput { employee:InputRow; company:InputRow; salary:SalaryProfile; rules:PayrollRules; period:PayrollPeriod; attendance:InputRow[]; leave:InputRow[]; sources:InputRow[]; shift?:InputRow; }
 
 export function calculatePayroll(input: CalculationInput) {
+  if(new Set(input.sources.map(s=>s.id)).size!==input.sources.length)throw new Error("Duplicate payroll source identifiers must be corrected.");
   const {employee,company,salary,rules,period,shift}=input, digits=precision(salary.currency), warnings:string[]=[];
   const start=employee.hireDate && employee.hireDate>period.start?employee.hireDate:period.start;
   const end=employee.terminationDate && employee.terminationDate<period.end?employee.terminationDate:period.end;

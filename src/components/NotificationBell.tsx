@@ -56,7 +56,11 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
   const totalUnread = unreadCount + activity.filter(item => !item.read).length;
   const needle = query.trim().toLocaleLowerCase();
   const visibleActivity = activity.filter(item => category !== "requests" && (!unreadOnly || !item.read) && (!needle || t(item.message).toLocaleLowerCase().includes(needle)));
-  const visibleNotifications = notifications.filter(item => category !== "activity" && (!unreadOnly || !item.read) && (category !== "requests" || (!item.decision && ["registration_request", "leave_request", "password_reset", "pending_approval"].includes(item.type))) && (!needle || `${item.title || ""} ${item.message} ${item.senderName || ""} ${item.location || ""} ${item.shiftTime || ""} ${t(typeLabel(item.type))}`.toLocaleLowerCase().includes(needle))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const visibleNotifications = notifications.filter(item => category !== "activity" && (!unreadOnly || !item.read) && (category !== "requests" || (!item.decision && ["registration_request", "leave_request", "password_reset", "pending_approval"].includes(item.type))) && (!needle || `${item.title || ""} ${item.message} ${item.senderName || ""} ${item.location || ""} ${item.shiftTime || ""} ${t(typeLabel(item.type))}`.toLocaleLowerCase().includes(needle)));
+  const timeline = [
+    ...visibleNotifications.map(item => ({ kind: "notification" as const, item })),
+    ...visibleActivity.map(item => ({ kind: "activity" as const, item })),
+  ].sort((a, b) => (Date.parse(b.item.createdAt) || 0) - (Date.parse(a.item.createdAt) || 0));
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const formatDate = (date: string) => Number.isNaN(Date.parse(date)) ? t("Date unavailable") : new Intl.DateTimeFormat(language === "ar" ? "ar-QA" : "en-GB", { year:"numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second:"2-digit", timeZone:timezone }).format(new Date(date));
   function updateActivity(update: (items: RecentActivity[]) => RecentActivity[]) {
@@ -250,16 +254,19 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
             {selected.canReply && <div className="notification-reply"><label className="form-field"><span>{t("Comment to sender")}</span><textarea rows={3} maxLength={2000} disabled={detailBusy} value={comment} onChange={event => setComment(event.target.value)} /></label><div className="inline-actions">{selected.canDecide && <><button className="primary" disabled={detailBusy} onClick={() => void respond("approve")}>{t("Approve")}</button><button className="danger" disabled={detailBusy} onClick={() => void respond("reject")}>{t("Reject")}</button></>}<button disabled={detailBusy || !comment.trim()} onClick={() => void respond("comment")}>{t("Send comment")}</button></div></div>}
             {selected.item.type !== "hr_message" && <button className="notification-delete" disabled={detailBusy} onClick={() => void removeNotification(selected.item.id)}>{t("Delete notification")}</button>}
           </section> : <>
-          {visibleActivity.length > 0 && <section className="notification-activity"><h3>{t("My recent changes")}</h3><p className="hint">{t("Saved on this device")}</p><ul className="notification-list">{visibleActivity.map(item => <li key={item.id} className={`notification-list__item notification-list__item--${item.read ? "read" : "unread"}`}><div className="notification-list__main"><span className="notification-list__type">{t("Activity")}</span><button className="notification-message-button" disabled={detailBusy} onClick={() => showActivity(item)}>{t(item.message)}</button><p className="notification-list__meta">{formatDate(item.createdAt)}</p></div>{!item.read && <div className="notification-list__actions"><button type="button" onClick={() => updateActivity(items => items.map(current => current.id === item.id ? { ...current, read: true } : current))}>{t("Mark read")}</button></div>}</li>)}</ul></section>}
-          {error ? (
+
+          {error && timeline.length === 0 ? (
             <div className="notification-panel__empty" role="alert"><p>{t(error)}</p><button type="button" onClick={() => setRefreshKey(value => value + 1)}>{t("Try again")}</button></div>
-          ) : loading ? <div className="inbox-loading" role="status">{t("Loading notifications…")}<div /><div /><div /></div> : visibleNotifications.length === 0 && visibleActivity.length === 0 ? (
+          ) : loading && timeline.length === 0 ? <div className="inbox-loading" role="status">{t("Loading notifications…")}<div /><div /><div /></div> : visibleNotifications.length === 0 && visibleActivity.length === 0 ? (
             <div className="notification-panel__empty inbox-empty"><span aria-hidden="true">✓</span><h3>{t(query ? "No matching notifications" : unreadOnly ? "You’re all caught up" : category === "requests" ? "No requests to review" : "No notifications yet")}</h3><p>{t(query ? "Try another search or clear your filters." : "New updates will appear here.")}</p>{(query || category !== "all" || unreadOnly) && <button type="button" onClick={() => { setQuery(""); setUnreadOnly(false); setCategory("all"); }}>{t("Clear filters")}</button>}</div>
           ) : (
             <ul className="notification-list">
-              {visibleNotifications.map((notification) => (
+              {timeline.map(entry => {
+                if (entry.kind === "activity") { const item = entry.item; return (<li key={`activity-${item.id}`} className={`notification-list__item notification-list__item--${item.read ? "read" : "unread"}`}><div className="notification-list__main"><span className="notification-list__type">{t("Activity")}</span><button className="notification-message-button" disabled={detailBusy} onClick={() => showActivity(item)}>{t(item.message)}</button><p className="notification-summary-facts">{t("Saved on this device")}</p><p className="notification-list__meta"><time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time></p></div>{!item.read && <div className="notification-list__actions"><button type="button" onClick={() => updateActivity(items => items.map(current => current.id === item.id ? { ...current, read: true } : current))}>{t("Mark read")}</button></div>}</li>); }
+                const notification = entry.item;
+                return (
                 <li
-                  key={notification.id}
+                  key={`notification-${notification.id}`}
                   className={`notification-list__item${
                     notification.read ? " notification-list__item--read" : " notification-list__item--unread"
                   }`}
@@ -288,7 +295,7 @@ function UserNotifications({ className = "" }: NotificationBellProps) {
                     </button>}
                   </div>
                 </li>
-              ))}
+              ); })}
             </ul>
           )}
           </>}

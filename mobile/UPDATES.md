@@ -2,6 +2,19 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-21 - Connected payroll and financial ledger
+
+- Shared phone/website payroll now records full or partial employee payments with immutable ledger allocations, paid/outstanding amounts, payment histories and retry protection.
+- Connect approved source settlements, advance/loan recoveries, authorized reversals, exact currency totals and monthly cash-flow reporting to the existing cash ledger. Preserve salary snapshots, independent approvals and own-payslip privacy.
+- Add commit-time financial constraints, additive finance-history migration/backup, chained audit history and rollback documentation. Details and remaining integration/storage limitations: `docs/FINANCIAL_FLOW.md`.
+- No native app build, phone installation or hosting deployment performed. Browser visual verification remains pending because the Chrome E2E process exited before verification.
+
+## 2026-10-21 - Newest notifications first
+
+- Combine device activity and account notifications in one chronological list, newest first, across the shared website and mobile panel.
+- Show decision/read timing in summaries and effective date, shift, location and acknowledgment status in notification details and history.
+- Source update only; no native build, installation or hosting deployment performed.
+
 ## 2026-10-21 - Complete notification details
 
 - Show full notification messages with priority, sender, read state, exact timestamps, shift/location and acknowledgment requirements in the shared phone/website panel.

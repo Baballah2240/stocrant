@@ -1,3 +1,4 @@
+import { appendFinancialHistory, ledgerSummary, validateFinancialMutation } from "./finance-ledger.js";
 import { generateEmployeeCode } from "./employee-identity.js";
 import { eligibleSelfApproval } from "./admin-policy.js";
 import { syncEmployeeAccount } from "./employee-accounts.js";
@@ -108,6 +109,7 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string, p
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
   if (collection === "workActivity") payload = { ...payload, completionTransition: false };
   protectPayrollMutation(collection, action, payload, targetId);
+  payload = validateFinancialMutation(user, collection, action, payload, targetId ? rows(collection).find(row => row.id === targetId) : undefined);
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   if (sectionForCollection(collection) === "hr" && !canManageHr(user, action)) throw new Error("You do not have permission to manage HR records.");
   const data = getStore();
@@ -156,6 +158,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   revokeTenantSessions(collection, action, payload, existing, targetId);
   if (collection === "employees") { syncEmployeeAccount(user, item, existing); updateEmployeeHistory(user, item, existing ? "updated" : "hired"); }
   if (collection === "workItems") updateWorkActivity(user, item, String(payload.comments || (existing ? "Work item updated." : "Work item created.")), existing);
+  if (["financeTransactions", "financeAccounts"].includes(collection)) appendFinancialHistory(user, `${collection}.${action}`, item, String(item.description || "Financial record saved"));
   audit(user, `${collection}.${action}`, { collection, targetId: item.id, section: sectionForCollection(collection) });
   return item;
 }
@@ -198,6 +201,21 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
   if (action === "create" && payload.id && rows(collection).some(row => row.id === payload.id)) throw new Error("A record with this id already exists.");
   payload = { ...payload };
   for (const field of ["createdAt", "createdBy", "createdByName", "updatedAt", "updatedBy", "updatedByName", "__proto__", "constructor", "prototype"]) delete payload[field];
+  if (collection === "financeTransactions" && action === "create" && payload.idempotencyKey) {
+    const fingerprint = JSON.stringify(Object.fromEntries(Object.entries(payload).filter(([key]) => !["financialFingerprint", "idempotencyKey", "transferGroupId"].includes(key)).sort(([a], [b]) => a.localeCompare(b))));
+    payload.financialFingerprint = fingerprint;
+    const prior = rows(collection).find(row => (row.submittedBy ?? row.createdBy) === user.id && row.idempotencyKey === payload.idempotencyKey);
+    const pending = rows("approvalRequests").find(row => row.collection === collection && row.requestedBy === user.id && row.payload && (row.payload as Record<string,unknown>).idempotencyKey === payload.idempotencyKey);
+    const original = prior ?? (pending?.payload as Record<string,unknown> | undefined);
+    if (original) {
+      if (original.financialFingerprint !== fingerprint) throw Object.assign(new Error("This payment key was used with different details."), {statusCode:409});
+      if (prior) return { pending:false, item:prior };
+      if (pending?.status !== "pending") throw Object.assign(new Error("This submission was already reviewed. Start a new payment."), {statusCode:409});
+      return {pending:true, request:pending as ApprovalRequest};
+    }
+  }
+  if (collection === "financeTransactions" && action === "create") payload.submittedBy = user.id;
+  payload = validateFinancialMutation(user, collection, action, payload, current);
   if (collection === "employees") for (const key of ["accountId", "passwordHash", "roleId", "permissions", "activationRequired", "username", "employeeRequestKey"]) delete payload[key];
   if (collection === "employees" && !canViewSalaryData(user)) delete payload.salary;
   if (collection === "employees" && action === "create" && payload.clientRequestId !== undefined) {
@@ -364,7 +382,7 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
     if (request.collection === "documents") applyDocumentApproval(user, request);
     else {
     validateHierarchyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId ? rows(request.collection).find(row => row.id === request.targetId) : undefined);
-    applyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId);
+    applyMutation(user, request.collection, request.action, {...request.payload,...(request.section==="finance"?{approvedBy:user.id,approvedAt:timestamp()}:{})}, request.targetId);
     }
     data = getStore();
   }
@@ -385,25 +403,7 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
   return updated;
 }
 
-export function financeSummary(user?: AuthenticatedUser) {
-  const accounts = rows("financeAccounts").filter(row => !user || isWithinScope(user, row));
-  const transactions = rows("financeTransactions").filter(row => !user || isWithinScope(user, row));
-  const movements = new Map<unknown, number>();
-  for (const transaction of transactions) {
-    if (transaction.status !== "paid") continue;
-    const amount = Number(transaction.amount ?? 0);
-    movements.set(transaction.accountId, (movements.get(transaction.accountId) ?? 0) + (transaction.direction === "in" ? amount : transaction.direction === "out" ? -amount : 0));
-  }
-  const balances = accounts.map((account) => {
-    const opening = Number(account.openingBalance ?? 0);
-    const movement = movements.get(account.id) ?? 0;
-    return { ...account, balance: opening + movement };
-  });
-  const income = transactions.filter((row) => row.type === "income" && row.status === "paid").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-  const expenses = transactions.filter((row) => row.type === "expense" && row.status === "paid").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-  const salaries = transactions.filter((row) => row.type === "payroll" && row.status === "paid").reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-  return { accounts: balances, income, expenses, salaries, net: income - expenses - salaries, transactions };
-}
+export function financeSummary(user?: AuthenticatedUser) { return ledgerSummary(user); }
 
 export function inventorySummary(user?: AuthenticatedUser) {
   const items = rows("inventoryItems").filter(row => !user || isWithinScope(user, row));

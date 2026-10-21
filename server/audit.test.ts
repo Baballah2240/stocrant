@@ -110,8 +110,8 @@ describe("Application audit security and workflow regressions", () => {
     const data = getStore(); assert.ok(pair.every(request => (data.collections.approvalRequests as Row[]).find(row => row.id === request.id)?.status === "approved"));
     const transactions = (data.collections.financeTransactions as Row[]).filter(row => row.reference === "AUDIT-TRANSFER"); assert.equal(transactions.length, 2);
     const finance = await body(await req("/workspace/finance"));
-    assert.equal(finance.accounts.find((row: Row) => row.id === first.id).balance, 400);
-    assert.equal(finance.accounts.find((row: Row) => row.id === second.id).balance, 100);
+    assert.equal(finance.accounts.find((row: Row) => row.id === first.id).balance, "400.00");
+    assert.equal(finance.accounts.find((row: Row) => row.id === second.id).balance, "100.00");
     await body(await req(`/workspace/approvals/${pair[1].id}`, "POST", { decision: "approve" }, reviewer.cookie), 400);
   });
   it("rolls back both transfer approvals and ledger entries if the second side fails", async () => {

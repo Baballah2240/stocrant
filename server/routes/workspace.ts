@@ -1,3 +1,4 @@
+import { reverseFinancialTransaction } from "../finance-ledger.js";
 import { attendanceDate as dateStamp, attendanceDate, settingsFor } from "../attendance.js";
 import { payrollCan } from "../payroll.js";
 import analyticsRouter from "./analytics.js";
@@ -203,10 +204,12 @@ router.get("/export/:collection", (req, res) => {
   if (!known) return res.status(404).json({ error: "Unknown export collection." });
   const section = sectionForCollection(collection);
   if (!can(req.auth, section, "export")) return res.status(403).json({ error: `You do not have permission to export ${section}.` });
+  if(section==="finance"&&!can(req.auth,"finance","view"))return res.status(403).json({error:"Finance view permission is required for financial exports."});
   if(collection === "payroll" && !payrollCan(req.auth!, "view")) return res.status(403).json({error:"Use your employee payslip view for private payroll records."});
   const items = scoped(req, rows(collection), collection).map((item) => {
     const safe = { ...item };
     delete safe.passwordHash;
+    if(section==="finance"){delete safe.financialFingerprint;delete safe.paymentFingerprint;delete safe.idempotencyKey;if(safe.allocations)safe.allocations=JSON.stringify(safe.allocations); }
     return safe;
   });
   const keys = [...new Set(items.flatMap((item) => Object.keys(item)))].filter((key) => !["id", "createdAt", "updatedAt"].includes(key));
@@ -416,15 +419,21 @@ router.get("/finance", requirePermission("finance", "view"), (req, res) => {
   res.json({ ...summary, companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), people: scoped(req, rows("employees"), "employees").map((person) => ({ id: person.id, name: person.name, organizationId: person.organizationId })), accounts: scoped(req, summary.accounts, "financeAccounts"), transactions: scoped(req, summary.transactions, "financeTransactions") });
 });
 
+router.post("/finance/transactions/:id/reverse", requirePermission("finance", "create"), (req,res) => {
+  const parsed=z.object({reason:z.string().trim().min(5).max(1000),date:z.string(),reference:z.string().trim().min(1).max(160),idempotencyKey:z.string().min(8).max(160)}).strict().safeParse(req.body);
+  if(!parsed.success)return res.status(400).json({error:"Enter a date, reference, reason and payment key."});
+  try { return res.json({item:reverseFinancialTransaction(req.auth!,String(req.params.id),parsed.data)}); } catch(error) { return sendError(res,error); }
+});
+
 router.post("/finance/accounts", requirePermission("finance", "create"), (req, res) => {
-  const parsed = z.object({ name: z.string().trim().min(1).max(140), type: z.enum(["bank", "cash", "wallet", "other"]), currency: z.string().trim().min(3).max(8), openingBalance: z.coerce.number().default(0), organizationId: z.string().optional() }).safeParse(req.body);
+  const parsed = z.object({ name: z.string().trim().min(1).max(140), type: z.enum(["bank", "cash", "wallet", "other"]), currency: z.string().trim().min(3).max(8), openingBalance: z.union([z.string(),z.number()]).default("0"), organizationId: z.string().optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Provide a valid account." });
   if (parsed.data.organizationId) { const company = rows("companies").find((row) => row.id === parsed.data.organizationId); if (!company || !isWithinScope(req.auth!, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company." }); }
   try { const result = mutateCollection(req.auth!, "financeAccounts", "create", parsed.data); res.status(result.pending ? 202 : 201).json(result); } catch (error) { sendError(res, error); }
 });
 
 router.post("/finance/transactions", requirePermission("finance", "create"), (req, res) => {
-  const parsed = z.object({ type: z.enum(["income", "expense", "payroll", "transfer", "advance", "reimbursement", "loan", "repayment", "refund", "tax", "other"]), direction: z.enum(["in", "out"]).optional(), personName: z.string().trim().max(160).optional(), category: z.string().trim().max(100).optional(), accountId: z.string().min(1), destinationAccountId: z.string().optional(), amount: z.coerce.number().positive(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => { const date = new Date(value + "T00:00:00Z"); return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value; }, "Choose a valid date"), time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), status: z.enum(["draft", "pending", "paid", "cancelled"]).default("pending"), reference: z.string().trim().max(160).optional(), description: z.string().trim().max(1000).optional(), supportingDocument: z.string().trim().max(2000).optional(), employeeId: z.string().optional(), organizationId: z.string().optional(), locationId: z.string().optional() }).safeParse(req.body);
+  const parsed = z.object({ type: z.enum(["income", "expense", "payroll", "transfer", "advance", "reimbursement", "loan", "repayment", "refund", "tax", "other"]), direction: z.enum(["in", "out"]).optional(), personName: z.string().trim().max(160).optional(), category: z.string().trim().max(100).optional(), accountId: z.string().min(1), destinationAccountId: z.string().optional(), amount: z.union([z.string(),z.number()]), idempotencyKey: z.string().trim().min(8).max(160).optional(), method: z.enum(["bank","cash","card","cheque","other"]).optional(), sourceCollection: z.enum(["sales","expenses","purchases","returns"]).optional(), sourceId: z.string().max(160).optional(), recoversTransactionId: z.string().max(160).optional(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => { const date = new Date(value + "T00:00:00Z"); return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value; }, "Choose a valid date"), time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), status: z.enum(["draft", "pending", "paid", "cancelled"]).default("pending"), reference: z.string().trim().max(160).optional(), description: z.string().trim().max(1000).optional(), supportingDocument: z.string().trim().max(2000).optional(), employeeId: z.string().optional(), organizationId: z.string().optional(), locationId: z.string().optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   const account = rows("financeAccounts").find((candidate) => candidate.id === parsed.data.accountId);
   if (!account || !isWithinScope(req.auth!, account)) return res.status(404).json({ error: "Source account not found." });
@@ -444,9 +453,9 @@ router.post("/finance/transactions", requirePermission("finance", "create"), (re
     if (parsed.data.type === "transfer") {
       const result = transaction(() => {
         const group = `transfer-${randomUUID()}`;
-        const outgoing = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, direction: "out", transferGroupId: group });
+        const outgoing = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, direction: "out", transferGroupId: group, idempotencyKey: parsed.data.idempotencyKey ? `${parsed.data.idempotencyKey}:out` : undefined });
         const destination = rows("financeAccounts").find((row) => row.id === parsed.data.destinationAccountId)!;
-        const incoming = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, organizationId: destination.organizationId, accountId: parsed.data.destinationAccountId, destinationAccountId: parsed.data.accountId, direction: "in", transferGroupId: group });
+        const incoming = mutateCollection(req.auth!, "financeTransactions", "create", { ...parsed.data, organizationId: destination.organizationId, accountId: parsed.data.destinationAccountId, destinationAccountId: parsed.data.accountId, direction: "in", transferGroupId: group, idempotencyKey: parsed.data.idempotencyKey ? `${parsed.data.idempotencyKey}:in` : undefined });
         return { pending: outgoing.pending || incoming.pending, items: [outgoing.item, incoming.item].filter(Boolean) };
       });
       return res.status(result.pending ? 202 : 201).json(result);

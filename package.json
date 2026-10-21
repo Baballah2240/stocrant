@@ -16,7 +16,7 @@
     "start": "npm run build:full && node dist/index.js",
     "preview:local": "npm run build:full && node scripts/start-local-preview.mjs",
     "typecheck": "tsc --noEmit -p server/tsconfig.json",
-    "test": "npm run build && node --test dist/routes.test.js dist/organizations.test.js dist/documents.test.js dist/hr-communication.test.js dist/company-profile.test.js dist/payroll.test.js dist/audit.test.js dist/organization-manager.test.js dist/dashboard-upgrade.test.js dist/administration.test.js dist/self-attendance.test.js dist/notification-context.test.js && node scripts/verify-storage.mjs",
+    "test": "npm run build && node --test dist/routes.test.js dist/organizations.test.js dist/documents.test.js dist/hr-communication.test.js dist/company-profile.test.js dist/payroll.test.js dist/finance-flow.test.js dist/audit.test.js dist/organization-manager.test.js dist/dashboard-upgrade.test.js dist/administration.test.js dist/self-attendance.test.js dist/notification-context.test.js && node scripts/verify-storage.mjs",
     "admin:reset": "node scripts/reset-admin.mjs",
     "setup:reset": "node scripts/reset-first-time-setup.mjs",
     "mobile:build": "node ./node_modules/vite/bin/vite.js build && npx cap sync",
@@ -27,7 +27,7 @@
     "mobile:add:android": "npx cap add android",
     "mobile:add:ios": "npx cap add ios",
     "check:data": "node scripts/check-data.mjs",
-    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run test:translations && npm run build:frontend && npm run test:production",
+    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run test:financial-money && npm run test:translations && npm run build:frontend && npm run test:production",
     "test:translations": "node --test scripts/test-translations.mjs",
     "test:production": "node scripts/verify-production.mjs",
     "test:notifications": "node --test scripts/test-notification-activity.mjs",
@@ -47,7 +47,8 @@
     "test:dashboard-upgrade": "npm run build:full && node scripts/verify-dashboard-upgrade.mjs",
     "test:administration": "npm run build:full && node scripts/verify-administration.mjs",
     "test:work-activity": "npm run build:full && node scripts/verify-work-activity.mjs",
-    "test:mobile-attendance": "npm run build:full && node scripts/verify-mobile-attendance.mjs"
+    "test:mobile-attendance": "npm run build:full && node scripts/verify-mobile-attendance.mjs",
+    "test:financial-money": "node --test scripts/test-financial-money.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "9.1.2",

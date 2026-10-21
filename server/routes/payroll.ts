@@ -1,3 +1,4 @@
+import { recordPayrollPayment } from "../payroll-payments.js";
 import { Router } from "express";
 import { z } from "zod";
 import { dateSchema, amountSchema } from "../payroll-model.js";
@@ -17,6 +18,10 @@ router.post("/preview",endpoint((req,res)=>res.json(previewPayroll(req.auth!,req
 router.post("/runs",endpoint((req,res)=>{const {period,previewToken}=z.object({period:z.unknown(),previewToken:z.string().regex(/^[a-f0-9]{64}$/)}).strict().parse(req.body);return res.status(201).json({run:generatePayroll(req.auth!,period,previewToken)});}));
 router.post("/runs/:id/recalculate",endpoint((req,res)=>{const input=z.object({version:z.number().int().positive(),reason}).strict().parse(req.body);return res.json({run:recalculatePayroll(req.auth!,String(req.params.id),input.version,input.reason)});}));
 router.post("/runs/:id/transition",endpoint((req,res)=>{const input=z.object({action:z.enum(["submit","approve","reject","pay"]),version:z.number().int().positive(),reason,accountId:z.string().optional(),paymentDate:dateSchema.optional(),reference:z.string().trim().max(160).optional(),method:z.enum(["bank","cash","cheque","other"]).optional(),confirmed:z.boolean().optional()}).strict().parse(req.body);return res.json({run:transitionPayroll(req.auth!,String(req.params.id),input)});}));
+router.post("/runs/:id/payments",endpoint((req,res)=>{
+ const input=z.object({version:z.number().int().positive(),reason,accountId:z.string().min(1),paymentDate:dateSchema,reference:z.string().trim().min(1).max(160),method:z.enum(["bank","cash","cheque","other"]),confirmed:z.literal(true),amount:amountSchema,entryId:z.string().optional(),idempotencyKey:z.string().min(8).max(160)}).strict().parse(req.body);
+ return res.json(recordPayrollPayment(req.auth!,String(req.params.id),input));
+}));
 router.get("/runs/:id/export",endpoint((req,res)=>res.type("text/csv").attachment("stocrant-payroll.csv").send(payrollCsv(req.auth!,String(req.params.id)))));
 router.get("/entries/:id",endpoint((req,res)=>res.json(payrollDetail(req.auth!,String(req.params.id)))));
 export default router;

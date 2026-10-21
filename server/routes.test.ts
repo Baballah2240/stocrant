@@ -493,8 +493,8 @@ describe("STOCRANT secure workspace API", () => {
   });
 
   it("calculates finance balances and excludes internal transfers from income and expenses", async () => {
-    const accountA = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie }, body: JSON.stringify({ name: "Test bank", type: "bank", currency: "USD", openingBalance: 100 }) });
-    const accountB = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie }, body: JSON.stringify({ name: "Test cash", type: "cash", currency: "USD", openingBalance: 0 }) });
+    const accountA = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie }, body: JSON.stringify({ name: "Test bank", organizationId:"company-primary", type: "bank", currency: "USD", openingBalance: 100 }) });
+    const accountB = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie }, body: JSON.stringify({ name: "Test cash", organizationId:"company-primary", type: "cash", currency: "USD", openingBalance: 0 }) });
     const first = await json<{ item: { id: string } }>(accountA); const second = await json<{ item: { id: string } }>(accountB);
     assert.equal(accountA.status, 201); assert.equal(accountB.status, 201);
 
@@ -505,11 +505,11 @@ describe("STOCRANT secure workspace API", () => {
 
     const finance = await request("/workspace/finance", {}, mainCookie);
     const body = await json<{ income: number; expenses: number; net: number; accounts: Array<{ id: string; balance: number }> }>(finance);
-    assert.equal(body.income, 40);
-    assert.equal(body.expenses, 25);
-    assert.equal(body.net, 15);
-    assert.equal(body.accounts.find((account) => account.id === first.item.id)?.balance, 105);
-    assert.equal(body.accounts.find((account) => account.id === second.item.id)?.balance, 10);
+    assert.equal((body as any).totals.find((r:any)=>r.currency==="USD").income, "40.00");
+    assert.equal((body as any).totals.find((r:any)=>r.currency==="USD").expenses, "25.00");
+    assert.equal((body as any).totals.find((r:any)=>r.currency==="USD").net, "15.00");
+    assert.equal(body.accounts.find((account) => account.id === first.item.id)?.balance, "105.00");
+    assert.equal(body.accounts.find((account) => account.id === second.item.id)?.balance, "10.00");
   });
 
   it("tracks company money directions and excludes pending payments from balances", async () => {
@@ -520,11 +520,11 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal((await request("/workspace/finance/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(movement) }, mainCookie)).status, 201);
     assert.equal((await request("/workspace/finance/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...movement, type: "repayment", direction: "out", amount: 30, status: "pending" }) }, mainCookie)).status, 201);
     const finance = await json<{ accounts: { id: string; balance: number }[]; transactions: { accountId: string; organizationId: string; personName: string }[] }>(await request("/workspace/finance", {}, mainCookie));
-    assert.equal(finance.accounts.find((account) => account.id === item.id)?.balance, 150);
+    assert.equal(finance.accounts.find((account) => account.id === item.id)?.balance, "150.00");
     const rows = finance.transactions.filter((row) => row.accountId === item.id);
     assert.equal(rows.length, 2);
     assert.ok(rows.every((row) => row.organizationId === "company-primary" && row.personName === "Business lender"));
-    const foreign = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "USD destination", type: "bank", currency: "USD", openingBalance: 0 }) }, mainCookie);
+    const foreign = await request("/workspace/finance/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "USD destination", organizationId:"company-primary", type: "bank", currency: "USD", openingBalance: 0 }) }, mainCookie);
     const foreignItem = await json<{ item: { id: string } }>(foreign);
     assert.equal((await request("/workspace/finance/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...movement, type: "transfer", destinationAccountId: foreignItem.item.id }) }, mainCookie)).status, 400);
   });

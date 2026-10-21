@@ -1,3 +1,5 @@
+import { assertFinanceIntegrity } from "./finance-integrity.js";
+import { migrateFinance } from "./finance-migration.js";
 import { migratePayroll } from "./payroll-migration.js";
 import { migrateEmployeeIdentities, assertEmployeeIdentities } from "./employee-identity.js";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
@@ -315,7 +317,7 @@ function migrateSecureWorkspace(data: StoreData): boolean {
 
   const accounts = collectionRows(data, "financeAccounts");
   if (accounts.length === 0 && process.env.NODE_ENV !== "production") {
-    accounts.push({ id: "account-operating", name: "Operating account", type: "bank", currency: "KRW", openingBalance: 0, dataClassification: "demo" });
+    accounts.push({ id: "account-operating", name: "Operating account", organizationId: DEFAULT_COMPANY_ID, type: "bank", currency: "KRW", openingBalance: 0, dataClassification: "demo" });
     changed = true;
   }
 
@@ -335,6 +337,7 @@ function read(): StoreData {
       migrateDocuments(seeded);
       migrateEmployeeIdentities(seeded);
       migratePayroll(seeded);
+      migrateFinance(seeded);
       write(seeded);
       return seeded;
     }
@@ -347,7 +350,8 @@ function read(): StoreData {
     const documentsChanged = migrateDocuments(parsed);
     const identitiesChanged = migrateEmployeeIdentities(parsed);
     const payrollChanged = migratePayroll(parsed);
-    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged || payrollChanged) {
+    const financeChanged = migrateFinance(parsed);
+    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged || payrollChanged || financeChanged) {
       // Capture the on-disk original before its first v2 migration. The backup
       // stays beside the JSON store and is ignored by Git with the data folder.
       if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
@@ -355,6 +359,7 @@ function read(): StoreData {
       if (organizationsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-organizations-v3-backup.json"));
       if (identitiesChanged && !existsSync(join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-identities-v5-backup.json"));
       if (payrollChanged && !existsSync(join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"));
+      if (financeChanged && !existsSync(join(DATA_DIR, "stocrant.pre-finance-v7-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-finance-v7-backup.json"));
       write(parsed);
     }
     return parsed;
@@ -365,6 +370,7 @@ function read(): StoreData {
 
 function write(data: StoreData) {
   assertEmployeeIdentities(data);
+  assertFinanceIntegrity(data);
   ensureDir();
   // Keep a daily snapshot of the previous on-disk state before the first write.
   // Backups remain private alongside the data, outside the web asset directory.

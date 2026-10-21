@@ -2462,3 +2462,10 @@ button.primary:hover {
   .finance-report .table thead { display: table-header-group; }
   .finance-report .table tr { break-inside: avoid; }
 }
+
+.finance-monthly { grid-column:1/-1; min-width:0; }
+.finance-month { display:grid; grid-template-columns:90px minmax(0,1fr) minmax(0,1fr); gap:16px; padding-block:12px; border-bottom:1px solid var(--ios-separator); }
+.finance-month > div { display:flex; flex-direction:column; gap:6px; font-size:12px; min-width:0; }
+.finance-month__bar { display:block; height:8px; border-radius:5px; background:#0d9488; }
+.finance-month__bar--out { background:#8b5cf6; }
+@media(max-width:600px) { .finance-month { grid-template-columns:1fr; gap:8px; } }
