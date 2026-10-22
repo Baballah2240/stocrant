@@ -1,0 +1,137 @@
+/* Larger floating tiles and a translucent, system-style detail surface. */
+.explorer-hero {
+  max-width: 1440px;
+  grid-template-columns: .78fr 1.3fr;
+  gap: 58px;
+  min-height: 850px;
+}
+.section-map { height: 650px; }
+.map-caption { font-size: 12px; margin-bottom: 36px; }
+.map-caption button { font-size: 11px; }
+.map-node {
+  left: clamp(94px, var(--node-x), calc(100% - 94px));
+  width: 170px;
+  min-height: 132px;
+  padding: 19px;
+  gap: 7px;
+  border-radius: 26px;
+  border-color: color-mix(in srgb, var(--surface) 75%, var(--line));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface) 70%, transparent));
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: inset 0 1px 0 #ffffffb3, 0 8px 24px #193d480a, 0 2px 5px #193d4804;
+}
+.map-node::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--module-accent) 11%, transparent), transparent 75%);
+  pointer-events: none;
+}
+.map-node strong { font-size: 15px; font-weight: 650; letter-spacing: -.025em; }
+.map-node small { font-size: 10px; white-space: normal; line-height: 1.5; }
+.node-symbol {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 3px;
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--module-accent) 75%, white), var(--module-accent));
+  box-shadow: inset 0 1px 1px #ffffff70, 0 4px 10px color-mix(in srgb, var(--module-accent) 17%, transparent);
+}
+.node-symbol svg { width: 23px; height: 23px; }
+.node-arrow { right: 16px; top: 16px; font-size: 16px; opacity: .65; }
+.map-node.map-service {
+  width: 184px;
+  min-height: 132px;
+  border-color: color-mix(in srgb, var(--module-accent) 22%, var(--surface));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--mint) 65%, var(--surface)), color-mix(in srgb, var(--mint) 88%, transparent));
+}
+.map-node.is-selected {
+  scale: 1.055;
+  border-color: color-mix(in srgb, var(--module-accent) 48%, var(--surface));
+  box-shadow: inset 0 1px 0 #ffffffd9, 0 22px 45px #193d481a, 0 0 0 5px color-mix(in srgb, var(--module-accent) 7%, transparent);
+}
+.section-map[data-focused="true"] .map-node:not(.is-selected),
+.section-map[data-focused="true"] .map-center { opacity: .4; filter: blur(1px); }
+.map-center > span { width: 88px; height: 88px; border-radius: 29px; }
+.map-instruction { font-size: 11px; margin-top: 24px; }
+.preview-shade { background: color-mix(in srgb, var(--canvas) 60%, transparent); backdrop-filter: blur(8px); }
+.focus-card {
+  --module-accent: #4675d7;
+  width: 470px;
+  padding: 32px;
+  border-radius: 34px;
+  border-color: color-mix(in srgb, var(--surface) 85%, var(--line));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 97%, transparent), color-mix(in srgb, var(--surface) 88%, transparent));
+  -webkit-backdrop-filter: blur(35px) saturate(1.5);
+  backdrop-filter: blur(35px) saturate(1.5);
+  box-shadow: inset 0 1px 0 #ffffffd9, 0 32px 100px #102f4324, 0 4px 16px #102f430a;
+}
+.focus-card-top { gap: 14px; margin-bottom: 28px; }
+.focus-card-top .section-symbol {
+  width: 52px;
+  height: 52px;
+  border-radius: 17px;
+  color: #fff;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--module-accent) 72%, white), var(--module-accent));
+  box-shadow: inset 0 1px 1px #ffffff80, 0 5px 15px color-mix(in srgb, var(--module-accent) 20%, transparent);
+}
+.focus-card-top .section-symbol svg { width: 27px; height: 27px; }
+.focus-identity { display: grid; gap: 4px; flex: 1; }
+.focus-identity > span { font-size: 9px; font-weight: 650; letter-spacing: .14em; color: var(--muted); }
+.focus-identity strong { font-size: 17px; font-weight: 650; letter-spacing: -.025em; }
+.focus-card-top .icon-button { width: 33px; height: 33px; border: 0; background: var(--soft); color: var(--muted); font-size: 23px; }
+.focus-card .focus-eyebrow { font-size: 9px; color: var(--module-accent); letter-spacing: .13em; }
+.focus-card h2 { font-size: 32px; font-weight: 650; line-height: 1.13; letter-spacing: -.045em; margin-bottom: 16px; }
+.focus-card p.focus-description { font-size: 14px; line-height: 1.75; margin: 0; }
+.focus-capabilities { margin-top: 25px; }
+.focus-capabilities h3, .focus-connection h3 { font-size: 11px; font-weight: 650; letter-spacing: 0; margin: 0 0 12px; }
+.focus-feature-list { gap: 5px; margin: 0; font-size: 12px; line-height: 1.6; }
+.focus-feature-list li { padding: 10px 12px; align-items: center; gap: 11px; border-radius: 12px; background: color-mix(in srgb, var(--soft) 75%, transparent); }
+.focus-feature-list li > span { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; color: var(--module-accent); background: color-mix(in srgb, var(--module-accent) 9%, var(--surface)); font-size: 11px; }
+.focus-connection { display: flex; gap: 11px; border: 0; padding: 17px 0 0; margin-top: 4px; }
+.focus-connection > span { color: var(--muted); padding-top: 2px; }
+.focus-connection > span svg { width: 18px; height: 18px; }
+.focus-connection h3 { margin-bottom: 5px; }
+.focus-card .focus-connection p { font-size: 12px; line-height: 1.65; margin: 0; }
+.focus-actions { align-items: stretch; gap: 13px; margin: 24px 0 20px; }
+.focus-actions > .site-button { border-radius: 16px; background: var(--ink); color: var(--surface); min-height: 50px; justify-content: space-between; }
+.focus-actions > a { text-align: center; font-size: 12px; padding: 5px; }
+.focus-card > .focus-access { display: flex; gap: 8px; border-top: 1px solid var(--line); padding-top: 15px; font-size: 10px; line-height: 1.6; }
+.focus-access svg { width: 15px; height: 15px; margin-top: 1px; color: var(--muted); }
+.focus-dialog::backdrop { background: #142c3940; backdrop-filter: blur(12px); }
+html[data-theme="dark"] .map-node { box-shadow: inset 0 1px 0 #ffffff1f, 0 10px 30px #0002; border-color: #ffffff1f; }
+html[data-theme="dark"] .map-node.is-selected { border-color: color-mix(in srgb, var(--module-accent) 65%, white); box-shadow: inset 0 1px 0 #ffffff38, 0 24px 50px #0005, 0 0 0 5px #ffffff08; }
+html[data-theme="dark"] .focus-card { border-color: #ffffff26; box-shadow: inset 0 1px 0 #ffffff24, 0 32px 100px #0006; }
+html[data-theme="dark"] .focus-card .focus-eyebrow { color: color-mix(in srgb, var(--module-accent) 60%, white); }
+html[data-theme="dark"] .focus-feature-list li > span { color: color-mix(in srgb, var(--module-accent) 45%, white); }
+@media(prefers-reduced-motion:no-preference) {
+  .stocrant-site .map-node { transition: scale 320ms cubic-bezier(.2,.8,.2,1), box-shadow 320ms ease, background 220ms ease, border-color 220ms ease, opacity 220ms ease, filter 220ms ease; }
+  .map-node:active { scale: .98; }
+  .focus-card { animation: glass-appear 280ms cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes glass-appear { from { opacity: 0; scale: .96; } to { opacity: 1; scale: 1; } }
+}
+@media(max-width:1280px) { .explorer-hero { gap: 32px; }.map-node { width: 160px; padding: 17px; }.map-node.map-service { width: 178px; }.map-node strong { font-size: 14px; } }
+@media(max-width:1050px) { .explorer-hero { grid-template-columns: 1fr; min-height: auto; }.section-map-wrap { max-width: 680px; }.section-map { height: 650px; }.map-node { width: 174px; padding: 19px; }.map-node strong { font-size: 15px; } }
+@media(max-width:700px) {
+  .section-map { height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .map-center { padding-bottom: 25px; }
+  .map-center > span { width: 74px; height: 74px; border-radius: 25px; }
+  .map-node, .map-node.map-service { left: auto; width: 100%; min-height: 150px; padding: 19px; border-radius: 25px; gap: 8px; }
+  .map-node strong { font-size: 15px; }.map-node small { font-size: 10px; }
+  .map-node.map-service { grid-column: 1 / -1; grid-template-columns: 46px 1fr; align-items: center; column-gap: 16px; min-height: 105px; }
+  .map-service .node-symbol { grid-row: 1 / 3; margin: 0; width: 46px; height: 46px; border-radius: 15px; }
+  .map-service strong { align-self: end; }.map-service small { align-self: start; }
+  .map-node.is-selected { scale: 1.025; }
+  .focus-card { padding: 25px; border-radius: 29px; width: 470px; }
+  .focus-card h2 { font-size: 29px; }.focus-card-top { margin-bottom: 24px; }
+  .focus-card p.focus-description { font-size: 13px; }
+}
+@media(max-width:380px) {
+  .section-map { gap: 12px; }.map-node, .map-node.map-service { padding: 16px; }.map-node strong { font-size: 13px; }.map-node small { font-size: 9px; }.map-node { min-height: 143px; }
+  .focus-card { padding: 22px; }.focus-card h2 { font-size: 27px; }
+}
