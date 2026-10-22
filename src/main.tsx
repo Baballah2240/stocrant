@@ -28,6 +28,8 @@ import "./notification-panel.css";
 import "./choice-picker.css";
 import "./sidebar-workspace.css";
 import "./enterprise.css";
+import "../public-website/src/brand-theme.css";
+import "./auth-connected.css";
 
 // Native builds have no hover pointer and need safe-area padding; the CSS
 // keys off this attribute so the browser layout stays untouched.

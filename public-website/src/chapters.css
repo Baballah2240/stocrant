@@ -1,14 +1,4 @@
 /* Crisp colors, viewport-sized chapters and one shared inquiry workspace. */
-.stocrant-site {
-  --canvas: #f7f9fc; --surface: #fff; --ink: #152238; --muted: #526278;
-  --line: #d7e0ec; --blue: #dbe9ff; --mint: #d9eee8; --soft: #eef2f8;
-  --link: #2459ad; --shadow: #1522380a; --action: #2459bd; --action-text: #fff;
-}
-html[data-theme="dark"] .stocrant-site {
-  --canvas: #0b1220; --surface: #131e30; --ink: #edf3ff; --muted: #a8b7cf;
-  --line: #2c3b53; --blue: #203c65; --mint: #1a3d39; --soft: #18263c;
-  --link: #9bc2ff; --shadow: #0003; --action: #9bc2ff; --action-text: #0b1b33;
-}
 html:has(.stocrant-site) { --site-header-height: 93px; scroll-padding-top: var(--site-header-height); scroll-snap-type: y proximity; }
 #site-main > section { scroll-snap-align: start; scroll-margin-top: 0; min-block-size: calc(100svh - var(--site-header-height)); }
 .constellation-background { opacity: .55; }

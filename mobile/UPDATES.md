@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Website appearance on sign-in
+
+- Reuse the public website's connected-star animation and scoped light/dark palette on login, registration, password-reset requests and first setup.
+- Keep the form on an opaque, high-contrast surface, with touch-sized controls, English/Arabic layouts and existing safe-area spacing. Stars respect reduced motion and stop in hidden tabs.
+- Share the browser appearance preference between the public website and workspace, including System mode and changes from another tab. Keep native appearance synchronization and per-device preferences.
+- Source update only; no native app package was rebuilt or installed. Render secret configuration and AI setup remain unchanged.
+
 ## 2026-10-22 - Public explorer and private website inquiry inbox
 
 - Make the browser's public root a floating section explorer with focus details and an anonymous shop website service page. Keep the native home/dashboard route and existing business modules.

@@ -54,6 +54,12 @@ try {
   assert.equal(await evaluate('document.querySelector(".module-connect a").getAttribute("href")'), base + "/finance");
   await send("Page.navigate", { url: base + "/finance" }); await until('Boolean(document.querySelector(".auth-card"))');
   assert.ok(await evaluate('Boolean(document.querySelector(".auth-card input"))'));
+  assert.ok(await evaluate('Boolean(document.querySelector(".auth-connected .constellation-background"))'), "Login shares the website star background");
+  assert.equal(await evaluate('document.documentElement.dataset.theme'), "dark", "Website appearance carries into login");
+  await fill(".appearance-selector select", "light");
+  await until('document.documentElement.dataset.theme==="light"');
+  await send("Page.navigate", { url: base + "/" }); await until('Boolean(document.querySelector(".map-node"))');
+  assert.equal(await evaluate('document.documentElement.dataset.theme'), "light", "Login appearance carries back into the website");
   await send("Page.navigate", { url: base + "/services/shop-websites" }); await until('Boolean(document.querySelector(".inquiry-form"))');
   assert.ok(await evaluate('document.querySelector(".plan-grid").closest("#inquire")===document.querySelector(".inquiry-form").closest("#inquire")'), "Package selection and questions must share one request workspace");
   await evaluate('document.querySelector(".plan-featured button").click()');

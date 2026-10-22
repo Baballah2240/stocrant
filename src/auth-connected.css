@@ -1,0 +1,63 @@
+/* The sign-in surface shares the website palette and constellation renderer. */
+.auth-experience.auth-connected {
+  --ios-bg: var(--canvas); --ios-cell: var(--surface); --ios-fill: var(--soft);
+  --ios-label: var(--ink); --ios-label-2: var(--muted); --ios-separator: var(--line);
+  --color-primary: var(--link); --color-primary-soft: var(--blue);
+  --brand-link: var(--link); --brand-blue-soft: var(--soft); --brand-green-soft: var(--soft);
+  --color-background: var(--canvas); --color-surface: var(--surface); --color-border: var(--line);
+  background: var(--canvas); color: var(--ink); isolation: isolate;
+}
+.auth-connected > .constellation-background {
+  position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0;
+  opacity: .55; pointer-events: none;
+}
+.auth-connected .auth-page-nav {
+  max-width: 1320px; min-height: 93px; padding: max(22px, env(safe-area-inset-top)) 36px 22px;
+  border-bottom: 1px solid var(--line); background: transparent;
+}
+.auth-connected .auth-home-link { color: var(--ink); font-size: 15px; letter-spacing: 1.1px; }
+.auth-connected .auth-website-link {
+  border: 1px solid var(--line); background: var(--surface); color: var(--link);
+  border-radius: 10px; min-height: 42px; font-size: 12px;
+}
+.auth-connected .auth-website-link:hover { background: var(--soft); }
+.auth-connected .auth-appearance button, .auth-connected .appearance-selector {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px;
+}
+.auth-connected .appearance-selector select { color: var(--ink); background: var(--surface); }
+.auth-connected .auth-page { grid-template-columns: 1fr 1fr; gap: 85px; padding-block: 55px 70px; }
+.auth-connected .auth-welcome h2 { color: var(--ink); font-size: clamp(42px, 4.6vw, 66px); font-weight: 650; line-height: 1.08; letter-spacing: -.05em; }
+.auth-connected .auth-welcome .eyebrow { color: var(--link); font-size: 10px; letter-spacing: .15em; }
+.auth-connected .auth-welcome-intro { color: var(--muted); font-size: 16px; line-height: 1.85; max-width: 390px; }
+.auth-connected .auth-card {
+  width: 100%; max-width: 490px; padding: 34px; border-radius: 21px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: 0 14px 45px var(--shadow);
+}
+.auth-connected .auth-brand strong { color: var(--ink); }
+.auth-connected .auth-brand > div > span { color: var(--muted); }
+.auth-connected .brand-logo { background: var(--blue); color: var(--link); border-radius: 13px; }
+.auth-connected .brand-logo path { stroke: var(--link); }
+.auth-connected .auth-card h1 { color: var(--ink); font-weight: 650; letter-spacing: -.04em; font-size: 32px; }
+.auth-connected .auth-card .hint { color: var(--muted); font-size: 14px; }
+.auth-connected .auth-entry-tabs { border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+.auth-connected .auth-entry-tabs button { border: 0; border-radius: 8px; color: var(--muted); }
+.auth-connected .auth-entry-tabs button[aria-pressed="true"] { background: var(--surface); color: var(--link); box-shadow: 0 1px 3px var(--shadow); }
+.auth-connected .auth-card .form-field { color: var(--ink); font-size: 13px; }
+.auth-connected .auth-card .form-field > small { color: var(--muted); }
+.auth-connected .auth-card input { color: var(--ink); background: var(--canvas); border: 1px solid #8392a6; border-radius: 9px; min-height: 48px; }
+html[data-theme="dark"] .auth-connected .auth-card input { border-color: #60728f; }
+.auth-connected .auth-card input:focus { border-color: var(--link); box-shadow: 0 0 0 3px color-mix(in srgb, var(--link) 16%, transparent); }
+.auth-connected .auth-password-field button, .auth-connected .auth-recovery-link { color: var(--link); }
+.auth-experience.auth-connected .auth-card button.primary { background: var(--action); color: var(--action-text); border: 1px solid var(--action); border-radius: 10px; min-height: 48px; box-shadow: none; }
+.auth-connected .auth-card .primary:hover { filter: brightness(.96); }
+.auth-connected .auth-card .primary:disabled { opacity: .65; }
+.auth-connected a:focus-visible, .auth-connected button:focus-visible, .auth-connected select:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
+@media(max-width:900px) { .auth-connected .auth-page { gap: 35px; padding: 35px 24px 55px; }.auth-connected .auth-card { padding: 28px; } }
+@media(max-width:700px) {
+  .auth-connected .auth-page-nav { padding: calc(15px + env(safe-area-inset-top)) 18px 15px; gap: 14px; }
+  .auth-connected .auth-brand-links { gap: 10px 16px; }.auth-connected .auth-appearance { gap: 8px; }
+  .auth-connected .auth-page { display: block; padding: 24px 18px calc(35px + env(safe-area-inset-bottom)); min-height: auto; }
+  .auth-connected .auth-card { max-width: 490px; margin: 0 auto; padding: 26px; border-radius: 18px; }
+  .auth-connected .auth-card input { font-size: 16px; }
+}
+@media(max-width:380px) { .auth-connected .auth-card { padding: 22px; }.auth-connected .auth-card h1 { font-size: 29px; } }
