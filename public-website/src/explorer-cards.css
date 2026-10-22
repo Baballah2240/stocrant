@@ -135,3 +135,85 @@ html[data-theme="dark"] .focus-feature-list li > span { color: color-mix(in srgb
   .section-map { gap: 12px; }.map-node, .map-node.map-service { padding: 16px; }.map-node strong { font-size: 13px; }.map-node small { font-size: 9px; }.map-node { min-height: 143px; }
   .focus-card { padding: 22px; }.focus-card h2 { font-size: 27px; }
 }
+
+/* The connected map is the entrance: an open canvas across the viewport. */
+.explorer-hero {
+  display: block;
+  position: relative;
+  max-width: none;
+  min-height: calc(100svh - 93px);
+  padding: 24px 36px 20px;
+  background: radial-gradient(ellipse at 15% 30%, #bde0fa25, transparent 45%), radial-gradient(ellipse at 85% 70%, #b9e9d82b, transparent 45%);
+}
+.explorer-hero > .section-map-wrap { display: flex; flex-direction: column; width: 100%; max-width: 1400px; min-height: calc(100svh - 137px); margin: auto; padding: 0; }
+.stage-heading { text-align: center; position: relative; z-index: 2; }
+.stage-heading .site-kicker { font-size: 9px; margin-bottom: 8px; }
+.stage-heading h1 { font-size: 32px; letter-spacing: -.045em; margin: 0 0 9px; }
+.stage-heading > p:last-child { font-size: 12px; color: var(--muted); margin: 0; }
+.explorer-hero .section-map { flex: 1; width: 100%; height: auto; min-height: 540px; margin-top: 20px; }
+.explorer-hero .map-node { top: clamp(76px, var(--node-y), calc(100% - 76px)); }
+.explorer-hero .map-node.map-service { width: 184px; }
+.explorer-hero .map-center { top: 46%; }
+.explorer-hero .map-center > span { width: 98px; height: 98px; border-radius: 32px; box-shadow: 0 0 0 14px color-mix(in srgb, var(--blue) 12%, transparent), 0 14px 55px color-mix(in srgb, var(--blue) 35%, transparent); }
+.explorer-hero .map-orbit { width: 64%; height: 76%; left: 18%; top: 12%; border-style: solid; opacity: .5; }
+.explorer-hero .orbit-two { width: 88%; height: 94%; left: 6%; top: 3%; border-style: dashed; opacity: .35; }
+.explorer-hero .map-connections path { stroke-width: .13; opacity: .6; stroke-dasharray: 1 1.5; }
+.explorer-hero .map-instruction { margin: 15px 0 0; font-size: 10px; }
+.home-introduction { max-width: 1224px; margin: 50px auto 0; padding: 45px 35px; text-align: center; }
+.home-introduction .explorer-intro { padding: 0; }
+.home-introduction h2 { font-size: clamp(36px, 4vw, 54px); }
+.home-introduction .explorer-intro > p:not(.site-kicker) { max-width: 520px; margin-inline: auto; }
+.home-introduction .hero-links { flex-direction: row; justify-content: center; align-items: center; }
+.home-introduction .intro-footnote { justify-content: center; }
+
+/* A short preview on hover; select a section for the complete detail card. */
+.hover-focus { width: 350px; padding: 22px; border-radius: 27px; left: 32px; }
+.hover-focus[data-side="right"] { left: auto; right: 32px; }
+.hover-focus .focus-card-top { gap: 11px; margin-bottom: 18px; }
+.hover-focus .section-symbol { width: 40px; height: 40px; border-radius: 13px; }
+.hover-focus .section-symbol svg { width: 23px; height: 23px; }
+.hover-focus .focus-identity strong { font-size: 15px; }
+.hover-focus .focus-eyebrow, .hover-focus .focus-capabilities h3, .hover-focus .focus-connection, .hover-focus .focus-access { display: none; }
+.hover-focus h2 { font-size: 23px; line-height: 1.17; margin-bottom: 12px; }
+.hover-focus p.focus-description { font-size: 12px; line-height: 1.7; }
+.hover-focus .focus-capabilities { margin-top: 17px; }
+.hover-focus .focus-feature-list { font-size: 11px; gap: 4px; }
+.hover-focus .focus-feature-list li { padding: 8px 9px; gap: 8px; border-radius: 10px; }
+.hover-focus .focus-feature-list li > span { width: 17px; height: 17px; font-size: 9px; }
+.hover-focus .focus-actions { margin: 18px 0 0; gap: 8px; }
+.hover-focus .focus-actions .site-button { min-height: 42px; border-radius: 13px; padding: 10px 14px; font-size: 11px; }
+.hover-focus .focus-actions > a { font-size: 11px; }
+
+@media(prefers-reduced-motion:no-preference) {
+  .explorer-hero .map-node { animation-name: living-float; animation-duration: 11s; }
+  .explorer-hero .section-map::before { animation: canvas-breathe 16s ease-in-out infinite alternate; }
+  .explorer-hero .map-connections path { animation: connected-flow 24s linear infinite; }
+  .explorer-hero .map-orbit { animation: orbit-breathe 18s ease-in-out infinite alternate; }
+  .explorer-hero .orbit-two { animation-delay: -9s; }
+  .explorer-hero .section-map[data-paused="true"] *, .explorer-hero .section-map[data-paused="true"]::before { animation-play-state: paused; }
+  @keyframes living-float { 0%,100% { translate: -2px -7px; } 50% { translate: 2px 7px; } }
+  @keyframes canvas-breathe { from { opacity: .6; scale: .95; } to { opacity: 1; scale: 1.12; } }
+  @keyframes connected-flow { to { stroke-dashoffset: -15; } }
+  @keyframes orbit-breathe { from { opacity: .22; } to { opacity: .55; } }
+}
+@media(max-width:1050px) { .explorer-hero { padding-inline: 24px; }.explorer-hero > .section-map-wrap { max-width: none; } }
+@media(max-width:1050px) {
+  .explorer-hero .section-map { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; min-height: auto; margin-top: 26px; align-content: center; }
+  .explorer-hero .map-center { position: static; transform: none; grid-column: 1 / -1; padding: 8px 0 23px; }
+  .explorer-hero .map-center > span { width: 72px; height: 72px; border-radius: 24px; font-size: 32px; }
+  .explorer-hero .map-center small { display: none; }
+  .explorer-hero .map-node, .explorer-hero .map-node.map-service { position: relative; left: auto; top: auto; transform: none; width: 100%; min-height: 135px; }
+  .explorer-hero .map-orbit, .explorer-hero .map-connections { display: none; }
+  .hover-focus, .hover-focus[data-side="right"] { left: 50%; right: auto; transform: translate(-50%, -50%); }
+}
+@media(max-width:700px) {
+  .explorer-hero { padding: 28px 20px 22px; min-height: calc(100svh - 132px); }
+  .explorer-hero > .section-map-wrap { min-height: calc(100svh - 182px); }
+  .stage-heading h1 { font-size: 29px; }.stage-heading > p:last-child { font-size: 11px; }
+  .explorer-hero .section-map { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+  .explorer-hero .map-node { min-height: 145px; }
+  .explorer-hero .map-node.map-service { grid-column: 1 / -1; min-height: 96px; }
+  .home-introduction { margin-top: 20px; padding: 35px 24px; }
+  .home-introduction .hero-links { flex-wrap: wrap; }
+  .hover-focus { width: min(350px, calc(100vw - 32px)); }
+}

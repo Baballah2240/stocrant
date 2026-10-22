@@ -4,7 +4,7 @@
 
 The integrated server serves the public explorer at /, the shop website service at /services/shop-websites, module pages at /explore/:module, and /privacy. /website/ remains a homepage alias for existing login/native links. Public assets have a separate /site-assets/ namespace. Browser management entry is /workspace; existing business URLs such as /finance and /hr retain protected modules. Native home remains / inside the bundled management app.
 
-Desktop hover focuses a module with a readable explanation. Click/tap opens a keyboard-dismissable dialog; shop websites opens the service page directly. Motion can be paused and respects reduced-motion preferences. The public root is shown even to signed-in visitors. Existing workspace authentication, records and module permissions are retained.
+The full-width explorer fills the opening viewport; introductory copy follows below. Desktop hover shows a compact module preview. Click/tap opens a keyboard-dismissable dialog; shop websites opens the service page directly. Gentle floating and connection animations stop while a module is focused and respect reduced-motion preferences. There is no pause/resume control. The public root is shown even to signed-in visitors. Existing workspace authentication, records and module permissions are retained.
 
 ## Service scope and pricing
 
