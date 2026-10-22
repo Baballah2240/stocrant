@@ -1,0 +1,24 @@
+import { Router } from "express";
+import { z } from "zod";
+import { isNotebookManager } from "./personal-notes.js";
+import { getCollection, getStore, saveStore, transaction } from "./storage.js";
+
+const ids = ["profile", "notes", "attendance", "activity", "summary", "today", "tasks", "notifications", "policies", "assignment", "analytics", "management"] as const;
+const input = z.object({ version: z.number().int().min(0), items: z.array(z.object({ id: z.enum(ids), hidden: z.boolean(), wide: z.boolean() }).strict()).max(ids.length).refine(items => new Set(items.map(item => item.id)).size === items.length) }).strict();
+type Layout = { ownerId: string; version: number; items: z.infer<typeof input>["items"] };
+const layouts = () => getCollection("managerDashboardLayouts") as Layout[];
+export const dashboardLayoutRouter = Router();
+dashboardLayoutRouter.use((req, res, next) => isNotebookManager(req.auth) ? next() : res.status(403).json({ error: "A manager account is required to customize the dashboard." }));
+dashboardLayoutRouter.get("/", (req, res) => {
+  const layout = layouts().find(item => item.ownerId === req.auth!.id);
+  res.json(layout ? { version: layout.version, items: layout.items } : { version: 0, items: [] });
+});
+dashboardLayoutRouter.put("/", (req, res) => {
+  const parsed = input.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Choose valid dashboard cards and sizes." });
+  const current = layouts().find(item => item.ownerId === req.auth!.id);
+  if (parsed.data.version !== (current?.version || 0)) return res.status(409).json({ error: "Your dashboard changed elsewhere. Reload the saved layout before editing." });
+  const next: Layout = { ownerId: req.auth!.id, version: parsed.data.version + 1, items: parsed.data.items };
+  transaction(() => { if (current) Object.assign(current, next); else layouts().push(next); saveStore(getStore()); });
+  res.json({ version: next.version, items: next.items });
+});

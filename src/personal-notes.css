@@ -32,6 +32,13 @@
 .notebook-actions button { font-size: 11px; min-height: 36px; }
 .notebook-delete { margin-top: 15px; padding: 13px; border: 1px solid var(--ios-separator); border-radius: 10px; }
 .notebook-delete p { font-size: 12px; }.notebook-delete button { margin-inline-end: 8px; }
+.notebook-compact { padding: 20px; }.notebook-compact .notebook-heading { gap: 12px; flex-wrap: wrap; }
+.notebook-compact .notebook-heading h2 { font-size: 18px; margin-bottom: 0; }.notebook-compact .notebook-heading > button { font-size: 11px; }
+.notebook-compact .notebook-counts { margin-block: 14px; gap: 8px 18px; }
+.notebook-compact .notebook-list { grid-template-columns: 1fr; gap: 8px; }.notebook-compact .notebook-note { padding: 12px 14px; }
+.notebook-compact .notebook-note h3 { font-size: 14px; }.notebook-compact .notebook-body { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-block: 6px; font-size: 12px; }
+.notebook-compact .notebook-actions[hidden] { display: none; }.notebook-compact .notebook-due { margin-block: 8px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.notebook-toggle { margin-top: 14px; font-size: 12px; }
 @media(max-width:900px) { .notebook-list { grid-template-columns: 1fr; } }
 @media(max-width:600px) {
   .personal-notebook { padding: 18px; margin-block: 16px; }.notebook-heading { flex-direction: column; gap: 8px; }.notebook-heading h2 { font-size: 21px; }

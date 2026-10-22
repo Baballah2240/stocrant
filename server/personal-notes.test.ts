@@ -40,6 +40,28 @@ before(async () => {
 after(async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); const target = resolve(TEST_DATA_DIR); assert.ok(target.startsWith(resolve(tmpdir()) + sep) && target.includes("stocrant-test-data-")); rmSync(target, { recursive: true, force: true }); });
 
 describe("Private manager notebook and production organization workflow", () => {
+  it("persists account-owned dashboard layouts and rejects stale writes", async () => {
+    const initial = await json(await api("/workspace/dashboard-layout")); assert.equal(initial.version, 0);
+    const items = [{ id: "notes", hidden: false, wide: false }, { id: "profile", hidden: true, wide: true }];
+    const saved = await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items })); assert.equal(saved.version, 1);
+    resetTestCache(); assert.deepEqual((await json(await api("/workspace/dashboard-layout"))).items, items);
+    for (const session of [main, colleague]) assert.deepEqual((await json(await api("/workspace/dashboard-layout", "GET", undefined, session))).items, []);
+    await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items: [] }), 409);
+    assert.deepEqual((await json(await api("/workspace/dashboard-layout"))).items, items);
+    await json(await api("/workspace/dashboard-layout", "PUT", { version: 1, items: [] }));
+  });
+  it("validates layout cards, ownership and permissions without exposing a generic collection", async () => {
+    await json(await api("/workspace/dashboard-layout", "GET", undefined, ""), 401);
+    await json(await api("/workspace/dashboard-layout", "GET", undefined, employee), 403);
+    await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items: [] }, employee), 403);
+    for (const payload of [
+      { version: 2, items: [], ownerId: "someone-else" },
+      { version: 2, items: [{ id: "unknown", hidden: false, wide: false }] },
+      { version: 2, items: [{ id: "notes", hidden: false, wide: false }, { id: "notes", hidden: true, wide: false }] },
+      { version: -1, items: [] },
+    ]) await json(await api("/workspace/dashboard-layout", "PUT", payload), 400);
+    for (const path of ["/collections/managerDashboardLayouts", "/collections/managerDashboardLayouts/export"]) await json(await api(path, "GET", undefined, main), 404);
+  });
   it("creates company employees under the delegated organization and refuses foreign organization access", async () => {
     const person = await create("employees", { name: "Trial employee", organizationId: company.id, status: "active", hireDate: "2026-10-23", employmentType: "full-time", department: "Operations" }, manager);
     assert.match(person.employeeCode, /^EMP-/); assert.ok((getStore().collections.accessUsers as Row[]).some(row => row.employeeId === person.id));

@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Compact notes and personal dashboard layouts
+
+- Make the manager notebook a compact half-width card with two note previews; open it to search or manage the full notebook. Editing and reminder links expand it automatically.
+- Add manager-only dashboard customization: reorder with touch/keyboard buttons or desktop drag handles, choose half/full width, hide/show components, save, cancel and reset to defaults.
+- Save layouts on the server per authenticated manager account, with version checks to prevent one device overwriting a newer layout from another. Hidden notebooks still open from private reminder links.
+- Keep unsaved notes and chart state when entering customization or moving cards. Stack cards on phones, support Arabic/light/dark layouts, and keep the desktop attendance card readable when resized.
+- Verified the full project check, private layout persistence/isolation/conflict tests, compact notebook and customization browser workflows, and dashboard activity regressions. Shared source update only; no native package rebuilt or installed.
+
 ## 2026-10-23 - Manager dashboard and private notebook
 
 - Keep the manager dashboard available at phone sizes for Manager, Organization Admin, Company Manager, HR Manager, General Manager, Finance Manager and Main Admin accounts. Employees retain their mobile people view.
