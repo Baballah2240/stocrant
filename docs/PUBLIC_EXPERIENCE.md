@@ -10,9 +10,13 @@ The full-width explorer fills the opening viewport; introductory copy follows be
 
 The public background uses a decorative canvas of connected stars with slow movement, size and brightness variation. It runs at a bounded 30fps with at most 95 stars (fewer on phones), pauses in hidden tabs and renders a static frame for reduced-motion users. Native document scrolling is retained; a sticky header, offset anchors and a Discover more link guide visitors between sections. Opening module details locks background scrolling and closing them restores it. Page scrolling dismisses hover previews.
 
+Main sections have a viewport-sized minimum height. Desktop uses proximity scroll snapping below the sticky header; phones and short windows retain free scrolling. Content can exceed a viewport without clipping. Light and dark themes use distinct, high-contrast surfaces with blue accents and no tile backlight.
+
 ## Service scope and pricing
 
 Essentials, Connected and Custom packages show **Custom quote** because approved prices, currencies, taxes and service terms have not been supplied. The page distinguishes initial work, ongoing care and third-party fees. No amount is charged and no storefront is provisioned. Payment, shipping and STOCRANT integration requirements are assessed and agreed before implementation for a client.
+
+The service page keeps starting-point choices, expandable package details, cost explanations and the inquiry form in one request section. A selected package is shown directly in the form summary; Help me choose resets it without clearing visitor inputs. There is one question form and no duplicate package dropdown.
 
 ## Visitor-to-staff handoff
 

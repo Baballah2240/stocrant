@@ -55,8 +55,9 @@ try {
   await send("Page.navigate", { url: base + "/finance" }); await until('Boolean(document.querySelector(".auth-card"))');
   assert.ok(await evaluate('Boolean(document.querySelector(".auth-card input"))'));
   await send("Page.navigate", { url: base + "/services/shop-websites" }); await until('Boolean(document.querySelector(".inquiry-form"))');
+  assert.ok(await evaluate('document.querySelector(".plan-grid").closest("#inquire")===document.querySelector(".inquiry-form").closest("#inquire")'), "Package selection and questions must share one request workspace");
   await evaluate('document.querySelector(".plan-featured button").click()');
-  assert.equal(await evaluate('document.querySelector(".inquiry-fields select").value'), "connected");
+  assert.equal(await evaluate('document.querySelector(".request-selection").dataset.plan'), "connected");
   for (const [selector, value] of [["label:nth-child(1) input", "Public Browser Visitor"], ["label:nth-child(2) input", "Browser Shop"], ["label:nth-child(3) input", "browser-visitor@example.test"], ["label:nth-child(4) input", "+974 5555 1234"]]) await fill(`.inquiry-fields ${selector}`, value);
   await fill(".inquiry-fields textarea", "Please contact me about a branded shop with a product catalog.");
   await evaluate('document.querySelector(".inquiry-consent input").click();document.querySelector(".inquiry-form").requestSubmit();document.querySelector(".inquiry-form").requestSubmit()');
