@@ -2,6 +2,15 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Manager dashboard and private notebook
+
+- Keep the manager dashboard available at phone sizes for Manager, Organization Admin, Company Manager, HR Manager, General Manager, Finance Manager and Main Admin accounts. Employees retain their mobile people view.
+- Add an owner-only personal notebook with optional phone links and reminder times, search, pinning, completion, editing and confirmed deletion. Company management notes remain a separate shared feature.
+- Deliver generic private reminder previews to the owner's in-app inbox on authenticated notification polling, including catch-up after returning. Store reminder times in UTC and edit them in the device's local timezone. This does not send SMS, email or offline device alarms.
+- Add English/Arabic layouts and light/dark styles to shared source, with touch-sized form inputs and optimistic version checks to prevent overwriting newer notes.
+- Align delegated organization controls with existing API permissions and explain missing attendance employee links correctly.
+- Verified isolated organization/company/employee creation, manager onboarding, private reminders, Main Admin isolation, desktop/mobile layouts, and broader administration, attendance, Operations, reporting and dashboard regressions. Source update only; no native package was rebuilt or installed.
+
 ## 2026-10-23 - Website appearance on sign-in
 
 - Reuse the public website's connected-star animation and scoped light/dark palette on login, registration, password-reset requests and first setup.

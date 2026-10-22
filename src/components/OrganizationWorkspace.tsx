@@ -49,9 +49,10 @@ export default function OrganizationWorkspace() {
   const canViewUsers = allowed(permissions, "access", "view", mainAdmin);
   const canCreateUsers = allowed(permissions, "access", "create", mainAdmin);
   const canViewAudit = allowed(permissions, "audit", "view", mainAdmin);
-  const canCreateCompany = allowed(permissions, "organizations", "create", mainAdmin);
-  const canEdit = allowed(permissions, "organizations", "edit", mainAdmin);
-  const canDelete = allowed(permissions, "organizations", "delete", mainAdmin);
+  // Structure changes are Main Admin-only in the API; do not offer dead actions to delegated managers.
+  const canCreateCompany = Boolean(mainAdmin);
+  const canEdit = Boolean(mainAdmin);
+  const canDelete = Boolean(mainAdmin);
   const tab: DetailTab = ["Companies", "Employees", "Users", "Activity"].includes(params.get("tab") ?? "") ? params.get("tab") as DetailTab : "Companies";
 
   const load = useCallback(async (refresh = false) => {

@@ -1,4 +1,5 @@
 import { canReadWebsiteInquiry } from "./permissions.js";
+import { isNotebookManager } from "./personal-notes.js";
 import type { AuthenticatedUser } from "./auth.js";
 import type { Notification } from "./types.js";
 import { getCollection } from "./storage.js";
@@ -19,7 +20,10 @@ export function notificationContext(user: AuthenticatedUser, item: Notification)
     const company = find("companies", String(row.organizationId || row.companyId || ""));
     if (company) details.company = company.name;
   };
-  if (target.startsWith("/customer-service?websiteInquiry=")) {
+  if (target.startsWith("personal-note:") && isNotebookManager(user)) {
+    const row = find("managerPersonalNotes", target.slice(14));
+    if (row && row.ownerId === user.id) { add(row, ["title", "body", "phone", "dueAt", "completed"]); link = { to: `/workspace?personalNote=${encodeURIComponent(String(row.id))}#private-notes`, label: "Open private notebook" }; }
+  } else if (target.startsWith("/customer-service?websiteInquiry=")) {
     const id = new URL(target, "https://stocrant.local").searchParams.get("websiteInquiry") || "";
     const row = find("websiteInquiries", id);
     if (row && canReadWebsiteInquiry(user, row)) { add(row, ["reference", "status", "service", "plan"]); link = { to: `/customer-service?websiteInquiry=${encodeURIComponent(id)}`, label: "Open website inquiry" }; }

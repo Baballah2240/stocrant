@@ -1,4 +1,5 @@
 import { dispatchTaskDeadlines } from "./operations.js";
+import { dispatchPersonalReminders } from "./personal-notes.js";
 import { dispatchHrMessages } from "./hr-messages.js";
 /**
  * Action-required notification engine.
@@ -164,6 +165,7 @@ notificationsRouter.post("/:id/respond", (req, res) => {
 notificationsRouter.get("/", (req, res) => {
   dispatchHrMessages();
   if(req.auth)dispatchTaskDeadlines(req.auth);
+  if(req.auth)dispatchPersonalReminders(req.auth, createNotification);
   const now = new Date().toISOString();
   const notices = getNotificationStore();
   let changed = false;

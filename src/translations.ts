@@ -1,4 +1,5 @@
 import { operationsTranslations } from "./operations-translations.ts";
+import { personalNotesTranslations } from "./personal-notes-translations.ts";
 import { publicWebsiteTranslations } from "./public-website-translations.ts";
 import { financeTranslations } from "./finance-translations.ts";
 import { redesignTranslations } from "./redesign-translations.ts";
@@ -224,6 +225,7 @@ const existingArabic: Readonly<Record<string, string>> = {
 };
 
 export const arabicTranslations: Readonly<Record<string, string>> = {
+  ...personalNotesTranslations,
   ...publicWebsiteTranslations,
   ...workspaceUpgradeTranslations,
   ...administrationTranslations,

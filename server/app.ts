@@ -24,6 +24,7 @@ import {
 } from "./auth.js";
 import { notificationRouter } from "./notifications.js";
 import { publicWebsiteRouter, websiteInquiryRouter } from "./public-website.js";
+import { personalNotesRouter } from "./personal-notes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -106,6 +107,7 @@ export function createApp() {
   app.use("/api/workspace/hr/communication", hrMessagesRouter);
   app.use("/api/workspace/tasks", tasksRouter);
   app.use("/api/workspace/customer-service/website-inquiries", websiteInquiryRouter);
+  app.use("/api/workspace/personal-notes", personalNotesRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);
 

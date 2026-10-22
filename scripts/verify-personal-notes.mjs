@@ -1,0 +1,160 @@
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
+import { browserQa } from "./browser-qa.mjs";
+
+const root = mkdtempSync(join(tmpdir(), "stocrant-test-data-notebook-browser-"));
+process.env.STOCRANT_DATA_DIR = root;
+process.env.NODE_ENV = "development";
+const { createApp } = await import("../dist/app.js");
+const server = createApp().listen(0, "127.0.0.1");
+await new Promise(resolve => server.once("listening", resolve));
+const base = `http://127.0.0.1:${server.address().port}`;
+const secret = () => randomBytes(24).toString("hex");
+let cookie = "", password = secret(), browser;
+async function req(path, method = "GET", body) {
+  const response = await fetch(base + "/api" + path, { method, headers: { Cookie: cookie, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const data = await response.json();
+  assert.ok(response.ok, `${response.status}: ${JSON.stringify(data)}`);
+  return { data, response };
+}
+const session = result => result.response.headers.get("set-cookie").split(";")[0];
+try {
+  cookie = session(await req("/auth/setup", "POST", { name: "Test Owner", email: "owner@notebook-browser.test", password, setupKey: "local-setup" }));
+  const ownerCookie = cookie;
+  browser = await browserQa(root);
+  const { send, evaluate, until } = browser;
+  await send("Network.enable");
+  async function fill(selector, value) {
+    await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing '+${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input),'value').set.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event(input.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);
+  }
+  async function button(text, container) {
+    await evaluate(`(()=>{const button=Array.from(document.querySelectorAll(${JSON.stringify(container + " button")})).find(el=>el.textContent.trim()===${JSON.stringify(text)});if(!button)throw Error('Missing button '+${JSON.stringify(text)});button.click();})()`);
+  }
+  async function navigate(path) {
+    await send("Network.setCookie", { name: "stocrant_session", value: cookie.slice(cookie.indexOf("=") + 1), url: base, path: "/" });
+    await send("Page.navigate", { url: base + path });
+    await until('Boolean(document.querySelector(".app-lock-screen input[type=password]"))');
+    await fill('.app-lock-screen input', password);
+    await evaluate('document.querySelector(".app-lock-screen form").requestSubmit()');
+    await until('Boolean(document.querySelector(".topbar"))');
+  }
+  // Create the organization and its company through the actual Main Admin forms.
+  await navigate("/organizations");
+  await until('Array.from(document.querySelectorAll("button")).some(el=>el.textContent.trim()==="Add organization")');
+  await button("Add organization", "main");
+  await until('Boolean(document.querySelector(".org-editor input"))');
+  await fill(".org-editor input", "Notebook Test Organization");
+  await evaluate('document.querySelector(".org-editor form").requestSubmit()');
+  await until('!document.querySelector(".org-editor") && document.querySelector("#org-detail-title")?.textContent.includes("Notebook Test Organization")');
+  const org = (await req("/collections/organizations")).data.items.find(item => item.name === "Notebook Test Organization");
+  assert.ok(org);
+  await button("Add company", "main");
+  await until('Boolean(document.querySelector(".org-editor input"))');
+  await fill(".org-editor input", "Notebook Test Company");
+  await evaluate('document.querySelector(".org-editor form").requestSubmit()');
+  await until('!document.querySelector(".org-editor") && document.querySelector(".org-detail")?.textContent.includes("Notebook Test Company")');
+  const company = (await req("/collections/companies")).data.items.find(item => item.name === "Notebook Test Company");
+  assert.equal(company.parentOrganizationId, org.id);
+  const temporary = secret();
+  await req("/workspace/access/users", "POST", { name: "Notebook Manager", email: "manager@notebook-browser.test", password: temporary, roleId: "role-organization-admin", tenantOrganizationIds: [org.id], organizationIds: [] });
+  cookie = session(await req("/auth/login", "POST", { email: "manager@notebook-browser.test", password: temporary }));
+  const ownerPassword = password;
+  password = secret();
+  await req("/auth/password", "POST", { currentPassword: temporary, newPassword: password });
+  cookie = session(await req("/auth/login", "POST", { email: "manager@notebook-browser.test", password }));
+  const managerCookie = cookie;
+  const managerPassword = password;
+  await navigate("/organizations");
+  await until('Boolean(document.querySelector(".org-detail"))');
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("main button")).some(el=>["Add organization","Add company","Delete organization","Edit organization"].includes(el.textContent.trim()))'), false);
+  await navigate("/organization/companies/" + company.id);
+  await until('Boolean(document.querySelector(".company-actions"))');
+  await evaluate('Array.from(document.querySelectorAll(".company-actions a")).find(el=>el.textContent.trim()==="Add employee").click()');
+  await until('Boolean(document.querySelector("#employee-company"))');
+  assert.equal(await evaluate('document.querySelector("#employee-company").value'), company.id);
+  await fill("#field-name", "Notebook Test Employee");
+  await fill("#field-hireDate", "2026-10-23");
+  await evaluate('document.querySelector(".entity-form").requestSubmit()');
+  await until('Boolean(document.querySelector(".employee-complete-profile"))');
+  const employee = (await req("/workspace/company-profiles/" + company.id)).data.employees.find(item => item.name === "Notebook Test Employee");
+  assert.match(employee.employeeCode, /^EMP-/);
+  assert.ok(employee.account.username);
+  await navigate("/workspace");
+  await until('Boolean(document.querySelector(".personal-notebook"))');
+  await button("New private note", ".notebook-heading");
+  await fill(".notebook-editor input:not([type])", "Call supplier privately");
+  await fill(".notebook-editor input[type=tel]", "+974 5555 0123");
+  await fill(".notebook-editor textarea", "Confirm next shipment.\nKeep this follow-up in my notebook.");
+  const past = await evaluate('(()=>{const d=new Date(Date.now()-120000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);})()');
+  await fill(".notebook-editor input[type=datetime-local]", past);
+  await evaluate('document.querySelector(".notebook-editor").requestSubmit();document.querySelector(".notebook-editor")?.requestSubmit()');
+  await until('!document.querySelector(".notebook-editor") && document.querySelector(".notebook-note")?.textContent.includes("Call supplier privately")');
+  let rows = (await req("/workspace/personal-notes")).data.items;
+  assert.equal(rows.length, 1, "Duplicate submit must save once");
+  const noteId = rows[0].id;
+  assert.equal(await evaluate('document.querySelector(".notebook-phone").getAttribute("href")'), "tel:+97455550123");
+  assert.ok(await evaluate('Boolean(document.querySelector(".notebook-due.is-due"))'));
+  const notifications = (await req("/notifications")).data;
+  assert.ok(JSON.stringify(notifications).includes(`personal-note:${noteId}`));
+  assert.ok(!JSON.stringify(notifications).includes("Call supplier privately"));
+  await navigate(`/workspace?personalNote=${noteId}#private-notes`);
+  await until('document.querySelector(".notebook-note")?.textContent.includes("Call supplier privately")');
+  await button("Edit", ".notebook-actions");
+  await fill(".notebook-editor textarea", "Updated confidential follow-up.");
+  await evaluate('document.querySelector(".notebook-editor").requestSubmit()');
+  await until('!document.querySelector(".notebook-editor") && document.querySelector(".notebook-body")?.textContent==="Updated confidential follow-up."');
+  await button("Back to my notebook", ".personal-notebook");
+  await button("Pin", ".notebook-actions");
+  await until('Boolean(document.querySelector(".notebook-note .badge"))');
+  await button("Mark complete", ".notebook-actions");
+  await until('!document.querySelector(".notebook-note")');
+  await fill(".notebook-filters select", "completed");
+  await until('Boolean(document.querySelector(".notebook-note.is-completed"))');
+  await button("Reopen", ".notebook-actions");
+  await until('!document.querySelector(".notebook-note")');
+  await fill(".notebook-filters select", "open");
+  await fill(".notebook-filters input", "5555");
+  await until('Boolean(document.querySelector(".notebook-note"))');
+  const directory = resolve(".local-preview/qa/personal-notes");
+  mkdirSync(directory, { recursive: true });
+  await evaluate('localStorage.setItem("stocrant-theme","light")');
+  for (const width of [1440, 390]) {
+    await send("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor: 1, mobile: width < 700 });
+    await navigate("/workspace");
+    await until('Boolean(document.querySelector(".notebook-note"))');
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'), `No horizontal overflow at ${width}`);
+    await evaluate('document.querySelector(".personal-notebook").scrollIntoView({block:"start"})');
+    writeFileSync(join(directory, `notebook-en-${width}.png`), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  }
+  await evaluate('localStorage.setItem("stocrant.language","ar");localStorage.setItem("stocrant-theme","dark")');
+  await navigate("/workspace");
+  await until('document.documentElement.dir==="rtl" && Boolean(document.querySelector(".notebook-note"))');
+  await evaluate('document.querySelector(".notebook-actions button").click()');
+  await until('Boolean(document.querySelector(".notebook-editor"))');
+  assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'));
+  await evaluate('document.querySelector(".personal-notebook").scrollIntoView({block:"start"})');
+  writeFileSync(join(directory, "notebook-ar-dark-mobile.png"), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  await evaluate('localStorage.setItem("stocrant.language","en");localStorage.setItem("stocrant-theme","light")');
+  // Switch actual accounts: Main Admin must not see another manager's notebook.
+  cookie = ownerCookie; password = ownerPassword;
+  await navigate("/workspace");
+  await until('Boolean(document.querySelector(".personal-notebook .empty"))');
+  assert.ok(!await evaluate('document.querySelector(".personal-notebook").textContent.includes("Call supplier privately")'));
+  cookie = managerCookie; password = managerPassword;
+  await navigate("/workspace");
+  await until('Boolean(document.querySelector(".notebook-note"))');
+  await button("Delete", ".notebook-actions");
+  await button("Delete private note", ".notebook-delete");
+  await until('!document.querySelector(".notebook-note")');
+  assert.equal((await req("/workspace/personal-notes")).data.total, 0);
+  console.log("Private notebook browser checks passed: UI organization/company/employee creation, real manager onboarding, permission-aligned controls, note/phone/reminder create/edit/pin/complete/reopen/search, duplicate submit protection, owner-only alerts and Main Admin isolation, desktop/mobile English and Arabic dark layouts.");
+} finally {
+  await browser?.close();
+  server.closeAllConnections();
+  await new Promise(resolve => server.close(resolve));
+  assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep) && root.includes("stocrant-test-data-notebook-browser-"));
+  rmSync(root, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 });
+}
