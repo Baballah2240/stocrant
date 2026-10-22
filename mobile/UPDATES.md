@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-22 - Public explorer and private website inquiry inbox
+
+- Make the browser's public root a floating section explorer with focus details and an anonymous shop website service page. Keep the native home/dashboard route and existing business modules.
+- Add responsive, translated Customer Service inquiry triage to shared source: scoped access, assignments, contact links, private follow-up notes and status history. Public submissions notify authorized platform inbox staff; assigned staff can handle only their own inquiries.
+- Use `/workspace` for the browser dashboard while native navigation retains `/`. The public website remains available through the native system-browser link.
+- This source update does not rebuild or install a new native package. The installed Android package remains the previous build.
+
 ## 2026-10-22 - Android package with current workspace upgrades
 
 - Include the shared attendance clock/history, detailed notifications, Operations collaboration, payroll payments, finance ledger, and the public website link in the bundled app.

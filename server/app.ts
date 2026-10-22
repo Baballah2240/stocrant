@@ -23,6 +23,7 @@ import {
   requireAuth,
 } from "./auth.js";
 import { notificationRouter } from "./notifications.js";
+import { publicWebsiteRouter, websiteInquiryRouter } from "./public-website.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -83,6 +84,7 @@ export function createApp() {
   });
 
   app.use("/api/auth", authRouter);
+  app.use("/api/public", publicWebsiteRouter);
   app.use("/api", requireAuth);
   app.use("/api", (req, res, next) => {
     if (req.auth?.mustChangePassword) return res.status(403).json({ error: "Change your temporary password before accessing business records.", code: "PASSWORD_CHANGE_REQUIRED" });
@@ -103,6 +105,7 @@ export function createApp() {
   app.use("/api/workspace/company-profiles", companyProfileRouter);
   app.use("/api/workspace/hr/communication", hrMessagesRouter);
   app.use("/api/workspace/tasks", tasksRouter);
+  app.use("/api/workspace/customer-service/website-inquiries", websiteInquiryRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);
 
@@ -116,9 +119,16 @@ export function createApp() {
     res.status(status).json({ error: status === 413 ? "Request is too large." : status === 400 ? "Invalid request body." : "An unexpected server error occurred." });
   });
 
-  // The independently built marketing website is public, without API access.
-  // Mount before the workspace SPA so /website/ never falls through to login.
+  // Public explorer and service pages use only the anonymous inquiry endpoint.
+  // Mount before the protected workspace shell; retain /website/ as an alias.
   const websiteDir = join(__dirname, "../public-website/dist");
+  app.use("/site-assets", express.static(join(websiteDir, "site-assets"), { dotfiles: "deny", immutable: true, maxAge: "1y" }));
+  for (const path of ["/", "/services/shop-websites", "/privacy", "/explore/:module"]) app.get(path, (_req, res, next) => {
+    const file = join(websiteDir, "index.html");
+    if (!existsSync(file)) return next();
+    res.setHeader("Cache-Control", "no-cache"); res.sendFile(file);
+  });
+  for (const file of ["robots.txt", "sitemap.xml"]) app.get(`/${file}`, (_req, res, next) => existsSync(join(websiteDir, file)) ? res.sendFile(join(websiteDir, file)) : next());
   app.get("/website", (req, res, next) => req.path === "/website" ? res.redirect(302, "/website/") : next());
   app.use("/website", express.static(websiteDir, { dotfiles: "deny", setHeaders(res, path) {
     res.setHeader("Cache-Control", path.includes(`${join("assets", "")}`) ? "public, max-age=31536000, immutable" : "no-cache");

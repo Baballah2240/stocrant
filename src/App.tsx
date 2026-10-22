@@ -39,22 +39,24 @@ import { useSession } from "./session-context";
 import ForcedPasswordChange from "./components/ForcedPasswordChange";
 import { useLanguage } from "./language-context";
 import { MetaProvider } from "./meta-context";
+import { isNativeApp } from "./api";
 
 const router = createBrowserRouter([
-  { path: "/welcome", element: <Navigate to="/" replace /> },
+  { path: "/welcome", element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace /> },
   {
     path: "/login",
-    element: <Navigate to="/" replace />,
+    element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace />,
   },
   {
     path: "/register",
-    element: <Navigate to="/" replace />,
+    element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace />,
   },
   {
     element: <Layout />,
     errorElement: <PageError />,
     children: [
       { index: true, element: <ResponsiveHome /> },
+      { path: "workspace", element: <ResponsiveHome /> },
 
       // ── Company locations ──
       { path: "me/attendance", element: <MobilePeople /> },

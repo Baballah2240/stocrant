@@ -664,8 +664,8 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal((await json<{ error: string }>(invalid)).error, "Invalid request body.");
   });
 
-  it("keeps the public website separate from the management API", async () => {
-    assert.equal((await request("/public/info", {}, mainCookie)).status, 404);
+  it("exposes public service info without exposing inquiry lists", async () => {
+    assert.equal((await request("/public/info", {}, mainCookie)).status, 200);
     assert.equal((await request("/public/inquiries", {}, mainCookie)).status, 404);
   });
 

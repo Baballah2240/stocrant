@@ -53,6 +53,7 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
   if (!main) {
     const role = rows("accessRoles").find(role => role.id === next.roleId);
     const grants = Array.isArray(next.permissions) ? next.permissions : Array.isArray(role?.permissions) ? role.permissions : [];
+    if (grants.includes("customerService.inquiries")) policyError("Only the Main Admin can grant platform website inquiry access.", 403);
     const actions = ["view", "create", "edit", "delete", "approve", "reply", "export", "pay", "configure"] as const;
     for (const grant of grants.map(String)) {
       const [section, action] = grant.split(".");
@@ -65,6 +66,9 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
 
 export function canManageAccount(actor: AuthenticatedUser, account: Row) {
   if (isMainManager(actor)) return true;
+  const role = rows("accessRoles").find(role => role.id === account.roleId);
+  const grants = Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : [];
+  if (grants.includes("customerService.inquiries")) return false;
   if (["role-main-manager", "role-organization-admin"].includes(String(account.roleId))) return false;
   const companies = Array.isArray(account.organizationIds) ? account.organizationIds.map(String) : [];
   const locations = effectiveLocationIds(actor);

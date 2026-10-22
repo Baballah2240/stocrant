@@ -1,11 +1,13 @@
 # STOCRANT public website
 
-This is an independent static React/Vite project. It has its own package, build, appearance preference and configuration. It does not use the management app's login, API or database. The workspace server serves its built files at `/website/`, linked from the top of the login page. `npm run build:full` in the repository root builds both projects. Copy this folder into a separate repository when publishing it independently.
+An independently built React/Vite public explorer, served by the existing STOCRANT server at /. Gentle module motion, hover focus and click/tap details introduce the protected workspace. The shop website service explains scope, quote-based packages, requirements and a public inquiry form. /website/ remains a homepage alias.
 
-Run `npm install`, then `npm run dev` (port 5174) or `npm run build` (output: `dist/`).
+Run npm ci and npm run dev here (port 5174). The development /api proxy targets port 3000. From the repository root, npm run build:full builds both interfaces and the server; npm run test:public-website verifies the isolated visitor-to-staff flow.
 
-For Render, create a **Static Site**, set Root Directory to `public-website` when using the existing repository (leave empty for a separate repository), Build Command to `npm ci --include=dev && npm run build`, and Publish Directory to `dist`.
+The form POSTs to /api/public/inquiries and receives a durable reference. The integrated server stores the request and notifies private Customer Service inbox staff. Visitors need no account. Customer Service follows up manually; the form does not send SMS or email.
 
-Configure the public values shown in `.env.example` before building. The Workspace sign-in link opens `VITE_WORKSPACE_URL` when configured; under `/website/` it otherwise returns to the same server's login. Set `VITE_PUBLIC_WEBSITE_URL` when building the management app to override its login-header website link with a separate public domain. The contact form opens an email draft addressed to `VITE_CONTACT_EMAIL`; the visitor must send it using their email app. No messages are stored in the management app. Use a separate form service if you want web-based delivery later.
+Production uses same-origin /workspace and /api by default. Optional VITE_WORKSPACE_URL and VITE_PUBLIC_API_URL are documented in .env.example. A separately hosted static site must send inquiries to the STOCRANT API and have its HTTPS origin allowed through STOCRANT_ALLOWED_ORIGINS. Static hosting also needs SPA fallback for public deep links. The configured deployment is the existing Render web service.
 
-Keep the management app on its existing Render web service. A separate static-site service and hostname are optional: the existing workspace service can serve the built website at `/website/`. No service has been deployed or domain assigned automatically.
+All package prices are **Custom quote** until the business supplies approved amounts and currencies. This release does not provision storefronts, take payments or synchronize external shops.
+
+See [public experience operations](../docs/PUBLIC_EXPERIENCE.md).

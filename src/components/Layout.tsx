@@ -1,3 +1,4 @@
+import { isNativeApp } from "../api";
 import AppearanceSelector from "./AppearanceSelector";
 import { UrgentEmployeeBanner } from "./HRMessageDetails";
 import MobileIcon, { type MobileIconName } from "./MobileIcon";
@@ -50,7 +51,7 @@ function NavButton({ item, onNavigate }: { item: NavEntry; onNavigate?: () => vo
     : item.to === "/admin" ? pathname.startsWith("/admin") || pathname === "/access"
     : undefined;
   return (
-    <NavLink to={item.to} end={item.end ?? item.to === "/hr"} className={({ isActive }) => `nav-item${(sectionActive ?? isActive) ? " active" : ""}`} aria-current={sectionActive ? "page" : undefined} aria-label={t(item.label)} onClick={onNavigate}>
+    <NavLink to={item.to === "/" && !isNativeApp() ? "/workspace" : item.to} end={item.end ?? item.to === "/hr"} className={({ isActive }) => `nav-item${(sectionActive ?? isActive) ? " active" : ""}`} aria-current={sectionActive ? "page" : undefined} aria-label={t(item.label)} onClick={onNavigate}>
       {item.icon && <MobileIcon name={item.icon} />}<span className="nav-label">{t(item.label)}</span>
     </NavLink>
   );
@@ -95,7 +96,7 @@ export default function Layout() {
   };
 
   return (
-    <div className={`ios-app ${location.pathname === "/" ? "dashboard-shell" : ""} ${mobile ? "mobile-layout" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <div className={`ios-app ${["/", "/workspace"].includes(location.pathname) ? "dashboard-shell" : ""} ${mobile ? "mobile-layout" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">{t("Skip to content")}</a><header className="topbar">
         {mobile ? <>{location.pathname !== "/" && <BackButton className="mobile-header-back" fallback={backFallback} />}<button className="mobile-header-control" type="button" aria-label={t("Open account menu")} aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="topbar-spacer" /><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
           <button className="workspace-sidebar-toggle" type="button" aria-label={t("Primary navigation")} aria-controls="primary-navigation" aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
@@ -144,7 +145,7 @@ export default function Layout() {
         </div>
       </dialog>}
 
-      {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to="/" end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
+      {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to={isNativeApp() ? "/" : "/workspace"} end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
       <div className="app">
         <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} aria-hidden={sidebarCollapsed} inert={sidebarCollapsed}>
           <nav className="nav" aria-label={t("Main navigation")}>
@@ -153,7 +154,7 @@ export default function Layout() {
             ))}
           </nav>
           <div className="nav-bottom">
-            {location.pathname === "/" && <button type="button" className="dashboard-sidebar-profile" onClick={() => setProfileOpen(true)}><span className="dashboard-sidebar-avatar">{user?.avatar ? <img src={user.avatar} alt=""/> : user?.name.slice(0, 2).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{t("My profile")}</small></span><span aria-hidden="true">↗</span></button>}
+            {["/", "/workspace"].includes(location.pathname) && <button type="button" className="dashboard-sidebar-profile" onClick={() => setProfileOpen(true)}><span className="dashboard-sidebar-avatar">{user?.avatar ? <img src={user.avatar} alt=""/> : user?.name.slice(0, 2).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{t("My profile")}</small></span><span aria-hidden="true">↗</span></button>}
             <NavButton item={aboutItem} onNavigate={closeSidebarAfterNavigation} />
           </div>
         </aside>

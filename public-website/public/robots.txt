@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /workspace
+Disallow: /login
+Disallow: /admin
+Disallow: /hr
+Disallow: /finance
+Disallow: /operations
+Disallow: /customer-service
+Disallow: /warehouse
+Sitemap: https://www.mohbaba.online/sitemap.xml

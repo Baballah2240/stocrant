@@ -1,6 +1,6 @@
 # STOCRANT
 
-The management web app and mobile app share this project's API and business data. The public marketing website is now a separate, independently buildable project in [`public-website/`](public-website/README.md). The management app opens directly to login, with a top-side link to the public website at `/website/`. The workspace server serves the independently built marketing files without sharing business data or a contact inbox. Set `VITE_PUBLIC_WEBSITE_URL` at build time to link a separately hosted public website instead.
+The website opens with a public section explorer, focus details and a shop website service at `/services/shop-websites`. Visitors can send inquiries without an account; authorized staff handle them in Customer Service. The management web app and mobile app retain their shared API and business data. Browser workspace entry is `/workspace`; native home stays `/`. The public UI remains independently buildable in [`public-website/`](public-website/README.md). See [`docs/PUBLIC_EXPERIENCE.md`](docs/PUBLIC_EXPERIENCE.md) for routing, pricing and staff access.
 
 **App lock:** every account can open **App lock** from the navigation or Settings. The default inactivity timeout is 5 minutes, configurable from 1 to 60 minutes per account/device. Restored sessions open locked. Web unlock asks only for the existing account password and uses the normal rate-limited sign-in endpoint. Native mobile can enable strong fingerprint/Face ID authentication after confirming the account password and device biometric prompt. Passwords and biometric data are not saved for this feature. The mobile app can also lock immediately when backgrounded. This is a device privacy lock for the workspace UI; normal server authorization and session expiration continue to apply. Biometric unlock requires a valid server session. Run `npm run test:lock` for timing boundary and clock rollback checks.
 
@@ -88,7 +88,7 @@ npm run start        # build:full, then node dist/index.js
 
 In production a single Node process serves both the API and the built frontend:
 `GET /` returns `dist/web/index.html`, `/assets/*` are served statically, and
-`/website/` serves the independent marketing build from `public-website/dist/`. Other non-`/api` GET routes fall back to the workspace SPA shell. API routes live under `/api/*`.
+`/`, `/services/shop-websites`, `/privacy` and `/explore/:module` serve the public build from `public-website/dist/`; `/website/` remains an alias. `/workspace` and existing business paths serve the management SPA. API routes live under `/api/*`; only the public service information and inquiry submission routes are anonymous.
 
 To run the server without rebuilding:
 

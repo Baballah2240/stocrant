@@ -1,3 +1,4 @@
+import { canReadWebsiteInquiry } from "./permissions.js";
 import type { AuthenticatedUser } from "./auth.js";
 import type { Notification } from "./types.js";
 import { getCollection } from "./storage.js";
@@ -18,7 +19,11 @@ export function notificationContext(user: AuthenticatedUser, item: Notification)
     const company = find("companies", String(row.organizationId || row.companyId || ""));
     if (company) details.company = company.name;
   };
-  if(target.startsWith("task:")){
+  if (target.startsWith("/customer-service?websiteInquiry=")) {
+    const id = new URL(target, "https://stocrant.local").searchParams.get("websiteInquiry") || "";
+    const row = find("websiteInquiries", id);
+    if (row && canReadWebsiteInquiry(user, row)) { add(row, ["reference", "status", "service", "plan"]); link = { to: `/customer-service?websiteInquiry=${encodeURIComponent(id)}`, label: "Open website inquiry" }; }
+  } else if(target.startsWith("task:")){
     const row=find("workItems",target.slice(5));if(row&&can(user,"operations","view")&&isWithinScope(user,row)){add(row,["title","description","status","priority","dueDate","assignee","progress"]);link={to:`/operations/work/${encodeURIComponent(String(row.id))}`,label:"Open work item"};}
   } else if (item.type === "overdue_work") {
     const row = find("workItems", target);
