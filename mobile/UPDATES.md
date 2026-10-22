@@ -2,6 +2,11 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-22 - Website link on the left of sign-in
+
+- Move the public website link beside the STOCRANT name on the left of the login header in English and Arabic; keep language and appearance controls on the right.
+- Wrap the header on small phone screens. Source update only; no native build or phone installation performed.
+
 ## 2026-10-22 - Public website link on sign-in
 
 - Add a translated STOCRANT website link at the side of the login header, alongside language and appearance controls, with a wrapping layout for small phones.
