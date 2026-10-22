@@ -6,6 +6,10 @@ The integrated server serves the public explorer at /, the shop website service 
 
 The full-width explorer fills the opening viewport; introductory copy follows below. Desktop hover shows a compact module preview. Click/tap opens a keyboard-dismissable dialog; shop websites opens the service page directly. Gentle floating and connection animations stop while a module is focused and respect reduced-motion preferences. There is no pause/resume control. The public root is shown even to signed-in visitors. Existing workspace authentication, records and module permissions are retained.
 
+## Motion and scrolling
+
+The public background uses a decorative canvas of connected stars with slow movement, size and brightness variation. It runs at a bounded 30fps with at most 95 stars (fewer on phones), pauses in hidden tabs and renders a static frame for reduced-motion users. Native document scrolling is retained; a sticky header, offset anchors and a Discover more link guide visitors between sections. Opening module details locks background scrolling and closing them restores it. Page scrolling dismisses hover previews.
+
 ## Service scope and pricing
 
 Essentials, Connected and Custom packages show **Custom quote** because approved prices, currencies, taxes and service terms have not been supplied. The page distinguishes initial work, ongoing care and third-party fees. No amount is charged and no storefront is provisioned. Payment, shipping and STOCRANT integration requirements are assessed and agreed before implementation for a client.
