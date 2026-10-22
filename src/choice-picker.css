@@ -8,6 +8,8 @@
   font: inherit; font-size: 16px; font-weight: 500; text-align: start; box-shadow: 0 2px 8px #173e5208;
 }
 .choice-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ios-app .choice-select-trigger { min-width: 0; max-width: 100%; }
+.choice-select-trigger > span { min-width: 0; flex: 1; }
 .choice-select-trigger svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--brand-link); }
 .choice-select-trigger:focus-visible { outline: 3px solid var(--brand-link); outline-offset: 2px; }
 .choice-select-trigger:disabled { opacity: .5; }

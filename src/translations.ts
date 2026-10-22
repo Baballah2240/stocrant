@@ -16,6 +16,16 @@ export type Language = "en" | "ar";
 export type TranslationValues = Readonly<Record<string, string | number>>;
 
 const existingArabic: Readonly<Record<string, string>> = {
+  "File is too large to save on this device.": "حجم الملف أكبر من الحد المسموح لحفظه على هذا الجهاز.",
+  "A file save is already in progress.": "هناك عملية حفظ ملف قيد التنفيذ بالفعل.",
+  "Could not read the downloaded file.": "تعذّرت قراءة الملف الذي تم تنزيله.",
+  "Could not open the device file picker.": "تعذّر فتح نافذة اختيار مكان حفظ الملف.",
+  "Invalid file destination.": "مكان حفظ الملف غير صالح.",
+  "Could not save the file on this device.": "تعذّر حفظ الملف على هذا الجهاز.",
+  "Invalid website address.": "عنوان الموقع الإلكتروني غير صالح.",
+  "Could not open the website.": "تعذّر فتح الموقع الإلكتروني.",
+  "Printing is unavailable on this device.": "الطباعة غير متاحة على هذا الجهاز.",
+  "Could not open device printing.": "تعذّر فتح نافذة الطباعة على الجهاز.",
   "Check in": "تسجيل الحضور",
   "Check out": "تسجيل الانصراف",
   "Daily limit reached": "تم بلوغ الحد اليومي",

@@ -10,13 +10,16 @@ if (!existsSync(source)) throw new Error("Build the Android APK first with npm r
 const bytes = readFileSync(source);
 if (bytes.length < 1000 || bytes.readUInt32LE(0) !== 0x04034b50) throw new Error("The Android package is missing or invalid.");
 let commit = process.env.GITHUB_SHA || "unknown";
+const git = process.platform === "win32" && existsSync("C:/Program Files/Git/cmd/git.exe") ? "C:/Program Files/Git/cmd/git.exe" : "git";
+const gitOptions = { cwd: root, encoding: "utf8" };
+const safeDirectory = `safe.directory=${root.replace(/\\/g, "/").replace(/\/$/, "")}`;
 if (commit === "unknown") {
-  const git = process.platform === "win32" && existsSync("C:/Program Files/Git/cmd/git.exe") ? "C:/Program Files/Git/cmd/git.exe" : "git";
-  commit = execFileSync(git, ["-c", `safe.directory=${root.replace(/\\/g, "/").replace(/\/$/, "")}`, "rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  commit = execFileSync(git, ["-c", safeDirectory, "rev-parse", "HEAD"], gitOptions).trim();
 }
+const sourceDirty = Boolean(execFileSync(git, ["-c", safeDirectory, "status", "--porcelain"], gitOptions).trim());
 const directory = join(root, "mobile/releases");
 mkdirSync(directory, { recursive: true });
 const filename = "STOCRANT-Android.apk";
 copyFileSync(source, join(directory, filename));
-writeFileSync(join(directory, "latest.json"), JSON.stringify({ app: "STOCRANT", platform: "android", channel: "debug", sourceCommit: process.env.GITHUB_SHA || null, packagingCommit: commit, packagedAt: new Date().toISOString(), filename, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") }, null, 2) + "\n");
+writeFileSync(join(directory, "latest.json"), JSON.stringify({ app: "STOCRANT", platform: "android", channel: "debug", sourceCommit: sourceDirty ? null : commit, sourceDirty, packagingCommit: commit, packagedAt: new Date().toISOString(), filename, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") }, null, 2) + "\n");
 console.log("Saved mobile/releases/STOCRANT-Android.apk and latest.json.");

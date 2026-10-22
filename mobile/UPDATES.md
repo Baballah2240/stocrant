@@ -2,6 +2,17 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-22 - Android package with current workspace upgrades
+
+- Include the shared attendance clock/history, detailed notifications, Operations collaboration, payroll payments, finance ledger, and the public website link in the bundled app.
+- Use the live HTTPS workspace as the native default while preserving per-device server overrides and browser same-origin behavior.
+- Save task attachments and payroll/ledger CSV exports through Android's system file picker; keep authenticated downloads inside the app and send only file bytes to the picker. Cancellation leaves the workspace unchanged. Native saves are limited to 20 MiB.
+- Use Android's print/PDF dialog for payroll, payslips and finance, and open the public website in the system browser.
+- Keep status/navigation icons readable in light/dark mode and prevent long dashboard filter labels from expanding phone layouts.
+- Give the activity chart and analytics panel distinct component keys so changing dashboard filters does not repeatedly restart requests.
+- Verification includes the full project check, isolated Operations/payroll/attendance browser workflows, dashboard filters and layouts, and a real-device bridge test for appearance, invalid-link rejection and file-picker cancellation. The connected Android phone accepts an in-place update without clearing app data.
+- Save the Android package with its checksum and source/dirty-state manifest under ignored `mobile/releases/`. Generated packages and signing material remain outside Git. Windows can synchronize iOS assets but cannot compile or install an iOS binary.
+
 ## 2026-10-22 - Website link on the left of sign-in
 
 - Move the public website link beside the STOCRANT name on the left of the login header in English and Arabic; keep language and appearance controls on the right.

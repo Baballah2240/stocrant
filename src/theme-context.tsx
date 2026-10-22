@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { syncDeviceAppearance } from "./device-actions";
 export type ThemeMode = "light" | "dark";
 export type ThemePreference = ThemeMode | "system";
 interface ThemeContextValue { theme: ThemeMode; preference: ThemePreference; toggle: () => void; setTheme: (mode: ThemePreference) => void; }
@@ -20,6 +21,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
+    void syncDeviceAppearance(theme).catch(() => { /* Keep the workspace usable if native appearance is unavailable. */ });
     try { localStorage.setItem("stocrant-theme", preference); } catch { /* Device storage is optional. */ }
   }, [theme, preference]);
   const setTheme = useCallback((mode: ThemePreference) => setPreference(mode), []);

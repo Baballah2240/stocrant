@@ -23,14 +23,14 @@ export default function WorkActivityDashboard({ onPeriod, refresh = 0 }: { onPer
  const callback = useRef(onPeriod); callback.current = onPeriod;
  const params = (extra: Record<string, string> = {}) => new URLSearchParams({ range: filters.range, ...(filters.timezone ? { timezone: filters.timezone } : {}), ...(filters.range === "custom" ? { start: filters.start, end: filters.end } : {}), ...extra });
  const valid = filters.range !== "custom" || Boolean(filters.start && filters.end && filters.start <= filters.end);
- const change = (patch: Partial<Filters>) => { setFilters(old => ({ ...old, ...patch })); setBucket(""); setDetail(null); };
+ const change = (patch: Partial<Filters>) => { setFilters(old => Object.entries(patch).every(([key, value]) => old[key as keyof Filters] === value) ? old : ({ ...old, ...patch })); setBucket(""); setDetail(null); };
  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(filters)); } catch { /* Preferences remain usable. */ } }, [key, filters]);
  useEffect(() => {
   let active = true; setLoading(true); setError(""); setBucket(""); setDetail(null);
   if (!valid) { setLoading(false); setError("Choose both dates for a valid custom range."); return; }
   const timer = setTimeout(() => void request<Result>("/workspace/dashboard-activity?" + params()).then(data => { if (active) { setResult(data); setLoading(false); callback.current(data.period); } }).catch(err => { if (active) { setError(err.message); setLoading(false); } }), 150);
   return () => { active = false; clearTimeout(timer); };
- }, [filters, revision, refresh, valid]);
+ }, [filters.range, filters.timezone, filters.start, filters.end, revision, refresh, valid]);
  // Rolling presets follow the next calendar day, including daylight-saving changes.
  useEffect(() => { let day = result?.period.end || ""; const timer = window.setInterval(() => { if (!result || filters.range === "custom") return; const next = new Intl.DateTimeFormat("en-CA", { timeZone: result.period.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); if (day && next !== day) setRevision(v => v + 1); day = next; }, 30000); return () => clearInterval(timer); }, [result?.period.timezone, result?.period.end, filters.range]);
  useEffect(() => {

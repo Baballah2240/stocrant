@@ -50,14 +50,14 @@ export type {
  *
  *   1. SERVER_URL saved from the in-app server settings (stored on device)
  *   2. VITE_API_BASE_URL baked in at build time
- *   3. "" â†’ same-origin relative requests (browser / hosted deployment)
+ *   3. Live HTTPS workspace for native apps; same-origin for browser builds.
  */
 const RUNTIME_OVERRIDE_KEY = "stocrant.serverUrl";
 const RUNTIME_SESSION_KEY = "stocrant.mobileSession";
 
 function buildTimeBase(): string {
   const fromEnv = (import.meta.env?.VITE_API_BASE_URL ?? "").trim();
-  return fromEnv.replace(/\/+$/, "");
+  return (fromEnv || (isNativeApp() ? "https://www.mohbaba.online" : "")).replace(/\/+$/, "");
 }
 
 function readRuntimeOverride(): string {
