@@ -44,6 +44,7 @@
     "test:public-website": "npm run build:full && node scripts/verify-public-website.mjs",
     "test:complete-workspace": "npm run build:full && node scripts/verify-complete-workspace.mjs",
     "test:organization-admins": "npm run build:full && node scripts/verify-organization-admins.mjs",
+    "test:records-layout": "npm run build:full && node scripts/verify-records-layout.mjs",
     "test:organization-manager": "npm run build:full && node scripts/verify-organization-manager.mjs",
     "test:personal-notes": "npm run build:full && node scripts/verify-personal-notes.mjs",
     "test:dashboard-upgrade": "npm run build:full && node scripts/verify-dashboard-upgrade.mjs",

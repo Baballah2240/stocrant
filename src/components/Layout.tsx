@@ -11,6 +11,7 @@ import { useSession } from "../session-context";
 import { NotificationBell } from "./NotificationBell";
 import { useLanguage } from "../language-context";
 import "../dashboard-reference.css";
+import "../workspace-menu.css";
 
 interface NavEntry {
   to: string;
@@ -149,9 +150,15 @@ export default function Layout() {
       <div className="app">
         <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} aria-hidden={sidebarCollapsed} inert={sidebarCollapsed}>
           <nav className="nav" aria-label={t("Main navigation")}>
-            {visibleNavItems.map((item) => (
-              <NavButton key={item.to} item={item} onNavigate={closeSidebarAfterNavigation} />
-            ))}
+            {[
+              { label: "Workspace", paths: ["/", "/organizations", "/locations"] },
+              { label: "People & operations", paths: ["/hr", "/operations", "/customer-service", "/warehouse"] },
+              { label: "Finance", paths: ["/hr/payroll", "/me/payroll", "/finance"] },
+              { label: "Settings", paths: ["/admin", "/security"] },
+            ].map(group => {
+              const links = visibleNavItems.filter(item => group.paths.includes(item.to));
+              return links.length ? <div className="workspace-nav-group" key={group.label}><p className="workspace-nav-heading">{t(group.label)}</p>{links.map(item => <NavButton key={item.to} item={item} onNavigate={closeSidebarAfterNavigation}/>)}</div> : null;
+            })}
           </nav>
           <div className="nav-bottom">
             {["/", "/workspace"].includes(location.pathname) && <button type="button" className="dashboard-sidebar-profile" onClick={() => setProfileOpen(true)}><span className="dashboard-sidebar-avatar">{user?.avatar ? <img src={user.avatar} alt=""/> : user?.name.slice(0, 2).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{t("My profile")}</small></span><span aria-hidden="true">↗</span></button>}

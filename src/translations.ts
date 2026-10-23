@@ -2,6 +2,7 @@ import { operationsTranslations } from "./operations-translations.ts";
 import { personalNotesTranslations } from "./personal-notes-translations.ts";
 import { dashboardLayoutTranslations } from "./dashboard-layout-translations.ts";
 import { organizationAdminTranslations } from "./organization-admin-translations.ts";
+import { recordsLayoutTranslations } from "./records-layout-translations.ts";
 import { publicWebsiteTranslations } from "./public-website-translations.ts";
 import { financeTranslations } from "./finance-translations.ts";
 import { redesignTranslations } from "./redesign-translations.ts";
@@ -230,6 +231,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   ...personalNotesTranslations,
   ...dashboardLayoutTranslations,
   ...organizationAdminTranslations,
+  ...recordsLayoutTranslations,
   ...publicWebsiteTranslations,
   ...workspaceUpgradeTranslations,
   ...administrationTranslations,

@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Cleaner records layout and workspace menus
+
+- Replace stacked employee/record actions with a compact Open link and an accessible action menu. Keep edit/delete actions permission-aware, preserve deletion confirmation, and retain records while deletion awaits approval.
+- Tighten desktop rows, add name/avatar and status treatments, align search/status/sort controls, and paginate long directories. Stack record details into readable labeled cards on phones.
+- Group desktop/tablet workspace navigation, improve active/focus states, and use logical spacing for Arabic. Keep mobile drawer/bottom navigation and existing routes intact.
+- Verify search, filters, sorting, paging, keyboard/outside-click menu dismissal, menu positioning, Arabic/English light/dark layouts and employee permissions using isolated data. Shared source update only; no native package rebuilt or installed.
+
 ## 2026-10-23 - Organization main admins and company HR/staff assignment
 
 - Add a scoped main-admin card to each organization page. Platform Main Admins can assign an existing active organization account or create a new organization admin with a temporary password. Organizations can be created first and show an admin-setup reminder until assignment.
