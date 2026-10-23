@@ -410,7 +410,7 @@ router.post("/inventory/movements", requirePermission("inventory", "create"), (r
   const nextQuantity = Number(summary?.available ?? item.openingStock ?? 0) + effect;
   if (nextQuantity < 0 && !(item.allowNegative === true && parsed.data.permitNegative === true && can(req.auth, "inventory", "approve"))) return res.status(400).json({ error: "This movement would make stock negative. Enable and approve negative stock explicitly first." });
   try {
-    const result = mutateCollection(req.auth!, "inventoryMovements", "create", { ...parsed.data, quantity: Math.abs(parsed.data.quantity), duplicateKey, responsibleUserId: req.auth!.id, responsibleUser: req.auth!.name, organizationId: item.organizationId, locationId: item.locationId });
+    const result = mutateCollection(req.auth!, "inventoryMovements", "create", { ...parsed.data, quantity: parsed.data.type === "adjustment" ? parsed.data.quantity : Math.abs(parsed.data.quantity), duplicateKey, responsibleUserId: req.auth!.id, responsibleUser: req.auth!.name, organizationId: item.organizationId, locationId: item.locationId });
     res.status(result.pending ? 202 : 201).json(result);
   } catch (error) { sendError(res, error); }
 });

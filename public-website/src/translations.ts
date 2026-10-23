@@ -1,4 +1,6 @@
+import { shopWebsiteArabic } from "./shop-translations.ts";
 export const arabicWebsite: Record<string, string> = {
+  ...shopWebsiteArabic,
   "Close section details": "إغلاق تفاصيل القسم",
   "A CLOSER LOOK": "نظرة أقرب",
   "What you can do": "ما الذي يمكنك إنجازه؟",

@@ -12,7 +12,7 @@ test("Arabic covers public module descriptions, plans and literal interface copy
     item.features.forEach(check);
   }
   for (const item of plans) { check(item.name); check(item.subtitle); item.features.forEach(check); }
-  for (const file of ["PublicWebsite", "InquiryForm"]) {
+  for (const file of ["PublicWebsite", "InquiryForm", "ConnectedShops"]) {
     const source = readFileSync(`public-website/src/components/${file}.tsx`, "utf8"), ast = ts.createSourceFile(file + ".tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     function walk(node) {
       if (ts.isCallExpression(node) && node.expression.getText(ast) === "t" && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) check(node.arguments[0].text);

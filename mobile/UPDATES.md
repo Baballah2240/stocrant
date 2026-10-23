@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Connected shop foundation
+
+- Add Shops & orders to the shared mobile/website workspace, with company-scoped catalog, product editing, Excel preview/import, incoming shipments, reservations and order preparation/dispatch/delivery.
+- Preserve existing inventory as the stock source and link dispatch to an unpaid sale in Finance. Protect reservations, immutable shop stock records and duplicate submissions; retain company and employee permission boundaries.
+- Add named, revocable server connection keys for the future storefront. Keep keys out of public browser code, stored source and ordinary API lists.
+- Add English/Arabic responsive forms, product cards, shipment/order history and navigation. Explain shop services and the staged launch process on the public website.
+- This is a shared source update; no native package was built, synchronized or installed. The customer storefront, payment provider and domain configuration are a separate phase.
+
 ## 2026-10-23 - Cleaner records layout and workspace menus
 
 - Replace stacked employee/record actions with a compact Open link and an accessible action menu. Keep edit/delete actions permission-aware, preserve deletion confirmation, and retain records while deletion awaits approval.

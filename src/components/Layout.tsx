@@ -27,6 +27,7 @@ const navItems: NavEntry[] = [
   { to: "/locations", label: "Locations", icon: "locations", section: "locations" },
   { to: "/hr", label: "Workforce & HR", icon: "people", section: "hr" },
   { to: "/operations", label: "Operations", icon: "work", section: "operations" },
+  { to: "/shops", label: "Shops & orders", icon: "inventory", section: "inventory" },
   { to: "/customer-service", label: "Customer Service", icon: "work", section: "customerService" },
   { to: "/warehouse", label: "Inventory", icon: "inventory", section: "inventory" },
   { to: "/hr/payroll", label: "Payroll", icon: "finance", section: "payroll" },
@@ -91,7 +92,7 @@ export default function Layout() {
   const { user, signOut } = useSession();
   const mainAdmin = user?.roleId === "role-main-manager";
   const canSeeSection = (section?: string) => !section || mainAdmin || Boolean(user?.permissions.includes("*") || user?.permissions.includes(`${section}.*`) || user?.permissions.includes(`${section}.view`));
-  const visibleNavItems = navItems.filter(item => canSeeSection(item.section));
+  const visibleNavItems = navItems.filter(item => canSeeSection(item.section) && (item.to !== "/shops" || canSeeSection("operations")));
   const closeSidebarAfterNavigation = () => {
     if (!mobile) setSidebarCollapsed(true);
   };
@@ -152,7 +153,7 @@ export default function Layout() {
           <nav className="nav" aria-label={t("Main navigation")}>
             {[
               { label: "Workspace", paths: ["/", "/organizations", "/locations"] },
-              { label: "People & operations", paths: ["/hr", "/operations", "/customer-service", "/warehouse"] },
+              { label: "People & operations", paths: ["/hr", "/operations", "/shops", "/customer-service", "/warehouse"] },
               { label: "Finance", paths: ["/hr/payroll", "/me/payroll", "/finance"] },
               { label: "Settings", paths: ["/admin", "/security"] },
             ].map(group => {

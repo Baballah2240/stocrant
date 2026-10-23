@@ -1,5 +1,6 @@
 import { applySmartTaskApproval, applyTaskManagementApproval, prepareTaskMutation } from "./operations.js";
 import { appendFinancialHistory, ledgerSummary, validateFinancialMutation } from "./finance-ledger.js";
+import { protectCommerceStock } from "./commerce-stock.js";
 import { generateEmployeeCode } from "./employee-identity.js";
 import { eligibleSelfApproval } from "./admin-policy.js";
 import { syncEmployeeAccount } from "./employee-accounts.js";
@@ -108,6 +109,9 @@ function updateWorkActivity(user: AuthenticatedUser, item: Row, event: string, p
 }
 
 function applyMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string): Row | undefined {
+  const shopCurrent = targetId ? rows(collection).find(row => row.id === targetId) : undefined;
+  protectCommerceStock(collection, action, payload, shopCurrent);
+  if (collection === "sales" && shopCurrent?.shopOrderId) throw new Error("Shop sales are immutable. Record settlement or a controlled financial reversal instead.");
   if (collection === "workActivity") payload = { ...payload, completionTransition: false };
   if(collection==="workItems")payload=prepareTaskMutation(user,action,payload,targetId?rows(collection).find(row=>row.id===targetId):undefined);
   if(["workFiles","taskNotificationEvents"].includes(collection)||collection==="workActivity"&&targetId&&rows(collection).some(e=>e.id===targetId&&e.taskVersion===2))throw new Error("Use the secure task workflow. Task history and files are immutable.");

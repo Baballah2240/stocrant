@@ -1,4 +1,5 @@
 import tasksRouter from "./routes/tasks.js";
+import { commerceRouter, shopIntegrationRouter } from "./commerce.js";
 import companyWorkRouter from "./routes/company-work.js";
 import payrollRouter from "./routes/payroll.js";
 import companyProfileRouter from "./routes/company-profile.js";
@@ -75,7 +76,7 @@ export function createApp() {
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     if (process.env.NODE_ENV === "production") {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-      res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' blob:; connect-src 'self' https:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+      res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' blob:; connect-src 'self' https:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
     }
     next();
   });
@@ -88,6 +89,7 @@ export function createApp() {
 
   app.use("/api/auth", authRouter);
   app.use("/api/public", publicWebsiteRouter);
+  app.use("/api/shop-connection", shopIntegrationRouter);
   app.use("/api", requireAuth);
   app.use("/api", (req, res, next) => {
     if (req.auth?.mustChangePassword) return res.status(403).json({ error: "Change your temporary password before accessing business records.", code: "PASSWORD_CHANGE_REQUIRED" });
@@ -112,6 +114,7 @@ export function createApp() {
   app.use("/api/workspace/personal-notes", personalNotesRouter);
   app.use("/api/workspace/dashboard-layout", dashboardLayoutRouter);
   app.use("/api/workspace/organization-admins", organizationAdminsRouter);
+  app.use("/api/workspace/shops", commerceRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);
 

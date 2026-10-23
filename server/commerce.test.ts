@@ -1,0 +1,497 @@
+import { TEST_DATA_DIR } from "./test-env.js";
+import { after, before, describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { randomBytes, randomUUID } from "node:crypto";
+import { rmSync } from "node:fs";
+import { resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
+import type { Server } from "node:http";
+import { createApp } from "./app.js";
+import {
+  getCollection,
+  getStore,
+  resetTestCache,
+  saveStore,
+} from "./storage.js";
+type Row = Record<string, any>;
+let server: Server,
+  base: string,
+  session = "",
+  company: Row,
+  foreign: Row,
+  product: Row;
+const credentials = () => randomBytes(24).toString("hex");
+async function api(
+  path: string,
+  method = "GET",
+  body?: unknown,
+  cookie = session,
+  headers: Record<string, string> = {},
+) {
+  return fetch(base + "/api" + path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookie ? { Cookie: cookie } : {}),
+      ...headers,
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+}
+async function json(response: Response, status = 200): Promise<Row> {
+  assert.equal(response.status, status, await response.clone().text());
+  return response.json() as Promise<Row>;
+}
+const prefix = () => `/workspace/shops/${company.id}`;
+const orderBody = (extra: Row = {}) => ({
+  requestId: randomUUID(),
+  customer: "Shop customer",
+  phone: "+249 912345678",
+  lines: [{ productId: product.id, quantity: 2 }],
+  ...extra,
+});
+const create = async (name: string, body: Row) =>
+  (await json(await api(`/collections/${name}`, "POST", body), 201)).item;
+before(async () => {
+  server = createApp().listen(0, "127.0.0.1");
+  await new Promise<void>((r) => server.once("listening", r));
+  base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const setup = await api("/auth/setup", "POST", {
+    name: "Commerce owner",
+    email: "owner@commerce.test",
+    password: credentials(),
+    setupKey: "local-setup",
+  });
+  await json(setup, 201);
+  session = setup.headers.get("set-cookie")!.split(";")[0];
+  const org = await create("organizations", {
+    name: "Commerce organization",
+    status: "active",
+  });
+  const input = (name: string) => ({
+    name,
+    parentOrganizationId: org.id,
+    status: "active",
+    organizationType: "office",
+    industry: "retail",
+    currency: "SDG",
+  });
+  company = await create("companies", input("Commerce company"));
+  foreign = await create("companies", input("Other company"));
+});
+after(async () => {
+  server.closeAllConnections();
+  await new Promise<void>((r) => server.close(() => r()));
+  const target = resolve(TEST_DATA_DIR);
+  assert.ok(
+    target.startsWith(resolve(tmpdir()) + sep) &&
+      target.includes("stocrant-test-data-"),
+  );
+  rmSync(target, { recursive: true, force: true });
+});
+describe("Connected shop foundations", () => {
+  it("previews and imports atomically with company currency, unique SKUs and zero stock", async () => {
+    const input = {
+      products: [{ sku: "TEA-01", name: "Sudan tea", price: "12.35" }],
+    };
+    await json(await api(prefix() + "/products/preview", "POST", input));
+    assert.equal((getCollection("shopProducts") as Row[]).length, 0);
+    product = (
+      await json(await api(prefix() + "/products", "POST", input), 201)
+    ).products[0];
+    assert.equal(product.currency, "SDG");
+    const summary = await json(await api(prefix()));
+    assert.equal(summary.products[0].available, 0);
+    await json(
+      await api(prefix() + "/products", "POST", {
+        products: [{ sku: "NEW", name: "New", price: "5" }, input.products[0]],
+      }),
+      409,
+    );
+    assert.equal((getCollection("shopProducts") as Row[]).length, 1);
+    await json(
+      await api(prefix() + "/products", "POST", {
+        products: [{ sku: "BAD", name: "Invalid", price: "1.123" }],
+      }),
+      400,
+    );
+  });
+  it("receives shipments exactly once and protects the immutable movement", async () => {
+    const body = {
+      requestId: randomUUID(),
+      productId: product.id,
+      quantity: 10,
+      supplier: "Tea supplier",
+      reference: "AWB-100",
+    };
+    const first = await json(
+      await api(prefix() + "/receipts", "POST", body),
+      201,
+    );
+    const replay = await json(
+      await api(prefix() + "/receipts", "POST", body),
+      201,
+    );
+    assert.equal(first.id, replay.id);
+    await json(
+      await api(prefix() + "/receipts", "POST", { ...body, quantity: 11 }),
+      409,
+    );
+    await json(
+      await api(prefix() + "/receipts", "POST", {
+        ...body,
+        requestId: randomUUID(),
+      }),
+      409,
+    );
+    assert.equal((await json(await api(prefix()))).products[0].onHand, 10);
+    await json(
+      await api(`/workspace/shops/${foreign.id}/receipts`, "POST", body),
+      404,
+    );
+  });
+  it("reserves stock, rejects overselling and replays an order after restart", async () => {
+    const body = orderBody({ delivery: "2.50", discount: "1.20" });
+    const o = await json(await api(prefix() + "/orders", "POST", body), 201);
+    assert.equal(o.total, "26.00");
+    const productBody = { version: product.version, name: product.name, description: "Updated catalog", image: "", price: "99.00", active: false };
+    const paused = await json(await api(prefix() + `/products/${product.id}`, "PATCH", productBody));
+    await json(await api(prefix() + "/orders", "POST", orderBody()), 400);
+    await json(await api(prefix() + `/products/${product.id}`, "PATCH", productBody), 409);
+    product = await json(await api(prefix() + `/products/${product.id}`, "PATCH", { ...productBody, version: paused.version, price: "12.35", active: true }));
+    const frozen = (await json(await api(prefix()))).orders.find((item: Row) => item.id === o.id);
+    assert.equal(frozen.lines[0].price, "12.35"); assert.equal(frozen.total, "26.00");
+    resetTestCache();
+    assert.equal(
+      (await json(await api(prefix() + "/orders", "POST", body), 201)).id,
+      o.id,
+    );
+    await json(
+      await api(prefix() + "/orders", "POST", { ...body, customer: "Changed" }),
+      409,
+    );
+    const summary = await json(await api(prefix()));
+    assert.equal(summary.products[0].reserved, 2);
+    assert.equal(summary.products[0].available, 8);
+    const responses = await Promise.all([
+      api(
+        prefix() + "/orders",
+        "POST",
+        orderBody({ lines: [{ productId: product.id, quantity: 6 }] }),
+      ),
+      api(
+        prefix() + "/orders",
+        "POST",
+        orderBody({ lines: [{ productId: product.id, quantity: 6 }] }),
+      ),
+    ]);
+    assert.deepEqual(responses.map((r) => r.status).sort(), [201, 409]);
+    const existing = (await json(await api(prefix()))).orders.find(
+      (r: Row) => r.id !== o.id,
+    );
+    await json(
+      await api(prefix() + `/orders/${existing.id}/status`, "POST", {
+        version: 1,
+        status: "cancelled",
+      }),
+    );
+    assert.equal((await json(await api(prefix()))).products[0].reserved, 2);
+  });
+  it("blocks outside movements that would consume reservations and preserves signed adjustments", async () => {
+    const body = {
+      inventoryItemId: product.inventoryItemId,
+      type: "outgoing",
+      quantity: 9,
+      date: "2026-10-23",
+      reason: "Other use",
+      reference: "OUT-1",
+    };
+    await json(await api("/workspace/inventory/movements", "POST", body), 400);
+    await json(
+      await api("/workspace/inventory/movements", "POST", {
+        ...body,
+        type: "adjustment",
+        quantity: -1,
+        reason: "Stock count correction",
+      }),
+      201,
+    );
+    assert.equal((await json(await api(prefix()))).products[0].onHand, 9);
+  });
+  it("dispatches once, snapshots prices and creates a sale without inventing a payment", async () => {
+    let o = (await json(await api(prefix()))).orders.find(
+      (o: Row) => o.status === "reserved",
+    );
+    await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: o.version,
+        status: "dispatched",
+        tracking: "AWB-OUT",
+      }),
+      409,
+    );
+    o = await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: o.version,
+        status: "preparing",
+      }),
+    );
+    await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: 1,
+        status: "cancelled",
+      }),
+      409,
+    );
+    await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: o.version,
+        status: "dispatched",
+      }),
+      400,
+    );
+    const conflictingSale = await create("sales", { organizationId: company.id, invoiceNo: `SHOP-${o.id}`, date: "2026-10-23", customer: "Test reference conflict", total: "1.00", status: "completed", channel: "online", payment: "credit" });
+    await json(await api(prefix() + `/orders/${o.id}/status`, "POST", { version: o.version, status: "dispatched", tracking: "AWB-OUT" }), 409);
+    const rolledBack = await json(await api(prefix())); assert.equal(rolledBack.products[0].onHand, 9); assert.equal(rolledBack.products[0].reserved, 2);
+    assert.equal((getCollection("inventoryMovements") as Row[]).filter(m => m.shopOrderId === o.id).length, 0);
+    await json(await api(`/collections/sales/${conflictingSale.id}`, "DELETE"));
+    const dispatched = await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: o.version,
+        status: "dispatched",
+        tracking: "AWB-OUT",
+      }),
+    );
+    assert.ok(dispatched.saleId);
+    await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: dispatched.version,
+        status: "cancelled",
+      }),
+      409,
+    );
+    const summary = await json(await api(prefix()));
+    assert.equal(summary.products[0].onHand, 7);
+    assert.equal(summary.products[0].reserved, 0);
+    assert.equal(
+      summary.orders.find((r: Row) => r.id === o.id).settlement.paid,
+      "0.00",
+    );
+    await json(
+      await api(`/collections/sales/${dispatched.saleId}`, "PATCH", {
+        total: "1",
+      }),
+      400,
+    );
+    await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: dispatched.version,
+        status: "delivered",
+      }),
+    );
+  });
+  it("settles a linked sale through Finance and refuses duplicate or excess cash", async () => {
+    const order = (await json(await api(prefix()))).orders.find(
+      (o: Row) => o.status === "delivered",
+    );
+    const account = (
+      await json(
+        await api("/workspace/finance/accounts", "POST", {
+          name: "Shop cash",
+          organizationId: company.id,
+          currency: "SDG",
+          type: "cash",
+          openingBalance: "0",
+        }),
+        201,
+      )
+    ).item;
+    const body = {
+      organizationId: company.id,
+      accountId: account.id,
+      type: "income",
+      amount: order.total,
+      currency: "SDG",
+      sourceCollection: "sales",
+      sourceId: order.saleId,
+      status: "paid",
+      date: "2026-10-23",
+      reference: "PAY-SHOP-100",
+      idempotencyKey: randomUUID(),
+      description: "Confirmed customer payment",
+    };
+    const payment = await json(
+      await api("/workspace/finance/transactions", "POST", body),
+      201,
+    );
+    assert.equal(
+      (
+        await json(
+          await api("/workspace/finance/transactions", "POST", body),
+          201,
+        )
+      ).item.id,
+      payment.item.id,
+    );
+    await json(
+      await api("/workspace/finance/transactions", "POST", {
+        ...body,
+        idempotencyKey: randomUUID(),
+        reference: "PAY-SHOP-EXCESS",
+        amount: "0.01",
+      }),
+      409,
+    );
+    const current = (await json(await api(prefix()))).orders.find(
+      (o: Row) => o.id === order.id,
+    );
+    assert.equal(current.settlement.outstanding, "0.00");
+    assert.equal(current.settlement.paid, order.total);
+    assert.equal((await json(await api(prefix()))).products[0].onHand, 7);
+  });
+  it("uses scoped, revocable server keys and rejects browser use and forged company IDs", async () => {
+    const issued = await json(
+      await api(prefix() + "/connectors", "POST", {
+        name: "Future custom shop",
+      }),
+      201,
+    );
+    const headers = { Authorization: `Bearer ${issued.key}` };
+    assert.ok(!JSON.stringify(getStore()).includes(issued.key));
+    assert.ok(
+      !JSON.stringify(await json(await api(prefix()))).includes("keyHash"),
+    );
+    const catalog = await json(
+      await api("/shop-connection/catalog", "GET", undefined, "", headers),
+    );
+    assert.equal(catalog.products[0].id, product.id);
+    assert.equal(catalog.products[0].onHand, undefined);
+    await json(
+      await api("/shop-connection/catalog", "GET", undefined, "", {
+        ...headers,
+        Origin: "https://store.example.test",
+      }),
+      403,
+    );
+    await json(
+      await api(
+        "/shop-connection/orders",
+        "POST",
+        orderBody({ organizationId: foreign.id }),
+        "",
+        headers,
+      ),
+      400,
+    );
+    const b = orderBody();
+    const o = await json(
+      await api("/shop-connection/orders", "POST", b, "", headers),
+      201,
+    );
+    assert.equal(
+      (
+        await json(
+          await api("/shop-connection/orders", "POST", b, "", headers),
+          201,
+        )
+      ).id,
+      o.id,
+    );
+    assert.equal(
+      (
+        await json(
+          await api(
+            `/shop-connection/orders/${o.id}`,
+            "GET",
+            undefined,
+            "",
+            headers,
+          ),
+        )
+      ).status,
+      "reserved",
+    );
+    await json(
+      await api(prefix() + `/connectors/${issued.connector.id}`, "DELETE", {}),
+    );
+    await json(
+      await api("/shop-connection/catalog", "GET", undefined, "", headers),
+      401,
+    );
+    await json(await api("/collections/shopOrders"), 404);
+    await json(await api("/workspace/shops", "GET", undefined, ""), 401);
+  });
+  it("enforces active approval policies and tenant permissions", async () => {
+    (getCollection("approvalRules") as Row[]).push({
+      id: randomUUID(),
+      section: "finance",
+      action: "create",
+      active: true,
+    });
+    saveStore(getStore());
+    const o = await json(
+      await api(prefix() + "/orders", "POST", orderBody()),
+      201,
+    );
+    const preparing = await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: 1,
+        status: "preparing",
+      }),
+    );
+    await json(
+      await api(prefix() + `/orders/${o.id}/status`, "POST", {
+        version: preparing.version,
+        status: "dispatched",
+        tracking: "X",
+      }),
+      409,
+    );
+    assert.equal((await json(await api(prefix()))).products[0].onHand, 7);
+    const role = (getCollection("accessRoles") as Row[]).find(
+      (r) => r.id === "role-company-manager",
+    )!;
+    const original = role.permissions;
+    role.permissions = ["operations.view", "inventory.view"];
+    saveStore(getStore());
+    const password = credentials();
+    const user = (
+      await json(
+        await api("/workspace/access/users", "POST", {
+          name: "Limited",
+          email: "limited@commerce.test",
+          password,
+          roleId: role.id,
+          organizationIds: [foreign.id],
+        }),
+        201,
+      )
+    ).item;
+    // Set the test account directly after the controlled creation to avoid UI password rotation in this scope test.
+    const account = (getCollection("accessUsers") as Row[]).find(
+      (r) => r.id === user.id,
+    )!;
+    account.mustChangePassword = false;
+    saveStore(getStore());
+    const login = await api(
+      "/auth/login",
+      "POST",
+      { email: account.email, password },
+      "",
+    );
+    await json(login);
+    const cookie = login.headers.get("set-cookie")!.split(";")[0];
+    await json(await api(prefix(), "GET", undefined, cookie), 404);
+    await json(
+      await api(
+        `/workspace/shops/${foreign.id}/products`,
+        "POST",
+        { products: [] },
+        cookie,
+      ),
+      403,
+    );
+    role.permissions = original;
+    saveStore(getStore());
+  });
+});

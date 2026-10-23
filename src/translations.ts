@@ -1,4 +1,5 @@
 import { operationsTranslations } from "./operations-translations.ts";
+import { shopTranslations } from "./shop-translations.ts";
 import { personalNotesTranslations } from "./personal-notes-translations.ts";
 import { dashboardLayoutTranslations } from "./dashboard-layout-translations.ts";
 import { organizationAdminTranslations } from "./organization-admin-translations.ts";
@@ -232,6 +233,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   ...dashboardLayoutTranslations,
   ...organizationAdminTranslations,
   ...recordsLayoutTranslations,
+  ...shopTranslations,
   ...publicWebsiteTranslations,
   ...workspaceUpgradeTranslations,
   ...administrationTranslations,

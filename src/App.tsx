@@ -25,6 +25,7 @@ const MobileMore = lazy(() => import("./components/MobileMore"));
 const LocationsWorkspace = lazy(() => import("./components/LocationsWorkspace"));
 const OperationsWorkspace = lazy(() => import("./components/OperationsWorkspace"));
 const InventoryWorkspace = lazy(() => import("./components/InventoryWorkspace"));
+const ShopWorkspace = lazy(() => import("./components/ShopWorkspace"));
 const FinanceWorkspace = lazy(() => import("./components/FinanceWorkspace"));
 const AccessWorkspace = lazy(() => import("./components/AccessWorkspace"));
 const HRWorkspace = lazy(() => import("./components/HRWorkspace"));
@@ -93,6 +94,7 @@ const router = createBrowserRouter([
       { path: "store", element: <OperationsWorkspace /> }, // Legacy URL retained for bookmarks.
       { path: "warehouse", element: <InventoryWorkspace /> },
       { path: "inventory", element: <InventoryWorkspace /> },
+      { path: "shops", element: <ShopWorkspace /> },
       { path: "admin", element: <AccessWorkspace /> },
       { path: "access", element: <AccessWorkspace /> },
       { path: "finance", element: <FinanceWorkspace /> },
