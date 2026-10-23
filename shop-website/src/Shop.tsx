@@ -698,6 +698,7 @@ export default function Shop() {
           )}
         </div>
       </header>
+      <div className="product-focus-veil" aria-hidden="true" />
       <main id="content">
         {error && (
           <div className="error-banner" role="alert">
@@ -817,7 +818,7 @@ export default function Shop() {
               </div>
               <div className="product-grid">
                 {visible.map((p, i) => (
-                  <article className="product-card" key={p.id}>
+                  <article className="product-card" key={p.id} data-product-id={p.id}>
                     <a
                       href={base + `/product/${p.id}`}
                       onClick={(e) => {

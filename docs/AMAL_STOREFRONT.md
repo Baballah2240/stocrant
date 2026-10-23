@@ -6,6 +6,7 @@ Amal is the first customer storefront. It uses the same STOCRANT backend and com
 
 - Responsive product catalog, category filters, search, sorting, product detail pages, quantities and an editable bag stored separately for each shop.
 - English/Arabic interface and light/dark appearance. Merchant-entered product names, descriptions and policy text remain as entered.
+- Colorful product cards and desktop hover focus: the active product stays clear and clickable above a soft page veil, while other products blur. Keyboard focus receives equivalent emphasis. Touch browsing stays clear without requiring hover, and reduced-motion preferences stop decorative movement and card lift.
 - Guest checkout with contact details, collection or delivery, configured delivery regions and fees, policy consent and no account requirement.
 - Server-calculated, currency-exact quotes bound to the guest and shop configuration for ten minutes. Price, stock or configuration changes require review rather than silently accepting a different total.
 - Atomic order reservation in the existing company workflow. The order appears in **Shops & orders** and follows preparation, dispatch and delivery. Dispatch creates the existing linked unpaid sale; actual receipts are confirmed in Finance.

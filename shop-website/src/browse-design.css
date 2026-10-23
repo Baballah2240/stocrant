@@ -1,0 +1,391 @@
+/* Amal's colorful browsing layer. Keep stock, checkout and navigation behavior
+   in the existing components; the focus veil never intercepts a click. */
+:root {
+  --play-mint: #d9ead0;
+  --play-peach: #f4d6bf;
+  --play-sky: #d2e6ec;
+  --play-lilac: #e7ddf4;
+  --focus-veil: rgb(244 246 236 / 52%);
+  --card-shadow: 0 25px 65px rgb(34 69 49 / 17%), 0 5px 15px rgb(34 69 49 / 8%);
+}
+:root[data-theme="dark"] {
+  --play-mint: #304d38;
+  --play-peach: #594232;
+  --play-sky: #29484e;
+  --play-lilac: #453954;
+  --focus-veil: rgb(6 17 13 / 58%);
+  --card-shadow: 0 28px 70px rgb(0 0 0 / 45%), 0 0 0 1px rgb(195 221 173 / 13%);
+}
+.amal {
+  background:
+    radial-gradient(
+      ellipse at 3% 16%,
+      color-mix(in srgb, var(--play-peach) 32%, transparent),
+      transparent 32%
+    ),
+    radial-gradient(
+      ellipse at 96% 5%,
+      color-mix(in srgb, var(--play-sky) 38%, transparent),
+      transparent 29%
+    );
+}
+.announcement {
+  background: linear-gradient(
+    105deg,
+    var(--green),
+    color-mix(in srgb, var(--green) 88%, #bdab56)
+  );
+}
+.shop-header {
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+}
+.hero h1 em {
+  color: color-mix(in srgb, var(--ink) 65%, #80a166);
+}
+.hero .eyebrow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.hero .eyebrow::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: #a5bd74;
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--play-mint) 65%, transparent);
+  flex-shrink: 0;
+}
+.hero-art {
+  background: linear-gradient(
+    145deg,
+    var(--play-mint),
+    color-mix(in srgb, var(--play-peach) 66%, var(--paper))
+  );
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: 160px 160px 28px 28px;
+}
+.hero-art .art-disc {
+  background: color-mix(in srgb, var(--paper) 34%, var(--play-mint));
+  box-shadow: 0 0 0 24px color-mix(in srgb, var(--paper) 15%, transparent);
+}
+.hero-art::before,
+.hero-art::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.hero-art::before {
+  width: 40px;
+  height: 40px;
+  top: 22%;
+  inset-inline-start: 12%;
+  background: #c18c49;
+  clip-path: polygon(
+    50% 0,
+    60% 39%,
+    100% 50%,
+    60% 61%,
+    50% 100%,
+    40% 61%,
+    0 50%,
+    40% 39%
+  );
+  opacity: 0.75;
+}
+.hero-art::after {
+  width: 18px;
+  height: 18px;
+  bottom: 20%;
+  inset-inline-end: 11%;
+  border: 2px solid color-mix(in srgb, var(--ink) 38%, transparent);
+  border-radius: 50%;
+}
+.primary {
+  border-radius: 12px;
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--green) 16%, transparent);
+}
+.primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--green) 16%, transparent);
+}
+.catalog-tools {
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px 15px;
+  margin-bottom: 27px;
+}
+.categories button {
+  transition:
+    background 0.18s,
+    color 0.18s,
+    box-shadow 0.18s;
+}
+.categories button:hover:not([aria-pressed="true"]) {
+  background: var(--play-mint);
+}
+.categories button[aria-pressed="true"] {
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--green) 17%, transparent);
+}
+.product-grid {
+  gap: 28px 24px;
+}
+.product-card {
+  position: relative;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  padding: 10px;
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: 0 3px 12px rgb(24 50 34 / 3%);
+  transition:
+    transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 0.24s,
+    border-color 0.24s,
+    filter 0.22s;
+}
+.product-image {
+  border-radius: 17px;
+  background: var(--play-mint);
+}
+.product-image > img,
+.product-placeholder > svg {
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.product-placeholder {
+  background:
+    radial-gradient(
+      circle at 28% 25%,
+      color-mix(in srgb, var(--paper) 37%, transparent),
+      transparent 57%
+    ),
+    var(--play-mint);
+  color: #355a45;
+}
+.product-placeholder.tone-1 {
+  background-color: var(--play-peach);
+  color: #855b31;
+}
+.product-placeholder.tone-2 {
+  background-color: var(--play-sky);
+  color: #356770;
+}
+.product-placeholder.tone-3 {
+  background-color: var(--play-lilac);
+  color: #796091;
+}
+.product-tag {
+  padding: 8px 11px;
+  border: 1px solid rgb(255 255 255 / 50%);
+  border-radius: 30px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.product-arrow {
+  opacity: 1;
+  transform: none;
+  width: 37px;
+  height: 37px;
+  box-shadow: 0 3px 12px rgb(31 57 40 / 8%);
+}
+.product-caption {
+  padding: 18px 8px 10px;
+}
+.product-caption h3 {
+  font-weight: 600;
+  font-size: 1.02rem;
+  line-height: 1.45;
+}
+.product-caption h3 a {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.2s;
+}
+.product-card:focus-within .product-caption h3 a {
+  text-decoration-color: var(--accent);
+}
+.add-circle {
+  width: 39px;
+  height: 39px;
+  background: var(--play-mint);
+  border-color: transparent;
+  color: var(--ink);
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
+}
+.add-circle:active {
+  transform: scale(0.92);
+}
+.shop-story {
+  background: linear-gradient(
+    120deg,
+    var(--wash),
+    color-mix(in srgb, var(--play-sky) 33%, var(--paper))
+  );
+}
+.product-focus-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: var(--focus-veil);
+  backdrop-filter: blur(4px) saturate(0.7);
+  -webkit-backdrop-filter: blur(4px) saturate(0.7);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.22s ease,
+    visibility 0.22s ease;
+}
+/* Keyboard users get the same clear product emphasis without a focus trap. */
+.amal:has(.product-card :focus-visible) .product-focus-veil {
+  opacity: 1;
+  visibility: visible;
+}
+.product-card:has(:focus-visible) {
+  z-index: 41;
+  box-shadow: var(--card-shadow);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+.amal:has(.product-card :focus-visible)
+  .product-card:not(:has(:focus-visible)) {
+  filter: blur(2px) saturate(0.8);
+}
+.amal .toast {
+  z-index: 60;
+}
+.amal .skip:focus {
+  z-index: 70;
+}
+@media (hover: hover) and (pointer: fine) {
+  .amal:has(.product-card:hover) .product-focus-veil {
+    opacity: 1;
+    visibility: visible;
+  }
+  .amal:has(.product-card:hover) .product-card {
+    filter: blur(2px) saturate(0.8);
+  }
+  .amal:has(.product-card:hover) .product-card:hover {
+    filter: none;
+  }
+  .product-card:hover {
+    z-index: 41;
+    transform: translateY(-8px) scale(1.025);
+    box-shadow: var(--card-shadow);
+    border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  }
+  .product-card:hover .product-placeholder > svg {
+    transform: translateY(-5px) rotate(-2deg) scale(1.04);
+  }
+  .product-card:hover .product-caption h3 a {
+    text-decoration-color: var(--accent);
+  }
+  .product-card:hover .add-circle {
+    background: var(--green);
+    color: var(--on-green);
+  }
+  /* Pointer hover takes precedence if a different card still has keyboard focus. */
+  .amal:has(.product-card:hover) .product-card:has(:focus-visible):not(:hover) {
+    z-index: auto;
+    box-shadow: 0 3px 12px rgb(24 50 34 / 3%);
+    border-color: var(--line);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-art > svg {
+    animation: amal-drift 7s ease-in-out infinite;
+  }
+  .hero-art::before {
+    animation: amal-sparkle 6s ease-in-out infinite;
+  }
+}
+@keyframes amal-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.5deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(0.8deg);
+  }
+}
+@keyframes amal-sparkle {
+  0%,
+  100% {
+    transform: scale(0.85) rotate(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.05) rotate(15deg);
+    opacity: 0.85;
+  }
+}
+[data-theme="dark"] .hero-art {
+  background: linear-gradient(145deg, var(--play-mint), #3f3a2c);
+}
+[data-theme="dark"] .hero-art .art-disc {
+  background: #415640;
+}
+[data-theme="dark"] .product-placeholder {
+  color: #a6c392;
+}
+[data-theme="dark"] .product-placeholder.tone-1 {
+  color: #e4b384;
+}
+[data-theme="dark"] .product-placeholder.tone-2 {
+  color: #98c9d0;
+}
+[data-theme="dark"] .product-placeholder.tone-3 {
+  color: #c6afe1;
+}
+@media (max-width: 650px) {
+  .hero-art {
+    border-radius: 110px 110px 22px 22px;
+  }
+  .hero-art::before {
+    width: 25px;
+    height: 25px;
+  }
+  .catalog-tools {
+    padding: 9px 10px;
+    gap: 9px;
+  }
+  .product-grid {
+    gap: 18px 12px;
+  }
+  .product-card {
+    padding: 6px;
+    border-radius: 18px;
+  }
+  .product-image {
+    border-radius: 12px;
+  }
+  .product-caption {
+    padding: 12px 3px 6px;
+    gap: 5px;
+  }
+  .product-caption h3 {
+    font-size: 0.79rem;
+  }
+  .product-tag {
+    padding: 5px 7px;
+    font-size: 0.49rem;
+    top: 8px;
+    inset-inline-start: 8px;
+  }
+  .add-circle {
+    width: 29px;
+    height: 29px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-card:hover {
+    transform: none;
+  }
+  .product-focus-veil {
+    transition: none;
+  }
+}

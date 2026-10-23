@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { browserQa } from "./browser-qa.mjs";
 import { seedAmal } from "./storefront-fixture.mjs";
+import { verifyStorefrontDesign } from "./verify-storefront-design.mjs";
 const root = mkdtempSync(join(tmpdir(), "stocrant-test-data-amal-browser-"));
 process.env.STOCRANT_DATA_DIR = root;
 process.env.NODE_ENV = "development";
@@ -63,6 +64,7 @@ try {
   await send("Network.deleteCookies", { name: "stocrant_session", url: base });
   await send("Page.navigate", { url: base + "/shop/amal" });
   await until('document.querySelectorAll(".product-card").length===4');
+  await verifyStorefrontDesign(browser, base);
   assert.ok(await evaluate('!document.querySelector(".topbar")'));
   assert.equal(
     await evaluate('document.querySelector(".wordmark").textContent.trim()'),

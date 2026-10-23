@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Amal product focus and richer storefront colors
+
+- Refresh Amal's collection with mint, peach, sky and lilac product cards, rounded controls and gentle decorative movement in the hero.
+- Bring the hovered product above a soft page blur on desktop; keep links and Add to bag clickable and give keyboard navigation the same emphasis.
+- Keep one-tap product browsing on touchscreens and stop decorative movement/lift for reduced-motion preferences. Verify English/Arabic and light/dark responsive layouts.
+- Storefront presentation update only; no native package built, synchronized or installed.
+
 ## 2026-10-23 - Amal customer storefront and manager publishing controls
 
 - Add a Customer storefront tab to Shops & orders for company-scoped branding, contact details, fulfilment regions/fees, reservation duration, policies, draft preview and publication. Default the new shop identity to Amal.
