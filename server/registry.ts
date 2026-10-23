@@ -75,7 +75,7 @@ registry.push({
     { key: "contactEmail", label: "Contact email", type: "email" },
     { key: "contactPhone", label: "Contact phone", type: "tel" },
     { key: "country", label: "Country", type: "text" },
-    { key: "currency", label: "Primary currency", type: "select", options: ["USD", "EUR", "GBP", "KRW", "QAR", "AED"], required: true },
+    { key: "currency", label: "Primary currency", type: "select", options: ["USD", "EUR", "GBP", "KRW", "QAR", "AED", "SDG"], required: true },
     { key: "status", label: "Status", type: "select", options: ["active", "inactive"], required: true },
     { key: "linkedLocations", label: "Linked locations", type: "text", placeholder: "Location IDs or names" },
     { key: "notes", label: "Notes", type: "textarea" },

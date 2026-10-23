@@ -20,7 +20,7 @@ const groups = [
   { title:"Business information", keys:["industry","taxId","currency","notes"] },
 ];
 const labels:Record<string,string>={logo:"Company logo URL",name:"Company name",tradeName:"Trading name",organizationType:"Organization type",status:"Status",contactName:"Primary contact",contactPhone:"Contact phone",contactEmail:"Contact email",country:"Country",industry:"Business category",taxId:"Tax / registration ID",currency:"Primary currency",notes:"Notes"};
-const options:Record<string,string[]>={organizationType:["shop","store","office","restaurant","mixed"],status:["active","inactive"],industry:["restaurant","retail","hospitality","services","mixed"],currency:["USD","EUR","GBP","KRW","QAR","AED"]};
+const options:Record<string,string[]>={organizationType:["shop","store","office","restaurant","mixed"],status:["active","inactive"],industry:["restaurant","retail","hospitality","services","mixed"],currency:["USD","EUR","GBP","KRW","QAR","AED","SDG"]};
 const value = (item:unknown) => typeof item === "string" || typeof item === "number" ? String(item) : "";
 function monogram(name:unknown){ return value(name).trim().split(/\s+/).slice(0,2).map(part=>part[0]).join("").toUpperCase(); }
 export default function CompanyProfile(){

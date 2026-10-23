@@ -4,6 +4,8 @@ import { minor, decimal, sumMoney } from "../src/money.ts";
 
 test("financial display totals retain minor-unit precision across currencies and reversals",()=>{
  assert.equal(sumMoney(["0.10","0.20"],"QAR"),"0.30");
+ assert.equal(sumMoney(["1000.10","-123.45"],"SDG"),"876.65");
+ assert.throws(()=>minor("1.001","SDG"));
  assert.equal(sumMoney(["1.234","2.001","-0.005"],"KWD"),"3.230");
  assert.equal(sumMoney(["100","-50"],"JPY"),"50");
  assert.equal(sumMoney(["999999999999.99","0.01"],"QAR"),"1000000000000.00");

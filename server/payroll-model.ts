@@ -5,7 +5,7 @@ export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value =
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }, "Choose a valid date.");
 export const amountSchema = z.union([z.string(), z.number()]).transform(String).refine(v => /^\d{1,12}(\.\d{1,4})?$/.test(v), "Use a nonnegative decimal amount with at most four decimal places.");
-const currency = z.string().regex(/^[A-Z]{3}$/).refine(value => ["QAR","USD","EUR","GBP","AED","SAR","KWD","BHD","OMR","JPY","KRW","INR","PKR","BDT","PHP","EGP"].includes(value), "Select a supported currency.");
+const currency = z.string().regex(/^[A-Z]{3}$/).refine(value => ["QAR","USD","EUR","GBP","AED","SAR","KWD","BHD","OMR","JPY","KRW","INR","PKR","BDT","PHP","EGP","SDG"].includes(value), "Select a supported currency.");
 export function precision(code: string) { return ["KWD","BHD","OMR"].includes(code) ? 3 : ["JPY","KRW"].includes(code) ? 0 : 2; }
 export const rulesSchema = z.object({
   currency, frequency: z.enum(["weekly","biweekly","monthly","custom"]).default("monthly"),

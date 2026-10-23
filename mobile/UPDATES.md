@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Sudanese pound support
+
+- Add SDG to shared company creation/editing currency selectors and backend company validation.
+- Accept SDG in Finance accounts, transactions, payroll settings and salary configurations. Use two decimal places and preserve separate per-currency balances.
+- Verify company setup, payroll defaults/settings/salary, an SDG expense and exact ledger/display totals with isolated data. Shared source update only; no native package rebuilt or installed.
+
 ## 2026-10-23 - Compact notes and personal dashboard layouts
 
 - Make the manager notebook a compact half-width card with two note previews; open it to search or manage the full notebook. Editing and reminder links expand it automatically.

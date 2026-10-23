@@ -31,6 +31,26 @@ before(async()=>{
 });
 after(async()=>{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));const target=resolve(TEST_DATA_DIR);assert.ok(target.startsWith(resolve(tmpdir())+sep)&&target.includes("stocrant-test-data-"));fs.rmSync(target,{recursive:true,force:true});});
 describe("Connected financial ledger",()=>{
+ it("supports Sudanese pounds from company currency through payroll and exact ledger balances",async()=>{
+   const org=(await expect(await req("/collections/organizations",{name:"Sudan currency organization",status:"active"}),201)).item;
+   const company=(await expect(await req("/collections/companies",{name:"Sudan currency company",parentOrganizationId:org.id,status:"active",organizationType:"office",industry:"services",currency:"SDG"}),201)).item;
+   assert.equal(company.currency,"SDG");
+   const metadata=await expect(await req("/collections/meta/companies"));
+   assert.ok(JSON.stringify(metadata).includes('"SDG"'));
+   const initial=(await expect(await req(`/workspace/payroll/rules/${company.id}`))).rules;
+   assert.equal(initial.currency,"SDG");
+   const {organizationId:_organizationId,configured:_configured,...rules}=initial;
+   assert.equal((await expect(await req(`/workspace/payroll/rules/${company.id}`,rules,"PUT"))).rules.currency,"SDG");
+   const employee=(await expect(await req("/collections/employees",{name:"Sudan payroll employee",organizationId:company.id,status:"active",hireDate:"2026-01-01"}),201)).item;
+   const salary=(await expect(await req(`/workspace/payroll/salaries/${employee.id}`,{currency:"SDG",frequency:"monthly",base:"1234.56",overtimeEligible:false,shiftId:"",allowances:[],effectiveFrom:"2026-01-01",reason:"Confirmed Sudanese pound salary"}),201)).item;
+   assert.equal(salary.currency,"SDG");assert.equal(salary.base,"1234.56");
+   const account=(await expect(await req("/workspace/finance/accounts",{name:"Sudan cash account",type:"cash",currency:"SDG",openingBalance:"1000.10",organizationId:company.id}),201)).item;
+   const paid=(await expect(await req("/workspace/finance/transactions",movement({accountId:account.id,amount:"123.45",reference:"SDG-EXPENSE",idempotencyKey:"sdg-expense-key"})),201)).item;
+   assert.equal(paid.currency,"SDG");
+   const summary=ledgerSummary(actor());assert.equal(summary.accounts.find(row=>row.id===account.id)!.balance,"876.65");
+   assert.equal(summary.totals.find(row=>row.currency==="SDG")!.expenses,"123.45");
+   assert.equal(cashAmount("1.20","SDG"),"1.20");assert.throws(()=>cashAmount("1.001","SDG"));
+ });
  it("validates exact currency units and additive migration without rewriting history",()=>{
    assert.equal(cashAmount("1.234","KWD"),"1.234");assert.equal(cashAmount("1","JPY"),"1");for(const v of ["1.001","1e5",Infinity,NaN])assert.throws(()=>cashAmount(v,"QAR"));assert.throws(()=>cashAmount("0","QAR",true));
    assert.equal(companyFinanceDate("company-primary",new Date("2026-01-01T22:30:00Z")),"2026-01-02");

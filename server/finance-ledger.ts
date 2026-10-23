@@ -7,7 +7,7 @@ import { dateSchema, money, precision, scaled } from "./payroll-model.js";
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
 export function financialError(message: string, statusCode = 400): never { throw Object.assign(new Error(message), { statusCode }); }
-export const currencies = ["QAR", "USD", "EUR", "GBP", "AED", "SAR", "KWD", "BHD", "OMR", "JPY", "KRW", "INR", "PKR", "BDT", "PHP", "EGP"];
+export const currencies = ["QAR", "USD", "EUR", "GBP", "AED", "SAR", "KWD", "BHD", "OMR", "JPY", "KRW", "INR", "PKR", "BDT", "PHP", "EGP", "SDG"];
 export function companyFinanceDate(companyId:string,instant=new Date()) {
   const timezone=rows("payrollSettings").find(r=>r.organizationId===companyId)?.timezone||rows("attendanceSettings").find(r=>r.organizationId===companyId)?.timezone||process.env.STOCRANT_TIME_ZONE||"Asia/Qatar";
   const parts=new Intl.DateTimeFormat("en-GB",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(instant);
