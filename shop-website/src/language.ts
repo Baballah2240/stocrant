@@ -1,4 +1,6 @@
 export const ar: Record<string, string> = {
+  "Product photos": "صور المنتج",
+  "View photo": "عرض الصورة",
   "Order tracking": "تتبع الطلب",
   "Shop not found.": "لم نعثر على هذا المتجر.",
   "The shop is temporarily unavailable. Please try again.":

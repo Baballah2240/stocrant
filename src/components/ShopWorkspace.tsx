@@ -5,6 +5,7 @@ import { useLanguage } from "../language-context";
 import { useSession } from "../session-context";
 import "../shop-workspace.css";
 import StorefrontSettings from "./StorefrontSettings";
+import ProductPhotos, { ShopImage } from "./ProductPhotos";
 
 type Company = { id: string; name: string; currency: string };
 type Product = {
@@ -14,6 +15,7 @@ type Product = {
   name: string;
   description: string;
   image: string;
+  images?: string[];
   price: string;
   currency: string;
   onHand: number;
@@ -60,6 +62,7 @@ type ProductDraft = {
   price: string;
   description?: string;
   image?: string;
+  images?: string[];
   stockLocation?: string;
   category?: string;
 };
@@ -75,6 +78,7 @@ const newProduct = () => ({
   price: "",
   description: "",
   image: "",
+  images: [] as string[],
   stockLocation: "Main stock",
   category: "Collection",
 });
@@ -120,6 +124,7 @@ export default function ShopWorkspace() {
     order: crypto.randomUUID(),
   });
   const generation = useRef(0);
+  const [photoBusy, setPhotoBusy] = useState(false), [productFilter, setProductFilter] = useState("all"), [orderSearch, setOrderSearch] = useState(""), [orderFilter, setOrderFilter] = useState("all");
   const permits = (section: string, action: string) =>
     user?.roleId === "role-main-manager" ||
     user?.permissions.some((p) =>
@@ -167,6 +172,8 @@ export default function ShopWorkspace() {
     setPreview([]);
     setSelectedOrder("");
     setEditingProduct(null);
+    setPhotoBusy(false);
+    setProductFilter("all"); setOrderFilter("all"); setSearch(""); setOrderSearch("");
     setProduct(newProduct());
     setReceipt({
       productId: "",
@@ -207,7 +214,7 @@ export default function ShopWorkspace() {
       });
   }, [companyId, base, location.search]);
   async function action(fn: () => Promise<void>) {
-    if (busy) return;
+    if (busy || photoBusy) return;
     setBusy(true);
     setError("");
     try {
@@ -246,6 +253,8 @@ export default function ShopWorkspace() {
     void action(fn);
   };
   const selected = data.orders.find((o) => o.id === selectedOrder);
+  const visibleProducts = data.products.filter(p => (`${p.name} ${p.sku} ${p.category || ""}`).toLowerCase().includes(search.toLowerCase()) && (productFilter === "all" || productFilter === "active" && p.active || productFilter === "paused" && !p.active || productFilter === "out" && p.available === 0));
+  const visibleOrders = data.orders.filter(o => (orderFilter === "all" || o.status === orderFilter) && (`${o.customer} ${o.phone} ${o.id} ${o.tracking || ""}`).toLowerCase().includes(orderSearch.toLowerCase()));
   async function importExcel(file?: File) {
     if (!file) return;
     setPreview([]);
@@ -328,7 +337,7 @@ export default function ShopWorkspace() {
           <select
             aria-label={t("Company")}
             value={companyId}
-            disabled={busy || !companies.length}
+            disabled={busy || photoBusy || !companies.length}
             onChange={(e) => {
               setError("");
               setCompany(e.target.value);
@@ -396,6 +405,7 @@ export default function ShopWorkspace() {
                 type="button"
                 key={name}
                 aria-current={tab === name ? "page" : undefined}
+                disabled={busy || photoBusy}
                 onClick={() => setTab(name)}
               >
                 {t(
@@ -412,10 +422,10 @@ export default function ShopWorkspace() {
               </button>
             ))}
           </nav>
-          <fieldset disabled={busy || loading} className="shop-controls">
+          <fieldset disabled={busy || loading || photoBusy} className="shop-controls">
             {tab === "products" && (
               <>
-                <section className="card">
+                <section className="card shop-catalog">
                   <div className="shop-section-title">
                     <h2>{t("Product catalog")}</h2>
                     {field(
@@ -426,24 +436,19 @@ export default function ShopWorkspace() {
                       false,
                     )}
                   </div>
+                  <div className="shop-catalog-toolbar"><label className="form-field"><span>{t("Product status")}</span><select value={productFilter} onChange={event => setProductFilter(event.target.value)}>{["all","active","paused","out"].map(value => <option key={value} value={value}>{t(value === "all" ? "All products" : value === "active" ? "Active products" : value === "paused" ? "Paused products" : "Out of stock")}</option>)}</select></label><p className="hint">{t("Select Edit product to update details and photos.")}</p></div>
                   <div className="shop-products">
-                    {data.products
-                      .filter((p) =>
-                        `${p.name} ${p.sku}`
-                          .toLowerCase()
-                          .includes(search.toLowerCase()),
-                      )
-                      .map((p) => (
+                    {visibleProducts.map((p) => (
                         <article className="shop-product" key={p.id}>
                           <div className="shop-product-image">
                             {p.image ? (
-                              <img src={p.image} alt="" loading="lazy" />
+                              <ShopImage src={p.image} alt={p.name} />
                             ) : (
                               <span aria-hidden="true">◇</span>
                             )}
                           </div>
                           <div>
-                            <small dir="ltr">{p.sku}</small>
+                            <div className="shop-product-meta"><small dir="ltr">{p.sku}</small><span className={`shop-status ${p.active ? "status-active" : "status-paused"}`}>{t(p.active ? "Active" : "Paused")}</span></div>
                             <h3>{p.name}</h3>
                             <p>
                               {p.price} {p.currency}
@@ -497,6 +502,7 @@ export default function ShopWorkspace() {
                         </article>
                       ))}
                   </div>
+                  {data.products.length > 0 && !visibleProducts.length && <p className="empty">{t("No products match your search.")}</p>}
                   {!data.products.length && (
                     <p className="empty">
                       {t(
@@ -506,7 +512,7 @@ export default function ShopWorkspace() {
                   )}
                 </section>
                 {editingProduct && canEdit && (
-                  <section className="card">
+                  <section className="card shop-edit-product">
                     <h2>
                       {t("Edit product")}: {editingProduct.sku}
                     </h2>
@@ -528,6 +534,7 @@ export default function ShopWorkspace() {
                             name,
                             description,
                             image,
+                            images: editingProduct.images || (image ? [image] : []),
                             price,
                             active,
                             category: editingProduct.category || "Collection",
@@ -570,17 +577,7 @@ export default function ShopWorkspace() {
                         "text",
                         false,
                       )}
-                      {field(
-                        "Product image URL",
-                        editingProduct.image,
-                        (value) =>
-                          setEditingProduct({
-                            ...editingProduct,
-                            image: value,
-                          }),
-                        "url",
-                        false,
-                      )}
+                      <ProductPhotos key={companyId + editingProduct.id} companyId={companyId} value={editingProduct.images || (editingProduct.image ? [editingProduct.image] : [])} onBusy={setPhotoBusy} onChange={images => setEditingProduct({ ...editingProduct, images, image: images[0] || "" })} />
                       <button className="btn primary">
                         {t("Save product")}
                       </button>
@@ -594,8 +591,8 @@ export default function ShopWorkspace() {
                   </section>
                 )}
                 {canCreate && (
-                  <div className="shop-two-columns">
-                    <section className="card">
+                  <div className="shop-two-columns shop-product-tools">
+                    <section className="card shop-add-product">
                       <h2>{t("Add product")}</h2>
                       <form
                         className="shop-form"
@@ -622,13 +619,7 @@ export default function ShopWorkspace() {
                         {field("Stock location", product.stockLocation, (v) =>
                           setProduct({ ...product, stockLocation: v }),
                         )}
-                        {field(
-                          "Product image URL",
-                          product.image,
-                          (v) => setProduct({ ...product, image: v }),
-                          "url",
-                          false,
-                        )}
+                        <ProductPhotos key={companyId} companyId={companyId} value={product.images} onBusy={setPhotoBusy} onChange={images => setProduct({ ...product, images, image: images[0] || "" })} />
                         <label className="form-field">
                           <span>{t("Description")}</span>
                           <textarea
@@ -652,7 +643,7 @@ export default function ShopWorkspace() {
                         </button>
                       </form>
                     </section>
-                    <section className="card">
+                    <section className="card shop-excel-panel">
                       <h2>{t("Import Excel products")}</h2>
                       <p>{t("Use the first sheet with 1 to 500 products.")}</p>
                       <p className="hint">
@@ -800,13 +791,14 @@ export default function ShopWorkspace() {
               </div>
             )}
             {tab === "orders" && (
-              <>
-                <section className="card">
-                  <h2>{t("Customer orders")}</h2>
+              <div className="shop-order-layout">
+                <section className="card shop-order-list-panel">
+                  <h2>{t("Customer orders")}</h2><div className="shop-order-filters">{field("Search orders", orderSearch, setOrderSearch, "search", false)}<label className="form-field"><span>{t("Order status")}</span><select value={orderFilter} onChange={event => setOrderFilter(event.target.value)}>{["all","reserved","preparing","dispatched","delivered","cancelled","expired"].map(value => <option key={value} value={value}>{t(value === "all" ? "All orders" : value)}</option>)}</select></label></div>
                   <div className="shop-orders">
-                    {data.orders.map((o) => (
+                    {visibleOrders.map((o) => (
                       <button
                         type="button"
+                        aria-pressed={selectedOrder === o.id}
                         className={selectedOrder === o.id ? "selected" : ""}
                         key={o.id}
                         onClick={() => {
@@ -816,15 +808,16 @@ export default function ShopWorkspace() {
                       >
                         <span>
                           <strong>{o.customer}</strong>
-                          <small>{o.id.slice(0, 8)}</small>
+                          <small dir="ltr">#{o.id.slice(0, 8)}</small>
                         </span>
-                        <span>{t(o.status)}</span>
+                        <span className={`shop-status status-${o.status}`}>{t(o.status)}</span>
                         <strong>
                           {o.total} {o.currency}
                         </strong>
                       </button>
                     ))}
                   </div>
+                  {data.orders.length > 0 && !visibleOrders.length && <p className="empty">{t("No orders match your search.")}</p>}
                   {!data.orders.length && (
                     <p>
                       {t(
@@ -834,23 +827,22 @@ export default function ShopWorkspace() {
                   )}
                 </section>
                 {selected && (
-                  <section className="card">
+                  <section className="card shop-order-detail" aria-live="polite">
                     <div className="shop-section-title">
                       <h2>{selected.customer}</h2>
-                      <span>{t(selected.status)}</span>
+                      <span className={`shop-status status-${selected.status}`}>{t(selected.status)}</span>
                     </div>
-                    <p>
-                      {selected.phone} · {selected.email}
+                    <p className="shop-contact-line">
+                      <a dir="ltr" href={`tel:${selected.phone.replace(/[^+\d]/g, "")}`}>{selected.phone}</a>
+                      {selected.email && <a dir="ltr" href={`mailto:${selected.email}`}>{selected.email}</a>}
                     </p>
-                    <p>{selected.address}</p>
+                    <p dir="auto">{selected.address}</p>
                   {selected.tracking && <p><strong>{t("Shipment reference")}:</strong> {selected.tracking}</p>}
                     <p>{selected.notes}</p>
-                    {selected.lines.map((l, i) => (
-                      <p key={i}>
-                        {l.name} × {l.quantity} · {l.total} {selected.currency}
-                      </p>
-                    ))}
-                    <strong>
+                    <div className="shop-line-items" aria-label={t("Order items")}>{selected.lines.map((l, i) => (
+                      <div key={i}><span><strong>{l.name}</strong><small>{l.quantity} × {l.price} {selected.currency}</small></span><strong>{l.total} {selected.currency}</strong></div>
+                    ))}</div>
+                    <strong className="shop-order-total">
                       {t("Total")}: {selected.total} {selected.currency}
                     </strong>
                     {selected.saleId && (
@@ -919,8 +911,9 @@ export default function ShopWorkspace() {
                     </details>
                   </section>
                 )}
+                {!selected && <section className="card shop-order-detail shop-order-placeholder"><span aria-hidden="true">&#9636;</span><h2>{t("Select an order")}</h2><p className="hint">{t("View customer details, items and delivery progress here.")}</p></section>}
                 {canCreate && (
-                  <section className="card">
+                  <section className="card shop-create-order">
                     <h2>{t("Create order")}</h2>
                     <p>
                       {t(
@@ -1048,7 +1041,7 @@ export default function ShopWorkspace() {
                     </form>
                   </section>
                 )}
-              </>
+              </div>
             )}
             {tab === "storefront" && canConnect && (
               <StorefrontSettings key={companyId} companyId={companyId} />

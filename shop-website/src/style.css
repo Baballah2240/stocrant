@@ -551,6 +551,12 @@ button svg {
   color: var(--muted);
   margin-top: 20px;
 }
+.detail-gallery { min-width: 0; }
+.detail-gallery .detail-image > img { object-fit: contain; }
+.product-thumbnails { display: flex; gap: 10px; padding-block: 14px; flex-wrap: wrap; }
+.product-thumbnails button { padding: 4px; border: 2px solid transparent; border-radius: 16px; background: var(--surface); cursor: pointer; }
+.product-thumbnails button[aria-pressed="true"] { border-color: currentColor; }
+.product-thumbnails img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; display: block; }
 .product-detail {
   max-width: 1200px;
   margin: auto;

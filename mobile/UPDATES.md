@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Product photo uploads and clearer shop management
+
+- Add up to six product photos from the device, with previews, cover selection, removal and optional HTTPS links. Optimize uploaded photos in the browser and save them under the server's persistent data directory.
+- Support authenticated photo previews from the native app's configured server. Product galleries appear in the published Amal storefront.
+- Refresh Shops & orders with larger product images, sale-status badges, product search/status filters, order search/status filters and a responsive order list/detail layout.
+- Include Arabic copy and mobile layouts in the shared source. No native package built or installed.
+
 ## 2026-10-23 - Company control, shop delegation and dashboard sizes
 
 - Upgrade shipped Company Manager permissions to include company editing, Finance, Payroll, approvals and shop configuration within the assigned company. Preserve explicitly customized role/account restrictions and tenant boundaries.

@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { AuthenticatedUser } from "./auth.js";
 import { publicUser } from "./auth.js";
 import { newProductAwb } from "./product-awb.js";
+import { photoUrl, photoList, validatePhotos, productPhotos } from "./shop-media.js";
 import { can, isWithinScope, ownRecordsRequired } from "./permissions.js";
 import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 import { audit, mutateCollection, requiresApproval } from "./workspace.js";
@@ -32,16 +33,8 @@ const productInput = z
     description: z.string().trim().max(2000).default(""),
     price: z.string().max(24),
     category: z.string().trim().min(1).max(80).default("Collection"),
-    image: z
-      .union([
-        z.literal(""),
-        z
-          .string()
-          .url()
-          .max(2000)
-          .refine((v) => v.startsWith("https://")),
-      ])
-      .default(""),
+    image: photoUrl.default(""),
+    images: photoList.optional(),
     stockLocation: text.default("Main stock"),
     inventoryItemId: z.string().optional(),
   })
@@ -189,6 +182,7 @@ function prepareProducts(user: AuthenticatedUser, c: Row, input: unknown) {
       fail("Create an inventory item in your permitted location first.", 403);
     return {
       ...p,
+      images: validatePhotos(c.id, p.image, p.images),
       price,
       currency: c.currency,
       organizationId: c.id,
@@ -435,6 +429,7 @@ commerceRouter.patch("/:companyId/products/:id", (req, res) => {
         category: z.string().trim().min(1).max(80).optional(),
         active: z.boolean(),
         image: productInput.shape.image,
+        images: photoList.optional(),
       })
       .strict()
       .parse(req.body);
@@ -445,7 +440,8 @@ commerceRouter.patch("/:companyId/products/:id", (req, res) => {
           fail("Product changed. Reload before saving.", 409);
         const price = cashAmount(body.price, p.currency);
         if (scaled(price) < 0n) fail("Price cannot be negative.");
-        Object.assign(p, body, { price, version: p.version + 1 });
+        const images = validatePhotos(c.id, body.image, body.images ?? (body.image === p.image ? productPhotos(p) : undefined));
+        Object.assign(p, body, { images, price, version: p.version + 1 });
         return p;
       }),
     );
@@ -763,6 +759,7 @@ shopIntegrationRouter.get("/catalog", (_req, res) => {
         name: p.name,
         description: p.description,
         image: p.image,
+        images: productPhotos(p),
         price: p.price,
         currency: p.currency,
         available: shopStock(p).available,

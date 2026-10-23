@@ -1,4 +1,5 @@
 import tasksRouter from "./routes/tasks.js";
+import { shopImageUploads, shopImageDownloads } from "./routes/shop-images.js";
 import { commerceRouter, shopIntegrationRouter } from "./commerce.js";
 import { storefrontAdminRouter, storefrontRouter, storefrontForHost } from "./storefront.js";
 import companyWorkRouter from "./routes/company-work.js";
@@ -92,6 +93,7 @@ export function createApp() {
   app.use("/api/public", publicWebsiteRouter);
   app.use("/api/shop-connection", shopIntegrationRouter);
   app.use("/api/storefront", storefrontRouter);
+  app.use("/api/shop-images", shopImageDownloads);
   app.use("/api", requireAuth);
   app.use("/api", (req, res, next) => {
     if (req.auth?.mustChangePassword) return res.status(403).json({ error: "Change your temporary password before accessing business records.", code: "PASSWORD_CHANGE_REQUIRED" });
@@ -117,6 +119,7 @@ export function createApp() {
   app.use("/api/workspace/dashboard-layout", dashboardLayoutRouter);
   app.use("/api/workspace/organization-admins", organizationAdminsRouter);
   app.use("/api/workspace/shops", commerceRouter);
+  app.use("/api/workspace/shops", shopImageUploads);
   app.use("/api/workspace/storefronts", storefrontAdminRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);

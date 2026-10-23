@@ -21,6 +21,7 @@ import { cashAmount } from "./finance-ledger.js";
 import { money, precision, scaled } from "./payroll-model.js";
 import { expireShopReservations } from "./commerce-stock.js";
 import { createNotification } from "./notifications.js";
+import { productPhotos } from "./shop-media.js";
 
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
@@ -249,6 +250,7 @@ function catalog(s: Row, user: AuthenticatedUser, currency: string) {
       name: p.name,
       description: p.description,
       image: p.image,
+      images: productPhotos(p),
       price: p.price,
       currency: p.currency,
       available: shopStock(p).available,

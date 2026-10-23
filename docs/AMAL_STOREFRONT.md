@@ -4,6 +4,10 @@ Amal is the first customer storefront. It uses the same STOCRANT backend and com
 
 ## What is implemented
 
+- Product photo uploads: up to six JPEG, PNG or WebP photos per product, 5 MB each. The workspace optimizes image dimensions and rewrites uploaded browser images without original metadata. Choose the cover, remove photos or add HTTPS links; published product pages show a thumbnail gallery. Existing image links remain supported, including Excel imports.
+- Uploaded bytes live in `<STOCRANT_DATA_DIR>/data/shop-images/`, alongside persisted media records in `stocrant.json`. Keep this directory with the persistent disk and include it in operational backups. Private drafts require authorized workspace access; anonymous photo requests work only for active products linked to an available published storefront. Unpublishing stops anonymous photo access. Runtime photos are never Git assets.
+- Shop management includes product sale-status and stock filters, order search/status filters, larger catalog imagery and a responsive order list/detail layout. Photo upload requires company-scoped product create/edit permission; filenames do not determine server paths or MIME types.
+
 - Responsive product catalog, category filters, search, sorting, product detail pages, quantities and an editable bag stored separately for each shop.
 - English/Arabic interface and light/dark appearance. Merchant-entered product names, descriptions and policy text remain as entered.
 - Colorful product cards and desktop hover focus: the active product stays clear and clickable above a soft page veil, while other products blur. Keyboard focus receives equivalent emphasis. Touch browsing stays clear without requiring hover, and reduced-motion preferences stop decorative movement and card lift.

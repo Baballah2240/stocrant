@@ -152,7 +152,32 @@ try {
   await fill("SKU", "TEA-01", "Add product");
   await fill("Product name", "Sudan tea", "Add product");
   await fill("Price", "12.35", "Add product");
+  const photoPaths = [];
+  for (const [index, color] of ["#d3e8dd", "#e9d6c8"].entries()) {
+    const bytes = await evaluate(`(()=>{const canvas=document.createElement('canvas');canvas.width=320;canvas.height=240;const context=canvas.getContext('2d');context.fillStyle=${JSON.stringify(color)};context.fillRect(0,0,320,240);context.fillStyle='#243c36';context.font='24px sans-serif';context.fillText('Tea photo ${index + 1}',35,125);return canvas.toDataURL('image/png').split(',')[1];})()`);
+    const path = join(root, `product-${index}.png`); writeFileSync(path, Buffer.from(bytes, "base64")); photoPaths.push(path);
+  }
+  const uploadDocument = await send("DOM.getDocument");
+  const uploadInput = await send("DOM.querySelector", { nodeId: uploadDocument.root.nodeId, selector: '.shop-add-product input[type="file"]' });
+  await send("DOM.setFileInputFiles", { nodeId: uploadInput.nodeId, files: photoPaths });
+  await until('document.querySelectorAll(".shop-add-product .product-photo-grid img").length===2 && !document.querySelector(".shop-controls").disabled');
+  const firstPhoto = await evaluate('document.querySelector(".product-photo-grid img").getAttribute("src")');
+  await button("Make cover");
+  await until(`document.querySelector(".product-photo-grid img").getAttribute("src")!==${JSON.stringify(firstPhoto)}`);
   await button("Add product");
+  await until('document.querySelectorAll(".shop-product").length===1');
+  const initialTea = (await req(`/workspace/shops/${company.id}`)).data.products[0];
+  assert.equal(initialTea.images.length, 2); assert.notEqual(initialTea.image, firstPhoto);
+  await button("Edit product");
+  await until('Boolean(document.querySelector(".shop-edit-product"))');
+  await until('Array.from(document.querySelectorAll(".shop-edit-product .product-photo-grid img")).every(img=>img.complete && img.naturalWidth>0)');
+  await button("Make cover");
+  await until(`document.querySelector(".shop-edit-product .product-photo-grid img").getAttribute("src")===${JSON.stringify(firstPhoto)}`);
+  await button("Save product");
+  await until('!document.querySelector(".shop-edit-product")');
+  await fill("Search products", "no-such-product");
+  await until('document.querySelectorAll(".shop-product").length===0');
+  await fill("Search products", "");
   await until('document.querySelectorAll(".shop-product").length===1');
   // Exercise Excel's worker under the same script/worker restrictions as hosting.
   await evaluate(`(()=>{const meta=document.createElement('meta');meta.httpEquiv='Content-Security-Policy';meta.content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:";document.head.append(meta);})()`);
@@ -161,7 +186,7 @@ try {
   const document = await send("DOM.getDocument");
   const fileInput = await send("DOM.querySelector", {
     nodeId: document.root.nodeId,
-    selector: '.shop-workspace input[type="file"]',
+    selector: '.shop-excel-panel input[type="file"]',
   });
   await send("DOM.setFileInputFiles", {
     nodeId: fileInput.nodeId,
@@ -213,6 +238,14 @@ try {
   const final = (await req(`/workspace/shops/${company.id}`)).data;
   assert.equal(final.products.find((p) => p.id === tea.id).onHand, 8);
   assert.equal(final.orders[0].settlement.paid, "0.00");
+  await fill("Search orders", "no-such-customer");
+  await until('document.querySelectorAll(".shop-orders>button").length===0');
+  await fill("Search orders", "QA customer");
+  await until('document.querySelectorAll(".shop-orders>button").length===1');
+  await fill("Order status", "reserved");
+  await until('document.querySelectorAll(".shop-orders>button").length===0');
+  await fill("Order status", "all");
+  await until('document.querySelectorAll(".shop-orders>button").length===1');
   await button("Shop connections");
   await fill("Connection name", "Future storefront");
   await button("Create connection key");
@@ -273,11 +306,25 @@ try {
       ),
     );
     await evaluate('document.querySelectorAll(".shop-tabs button")[2].click()');
+    await until('Boolean(document.querySelector(".shop-order-layout"))');
+    await evaluate('document.querySelector(".shop-orders>button").click()');
+    await until('Boolean(document.querySelector(".shop-order-detail .shop-line-items"))');
+    if (width < 700) await evaluate('document.querySelector(".shop-order-detail").scrollIntoView({block:"start"})');
     assert.ok(
       await evaluate("document.documentElement.scrollWidth<=innerWidth+2"),
       `Order form fits ${width}`,
     );
+    writeFileSync(join(directory, `orders-${language}-${theme}-${width}.png`), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
   }
+  const defaults = (await req(`/workspace/storefronts/${company.id}`)).data.settings;
+  await req(`/workspace/storefronts/${company.id}`, "PUT", { ...defaults, slug: "photo-shop", name: "Amal photos", address: "QA collection point", contactEmail: "photos@qa.test", shippingPolicy: "QA collection", returnsPolicy: "QA returns", privacyPolicy: "QA privacy", terms: "QA terms", manualPaymentsAccepted: true, published: true });
+  await send("Page.navigate", { url: base + `/shop/photo-shop/product/${tea.id}` });
+  await until('document.querySelectorAll(".product-thumbnails button").length===2 && document.querySelector(".detail-image img")?.naturalWidth>0');
+  const cover = await evaluate('document.querySelector(".detail-image img").getAttribute("src")');
+  await evaluate('document.querySelectorAll(".product-thumbnails button")[1].click()');
+  await until(`document.querySelector(".detail-image img").getAttribute("src")!==${JSON.stringify(cover)}`);
+  assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'), "Customer gallery fits phone width");
+  writeFileSync(join(directory, "product-gallery-mobile.png"), Buffer.from((await send("Page.captureScreenshot", {format:"png"})).data,"base64"));
   await send("Page.navigate", { url: base + "/services/shop-websites" });
   await until('Boolean(document.querySelector(".connected-shops"))');
   assert.ok(
@@ -296,7 +343,7 @@ try {
     ),
   );
   console.log(
-    "Commerce browser checks passed: create product, actual XLSX preview/import, shipment receipt, order reservation/preparation/dispatch/delivery, unpaid linked sale, one-time key display, persisted company data and responsive EN/AR light/dark layouts.",
+    "Commerce browser checks passed: photo upload/preview/cover/edit/customer gallery, product/order filters, actual XLSX preview/import, shipment receipt, order reservation/preparation/dispatch/delivery, unpaid linked sale, one-time key display, persisted company data and responsive EN/AR light/dark layouts.",
   );
 } finally {
   await browser?.close();

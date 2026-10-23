@@ -12,6 +12,7 @@ type Product = {
   name: string;
   description: string;
   image: string;
+  images?: string[];
   price: string;
   currency: string;
   available: number;
@@ -877,13 +878,7 @@ export default function Shop() {
           </>
         ) : product ? (
           <section className="product-detail">
-            <div className="detail-image">
-              {product.image ? (
-                <img src={product.image} alt={product.name} />
-              ) : (
-                <Placeholder />
-              )}
-            </div>
+            <ProductGallery key={product.id} product={product} t={t} />
             <div className="detail-copy">
               {link("/", "← " + t("Back to collection"), "text-link")}
               <p className="eyebrow">
@@ -1436,4 +1431,10 @@ export default function Shop() {
       </footer>
     </div>
   );
+}
+
+function ProductGallery({ product, t }: { product: Product; t: (text: string) => string }) {
+  const [active, setActive] = useState(0);
+  const photos = product.images?.length ? product.images : product.image ? [product.image] : [];
+  return <div className="detail-gallery"><div className="detail-image">{photos.length ? <img src={photos[active] || photos[0]} alt={product.name} /> : <Placeholder />}</div>{photos.length > 1 && <div className="product-thumbnails" aria-label={t("Product photos")}>{photos.map((src, index) => <button type="button" key={src} aria-label={t("View photo") + " " + (index + 1)} aria-pressed={index === active} onClick={() => setActive(index)}><img src={src} alt="" loading="lazy" /></button>)}</div>}</div>;
 }

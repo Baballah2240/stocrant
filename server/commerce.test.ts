@@ -495,3 +495,64 @@ describe("Connected shop foundations", () => {
     saveStore(getStore());
   });
 });
+
+describe("Company product photo uploads", () => {
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=", "base64");
+  const upload = (body = png, cookie = session, id = company.id) => fetch(`${base}/api/workspace/shops/${id}/photos`, { method: "POST", headers: { "Content-Type": "application/octet-stream", ...(cookie ? { Cookie: cookie } : {}) }, body: new Uint8Array(body) });
+  it("validates real photo uploads, scope, size, and durable galleries without publishing drafts", async () => {
+    await json(await upload(png, ""), 401);
+    await json(await upload(Buffer.from("<svg onload='alert(1)'></svg>")), 400);
+    await json(await upload(Buffer.alloc(5 * 1024 * 1024 + 1)), 413);
+    const first = (await json(await upload(), 201)).url;
+    const second = (await json(await upload(), 201)).url;
+    assert.match(first, /^\/api\/shop-images\/[a-f0-9-]{36}$/);
+    await json(await fetch(base + first), 404);
+    const privatePreview = await fetch(base + first, { headers: { Cookie: session } });
+    assert.equal(privatePreview.status, 200); assert.equal(privatePreview.headers.get("content-type"), "image/png");
+    assert.deepEqual(Buffer.from(await privatePreview.arrayBuffer()), png);
+    await json(await api(`/workspace/shops/${foreign.id}/products`, "POST", { products: [{ sku: "WRONG-PHOTO", name: "Wrong company", price: "10", image: first, images: [first] }] }), 400);
+    const gallery = (await json(await api(prefix() + "/products", "POST", { products: [{ sku: "PHOTO-01", name: "Photo product", price: "10", image: first, images: [first, second] }] }), 201)).products[0];
+    resetTestCache();
+    const loaded = (await json(await api(prefix()))).products.find((p: Row) => p.id === gallery.id);
+    assert.deepEqual(loaded.images, [first, second]);
+    await json(await api(prefix() + `/photos/${first.split("/").at(-1)}`, "DELETE"), 409);
+    await json(await fetch(base + first), 404);
+    const patch = { version: loaded.version, name: loaded.name, description: loaded.description, image: second, images: [second, first], price: loaded.price, active: true };
+    const saved = await json(await api(prefix() + `/products/${gallery.id}`, "PATCH", patch));
+    assert.deepEqual(saved.images, [second, first]); assert.equal(saved.image, second);
+    await json(await api(prefix() + `/products/${gallery.id}`, "PATCH", { ...patch, version: saved.version, images: [first, second] }), 400);
+    await json(await api(prefix() + `/products/${gallery.id}`, "PATCH", { ...patch, version: saved.version, images: Array(7).fill(second) }), 400);
+    const url = (await json(await upload(), 201)).url;
+    await json(await api(prefix() + `/photos/${url.split("/").at(-1)}`, "DELETE"));
+    await json(await fetch(base + url, { headers: { Cookie: session } }), 404);
+  });
+  it("restricts uploads and draft downloads to the authorized company and current permissions", async () => {
+    const password = credentials();
+    const user = (await json(await api("/workspace/access/users", "POST", { name: "Photo manager", email: "photo-manager@commerce.test", password, roleId: "role-shop-manager", organizationIds: [foreign.id] }), 201)).item;
+    const account = (getCollection("accessUsers") as Row[]).find(a => a.id === user.id)!;
+    account.mustChangePassword = false; saveStore(getStore());
+    const login = await api("/auth/login", "POST", { email: account.email, password }, ""); await json(login);
+    const cookie = login.headers.get("set-cookie")!.split(";")[0];
+    await json(await upload(png, cookie), 404);
+    const privateImage = (await json(await api(prefix()))).products.find((p: Row) => p.sku === "PHOTO-01").image;
+    await json(await fetch(base + privateImage, { headers: { Cookie: cookie } }), 404);
+    const own = (await json(await upload(png, cookie, foreign.id), 201)).url;
+    assert.equal((await fetch(base + own, { headers: { Cookie: cookie } })).status, 200);
+    await json(await api(`/workspace/access/users/${user.id}`, "PATCH", { permissions: ["operations.view", "inventory.view"] }));
+    await json(await upload(png, cookie, foreign.id), 403);
+    await json(await api(`/workspace/access/users/${user.id}`, "PATCH", { status: "suspended" }));
+    await json(await fetch(base + own, { headers: { Cookie: cookie } }), 404);
+  });
+  it("publishes linked photos with the storefront and stops serving them when unpublished", async () => {
+    const product = (await json(await api(prefix()))).products.find((p: Row) => p.sku === "PHOTO-01");
+    const defaults = (await json(await api(`/workspace/storefronts/${company.id}`))).settings;
+    const input = { ...defaults, slug: "photo-store", name: "Photo store", contactEmail: "shop@photos.test", address: "Collection address", shippingPolicy: "Collection", returnsPolicy: "Contact staff", privacyPolicy: "Orders only", terms: "Payment on collection", published: true, manualPaymentsAccepted: true };
+    const config = await json(await api(`/workspace/storefronts/${company.id}`, "PUT", input));
+    const photo = await fetch(base + product.image);
+    assert.equal(photo.status, 200); assert.equal(photo.headers.get("x-content-type-options"), "nosniff");
+    const catalog = await json(await api("/storefront/photo-store/catalog", "GET", undefined, ""));
+    assert.deepEqual(catalog.products.find((p: Row) => p.id === product.id).images, product.images);
+    await json(await api(`/workspace/storefronts/${company.id}`, "PUT", { ...input, version: config.settings.version, published: false }));
+    await json(await fetch(base + product.image), 404);
+  });
+});
