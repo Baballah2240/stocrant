@@ -103,6 +103,7 @@ export async function verifyStorefrontDesign(browser, base) {
     "Keyboard focus can move inside the card",
   );
   await evaluate("document.activeElement.blur()");
+  await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
   await until(veilHidden);
   // Reduced-motion browsing keeps the focus treatment and stops decoration/lift.
   await send("Emulation.setEmulatedMedia", {

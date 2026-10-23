@@ -547,11 +547,15 @@ describe("Company product photo uploads", () => {
     const product = (await json(await api(prefix()))).products.find((p: Row) => p.sku === "PHOTO-01");
     const defaults = (await json(await api(`/workspace/storefronts/${company.id}`))).settings;
     const input = { ...defaults, slug: "photo-store", name: "Photo store", contactEmail: "shop@photos.test", address: "Collection address", shippingPolicy: "Collection", returnsPolicy: "Contact staff", privacyPolicy: "Orders only", terms: "Payment on collection", published: true, manualPaymentsAccepted: true };
-    const config = await json(await api(`/workspace/storefronts/${company.id}`, "PUT", input));
+    let config = await json(await api(`/workspace/storefronts/${company.id}`, "PUT", input));
     const photo = await fetch(base + product.image);
     assert.equal(photo.status, 200); assert.equal(photo.headers.get("x-content-type-options"), "nosniff");
     const catalog = await json(await api("/storefront/photo-store/catalog", "GET", undefined, ""));
     assert.deepEqual(catalog.products.find((p: Row) => p.id === product.id).images, product.images);
+    config = await json(await api(`/workspace/storefronts/${company.id}`, "PUT", { ...input, version: config.settings.version, merchandising: {...defaults.merchandising,categories:[{id:"hidden",name:product.category,title:"Hidden photos",description:"",visible:false}]} }));
+    await json(await fetch(base + product.image), 404);
+    config = await json(await api(`/workspace/storefronts/${company.id}`, "PUT", {...input,version:config.settings.version}));
+    assert.equal((await fetch(base + product.image)).status,200);
     await json(await api(`/workspace/storefronts/${company.id}`, "PUT", { ...input, version: config.settings.version, published: false }));
     await json(await fetch(base + product.image), 404);
   });

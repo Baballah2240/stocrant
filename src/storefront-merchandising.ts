@@ -1,0 +1,6 @@
+export type StoreCategory = { id: string; name: string; title: string; description: string; visible: boolean };
+export type StoreSection = { id: string; title: string; description: string; source: "all" | "category" | "offers" | "products"; category: string; productIds: string[]; visible: boolean; limit: number; layout: "grid" | "row" };
+export type StoreOffer = { id: string; title: string; description: string; target: "all" | "category" | "products"; category: string; productIds: string[]; percent: number; enabled: boolean; visible: boolean; startsAt: string | null; endsAt: string | null };
+export type Merchandising = { categories: StoreCategory[]; sections: StoreSection[]; offers: StoreOffer[]; display: { showHero: boolean; showStory: boolean; showSearch: boolean; showCategories: boolean; showOffers: boolean; collectionTitle: string; searchPlaceholder: string; defaultSort: "featured" | "name" | "low" | "high"; layout: "grid" | "list" } };
+export const defaultMerchandising: Merchandising = { categories: [], sections: [], offers: [], display: { showHero: true, showStory: true, showSearch: true, showCategories: true, showOffers: true, collectionTitle: "", searchPlaceholder: "", defaultSort: "featured", layout: "grid" } };
+export type MerchProduct = { id: string; name: string; category?: string };

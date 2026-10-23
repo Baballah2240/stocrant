@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from "react";
 import { ar } from "./language";
+import { defaultMerchandising, type Merchandising } from "../../src/storefront-merchandising";
 type Product = {
   id: string;
   sku: string;
@@ -13,12 +14,17 @@ type Product = {
   description: string;
   image: string;
   images?: string[];
+  originalPrice?: string;
+  offerId?: string;
+  offerTitle?: string;
+  offerPercent?: number;
   price: string;
   currency: string;
   available: number;
   category: string;
 };
 type Settings = {
+  merchandising?: Merchandising;
   name: string;
   slug: string;
   tagline: string;
@@ -207,7 +213,7 @@ export default function Shop() {
     ),
     [search, setSearch] = useState(""),
     [category, setCategory] = useState("All"),
-    [sort, setSort] = useState("featured");
+    [sort, setSort] = useState("featured"), [onlyOffers, setOnlyOffers] = useState(false), [offerFilter, setOfferFilter] = useState(""), [refreshAt, setRefreshAt] = useState(0);
   const [cart, setCart] = useState<Line[]>([]),
     [cartReady, setCartReady] = useState(false),
     [quantity, setQuantity] = useState(1),
@@ -275,11 +281,13 @@ export default function Shop() {
     if (!slug) return;
     let active = true;
     setLoading(true);
-    api<{ shop: Settings; products: Product[] }>(apiBase + "/catalog")
+    api<{ shop: Settings; products: Product[]; refreshAt?: number }>(apiBase + "/catalog")
       .then((r) => {
         if (!active) return;
         setShop(r.shop);
         setProducts(r.products);
+        setSort(r.shop.merchandising?.display.defaultSort || "featured");
+        setRefreshAt(r.refreshAt || Date.now() + 60000);
         setMethod(r.shop.pickupEnabled ? "pickup" : "delivery");
         const stored = load<unknown>(`amal.cart.${slug}`, []);
         setCart(
@@ -310,6 +318,16 @@ export default function Shop() {
       active = false;
     };
   }, [slug, apiBase]);
+  useEffect(() => {
+    if (!shop || !refreshAt) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void api<{shop: Settings; products: Product[]; refreshAt: number}>(apiBase + "/catalog").then(r => {
+        if (active) { setShop(r.shop); setProducts(r.products); setRefreshAt(r.refreshAt); }
+      }).catch(() => { if (active) setRefreshAt(Date.now() + 15000); });
+    }, Math.max(100, Math.min(60000, refreshAt - Date.now() + 30)));
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [apiBase, refreshAt, shop?.slug]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     save("amal.theme", theme);
@@ -369,24 +387,13 @@ export default function Shop() {
       active = false;
     };
   }, [path, location, slug, apiBase, refreshReceipt]);
+  const merchandising = shop?.merchandising || defaultMerchandising;
+  const categoryTitle = (key: string) => merchandising.categories.find(c => c.name === key)?.title || t(key);
+  const categoryOptions = [ ...merchandising.categories.filter(c => products.some(p => p.category === c.name)).map(c => c.name), ...[...new Set(products.map(p => p.category))].filter(name => !merchandising.categories.some(c => c.name === name)) ];
+  const normalizeSearch = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, "").toLocaleLowerCase().trim();
+  const terms = normalizeSearch(merchandising.display.showSearch ? search : "").split(/\s+/).filter(Boolean);
   const count = cart.reduce((n, l) => n + l.quantity, 0),
-    visible = products
-      .filter(
-        (p) =>
-          (category === "All" || p.category === category) &&
-          `${p.name} ${p.sku} ${p.description}`
-            .toLowerCase()
-            .includes(search.toLowerCase()),
-      )
-      .sort((a, b) =>
-        sort === "name"
-          ? a.name.localeCompare(b.name)
-          : sort === "low"
-            ? Number(a.price) - Number(b.price)
-            : sort === "high"
-              ? Number(b.price) - Number(a.price)
-              : 0,
-      );
+    visible = products.filter(p => (!merchandising.display.showCategories || category === "All" || p.category === category) && (!onlyOffers || Boolean(p.offerId)) && (!offerFilter || p.offerId === offerFilter) && terms.every(term => normalizeSearch(`${p.name} ${p.sku} ${p.description} ${p.category} ${categoryTitle(p.category)} ${p.offerTitle || ""}`).includes(term))).sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "low" ? Number(a.price)-Number(b.price) : sort === "high" ? Number(b.price)-Number(a.price) : 0);
   const invalidCart = cart.some(
     (l) =>
       !products.some((p) => p.id === l.productId && p.available >= l.quantity),
@@ -633,6 +640,46 @@ export default function Shop() {
   const product = path.startsWith("/product/")
     ? products.find((p) => p.id === path.split("/")[2])
     : null;
+  function priceLabel(p: Product) { return <span className="store-price">{p.originalPrice && <del>{moneyLabel(p.originalPrice)}</del>}<span>{moneyLabel(p.price)}</span>{p.offerTitle && <small>{p.offerTitle}</small>}</span>; }
+  function renderProduct(p: Product, i: number) { return (<article className="product-card" key={p.id} data-product-id={p.id}>
+                    <a
+                      href={base + `/product/${p.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/product/${p.id}`);
+                      }}
+                      className="product-image"
+                      aria-label={`${t("View product")}: ${p.name}`}
+                    >
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} loading="lazy" />
+                      ) : (
+                        <Placeholder seed={i} />
+                      )}
+                      <span className="product-tag">
+                        {p.available ? categoryTitle(p.category) : t("Sold out")}
+                      </span>
+                      {p.offerId && <span className="offer-product-tag">{p.offerPercent}% {t("off")}</span>}
+                      <span className="product-arrow" aria-hidden="true">
+                        ↗
+                      </span>
+                    </a>
+                    <div className="product-caption">
+                      <div>
+                        <h3>{link(`/product/${p.id}`, p.name)}</h3>
+                        {priceLabel(p)}
+                      </div>
+                      <button
+                        className="add-circle"
+                        aria-label={`${t("Add to bag")}: ${p.name}`}
+                        disabled={!p.available}
+                        onClick={() => add(p)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </article>); }
+  function sectionProducts(section: Merchandising["sections"][number]) { const selected = products.filter(p => section.source === "all" || section.source === "category" && p.category === section.category || section.source === "offers" && Boolean(p.offerId) || section.source === "products" && section.productIds.includes(p.id)); return (section.source === "products" ? [...selected].sort((a,b)=>section.productIds.indexOf(a.id)-section.productIds.indexOf(b.id)) : selected).slice(0,section.limit); }
   return (
     <div className="amal">
       <a className="skip" href="#content">
@@ -658,6 +705,7 @@ export default function Shop() {
           {link("/about", t("About"))}
           {link("/contact", t("Contact"))}
         </nav>
+        {merchandising.display.showSearch && <form className="header-store-search" role="search" onSubmit={event => { event.preventDefault(); setCategory("All"); setOnlyOffers(false); setOfferFilter(""); navigate("/#collection"); }}><label><span className="sr-only">{t("Search store")}</span><input type="search" placeholder={merchandising.display.searchPlaceholder || t("Search products")} value={search} onChange={event=>setSearch(event.target.value)} /></label><button type="submit">{t("Search")}</button></form>}
         <div className="header-actions">
           <button
             className="language"
@@ -713,7 +761,7 @@ export default function Shop() {
         )}
         {path === "/" ? (
           <>
-            <section className="hero">
+            {merchandising.display.showHero && <section className="hero">
               <div className="hero-copy">
                 <p className="eyebrow">
                   {t("Thoughtfully chosen")} / {shop.name}
@@ -768,12 +816,14 @@ export default function Shop() {
                   <small>{t("Built for your everyday.")}</small>
                 </span>
               </div>
-            </section>
+            </section>}
+            {merchandising.display.showOffers && merchandising.offers.length > 0 && <section className="store-offers" aria-label={t("Current offers")}>{merchandising.offers.map(offer => <article key={offer.id}><span className="offer-percentage">{offer.percent}% {t("off")}</span><div><h2>{offer.title}</h2>{offer.description && <p>{offer.description}</p>}</div><button type="button" onClick={() => { setCategory(offer.target === "category" ? offer.category : "All"); setOnlyOffers(true); setOfferFilter(offer.id); setSearch(""); document.getElementById("collection")?.scrollIntoView({behavior:"smooth"}); }}>{t("Shop offers")} <span aria-hidden="true">&#8599;</span></button></article>)}</section>}
+            {merchandising.sections.map(section => { const items = sectionProducts(section); return items.length ? <section className="store-curated-section" key={section.id} data-store-section={section.id}><header className="section-heading"><div><h2>{section.title}</h2>{section.description && <p>{section.description}</p>}</div><span>{items.length} {t("Products")}</span></header><div className={`product-grid section-products ${section.layout === "row" ? "is-scroll-row" : ""}`}>{items.map(renderProduct)}</div></section> : null; })}
             <section id="collection" className="collection">
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">{t("Explore the collection")}</p>
-                  <h2>{t("Find your everyday favourites.")}</h2>
+                  <h2>{merchandising.display.collectionTitle || t("Find your everyday favourites.")}</h2>
                 </div>
                 <span>
                   {products.length.toString().padStart(2, "0")} /{" "}
@@ -781,29 +831,30 @@ export default function Shop() {
                 </span>
               </div>
               <div className="catalog-tools">
-                <label className="search">
+                {merchandising.display.showSearch && <label className="search">
                   <span className="sr-only">{t("Search products")}</span>
                   <input
                     type="search"
-                    placeholder={t("Search products")}
+                    placeholder={merchandising.display.searchPlaceholder || t("Search products")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                   <span aria-hidden="true">⌕</span>
-                </label>
-                <div className="categories" aria-label={t("Collection")}>
-                  {["All", ...new Set(products.map((p) => p.category))].map(
+                </label>}
+                {merchandising.display.showCategories && <div className="categories" aria-label={t("Collection")}>
+                  {["All", ...categoryOptions].map(
                     (c) => (
                       <button
                         key={c}
                         aria-pressed={category === c}
-                        onClick={() => setCategory(c)}
+                        onClick={() => { setCategory(c); setOfferFilter(""); }}
                       >
-                        {t(c)}
+                        {c === "All" ? t("All") : categoryTitle(c)}
                       </button>
                     ),
                   )}
-                </div>
+                </div>}
+                {products.some(p => p.offerId) && <button className="offers-filter" aria-pressed={onlyOffers} onClick={() => { setOnlyOffers(!onlyOffers); setOfferFilter(""); }}>{t("Products on offer")}</button>}
                 <label className="sort">
                   <span className="sr-only">{t("Sort by")}</span>
                   <select
@@ -817,46 +868,9 @@ export default function Shop() {
                   </select>
                 </label>
               </div>
-              <div className="product-grid">
-                {visible.map((p, i) => (
-                  <article className="product-card" key={p.id} data-product-id={p.id}>
-                    <a
-                      href={base + `/product/${p.id}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate(`/product/${p.id}`);
-                      }}
-                      className="product-image"
-                      aria-label={`${t("View product")}: ${p.name}`}
-                    >
-                      {p.image ? (
-                        <img src={p.image} alt={p.name} loading="lazy" />
-                      ) : (
-                        <Placeholder seed={i} />
-                      )}
-                      <span className="product-tag">
-                        {p.available ? t(p.category) : t("Sold out")}
-                      </span>
-                      <span className="product-arrow" aria-hidden="true">
-                        ↗
-                      </span>
-                    </a>
-                    <div className="product-caption">
-                      <div>
-                        <h3>{link(`/product/${p.id}`, p.name)}</h3>
-                        {moneyLabel(p.price)}
-                      </div>
-                      <button
-                        className="add-circle"
-                        aria-label={`${t("Add to bag")}: ${p.name}`}
-                        disabled={!p.available}
-                        onClick={() => add(p)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </article>
-                ))}
+              <div className="store-results-line"><p className="search-results" role="status">{visible.length} {t("products found")}</p>{(search || category !== "All" || onlyOffers) && <button className="text-link" onClick={()=>{setSearch("");setCategory("All");setOnlyOffers(false);setOfferFilter("");}}>{t("Clear filters")}</button>}</div>
+              <div className={`product-grid ${merchandising.display.layout === "list" ? "is-list" : ""}`}>
+                {visible.map(renderProduct)}
               </div>
               {!visible.length && (
                 <div className="empty-state">
@@ -867,14 +881,14 @@ export default function Shop() {
                 </div>
               )}
             </section>
-            <section className="shop-story">
+            {merchandising.display.showStory && <section className="shop-story">
               <p className="eyebrow">
                 {shop.name} / {t("Our story")}
               </p>
               <h2>{t("Built for your everyday.")}</h2>
               <p>{shop.description}</p>
               {link("/about", t("About") + " ↗")}
-            </section>
+            </section>}
           </>
         ) : product ? (
           <section className="product-detail">
@@ -882,10 +896,10 @@ export default function Shop() {
             <div className="detail-copy">
               {link("/", "← " + t("Back to collection"), "text-link")}
               <p className="eyebrow">
-                {product.sku} / {t(product.category)}
+                {product.sku} / {categoryTitle(product.category)}
               </p>
               <h1>{product.name}</h1>
-              <p className="detail-price">{moneyLabel(product.price)}</p>
+              <div className="detail-price">{priceLabel(product)}</div>
               <p>{product.description}</p>
               <p className="stock">
                 ●{" "}
@@ -962,7 +976,7 @@ export default function Shop() {
                         </div>
                         <div>
                           <h2>{p?.name || t("Unavailable item")}</h2>
-                          {p && moneyLabel(p.price)}
+                          {p && priceLabel(p)}
                           <label className="field">
                             <span>{t("Quantity")}</span>
                             <input

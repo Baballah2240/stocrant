@@ -240,6 +240,7 @@ export function createShopOrder(
   c: Row,
   input: unknown,
   connectorId?: string,
+  storefrontPrices?: ReadonlyMap<string, { price: string; originalPrice?: string; offerId?: string; offerTitle?: string }>,
 ): Row {
   const body = orderInput.parse(input);
   const fingerprint = createHash("sha256")
@@ -275,13 +276,17 @@ export function createShopOrder(
       fail("Product is inactive or its currency differs from the company.");
     if (shopStock(p).available < line.quantity)
       fail(`Insufficient available stock for ${p.sku}.`, 409);
+    const offered = storefrontPrices?.get(p.id);
+    const price = offered ? cashAmount(offered.price, c.currency) : p.price;
+    if (scaled(price, digits) < 0n || scaled(price, digits) > scaled(p.price, digits)) fail("Invalid storefront price.");
     return {
       ...line,
       inventoryItemId: p.inventoryItemId,
       sku: p.sku,
       name: p.name,
-      price: p.price,
-      total: money(scaled(p.price, digits) * BigInt(line.quantity), digits),
+      ...(offered?.offerId ? { originalPrice: p.price, offerId: offered.offerId, offerTitle: offered.offerTitle } : {}),
+      price,
+      total: money(scaled(price, digits) * BigInt(line.quantity), digits),
     };
   });
   const delivery = cashAmount(body.delivery, c.currency),
@@ -376,6 +381,7 @@ commerceRouter.get("/:companyId", (req, res) => {
       .reverse();
     res.json({
       products,
+      categories: (rows("shopStorefronts").find(s => s.organizationId === c.id)?.merchandising?.categories || []).map((c: Row) => ({ name: c.name, title: c.title })),
       orders,
       receipts: rows("shopReceipts")
         .filter(

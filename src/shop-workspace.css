@@ -322,6 +322,22 @@
 .shop-order-detail p { overflow-wrap: anywhere; line-height: 1.6; }
 .shop-contact-line { display: flex; gap: 8px 16px; flex-wrap: wrap; }
 .shop-contact-line a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.store-merchandising { display: grid; gap: 18px; border-block: 1px solid var(--border); padding-block: 24px; }
+.store-merchandising h3,.store-merchandising h4 { margin-block: 0 10px; }
+.merch-panel { border: 1px solid var(--border); border-radius: 16px; padding: 20px; min-width: 0; }
+.merch-entry { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-block: 12px; min-width: 0; }
+.merch-entry .shop-two-columns { gap: 12px; margin-block: 12px; }
+.merch-panel-heading,.merch-entry-heading,.merch-add-category { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.merch-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+.merch-actions button { min-height: 36px; }
+.merch-toggle-grid { display: flex; flex-wrap: wrap; gap: 12px 22px; margin-block: 16px; }
+.merch-check { display: flex; align-items: center; gap: 8px; font-size: .85rem; }
+.store-merchandising .form-field { display: grid; gap: 7px; font-size: .85rem; min-width: 0; }
+.store-merchandising input:not([type="checkbox"]),.store-merchandising select { width: 100%; min-width: 0; box-sizing: border-box; }
+.store-merchandising select[multiple] { min-height: 140px; padding: 8px; }
+.store-merchandising select[multiple] option { padding: 7px; }
+.merch-add-category { align-items: end; justify-content: start; margin-block: 14px; }
+@media(max-width:540px) { .merch-panel { padding: 14px; } .merch-entry { padding: 12px; } .merch-actions { width: 100%; } .merch-add-category > label { width: 100%; } }
 .shop-line-items { border-block: 1px solid var(--border); margin-block: 20px; }
 .shop-line-items > div { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-block: 14px; }
 .shop-line-items > div + div { border-top: 1px solid var(--border); }

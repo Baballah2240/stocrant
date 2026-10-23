@@ -22,6 +22,7 @@ import { money, precision, scaled } from "./payroll-model.js";
 import { expireShopReservations } from "./commerce-stock.js";
 import { createNotification } from "./notifications.js";
 import { productPhotos } from "./shop-media.js";
+import { merchandisingSchema, defaultMerchandising, merchandisingFor, validateMerchandising, visibleProduct, offeredPrice, publicMerchandising, nextMerchandisingChange } from "./storefront-merchandising.js";
 
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
@@ -85,6 +86,7 @@ const settingsSchema = z
     published: z.boolean(),
     manualPaymentsAccepted: z.boolean(),
     reservationHours: z.number().int().min(1).max(168).default(24),
+    merchandising: merchandisingSchema.optional(),
   })
   .strict();
 const defaults = {
@@ -108,6 +110,7 @@ const defaults = {
   published: false,
   manualPaymentsAccepted: false,
   reservationHours: 24,
+  merchandising: defaultMerchandising,
 };
 function admin(req: Request, companyId: string) {
   const user = req.auth!;
@@ -233,11 +236,13 @@ const cartSchema = z
   })
   .strict();
 function catalog(s: Row, user: AuthenticatedUser, currency: string) {
+  const m = merchandisingFor(s);
   return rows("shopProducts")
     .filter(
       (p) =>
         p.organizationId === s.organizationId &&
         p.active &&
+        visibleProduct(m, p) &&
         p.currency === currency &&
         isWithinScope(
           user,
@@ -251,7 +256,7 @@ function catalog(s: Row, user: AuthenticatedUser, currency: string) {
       description: p.description,
       image: p.image,
       images: productPhotos(p),
-      price: p.price,
+      ...offeredPrice(m, p, currency),
       currency: p.currency,
       available: shopStock(p).available,
       category: p.category || "Collection",
@@ -285,6 +290,9 @@ function quote(
       name: p.name,
       price: p.price,
       total: money(scaled(p.price, digits) * BigInt(l.quantity), digits),
+      originalPrice: p.originalPrice,
+      offerId: p.offerId,
+      offerTitle: p.offerTitle,
     };
   });
   const subtotal = lines.reduce((n, l) => n + scaled(l.total, digits), 0n),
@@ -358,6 +366,8 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
       );
       if ((current?.version || 0) !== b.version)
         fail("Shop settings changed. Reload before saving.", 409);
+      const merchandising = b.merchandising ?? merchandisingFor(current || {});
+      validateMerchandising(req.auth!, c.id, merchandising);
       if (
         current &&
         current.slug !== b.slug &&
@@ -406,6 +416,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
       connector.ownerId = req.auth!.id;
       const item = {
         ...b,
+        merchandising,
         deliveryFee,
         id: current?.id || randomUUID(),
         organizationId: c.id,
@@ -462,9 +473,11 @@ storefrontRouter.get("/:slug/catalog", (req, res) => {
       { user, company } = context(s);
     guest(req, res, true);
     const { connectorId, ownerId, organizationId, id, ...settings } = s;
+    const products = catalog(s, user, company.currency), m = merchandisingFor(s);
     res.json({
-      shop: { ...settings, currency: company.currency, preview: !s.published },
-      products: catalog(s, user, company.currency),
+      shop: { ...settings, merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
+      products,
+      refreshAt: nextMerchandisingChange(m),
     });
   } catch (e) {
     error(res, e);
@@ -577,6 +590,7 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
           discount: "0",
         },
         connector.id,
+        new Map(q.lines.map(line => [line.productId, { price: line.price, originalPrice: line.originalPrice, offerId: line.offerId, offerTitle: line.offerTitle }])),
       );
       order.source = "storefront";
       order.storefrontId = s.id;

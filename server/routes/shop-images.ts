@@ -8,6 +8,7 @@ import { shopCompany, shopPermission } from "../commerce.js";
 import { getCollection, getDataDirectory, getStore, saveStore, transaction } from "../storage.js";
 import { audit } from "../workspace.js";
 import { PHOTO_LIMIT, mediaRows, photoPath, photoType, photoLinked, productPhotos } from "../shop-media.js";
+import { merchandisingFor, visibleProduct } from "../storefront-merchandising.js";
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
 function failure(res: Response, e: unknown) { return res.status((e as {statusCode?: number}).statusCode || 400).json({ error: (e as Error).message }); }
@@ -72,7 +73,7 @@ shopImageDownloads.get("/:id", (req, res) => {
       const user = publicUser(account as Parameters<typeof publicUser>[0]);
       shopPermission(user, "view"); const company = shopCompany(user, file.organizationId);
       if (!rows("organizations").some(o => o.id === company.parentOrganizationId && o.status === "active")) continue;
-      permitted = products.some(p => p.active && isWithinScope(user, rows("inventoryItems").find(i => i.id === p.inventoryItemId) || {}));
+      permitted = products.some(p => p.active && visibleProduct(merchandisingFor(s), p) && isWithinScope(user, rows("inventoryItems").find(i => i.id === p.inventoryItemId) || {}));
     } catch { /* Unavailable storefronts do not publish photos. */ }
     if (permitted) break;
   }

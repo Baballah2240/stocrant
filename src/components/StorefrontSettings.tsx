@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { request, serverUrl } from "../api";
 import { useLanguage } from "../language-context";
+import StorefrontMerchandising from "./StorefrontMerchandising";
+import { defaultMerchandising, type MerchProduct } from "../storefront-merchandising";
 const initial = {
   version: 0,
   slug: "amal",
@@ -22,12 +24,17 @@ const initial = {
   published: false,
   manualPaymentsAccepted: false,
   reservationHours: 24,
+  merchandising: defaultMerchandising,
 };
 type Settings = typeof initial;
 export default function StorefrontSettings({
   companyId,
+  products = [],
+  onSaved,
 }: {
   companyId: string;
+  products?: MerchProduct[];
+  onSaved?: () => void;
 }) {
   const { t } = useLanguage();
   const [settings, setSettings] = useState(initial),
@@ -79,6 +86,7 @@ export default function StorefrontSettings({
       );
       setSettings({ ...initial, ...r.settings });
       setUrl(r.url);
+      onSaved?.();
       setNotice(
         published
           ? "Shop published. Verify its public address before sharing it."
@@ -182,6 +190,7 @@ export default function StorefrontSettings({
                 {field("Collection address", "address")}
               </section>
             </div>
+            <StorefrontMerchandising value={settings.merchandising} products={products} onChange={merchandising => setSettings({...settings, merchandising})} />
             <section className="shop-form">
               <h3>{t("Delivery & payment")}</h3>
               <label>

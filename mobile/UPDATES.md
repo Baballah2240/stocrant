@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Store sections, categories, offers and display controls
+
+- Add workspace controls for ordered categories and homepage sections, category labels/visibility, grid/list product display, row/grid sections, default sorting, and search/hero/story/promotion visibility.
+- Add scheduled percentage offers scoped to all products, a category or selected products. The best active offer applies once; guest quotes, stock reservations, order lines and linked Finance sales use the same discounted prices.
+- Add store-header search, category/offer filtering, visible result counts and original/offer price labels. Refresh schedule changes and require checkout review when a price or display configuration changes.
+- Suggest saved store categories when adding or editing products. Keep English/Arabic and responsive controls in shared source; no native package built or installed.
+
 ## 2026-10-23 - Product photo uploads and clearer shop management
 
 - Add up to six product photos from the device, with previews, cover selection, removal and optional HTTPS links. Optimize uploaded photos in the browser and save them under the server's persistent data directory.

@@ -51,6 +51,7 @@ type Receipt = {
 };
 type Connector = { id: string; name: string; active: boolean };
 type Snapshot = {
+  categories?: {name: string; title: string}[];
   products: Product[];
   orders: Order[];
   receipts: Receipt[];
@@ -243,6 +244,7 @@ export default function ShopWorkspace() {
           required={required}
           value={value}
           step={type === "number" ? "any" : undefined}
+          list={label === "Category" ? "shop-category-options" : undefined}
           onChange={(e) => update(e.target.value)}
         />
       </label>
@@ -322,8 +324,10 @@ export default function ShopWorkspace() {
       );
     });
   }
+  const renderGeneration = generation.current;
   return (
     <main className="page shop-workspace">
+      <datalist id="shop-category-options">{[...new Set([...(data.categories || []).map(c=>c.name), ...data.products.map(p=>p.category || "Collection")])].map(name=><option key={name} value={name}>{data.categories?.find(c=>c.name===name)?.title || name}</option>)}</datalist>
       <header className="page-header">
         <div>
           <p className="eyebrow">{t("CONNECTED COMMERCE")}</p>
@@ -1044,7 +1048,7 @@ export default function ShopWorkspace() {
               </div>
             )}
             {tab === "storefront" && canConnect && (
-              <StorefrontSettings key={companyId} companyId={companyId} />
+              <StorefrontSettings key={companyId} companyId={companyId} products={data.products} onSaved={() => { void request<Snapshot>(base).then(result => { if (renderGeneration === generation.current) setData(result); }).catch(e => { if (renderGeneration === generation.current) setError(e.message); }); }} />
             )}
             {tab === "connections" && canConnect && (
               <section className="card">
