@@ -552,6 +552,10 @@ button svg {
   margin-top: 20px;
 }
 .detail-gallery { min-width: 0; }
+.product-warranty { display: flex; align-items: center; gap: 5px; width: fit-content; margin-block-start: 7px; font-size: .7rem; line-height: 1.5; color: var(--muted); }
+.product-warranty svg { flex-shrink: 0; }
+.detail-copy .product-warranty { font-size: .85rem; }
+.detail-copy .warranty-details { font-size: .85rem; margin-block: 8px 14px; }
 .header-store-search { display: flex; align-items: center; gap: 6px; flex: 1 1 210px; max-width: 360px; min-width: 0; border: 1px solid var(--line); border-radius: 99px; padding: 5px 6px 5px 14px; background: var(--surface); }
 .header-store-search label { flex: 1; min-width: 0; }
 .header-store-search input { min-width: 0; width: 100%; border: 0; outline-offset: 4px; padding: 6px; background: transparent; color: inherit; font: inherit; font-size: .83rem; }

@@ -1,4 +1,5 @@
 export const ar: Record<string, string> = {
+  "Warranty included": "يشمل ضماناً",
   "Store display & promotions": "عرض المتجر والعروض",
   "Arrange sections, control categories and schedule real offers. Save shop settings to apply your changes.": "رتب الأقسام وتحكم في الفئات وجدول العروض الفعلية. احفظ إعدادات المتجر لتطبيق تغييراتك.",
   "Store appearance": "مظهر المتجر",

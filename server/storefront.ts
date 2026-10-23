@@ -256,6 +256,8 @@ function catalog(s: Row, user: AuthenticatedUser, currency: string) {
       description: p.description,
       image: p.image,
       images: productPhotos(p),
+      warranty: p.warranty === true,
+      warrantyDetails: p.warranty === true ? p.warrantyDetails || "" : "",
       ...offeredPrice(m, p, currency),
       currency: p.currency,
       available: shopStock(p).available,

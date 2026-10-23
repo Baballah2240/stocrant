@@ -321,6 +321,7 @@
 .shop-order-detail { min-height: 330px; scroll-margin-top: 90px; }
 .shop-order-detail p { overflow-wrap: anywhere; line-height: 1.6; }
 .shop-contact-line { display: flex; gap: 8px 16px; flex-wrap: wrap; }
+.shop-warranty-fields { grid-column: 1/-1; display: grid; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
 .shop-contact-line a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .store-merchandising { display: grid; gap: 18px; border-block: 1px solid var(--border); padding-block: 24px; }
 .store-merchandising h3,.store-merchandising h4 { margin-block: 0 10px; }

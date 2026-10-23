@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Optional product warranty indicator
+
+- Add a product warranty checkbox and optional details to the shared product creation/editing form.
+- Show a small shield/check icon and localized warranty label beneath covered products in the store, with details on the product page. Products without a warranty have no badge.
+- Preserve warranty settings when pausing/resuming sales. No native package built or installed.
+
 ## 2026-10-23 - Store sections, categories, offers and display controls
 
 - Add workspace controls for ordered categories and homepage sections, category labels/visibility, grid/list product display, row/grid sections, default sorting, and search/hero/story/promotion visibility.

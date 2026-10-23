@@ -560,3 +560,19 @@ describe("Company product photo uploads", () => {
     await json(await fetch(base + product.image), 404);
   });
 });
+
+describe("Optional product warranties", () => {
+  it("persists coverage, preserves it on other edits and clears details when disabled", async () => {
+    const created = (await json(await api(prefix() + "/products", "POST", {products:[{sku:"WARRANTY-01",name:"Covered product",price:"10",warranty:true,warrantyDetails:"12 months"},{sku:"WARRANTY-02",name:"Standard product",price:"5"}]}),201)).products;
+    assert.equal(created[0].warranty,true); assert.equal(created[1].warranty,false);
+    resetTestCache();
+    const covered = (await json(await api(prefix()))).products.find((p: Row)=>p.id===created[0].id);
+    assert.equal(covered.warrantyDetails,"12 months");
+    const patch={version:covered.version,name:covered.name,price:covered.price,description:covered.description,image:covered.image,active:false};
+    const paused=await json(await api(prefix()+`/products/${covered.id}`,"PATCH",patch));
+    assert.equal(paused.warranty,true);assert.equal(paused.warrantyDetails,"12 months");
+    await json(await api(prefix()+`/products/${covered.id}`,"PATCH",{...patch,version:paused.version,warranty:"yes"}),400);
+    const disabled=await json(await api(prefix()+`/products/${covered.id}`,"PATCH",{...patch,version:paused.version,warranty:false}));
+    assert.equal(disabled.warranty,false);assert.equal(disabled.warrantyDetails,"");
+  });
+});

@@ -16,6 +16,8 @@ type Product = {
   description: string;
   image: string;
   images?: string[];
+  warranty?: boolean;
+  warrantyDetails?: string;
   price: string;
   currency: string;
   onHand: number;
@@ -82,6 +84,8 @@ const newProduct = () => ({
   images: [] as string[],
   stockLocation: "Main stock",
   category: "Collection",
+  warranty: false,
+  warrantyDetails: "",
 });
 
 export default function ShopWorkspace() {
@@ -245,6 +249,7 @@ export default function ShopWorkspace() {
           value={value}
           step={type === "number" ? "any" : undefined}
           list={label === "Category" ? "shop-category-options" : undefined}
+          maxLength={label === "Warranty details (optional)" ? 240 : undefined}
           onChange={(e) => update(e.target.value)}
         />
       </label>
@@ -254,6 +259,7 @@ export default function ShopWorkspace() {
     event.preventDefault();
     void action(fn);
   };
+  function warrantyFields(enabled: boolean, details: string, update: (warranty: boolean, warrantyDetails: string) => void) { return <div className="shop-warranty-fields"><label className="merch-check"><input type="checkbox" checked={enabled} onChange={event=>update(event.target.checked,event.target.checked ? details : "")} />{t("Product has a warranty")}</label>{enabled && field("Warranty details (optional)",details,value=>update(true,value),"text",false)}</div>; }
   const selected = data.orders.find((o) => o.id === selectedOrder);
   const visibleProducts = data.products.filter(p => (`${p.name} ${p.sku} ${p.category || ""}`).toLowerCase().includes(search.toLowerCase()) && (productFilter === "all" || productFilter === "active" && p.active || productFilter === "paused" && !p.active || productFilter === "out" && p.available === 0));
   const visibleOrders = data.orders.filter(o => (orderFilter === "all" || o.status === orderFilter) && (`${o.customer} ${o.phone} ${o.id} ${o.tracking || ""}`).toLowerCase().includes(orderSearch.toLowerCase()));
@@ -542,6 +548,8 @@ export default function ShopWorkspace() {
                             price,
                             active,
                             category: editingProduct.category || "Collection",
+                            warranty: editingProduct.warranty === true,
+                            warrantyDetails: editingProduct.warrantyDetails || "",
                           },
                           "PATCH",
                         );
@@ -581,6 +589,7 @@ export default function ShopWorkspace() {
                         "text",
                         false,
                       )}
+                      {warrantyFields(editingProduct.warranty === true,editingProduct.warrantyDetails || "",(warranty,warrantyDetails)=>setEditingProduct({...editingProduct,warranty,warrantyDetails}))}
                       <ProductPhotos key={companyId + editingProduct.id} companyId={companyId} value={editingProduct.images || (editingProduct.image ? [editingProduct.image] : [])} onBusy={setPhotoBusy} onChange={images => setEditingProduct({ ...editingProduct, images, image: images[0] || "" })} />
                       <button className="btn primary">
                         {t("Save product")}
@@ -623,6 +632,7 @@ export default function ShopWorkspace() {
                         {field("Stock location", product.stockLocation, (v) =>
                           setProduct({ ...product, stockLocation: v }),
                         )}
+                        {warrantyFields(product.warranty,product.warrantyDetails,(warranty,warrantyDetails)=>setProduct({...product,warranty,warrantyDetails}))}
                         <ProductPhotos key={companyId} companyId={companyId} value={product.images} onBusy={setPhotoBusy} onChange={images => setProduct({ ...product, images, image: images[0] || "" })} />
                         <label className="form-field">
                           <span>{t("Description")}</span>

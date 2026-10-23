@@ -33,6 +33,8 @@ const productInput = z
     description: z.string().trim().max(2000).default(""),
     price: z.string().max(24),
     category: z.string().trim().min(1).max(80).default("Collection"),
+    warranty: z.boolean().default(false),
+    warrantyDetails: z.string().trim().max(240).default(""),
     image: photoUrl.default(""),
     images: photoList.optional(),
     stockLocation: text.default("Main stock"),
@@ -182,6 +184,7 @@ function prepareProducts(user: AuthenticatedUser, c: Row, input: unknown) {
       fail("Create an inventory item in your permitted location first.", 403);
     return {
       ...p,
+      warrantyDetails: p.warranty ? p.warrantyDetails : "",
       images: validatePhotos(c.id, p.image, p.images),
       price,
       currency: c.currency,
@@ -436,6 +439,8 @@ commerceRouter.patch("/:companyId/products/:id", (req, res) => {
         active: z.boolean(),
         image: productInput.shape.image,
         images: photoList.optional(),
+        warranty: z.boolean().optional(),
+        warrantyDetails: z.string().trim().max(240).optional(),
       })
       .strict()
       .parse(req.body);
@@ -447,7 +452,9 @@ commerceRouter.patch("/:companyId/products/:id", (req, res) => {
         const price = cashAmount(body.price, p.currency);
         if (scaled(price) < 0n) fail("Price cannot be negative.");
         const images = validatePhotos(c.id, body.image, body.images ?? (body.image === p.image ? productPhotos(p) : undefined));
-        Object.assign(p, body, { images, price, version: p.version + 1 });
+        const warranty = body.warranty ?? p.warranty === true;
+        const warrantyDetails = warranty ? body.warrantyDetails ?? p.warrantyDetails ?? "" : "";
+        Object.assign(p, body, { images, warranty, warrantyDetails, price, version: p.version + 1 });
         return p;
       }),
     );
@@ -766,6 +773,8 @@ shopIntegrationRouter.get("/catalog", (_req, res) => {
         description: p.description,
         image: p.image,
         images: productPhotos(p),
+        warranty: p.warranty === true,
+        warrantyDetails: p.warranty === true ? p.warrantyDetails || "" : "",
         price: p.price,
         currency: p.currency,
         available: shopStock(p).available,

@@ -152,6 +152,9 @@ try {
   await fill("SKU", "TEA-01", "Add product");
   await fill("Product name", "Sudan tea", "Add product");
   await fill("Price", "12.35", "Add product");
+  await evaluate('document.querySelector(".shop-add-product .shop-warranty-fields input[type=checkbox]").click()');
+  await until('Boolean(document.querySelector(".shop-add-product .shop-warranty-fields input[type=text]"))');
+  await fill("Warranty details (optional)", "12 months", "Add product");
   const photoPaths = [];
   for (const [index, color] of ["#d3e8dd", "#e9d6c8"].entries()) {
     const bytes = await evaluate(`(()=>{const canvas=document.createElement('canvas');canvas.width=320;canvas.height=240;const context=canvas.getContext('2d');context.fillStyle=${JSON.stringify(color)};context.fillRect(0,0,320,240);context.fillStyle='#243c36';context.font='24px sans-serif';context.fillText('Tea photo ${index + 1}',35,125);return canvas.toDataURL('image/png').split(',')[1];})()`);
@@ -168,6 +171,7 @@ try {
   await until('document.querySelectorAll(".shop-product").length===1');
   const initialTea = (await req(`/workspace/shops/${company.id}`)).data.products[0];
   assert.equal(initialTea.images.length, 2); assert.notEqual(initialTea.image, firstPhoto);
+  assert.equal(initialTea.warranty,true);assert.equal(initialTea.warrantyDetails,"12 months");
   await button("Edit product");
   await until('Boolean(document.querySelector(".shop-edit-product"))');
   await until('Array.from(document.querySelectorAll(".shop-edit-product .product-photo-grid img")).every(img=>img.complete && img.naturalWidth>0)');
@@ -320,11 +324,18 @@ try {
   await req(`/workspace/storefronts/${company.id}`, "PUT", { ...defaults, slug: "photo-shop", name: "Amal photos", address: "QA collection point", contactEmail: "photos@qa.test", shippingPolicy: "QA collection", returnsPolicy: "QA returns", privacyPolicy: "QA privacy", terms: "QA terms", manualPaymentsAccepted: true, published: true });
   await send("Page.navigate", { url: base + `/shop/photo-shop/product/${tea.id}` });
   await until('document.querySelectorAll(".product-thumbnails button").length===2 && document.querySelector(".detail-image img")?.naturalWidth>0');
+  assert.ok(await evaluate('Boolean(document.querySelector(".detail-copy .product-warranty svg"))'));
+  assert.equal(await evaluate('document.querySelector(".warranty-details").textContent'),"12 months");
   const cover = await evaluate('document.querySelector(".detail-image img").getAttribute("src")');
   await evaluate('document.querySelectorAll(".product-thumbnails button")[1].click()');
   await until(`document.querySelector(".detail-image img").getAttribute("src")!==${JSON.stringify(cover)}`);
   assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'), "Customer gallery fits phone width");
   writeFileSync(join(directory, "product-gallery-mobile.png"), Buffer.from((await send("Page.captureScreenshot", {format:"png"})).data,"base64"));
+  await evaluate('document.querySelector(".wordmark").click()');
+  await until('document.querySelectorAll(".product-card").length===2');
+  assert.equal(await evaluate('document.querySelectorAll(".product-card .product-warranty").length'),1,"Only covered products show a warranty badge");
+  await evaluate('document.querySelector(".product-card .product-warranty").scrollIntoView({block:"center"})');
+  writeFileSync(join(directory,"warranty-card-mobile.png"),Buffer.from((await send("Page.captureScreenshot",{format:"png"})).data,"base64"));
   await send("Page.navigate", { url: base + "/services/shop-websites" });
   await until('Boolean(document.querySelector(".connected-shops"))');
   assert.ok(

@@ -14,6 +14,8 @@ type Product = {
   description: string;
   image: string;
   images?: string[];
+  warranty?: boolean;
+  warrantyDetails?: string;
   originalPrice?: string;
   offerId?: string;
   offerTitle?: string;
@@ -668,6 +670,7 @@ export default function Shop() {
                       <div>
                         <h3>{link(`/product/${p.id}`, p.name)}</h3>
                         {priceLabel(p)}
+                        {p.warranty && <WarrantyBadge details={p.warrantyDetails} t={t} />}
                       </div>
                       <button
                         className="add-circle"
@@ -900,6 +903,7 @@ export default function Shop() {
               </p>
               <h1>{product.name}</h1>
               <div className="detail-price">{priceLabel(product)}</div>
+              {product.warranty && <><WarrantyBadge details={product.warrantyDetails} t={t} />{product.warrantyDetails && <p className="warranty-details" dir="auto">{product.warrantyDetails}</p>}</>}
               <p>{product.description}</p>
               <p className="stock">
                 ●{" "}
@@ -1452,3 +1456,5 @@ function ProductGallery({ product, t }: { product: Product; t: (text: string) =>
   const photos = product.images?.length ? product.images : product.image ? [product.image] : [];
   return <div className="detail-gallery"><div className="detail-image">{photos.length ? <img src={photos[active] || photos[0]} alt={product.name} /> : <Placeholder />}</div>{photos.length > 1 && <div className="product-thumbnails" aria-label={t("Product photos")}>{photos.map((src, index) => <button type="button" key={src} aria-label={t("View photo") + " " + (index + 1)} aria-pressed={index === active} onClick={() => setActive(index)}><img src={src} alt="" loading="lazy" /></button>)}</div>}</div>;
 }
+
+function WarrantyBadge({details,t}:{details?:string;t:(text:string)=>string}) { return <span className="product-warranty" title={details || t("Warranty included")}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path d="m8 12 3 3 5-6"/></svg><span>{t("Warranty included")}</span></span>; }
