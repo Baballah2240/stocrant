@@ -1,6 +1,6 @@
 # Connected shops: STOCRANT foundation
 
-The first phase adds `/shops` to the shared website/mobile workspace and expands the public `/services/shop-websites` page in English and Arabic. The separate customer storefront is the next phase; this change does not publish a shop or configure DNS, couriers or online payment providers.
+The first phase adds `/shops` to the shared website/mobile workspace and expands the public `/services/shop-websites` page in English and Arabic. The Amal customer storefront is now implemented; see [AMAL_STOREFRONT.md](AMAL_STOREFRONT.md) for configuration, publication, supported checkout behavior and deployment boundaries. Publishing source does not configure DNS, couriers or online payment providers.
 
 ## Company workflow
 
@@ -52,13 +52,13 @@ Example order body (IDs and amounts are illustrative):
 }
 ```
 
-Persist one UUID per checkout and reuse it for identical retries. An identical accepted retry returns the same order, including after server restart; a changed body using the same ID returns 409. The shop server must authenticate its own customers and map their IDs to order IDs before exposing order status publicly. Never proxy arbitrary order IDs or expose the connection key. Price/stock conflicts must be shown for customer review. Accepted unpaid orders do not expire automatically: staff must cancel abandoned reservations; reservation expiry is future checkout scope.
+Persist one UUID per checkout and reuse it for identical retries. An identical accepted retry returns the same order, including after server restart; a changed body using the same ID returns 409. The shop server must authenticate its own customers and map their IDs to order IDs before exposing order status publicly. Never proxy arbitrary order IDs or expose the connection key. Price/stock conflicts must be shown for customer review. Manual and external-connector orders do not expire automatically; staff cancel abandoned reservations. Orders placed through the hosted Amal storefront now have configurable expiry while unprepared.
 
 ## Storefront phase and launch gates
 
 The next build needs the merchant's company, shop name/branding, product categories/variants, delivery regions, tax rules, refund policy and chosen payment provider. A shop subdomain can share a base domain with STOCRANT while using a distinct hostname; actual DNS, TLS and hosting must be configured and verified separately. Shared-domain hosting is not a substitute for company isolation.
 
-Then build catalog/search/filtering, product pages, cart, customer checkout/contact, order tracking and legal/contact pages. Integrate payments with provider-verified server callbacks and idempotency; add stock expiry, refunds and delivery integration according to the agreed business rules. Verify live payments, shipping, email delivery, backups and restore procedures before a public launch. Do not describe the foundation as a complete production checkout.
+The Amal implementation now includes catalog/search/filtering, product pages, cart, guest checkout/contact, private order tracking and policy/contact pages. Integrate payments with provider-verified server callbacks and idempotency; add stock expiry, refunds and delivery integration according to the agreed business rules. Verify live payments, shipping, email delivery, backups and restore procedures before a public launch. Do not describe the foundation as a complete production checkout.
 
 ## Verification
 

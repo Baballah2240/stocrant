@@ -20,7 +20,14 @@ export function notificationContext(user: AuthenticatedUser, item: Notification)
     const company = find("companies", String(row.organizationId || row.companyId || ""));
     if (company) details.company = company.name;
   };
-  if (target.startsWith("personal-note:") && isNotebookManager(user)) {
+  if (target.startsWith("shop-order:") && can(user, "operations", "view") && can(user, "inventory", "view")) {
+    const row = find("shopOrders", target.slice(11));
+    const lines = Array.isArray(row?.lines) ? row.lines as Row[] : [];
+    if (row && isWithinScope(user, row) && lines.length && lines.every(line => { const item = find("inventoryItems", String(line.inventoryItemId)); return item && isWithinScope(user, item); })) {
+      add(row, ["status", "total", "currency", "fulfilmentMethod", "createdAt"]);
+      link = { to: `/shops?company=${encodeURIComponent(String(row.organizationId))}&order=${encodeURIComponent(String(row.id))}`, label: "Open shop order" };
+    }
+  } else if (target.startsWith("personal-note:") && isNotebookManager(user)) {
     const row = find("managerPersonalNotes", target.slice(14));
     if (row && row.ownerId === user.id) { add(row, ["title", "body", "phone", "dueAt", "completed"]); link = { to: `/workspace?personalNote=${encodeURIComponent(String(row.id))}#private-notes`, label: "Open private notebook" }; }
   } else if (target.startsWith("/customer-service?websiteInquiry=")) {

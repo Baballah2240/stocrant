@@ -2,6 +2,15 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Amal customer storefront and manager publishing controls
+
+- Add a Customer storefront tab to Shops & orders for company-scoped branding, contact details, fulfilment regions/fees, reservation duration, policies, draft preview and publication. Default the new shop identity to Amal.
+- Add product categories to product creation/editing and Excel import. Keep the catalog, reservations, incoming stock and fulfilment in the existing company workflow.
+- Add a separate responsive customer storefront with English/Arabic and light/dark themes, search/categories/sorting, product pages, persistent bag, server-quoted guest checkout and private tracking links. No connection key or workspace access is exposed to visitors.
+- Send a scoped administrator alert for each new order and open its exact company/order from notifications. Use the configured server origin when opening a public shop from a native workspace.
+- Expire unprepared guest reservations on the server while preserving prepared orders. Keep cash confirmation in Finance and online payments disabled.
+- Shared workspace source updated; no local native build, synchronization or phone installation was performed.
+
 ## 2026-10-23 - Connected shop foundation
 
 - Add Shops & orders to the shared mobile/website workspace, with company-scoped catalog, product editing, Excel preview/import, incoming shipments, reservations and order preparation/dispatch/delivery.

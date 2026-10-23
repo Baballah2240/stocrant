@@ -1,5 +1,6 @@
 import tasksRouter from "./routes/tasks.js";
 import { commerceRouter, shopIntegrationRouter } from "./commerce.js";
+import { storefrontAdminRouter, storefrontRouter, storefrontForHost } from "./storefront.js";
 import companyWorkRouter from "./routes/company-work.js";
 import payrollRouter from "./routes/payroll.js";
 import companyProfileRouter from "./routes/company-profile.js";
@@ -90,6 +91,7 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/public", publicWebsiteRouter);
   app.use("/api/shop-connection", shopIntegrationRouter);
+  app.use("/api/storefront", storefrontRouter);
   app.use("/api", requireAuth);
   app.use("/api", (req, res, next) => {
     if (req.auth?.mustChangePassword) return res.status(403).json({ error: "Change your temporary password before accessing business records.", code: "PASSWORD_CHANGE_REQUIRED" });
@@ -115,6 +117,7 @@ export function createApp() {
   app.use("/api/workspace/dashboard-layout", dashboardLayoutRouter);
   app.use("/api/workspace/organization-admins", organizationAdminsRouter);
   app.use("/api/workspace/shops", commerceRouter);
+  app.use("/api/workspace/storefronts", storefrontAdminRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/notifications", notificationRouter);
 
@@ -129,6 +132,15 @@ export function createApp() {
   });
 
   // Public explorer and service pages use only the anonymous inquiry endpoint.
+  const shopDir = join(__dirname, "../shop-website/dist");
+  app.use("/shop-assets", express.static(join(shopDir, "shop-assets"), { dotfiles: "deny", immutable: true, maxAge: "1y" }));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || !(req.path === "/shop" || req.path.startsWith("/shop/") || storefrontForHost(req.hostname))) return next();
+    if (extname(req.path)) return res.status(404).send("Not found.");
+    const file = join(shopDir, "index.html");
+    if (!existsSync(file)) return next();
+    res.setHeader("Cache-Control", "no-cache"); res.sendFile(file);
+  });
   // Mount before the protected workspace shell; retain /website/ as an alias.
   const websiteDir = join(__dirname, "../public-website/dist");
   app.use("/site-assets", express.static(join(websiteDir, "site-assets"), { dotfiles: "deny", immutable: true, maxAge: "1y" }));

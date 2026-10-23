@@ -79,3 +79,6 @@ ios/App/App/capacitor.plugins.json
 xcuserdata/
 *.mobileprovision
 *.p8
+
+# Customer storefront build output
+shop-website/dist/

@@ -1,6 +1,28 @@
-import { getCollection } from "./storage.js";
+import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
+export function expireShopReservations(now = Date.now()) {
+  const expired = rows("shopOrders").filter(
+    (o) =>
+      o.source === "storefront" &&
+      o.status === "reserved" &&
+      Date.parse(o.reservationExpiresAt) <= now,
+  );
+  if (!expired.length) return;
+  transaction(() => {
+    for (const order of expired) {
+      order.status = "cancelled";
+      order.version++;
+      order.events.push({
+        status: "cancelled",
+        at: new Date(now).toISOString(),
+        actor: "STOCRANT",
+        reason: "Reservation expired",
+      });
+    }
+    saveStore(getStore());
+  });
+}
 export function reservedStock(itemId: string) {
   return rows("shopOrders")
     .filter((order) => ["reserved", "preparing"].includes(order.status))
@@ -31,6 +53,7 @@ export function protectCommerceStock(
   payload: Row,
   current?: Row,
 ) {
+  expireShopReservations();
   if (
     collection === "inventoryItems" &&
     current &&

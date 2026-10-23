@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { request } from "../api";
 import { useLanguage } from "../language-context";
 import { useSession } from "../session-context";
 import "../shop-workspace.css";
+import StorefrontSettings from "./StorefrontSettings";
 
 type Company = { id: string; name: string; currency: string };
 type Product = {
+  category?: string;
   id: string;
   sku: string;
   name: string;
@@ -59,6 +61,7 @@ type ProductDraft = {
   description?: string;
   image?: string;
   stockLocation?: string;
+  category?: string;
 };
 const empty: Snapshot = {
   products: [],
@@ -73,9 +76,11 @@ const newProduct = () => ({
   description: "",
   image: "",
   stockLocation: "Main stock",
+  category: "Collection",
 });
 
 export default function ShopWorkspace() {
+  const location = useLocation();
   const { t } = useLanguage(),
     { user } = useSession();
   const [companies, setCompanies] = useState<Company[]>([]),
@@ -127,12 +132,21 @@ export default function ShopWorkspace() {
   const c = companies.find((c) => c.id === companyId),
     base = `/workspace/shops/${companyId}`;
   useEffect(() => {
+    const requestedCompany = new URLSearchParams(location.search).get("company");
+    if (requestedCompany && companies.some(company => company.id === requestedCompany)) setCompany(requestedCompany);
+  }, [location.search, companies]);
+  useEffect(() => {
     let active = true;
     request<{ companies: Company[] }>("/workspace/shops")
       .then((result) => {
         if (active) {
           setCompanies(result.companies);
-          setCompany(result.companies[0]?.id || "");
+          setCompany(
+            result.companies.find((company) => /amal/i.test(company.name))
+              ?.id ||
+              result.companies[0]?.id ||
+              "",
+          );
           setLoading(false);
         }
       })
@@ -179,7 +193,11 @@ export default function ShopWorkspace() {
     setLoading(true);
     request<Snapshot>(base)
       .then((result) => {
-        if (token === generation.current) setData(result);
+        if (token === generation.current) {
+          setData(result);
+          const requestedOrder = new URLSearchParams(location.search).get("order");
+          if (requestedOrder && result.orders.some(order => order.id === requestedOrder)) { setTab("orders"); setSelectedOrder(requestedOrder); }
+        }
       })
       .catch((e) => {
         if (token === generation.current) setError(e.message);
@@ -187,7 +205,7 @@ export default function ShopWorkspace() {
       .finally(() => {
         if (token === generation.current) setLoading(false);
       });
-  }, [companyId, base]);
+  }, [companyId, base, location.search]);
   async function action(fn: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -265,6 +283,7 @@ export default function ShopWorkspace() {
             description: value("description"),
             image: value("image"),
             stockLocation: value("stocklocation") || "Main stock",
+            category: value("category") || "Collection",
           };
         });
       const result = await post<{ products: ProductDraft[] }>(
@@ -273,13 +292,22 @@ export default function ShopWorkspace() {
       );
       setPreview(
         result.products.map(
-          ({ sku, name, price, description, image, stockLocation }) => ({
+          ({
             sku,
             name,
             price,
             description,
             image,
             stockLocation,
+            category,
+          }) => ({
+            sku,
+            name,
+            price,
+            description,
+            image,
+            stockLocation,
+            category,
           }),
         ),
       );
@@ -362,7 +390,7 @@ export default function ShopWorkspace() {
               "products",
               "receiving",
               "orders",
-              ...(canConnect ? ["connections"] : []),
+              ...(canConnect ? ["storefront", "connections"] : []),
             ].map((name) => (
               <button
                 type="button"
@@ -377,7 +405,9 @@ export default function ShopWorkspace() {
                       ? "Incoming shipments"
                       : name === "orders"
                         ? "Orders"
-                        : "Shop connections",
+                        : name === "storefront"
+                          ? "Customer storefront"
+                          : "Shop connections",
                 )}
               </button>
             ))}
@@ -493,7 +523,15 @@ export default function ShopWorkspace() {
                         } = editingProduct;
                         await post(
                           `/products/${editingProduct.id}`,
-                          { version, name, description, image, price, active },
+                          {
+                            version,
+                            name,
+                            description,
+                            image,
+                            price,
+                            active,
+                            category: editingProduct.category || "Collection",
+                          },
                           "PATCH",
                         );
                         setEditingProduct(null);
@@ -501,6 +539,15 @@ export default function ShopWorkspace() {
                     >
                       {field("Product name", editingProduct.name, (value) =>
                         setEditingProduct({ ...editingProduct, name: value }),
+                      )}
+                      {field(
+                        "Category",
+                        editingProduct.category || "Collection",
+                        (value) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            category: value,
+                          }),
                       )}
                       {field(
                         "Price",
@@ -568,6 +615,9 @@ export default function ShopWorkspace() {
                           product.price,
                           (v) => setProduct({ ...product, price: v }),
                           "number",
+                        )}
+                        {field("Category", product.category, (value) =>
+                          setProduct({ ...product, category: value }),
                         )}
                         {field("Stock location", product.stockLocation, (v) =>
                           setProduct({ ...product, stockLocation: v }),
@@ -793,6 +843,7 @@ export default function ShopWorkspace() {
                       {selected.phone} · {selected.email}
                     </p>
                     <p>{selected.address}</p>
+                  {selected.tracking && <p><strong>{t("Shipment reference")}:</strong> {selected.tracking}</p>}
                     <p>{selected.notes}</p>
                     {selected.lines.map((l, i) => (
                       <p key={i}>
@@ -998,6 +1049,9 @@ export default function ShopWorkspace() {
                   </section>
                 )}
               </>
+            )}
+            {tab === "storefront" && canConnect && (
+              <StorefrontSettings key={companyId} companyId={companyId} />
             )}
             {tab === "connections" && canConnect && (
               <section className="card">

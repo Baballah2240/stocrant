@@ -1,4 +1,5 @@
 import { dispatchHrMessages } from "./hr-messages.js";
+import { expireShopReservations } from "./commerce-stock.js";
 import { dispatchOnboardingEmails } from "./onboarding.js";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,8 @@ import { generateDocumentExpiryAlerts } from "./documents.js";
 
 const port = Number(process.env.PORT) || 3000;
 const app = createApp();
+const shopTimer = setInterval(() => { try { expireShopReservations(); } catch { console.error("Shop reservation expiry scan failed."); } }, 60000);
+shopTimer.unref();
 const hrTimer = setInterval(() => { try { dispatchHrMessages(); } catch { console.error("HR message schedule scan failed."); } }, 15000);
 hrTimer.unref();
 const onboardingTimer=setInterval(()=>{void dispatchOnboardingEmails().catch(()=>console.error("Onboarding delivery scan failed."));},15000);

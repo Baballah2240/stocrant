@@ -36,6 +36,15 @@ try {
   assert.equal((await fetch(`${base}/missing-script.js`)).status, 404);
   assert.equal((await fetch(`${base}/app.js`)).status, 404);
   assert.equal((await fetch(`${base}/data/stocrant.json`)).status, 404);
+  const shopPage = await fetch(`${base}/shop/amal`);
+  assert.equal(shopPage.status, 200);
+  assert.equal(shopPage.headers.get("cache-control"), "no-cache");
+  const shopHtml = await shopPage.text();
+  const shopAsset = shopHtml.match(/src="(\/shop-assets\/[^" ]+\.js)"/)?.[1];
+  assert.ok(shopAsset, "customer shop must use its independently built assets");
+  assert.equal((await fetch(base + shopAsset)).status, 200);
+  assert.equal((await fetch(`${base}/shop/amal/missing.js`)).status, 404);
+  assert.equal((await fetch(`${base}/api/storefront/not-configured/catalog`)).status, 404);
   const websiteRedirect = await fetch(`${base}/website`, { redirect: "manual" });
   assert.equal(websiteRedirect.headers.get("location"), "/website/");
   const website = await fetch(`${base}/website/`);

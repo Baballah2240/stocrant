@@ -13,7 +13,11 @@ import {
   settlementRows,
 } from "./finance-ledger.js";
 import { money, precision, scaled } from "./payroll-model.js";
-import { physicalStock, reservedStock } from "./commerce-stock.js";
+import {
+  expireShopReservations,
+  physicalStock,
+  reservedStock,
+} from "./commerce-stock.js";
 
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
@@ -27,6 +31,7 @@ const productInput = z
     name: text,
     description: z.string().trim().max(2000).default(""),
     price: z.string().max(24),
+    category: z.string().trim().min(1).max(80).default("Collection"),
     image: z
       .union([
         z.literal(""),
@@ -66,7 +71,7 @@ const orderInput = z
   })
   .strict();
 
-function company(user: AuthenticatedUser, id: string) {
+export function shopCompany(user: AuthenticatedUser, id: string) {
   const row = rows("companies").find(
     (c) => c.id === id && c.status === "active",
   );
@@ -78,7 +83,7 @@ function company(user: AuthenticatedUser, id: string) {
     fail("Company not found.", 404);
   return row;
 }
-function permission(
+export function shopPermission(
   user: AuthenticatedUser,
   action: "view" | "create" | "edit",
 ) {
@@ -123,7 +128,7 @@ function write(
     return result;
   });
 }
-function stock(product: Row) {
+export function shopStock(product: Row) {
   const item = rows("inventoryItems").find(
     (i) => i.id === product.inventoryItemId,
   );
@@ -208,9 +213,25 @@ function createProducts(user: AuthenticatedUser, c: Row, input: unknown) {
           createdBy: user.id,
           createdByName: user.name,
           allowedEmployeeIds: [],
-          awb: newProductAwb(new Set([...rows("products"), ...rows("inventoryItems")].map(item => String(item.awb || "")))),
+          awb: newProductAwb(
+            new Set(
+              [...rows("products"), ...rows("inventoryItems")].map((item) =>
+                String(item.awb || ""),
+              ),
+            ),
+          ),
         });
-    if (item) insert("inventoryHistory", { inventoryItemId: item.id, organizationId: c.id, actor: user.name, actorId: user.id, occurredAt: new Date().toISOString(), action: "create", changedFields: ["sku", "name", "stockLocation"], source: "shop" });
+    if (item)
+      insert("inventoryHistory", {
+        inventoryItemId: item.id,
+        organizationId: c.id,
+        actor: user.name,
+        actorId: user.id,
+        occurredAt: new Date().toISOString(),
+        action: "create",
+        changedFields: ["sku", "name", "stockLocation"],
+        source: "shop",
+      });
     return insert("shopProducts", {
       ...p,
       inventoryItemId: p.inventoryItemId || item!.id,
@@ -220,12 +241,12 @@ function createProducts(user: AuthenticatedUser, c: Row, input: unknown) {
     });
   });
 }
-function createOrder(
+export function createShopOrder(
   user: AuthenticatedUser,
   c: Row,
   input: unknown,
   connectorId?: string,
-) {
+): Row {
   const body = orderInput.parse(input);
   const fingerprint = createHash("sha256")
     .update(JSON.stringify(body))
@@ -258,7 +279,7 @@ function createOrder(
     const p = visibleProduct(user, c.id, line.productId);
     if (!p.active || p.currency !== c.currency)
       fail("Product is inactive or its currency differs from the company.");
-    if (stock(p).available < line.quantity)
+    if (shopStock(p).available < line.quantity)
       fail(`Insufficient available stock for ${p.sku}.`, 409);
     return {
       ...line,
@@ -306,7 +327,8 @@ function publicOrder(order: Row) {
 export const commerceRouter = Router();
 commerceRouter.use((req, res, next) => {
   try {
-    permission(req.auth!, "view");
+    expireShopReservations();
+    shopPermission(req.auth!, "view");
     next();
   } catch (e) {
     sendError(res, e);
@@ -329,7 +351,7 @@ commerceRouter.get("/", (req, res) => {
 });
 commerceRouter.get("/:companyId", (req, res) => {
   try {
-    const c = company(req.auth!, String(req.params.companyId));
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     const products: Row[] = rows("shopProducts")
       .filter(
         (p) =>
@@ -340,7 +362,7 @@ commerceRouter.get("/:companyId", (req, res) => {
               {},
           ),
       )
-      .map((p) => ({ ...p, ...stock(p) }));
+      .map((p) => ({ ...p, ...shopStock(p) }));
     const orders = rows("shopOrders")
       .filter(
         (o) =>
@@ -381,8 +403,8 @@ commerceRouter.get("/:companyId", (req, res) => {
 });
 commerceRouter.post("/:companyId/products/preview", (req, res) => {
   try {
-    permission(req.auth!, "create");
-    const c = company(req.auth!, String(req.params.companyId));
+    shopPermission(req.auth!, "create");
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     res.json({ products: prepareProducts(req.auth!, c, req.body.products) });
   } catch (e) {
     sendError(res, e);
@@ -390,8 +412,8 @@ commerceRouter.post("/:companyId/products/preview", (req, res) => {
 });
 commerceRouter.post("/:companyId/products", (req, res) => {
   try {
-    permission(req.auth!, "create");
-    const c = company(req.auth!, String(req.params.companyId));
+    shopPermission(req.auth!, "create");
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     const result = write(req.auth!, c.id, "products.imported", () => ({
       products: createProducts(req.auth!, c, req.body.products),
     }));
@@ -402,14 +424,15 @@ commerceRouter.post("/:companyId/products", (req, res) => {
 });
 commerceRouter.patch("/:companyId/products/:id", (req, res) => {
   try {
-    permission(req.auth!, "edit");
-    const c = company(req.auth!, String(req.params.companyId));
+    shopPermission(req.auth!, "edit");
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     const body = z
       .object({
         version: z.number().int(),
         name: text,
         description: z.string().max(2000),
         price: z.string(),
+        category: z.string().trim().min(1).max(80).optional(),
         active: z.boolean(),
         image: productInput.shape.image,
       })
@@ -432,8 +455,8 @@ commerceRouter.patch("/:companyId/products/:id", (req, res) => {
 });
 commerceRouter.post("/:companyId/receipts", (req, res) => {
   try {
-    permission(req.auth!, "create");
-    const c = company(req.auth!, String(req.params.companyId));
+    shopPermission(req.auth!, "create");
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     const b = z
       .object({
         requestId: z.string().uuid(),
@@ -497,14 +520,14 @@ commerceRouter.post("/:companyId/receipts", (req, res) => {
 });
 commerceRouter.post("/:companyId/orders", (req, res) => {
   try {
-    permission(req.auth!, "create");
-    const c = company(req.auth!, String(req.params.companyId));
+    shopPermission(req.auth!, "create");
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     res
       .status(201)
       .json(
         publicOrder(
           write(req.auth!, c.id, "order.created", () =>
-            createOrder(req.auth!, c, req.body),
+            createShopOrder(req.auth!, c, req.body),
           ),
         ),
       );
@@ -514,8 +537,8 @@ commerceRouter.post("/:companyId/orders", (req, res) => {
 });
 commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
   try {
-    permission(req.auth!, "edit");
-    const c = company(req.auth!, String(req.params.companyId));
+    shopPermission(req.auth!, "edit");
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     const b = z
       .object({
         version: z.number().int(),
@@ -562,7 +585,7 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
             if (!b.tracking) fail("Enter a shipment or collection reference.");
             for (const line of o.lines) {
               const p = visibleProduct(req.auth!, c.id, line.productId);
-              if (stock(p).onHand < reservedStock(p.inventoryItemId))
+              if (shopStock(p).onHand < reservedStock(p.inventoryItemId))
                 fail("Reserved stock is no longer available.", 409);
               insert("inventoryMovements", {
                 inventoryItemId: p.inventoryItemId,
@@ -579,7 +602,17 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
             }
             const sale = mutateCollection(req.auth!, "sales", "create", {
               organizationId: c.id,
-              locationId: new Set(o.lines.map((line: Row) => visibleProduct(req.auth!, c.id, line.productId).locationId)).size === 1 ? visibleProduct(req.auth!, c.id, o.lines[0].productId).locationId : undefined,
+              locationId:
+                new Set(
+                  o.lines.map(
+                    (line: Row) =>
+                      visibleProduct(req.auth!, c.id, line.productId)
+                        .locationId,
+                  ),
+                ).size === 1
+                  ? visibleProduct(req.auth!, c.id, o.lines[0].productId)
+                      .locationId
+                  : undefined,
               invoiceNo: `SHOP-${o.id}`,
               date: companyFinanceDate(c.id),
               customer: o.customer,
@@ -615,10 +648,10 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
 });
 commerceRouter.post("/:companyId/connectors", (req, res) => {
   try {
-    permission(req.auth!, "edit");
+    shopPermission(req.auth!, "edit");
     if (!can(req.auth, "access", "edit"))
       fail("Access administration permission is required.", 403);
-    const c = company(req.auth!, String(req.params.companyId));
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     const b = z.object({ name: text }).strict().parse(req.body);
     const key = `stocrant_shop_${randomBytes(32).toString("hex")}`;
     const connector = write(req.auth!, c.id, "connector.created", () =>
@@ -638,10 +671,10 @@ commerceRouter.post("/:companyId/connectors", (req, res) => {
 });
 commerceRouter.delete("/:companyId/connectors/:id", (req, res) => {
   try {
-    permission(req.auth!, "edit");
+    shopPermission(req.auth!, "edit");
     if (!can(req.auth, "access", "edit"))
       fail("Access administration permission is required.", 403);
-    const c = company(req.auth!, String(req.params.companyId));
+    const c = shopCompany(req.auth!, String(req.params.companyId));
     res.json(
       write(req.auth!, c.id, "connector.revoked", () => {
         const r = rows("shopConnectors").find(
@@ -658,16 +691,14 @@ commerceRouter.delete("/:companyId/connectors/:id", (req, res) => {
 });
 function sendError(res: import("express").Response, error: unknown) {
   const e = error as Error & { statusCode?: number };
-  res
-    .status(e.statusCode || 400)
-    .json({
-      error:
-        error instanceof z.ZodError
-          ? error.issues
-              .map((i) => `${i.path.join(".")}: ${i.message}`)
-              .join("; ")
-          : e.message,
-    });
+  res.status(e.statusCode || 400).json({
+    error:
+      error instanceof z.ZodError
+        ? error.issues
+            .map((i) => `${i.path.join(".")}: ${i.message}`)
+            .join("; ")
+        : e.message,
+  });
 }
 
 /** Server-to-server API; keys never belong in the storefront JavaScript. */
@@ -675,6 +706,7 @@ export const shopIntegrationRouter = Router();
 const integrationRates = new Map<string, { at: number; count: number }>();
 shopIntegrationRouter.use((req, res, next) => {
   try {
+    expireShopReservations();
     if (req.get("origin"))
       fail("Shop connections must be used by your website server.", 403);
     const key = req.get("authorization")?.replace(/^Bearer /, "") || "";
@@ -703,8 +735,8 @@ shopIntegrationRouter.use((req, res, next) => {
       fail("Too many shop requests. Retry in one minute.", 429);
     }
     const user = publicUser(account as Parameters<typeof publicUser>[0]);
-    permission(user, "view");
-    company(user, connector.organizationId);
+    shopPermission(user, "view");
+    shopCompany(user, connector.organizationId);
     res.locals.shop = { connector, user };
     next();
   } catch (e) {
@@ -733,26 +765,24 @@ shopIntegrationRouter.get("/catalog", (_req, res) => {
         image: p.image,
         price: p.price,
         currency: p.currency,
-        available: stock(p).available,
+        available: shopStock(p).available,
       })),
   });
 });
 shopIntegrationRouter.post("/orders", (req, res) => {
   try {
     const { user, connector } = res.locals.shop;
-    permission(user, "create");
-    const c = company(user, connector.organizationId);
+    shopPermission(user, "create");
+    const c = shopCompany(user, connector.organizationId);
     const order = write(user, c.id, "integration.order", () =>
-      createOrder(user, c, req.body, connector.id),
+      createShopOrder(user, c, req.body, connector.id),
     );
-    res
-      .status(201)
-      .json({
-        id: order.id,
-        status: order.status,
-        total: order.total,
-        currency: order.currency,
-      });
+    res.status(201).json({
+      id: order.id,
+      status: order.status,
+      total: order.total,
+      currency: order.currency,
+    });
   } catch (e) {
     sendError(res, e);
   }
@@ -764,7 +794,14 @@ shopIntegrationRouter.get("/orders/:id", (req, res) => {
       o.id === req.params.id &&
       o.connectorId === connector.id &&
       o.organizationId === connector.organizationId &&
-      o.lines.every((line: Row) => isWithinScope(user, rows("inventoryItems").find(item => item.id === line.inventoryItemId) || {})),
+      o.lines.every((line: Row) =>
+        isWithinScope(
+          user,
+          rows("inventoryItems").find(
+            (item) => item.id === line.inventoryItemId,
+          ) || {},
+        ),
+      ),
   );
   if (!order) return res.status(404).json({ error: "Order not found." });
   res.json({
