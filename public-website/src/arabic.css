@@ -1,0 +1,20 @@
+.stocrant-site .site-language { font: inherit; font-size: 12px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--site-border, #cbd5e1); border-radius: 12px; color: inherit; background: transparent; cursor: pointer; }
+.stocrant-site .site-language:focus-visible { outline: 2px solid var(--site-accent, #168366); outline-offset: 3px; }
+html[lang="ar"] .stocrant-site { font-family: Tahoma, Arial, sans-serif; }
+html[lang="ar"] .stocrant-site :is(h1,h2,h3,.site-kicker,.map-node strong,.focus-identity strong) { letter-spacing: 0; }
+html[lang="ar"] .stocrant-site :is(h1,h2) { line-height: 1.45; }
+html[lang="ar"] .stocrant-site :is(p,li,.focus-description) { line-height: 1.9; }
+html[dir="rtl"] .stocrant-site :is(.inquiry-form,.focus-card,.privacy-page,.module-page,.starting-options) { text-align: start; }
+html[dir="rtl"] .stocrant-site .section-map { direction: ltr; }
+html[dir="rtl"] .stocrant-site .map-node { direction: rtl; }
+html[dir="rtl"] .stocrant-site .map-node small { letter-spacing: 0; }
+html[dir="rtl"] .stocrant-site :is(.focus-feature-list,.plan-grid ul) { padding-inline-start: 0; }
+html[dir="rtl"] .stocrant-site .shop-preview { direction: rtl; }
+.stocrant-site .shop-preview-browser, .stocrant-site .inquiry-reference strong { direction: ltr; unicode-bidi: isolate; }
+@media(max-width:650px) {
+  .stocrant-site .site-nav-actions { gap: 6px; }
+  .stocrant-site .site-language { padding-inline: 8px; font-size: 11px; }
+  html[lang="ar"] .stocrant-site .stage-heading h1 { font-size: clamp(28px,8vw,48px); }
+  html[lang="ar"] .stocrant-site .map-node strong { font-size: 12px; }
+  html[lang="ar"] .stocrant-site .map-node small { font-size: 9px; }
+}
