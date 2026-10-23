@@ -223,6 +223,17 @@ export default function Shop() {
     [quote, setQuote] = useState<Quote | null>(null),
     [quoteBusy, setQuoteBusy] = useState(false),
     [busy, setBusy] = useState(false);
+  const [bagAdded, setBagAdded] = useState(0);
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const update = () => document.documentElement.style.setProperty("--shop-header-height", `${header.getBoundingClientRect().height}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--shop-header-height"); };
+  }, [loading, shop]);
   const [liked, setLiked] = useState<string[]>([]), [likesShop, setLikesShop] = useState(""), [onlyLiked, setOnlyLiked] = useState(false);
   useEffect(() => {
     if (!slug) return;
@@ -438,6 +449,7 @@ export default function Shop() {
       return;
     }
     updateCart(p.id, next);
+    setBagAdded(value => value + 1);
     setNotice("Added to your bag");
   }
   function link(target: string, label: ReactNode, className = "") {
@@ -708,7 +720,7 @@ export default function Shop() {
           ? t("Preview only. Checkout is disabled until the shop is published.")
           : shop.tagline}
       </div>
-      <header className="shop-header">
+      <header className="shop-header" ref={headerRef}>
         {link(
           "/",
           <>
@@ -755,15 +767,11 @@ export default function Shop() {
             {language === "en" ? "العربية" : "English"}
           </button>
           <button className="liked-products-link" type="button" aria-label={t("Liked products")} aria-pressed={onlyLiked} onClick={() => { setOnlyLiked(true); setCategory("All"); setSearch(""); setOnlyOffers(false); setOfferFilter(""); navigate("/#collection"); }}><Heart filled={onlyLiked} /><span>{products.filter(p => liked.includes(p.id)).length}</span></button>
-          {link(
-            "/bag",
-            <>
-              <Basket />
+          <a href={base + "/bag"} className={`bag-link${count ? " has-items" : ""}`} aria-label={`${t("Bag")}: ${count}`} onClick={event => { event.preventDefault(); navigate("/bag"); }}>
+              <span key={bagAdded} className={`bag-icon${bagAdded ? " is-added" : ""}`}><Basket /></span>
               <span className="bag-label">{t("Bag")}</span>
-              <span className="bag-count">{count}</span>
-            </>,
-            "bag-link",
-          )}
+              <span className="bag-count" aria-live="polite" aria-atomic="true">{count}</span>
+          </a>
         </div>
       </header>
       <div className="product-focus-veil" aria-hidden="true" />

@@ -4,6 +4,8 @@ Amal is the first customer storefront. It uses the same STOCRANT backend and com
 
 ## What is implemented
 
+- The store header stays at the top while scrolling, keeping the bag accessible. A filled bag has a contrasting background and item count; successful product additions briefly animate its icon, respecting reduced-motion preferences. Collection anchors account for the measured header height on different screens.
+
 - Clicking a product image opens its details and a related-products section with up to four other public catalog items. Same-category products come first, followed by other shop products when needed; the current product is excluded. Related cards support navigation, likes, prices, warranty labels and adding to the bag. The section is omitted when no other products are available.
 
 - Personal product likes: heart buttons on cards and product pages, plus a liked-products filter and header shortcut. Choices persist per shop in the current browser's local storage. They do not require sign-in and are not shared public reaction counts or synchronized customer accounts. Browsing still works when browser storage is unavailable.

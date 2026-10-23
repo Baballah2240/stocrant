@@ -132,6 +132,9 @@ try {
   await fill(".detail-copy input[type=number]", "2");
   await click("Add to bag +", ".detail-copy button");
   await until('document.querySelector(".bag-count").textContent==="2"');
+  assert.ok(await evaluate('document.querySelector(".bag-link").classList.contains("has-items") && Boolean(document.querySelector(".bag-icon.is-added"))'));
+  await evaluate('window.scrollTo({top:document.body.scrollHeight,behavior:"instant"})');
+  assert.ok(await evaluate('(() => { const bag = document.querySelector(".bag-link"); const r = bag.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && bag.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)); })()'), "Filled bag remains visible and clickable after scrolling");
   await evaluate('document.querySelector(".bag-link").click()');
   await until('Boolean(document.querySelector(".bag-lines"))');
   assert.ok(
@@ -251,6 +254,9 @@ try {
       await evaluate("document.documentElement.dir"),
       language === "ar" ? "rtl" : "ltr",
     );
+    await evaluate('window.scrollTo({top:document.body.scrollHeight,behavior:"instant"})');
+    assert.ok(await evaluate('(() => { const bag=document.querySelector(".bag-link"); const r=bag.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.height >= 44 && bag.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)); })()'), `Sticky bag visible and touch accessible for ${language}/${width}`);
+    await evaluate('window.scrollTo({top:0,behavior:"instant"})');
     writeFileSync(
       join(directory, `amal-${language}-${theme}-${width}.png`),
       Buffer.from(

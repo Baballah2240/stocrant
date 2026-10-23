@@ -17,6 +17,7 @@
 * {
   box-sizing: border-box;
 }
+html { scroll-padding-top: calc(var(--shop-header-height, 100px) + 16px); }
 body {
   margin: 0;
 }
@@ -121,6 +122,10 @@ button svg {
   line-height: 1.5;
 }
 .shop-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper);
   max-width: 1600px;
   margin: auto;
   padding: 25px 5%;
@@ -176,6 +181,19 @@ button svg {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+}
+.bag-link.has-items { background: var(--green); color: var(--on-green); border-color: var(--green); }
+.bag-link.has-items .bag-count { background: var(--on-green); color: var(--green); }
+.bag-icon { display: flex; }
+.bag-icon.is-added { animation: bag-added 550ms ease-out; }
+@keyframes bag-added {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-5px) rotate(-12deg); }
+  60% { transform: translateY(0) rotate(9deg); }
 }
 .bag-link svg {
   width: 23px;

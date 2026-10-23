@@ -2,6 +2,11 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Visible shopping bag
+
+- Keep the store header and bag at the top while scrolling. The bag highlights when it contains products and gently moves after successful additions; reduced-motion settings disable the movement.
+- Maintain touch targets, Arabic support and anchor spacing for the sticky header. No native package was built or installed.
+
 ## 2026-10-23 - Related store products
 
 - Opening a product image shows its details and up to four other published products, prioritizing the same category. Related cards support photos, likes and adding to the bag, with Arabic and responsive layouts.
