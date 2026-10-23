@@ -1,4 +1,9 @@
 export const ar: Record<string, string> = {
+  "Like product": "الإعجاب بالمنتج",
+  "Unlike product": "إلغاء الإعجاب بالمنتج",
+  "Liked products": "المنتجات المعجب بها",
+  "Liked": "أعجبني",
+  "Like": "إعجاب",
   "Warranty included": "يشمل ضماناً",
   "Store display & promotions": "عرض المتجر والعروض",
   "Arrange sections, control categories and schedule real offers. Save shop settings to apply your changes.": "رتب الأقسام وتحكم في الفئات وجدول العروض الفعلية. احفظ إعدادات المتجر لتطبيق تغييراتك.",

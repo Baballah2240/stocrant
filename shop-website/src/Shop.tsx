@@ -223,6 +223,14 @@ export default function Shop() {
     [quote, setQuote] = useState<Quote | null>(null),
     [quoteBusy, setQuoteBusy] = useState(false),
     [busy, setBusy] = useState(false);
+  const [liked, setLiked] = useState<string[]>([]), [likesShop, setLikesShop] = useState(""), [onlyLiked, setOnlyLiked] = useState(false);
+  useEffect(() => {
+    if (!slug) return;
+    const saved = load<unknown>(`amal.likes.${slug}`, []);
+    setLiked(Array.isArray(saved) ? [...new Set(saved.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 180))].slice(0,1000) : []);
+    setLikesShop(slug); setOnlyLiked(false);
+  }, [slug]);
+  useEffect(() => { if (slug && likesShop === slug) save(`amal.likes.${slug}`, liked); }, [slug, likesShop, liked]);
   const [form, setForm] = useState({
     customer: "",
     email: "",
@@ -395,7 +403,7 @@ export default function Shop() {
   const normalizeSearch = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, "").toLocaleLowerCase().trim();
   const terms = normalizeSearch(merchandising.display.showSearch ? search : "").split(/\s+/).filter(Boolean);
   const count = cart.reduce((n, l) => n + l.quantity, 0),
-    visible = products.filter(p => (!merchandising.display.showCategories || category === "All" || p.category === category) && (!onlyOffers || Boolean(p.offerId)) && (!offerFilter || p.offerId === offerFilter) && terms.every(term => normalizeSearch(`${p.name} ${p.sku} ${p.description} ${p.category} ${categoryTitle(p.category)} ${p.offerTitle || ""}`).includes(term))).sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "low" ? Number(a.price)-Number(b.price) : sort === "high" ? Number(b.price)-Number(a.price) : 0);
+    visible = products.filter(p => (!onlyLiked || liked.includes(p.id)) && (!merchandising.display.showCategories || category === "All" || p.category === category) && (!onlyOffers || Boolean(p.offerId)) && (!offerFilter || p.offerId === offerFilter) && terms.every(term => normalizeSearch(`${p.name} ${p.sku} ${p.description} ${p.category} ${categoryTitle(p.category)} ${p.offerTitle || ""}`).includes(term))).sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "low" ? Number(a.price)-Number(b.price) : sort === "high" ? Number(b.price)-Number(a.price) : 0);
   const invalidCart = cart.some(
     (l) =>
       !products.some((p) => p.id === l.productId && p.available >= l.quantity),
@@ -643,7 +651,9 @@ export default function Shop() {
     ? products.find((p) => p.id === path.split("/")[2])
     : null;
   function priceLabel(p: Product) { return <span className="store-price">{p.originalPrice && <del>{moneyLabel(p.originalPrice)}</del>}<span>{moneyLabel(p.price)}</span>{p.offerTitle && <small>{p.offerTitle}</small>}</span>; }
+  function likeButton(p: Product, detail = false) { const selected = liked.includes(p.id); return <button type="button" className={detail ? "product-like-detail" : "product-like"} aria-label={t(selected ? "Unlike product" : "Like product") + ": " + p.name} aria-pressed={selected} title={t(selected ? "Unlike product" : "Like product")} disabled={likesShop !== slug} onClick={() => setLiked(current => current.includes(p.id) ? current.filter(id => id !== p.id) : [...current,p.id].slice(-1000))}><Heart filled={selected} />{detail && <span>{t(selected ? "Liked" : "Like")}</span>}</button>; }
   function renderProduct(p: Product, i: number) { return (<article className="product-card" key={p.id} data-product-id={p.id}>
+                    {likeButton(p)}
                     <a
                       href={base + `/product/${p.id}`}
                       onClick={(e) => {
@@ -739,6 +749,7 @@ export default function Shop() {
           >
             {language === "en" ? "العربية" : "English"}
           </button>
+          <button className="liked-products-link" type="button" aria-label={t("Liked products")} aria-pressed={onlyLiked} onClick={() => { setOnlyLiked(true); setCategory("All"); setSearch(""); setOnlyOffers(false); setOfferFilter(""); navigate("/#collection"); }}><Heart filled={onlyLiked} /><span>{products.filter(p => liked.includes(p.id)).length}</span></button>
           {link(
             "/bag",
             <>
@@ -857,6 +868,7 @@ export default function Shop() {
                     ),
                   )}
                 </div>}
+                <button className="offers-filter liked-products-filter" aria-pressed={onlyLiked} onClick={() => setOnlyLiked(!onlyLiked)}>{t("Liked products")}</button>
                 {products.some(p => p.offerId) && <button className="offers-filter" aria-pressed={onlyOffers} onClick={() => { setOnlyOffers(!onlyOffers); setOfferFilter(""); }}>{t("Products on offer")}</button>}
                 <label className="sort">
                   <span className="sr-only">{t("Sort by")}</span>
@@ -871,7 +883,7 @@ export default function Shop() {
                   </select>
                 </label>
               </div>
-              <div className="store-results-line"><p className="search-results" role="status">{visible.length} {t("products found")}</p>{(search || category !== "All" || onlyOffers) && <button className="text-link" onClick={()=>{setSearch("");setCategory("All");setOnlyOffers(false);setOfferFilter("");}}>{t("Clear filters")}</button>}</div>
+              <div className="store-results-line"><p className="search-results" role="status">{visible.length} {t("products found")}</p>{(search || category !== "All" || onlyOffers || onlyLiked) && <button className="text-link" onClick={()=>{setSearch("");setCategory("All");setOnlyOffers(false);setOfferFilter("");setOnlyLiked(false);}}>{t("Clear filters")}</button>}</div>
               <div className={`product-grid ${merchandising.display.layout === "list" ? "is-list" : ""}`}>
                 {visible.map(renderProduct)}
               </div>
@@ -903,6 +915,7 @@ export default function Shop() {
               </p>
               <h1>{product.name}</h1>
               <div className="detail-price">{priceLabel(product)}</div>
+              {likeButton(product,true)}
               {product.warranty && <><WarrantyBadge details={product.warrantyDetails} t={t} />{product.warrantyDetails && <p className="warranty-details" dir="auto">{product.warrantyDetails}</p>}</>}
               <p>{product.description}</p>
               <p className="stock">
@@ -1458,3 +1471,5 @@ function ProductGallery({ product, t }: { product: Product; t: (text: string) =>
 }
 
 function WarrantyBadge({details,t}:{details?:string;t:(text:string)=>string}) { return <span className="product-warranty" title={details || t("Warranty included")}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path d="m8 12 3 3 5-6"/></svg><span>{t("Warranty included")}</span></span>; }
+
+function Heart({filled=false}:{filled?:boolean}) { return <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>; }

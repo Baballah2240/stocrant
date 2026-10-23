@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Store product likes
+
+- Add accessible heart buttons to product cards and product detail pages, with a liked-products filter and header shortcut.
+- Save preferences per shop in the visitor's browser without requiring an account. Support Arabic, touch controls and light/dark themes.
+- Storefront web update only; no native package built or installed.
+
 ## 2026-10-23 - Optional product warranty indicator
 
 - Add a product warranty checkbox and optional details to the shared product creation/editing form.

@@ -4,6 +4,8 @@ Amal is the first customer storefront. It uses the same STOCRANT backend and com
 
 ## What is implemented
 
+- Personal product likes: heart buttons on cards and product pages, plus a liked-products filter and header shortcut. Choices persist per shop in the current browser's local storage. They do not require sign-in and are not shared public reaction counts or synchronized customer accounts. Browsing still works when browser storage is unavailable.
+
 - Products have an optional warranty checkbox and short warranty details in the workspace. Covered products show a small shield/check icon and localized warranty label beneath their store card; the product detail page also shows the supplied details. Unset warranties default to false, and unrelated edits preserve the setting.
 
 - **Store display & promotions** in **Shops & orders > Customer storefront** controls the public store. Arrange categories and homepage sections with the arrow buttons; set category display labels, descriptions and visibility. Category keys match product categories, while display labels can change without reassigning products. Saved categories are suggested in the product editor. Hiding a category removes its products from the public catalog and checkout; authorized workspace staff keep the business records.
@@ -71,7 +73,7 @@ No DNS records, Render custom domains or live publication are changed by a GitHu
 - Taxes and refunds follow the existing documented finance workflow and the merchant's policies. Automatic tax calculation, online refunds, returns authorization and promotional discount codes are not implemented.
 - Finance create-approval policies still block dispatch in the current commerce foundation. Public quotes/checkouts pause under that policy too; do not enable public sales for that policy until a dedicated approved-sale dispatch workflow is implemented.
 - Confirmation appears on screen with a private tracking link. Email/SMS confirmations are not sent; no customer notification delivery is claimed.
-- The shop currently has guest checkout, without customer accounts, wishlists or public reviews. Product images are supplied as HTTPS URLs. Draft/unconfigured pages are not automatically exposed as live shops, and the build defaults to `noindex` during this launch-preparation phase.
+- The shop currently has guest checkout, without customer accounts or public reviews. Product images are supplied as HTTPS URLs. Draft/unconfigured pages are not automatically exposed as live shops, and the build defaults to `noindex` during this launch-preparation phase.
 
 ## Verification
 

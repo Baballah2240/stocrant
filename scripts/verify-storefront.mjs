@@ -64,6 +64,34 @@ try {
   await send("Network.deleteCookies", { name: "stocrant_session", url: base });
   await send("Page.navigate", { url: base + "/shop/amal" });
   await until('document.querySelectorAll(".product-card").length===4');
+  // Personal likes stay separate from product navigation and the shopping bag.
+  const likedId = await evaluate('document.querySelector(".product-card").dataset.productId');
+  await evaluate('document.querySelector(".product-like").click()');
+  await until('document.querySelectorAll(".product-like[aria-pressed=true]").length===1');
+  assert.equal(await evaluate('document.querySelector(".bag-count").textContent'), "0");
+  assert.equal(await evaluate('document.querySelector(".liked-products-link span").textContent'), "1");
+  assert.equal(await evaluate('window.location.pathname'), "/shop/amal");
+  await send("Page.reload");
+  await until('document.querySelectorAll(".product-card").length===4 && document.querySelectorAll(".product-like[aria-pressed=true]").length===1');
+  assert.deepEqual(await evaluate('JSON.parse(localStorage.getItem("amal.likes.amal"))'), [likedId]);
+  await evaluate('document.querySelector(".liked-products-link").click()');
+  await until('document.querySelectorAll(".product-card").length===1');
+  assert.equal(await evaluate('document.querySelector(".product-card").dataset.productId'), likedId);
+  const likesDirectory = resolve(".local-preview/qa/amal"); mkdirSync(likesDirectory, {recursive:true});
+  await evaluate('document.querySelector(".product-card").scrollIntoView({block:"center",behavior:"instant"})');
+  writeFileSync(join(likesDirectory,"liked-product-desktop.png"), Buffer.from((await send("Page.captureScreenshot",{format:"png"})).data,"base64"));
+  await evaluate('document.querySelector(".product-like").click()');
+  await until('document.querySelectorAll(".product-card").length===0');
+  await click("Clear filters", ".store-results-line button");
+  await until('document.querySelectorAll(".product-card").length===4');
+  await evaluate('document.querySelector(".product-image").click()');
+  await until('Boolean(document.querySelector(".product-like-detail"))');
+  await evaluate('document.querySelector(".product-like-detail").click()');
+  await until('document.querySelector(".product-like-detail").getAttribute("aria-pressed")==="true"');
+  await evaluate('document.querySelector(".wordmark").click()');
+  await until('document.querySelectorAll(".product-card").length===4 && document.querySelectorAll(".product-like[aria-pressed=true]").length===1');
+  await evaluate('document.querySelector(".product-like[aria-pressed=true]").click()');
+  await until('document.querySelectorAll(".product-like[aria-pressed=true]").length===0');
   await verifyStorefrontDesign(browser, base);
   assert.ok(await evaluate('!document.querySelector(".topbar")'));
   assert.equal(
