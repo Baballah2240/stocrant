@@ -86,6 +86,17 @@ try {
   await until('document.querySelectorAll(".product-card").length===4');
   await evaluate('document.querySelector(".product-image").click()');
   await until('Boolean(document.querySelector(".product-like-detail"))');
+  const openedProductPath = await evaluate('location.pathname');
+  const relatedIds = await evaluate('[...document.querySelectorAll(".related-products .product-card")].map(card => card.dataset.productId)');
+  assert.equal(relatedIds.length, 3);
+  assert.equal(new Set(relatedIds).size, relatedIds.length);
+  assert.ok(!relatedIds.includes(openedProductPath.split("/").pop()));
+  const relatedName = await evaluate('document.querySelector(".related-products .product-card h3").textContent');
+  await evaluate('document.querySelector(".related-products .product-image").click()');
+  await until('document.querySelector(".detail-copy h1")?.textContent === ' + JSON.stringify(relatedName));
+  assert.equal(await evaluate('location.pathname.split("/").pop()'), relatedIds[0]);
+  await evaluate('history.back()');
+  await until('location.pathname === ' + JSON.stringify(openedProductPath));
   await evaluate('document.querySelector(".product-like-detail").click()');
   await until('document.querySelector(".product-like-detail").getAttribute("aria-pressed")==="true"');
   await evaluate('document.querySelector(".wordmark").click()');

@@ -4,6 +4,8 @@ Amal is the first customer storefront. It uses the same STOCRANT backend and com
 
 ## What is implemented
 
+- Clicking a product image opens its details and a related-products section with up to four other public catalog items. Same-category products come first, followed by other shop products when needed; the current product is excluded. Related cards support navigation, likes, prices, warranty labels and adding to the bag. The section is omitted when no other products are available.
+
 - Personal product likes: heart buttons on cards and product pages, plus a liked-products filter and header shortcut. Choices persist per shop in the current browser's local storage. They do not require sign-in and are not shared public reaction counts or synchronized customer accounts. Browsing still works when browser storage is unavailable.
 
 - Products have an optional warranty checkbox and short warranty details in the workspace. Covered products show a small shield/check icon and localized warranty label beneath their store card; the product detail page also shows the supplied details. Unset warranties default to false, and unrelated edits preserve the setting.

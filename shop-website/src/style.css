@@ -602,6 +602,11 @@ button svg {
 .product-thumbnails button { padding: 4px; border: 2px solid transparent; border-radius: 16px; background: var(--surface); cursor: pointer; }
 .product-thumbnails button[aria-pressed="true"] { border-color: currentColor; }
 .product-thumbnails img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; display: block; }
+.related-products {
+  max-width: 1200px;
+  margin: auto;
+  padding: 0 5% 80px;
+}
 .product-detail {
   max-width: 1200px;
   margin: auto;

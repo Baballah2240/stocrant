@@ -650,6 +650,11 @@ export default function Shop() {
   const product = path.startsWith("/product/")
     ? products.find((p) => p.id === path.split("/")[2])
     : null;
+  const relatedProducts = product
+    ? products.filter(p => p.id !== product.id)
+        .sort((a, b) => Number(b.category === product.category) - Number(a.category === product.category))
+        .slice(0, 4)
+    : [];
   function priceLabel(p: Product) { return <span className="store-price">{p.originalPrice && <del>{moneyLabel(p.originalPrice)}</del>}<span>{moneyLabel(p.price)}</span>{p.offerTitle && <small>{p.offerTitle}</small>}</span>; }
   function likeButton(p: Product, detail = false) { const selected = liked.includes(p.id); return <button type="button" className={detail ? "product-like-detail" : "product-like"} aria-label={t(selected ? "Unlike product" : "Like product") + ": " + p.name} aria-pressed={selected} title={t(selected ? "Unlike product" : "Like product")} disabled={likesShop !== slug} onClick={() => setLiked(current => current.includes(p.id) ? current.filter(id => id !== p.id) : [...current,p.id].slice(-1000))}><Heart filled={selected} />{detail && <span>{t(selected ? "Liked" : "Like")}</span>}</button>; }
   function renderProduct(p: Product, i: number) { return (<article className="product-card" key={p.id} data-product-id={p.id}>
@@ -906,6 +911,7 @@ export default function Shop() {
             </section>}
           </>
         ) : product ? (
+          <>
           <section className="product-detail">
             <ProductGallery key={product.id} product={product} t={t} />
             <div className="detail-copy">
@@ -965,6 +971,14 @@ export default function Shop() {
               </details>
             </div>
           </section>
+          {relatedProducts.length > 0 && <section className="related-products" aria-labelledby="related-products-heading">
+            <header className="section-heading"><div>
+              <p className="eyebrow">{t("More to discover")}</p>
+              <h2 id="related-products-heading">{t("Related products")}</h2>
+            </div>{link("/", t("Back to collection"), "text-link")}</header>
+            <div className="product-grid">{relatedProducts.map(renderProduct)}</div>
+          </section>}
+          </>
         ) : path === "/bag" ? (
           <section className="shopping-page">
             <p className="eyebrow">

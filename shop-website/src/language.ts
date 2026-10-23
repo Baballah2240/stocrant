@@ -1,4 +1,6 @@
 export const ar: Record<string, string> = {
+  "Related products": "منتجات ذات صلة",
+  "More to discover": "المزيد لتكتشفه",
   "Like product": "الإعجاب بالمنتج",
   "Unlike product": "إلغاء الإعجاب بالمنتج",
   "Liked products": "المنتجات المعجب بها",
