@@ -1,6 +1,7 @@
 import type { AuthenticatedUser } from "./auth.js";
 import { validateStructure } from "./company-structure.js";
 import { getCollection, getStore } from "./storage.js";
+import { protectOrganizationAdmin } from "./organization-admin-policy.js";
 import { can, companyIdsFor, effectiveLocationIds, hasLocationRestriction, isMainManager, isWithinScope, ownRecordsRequired } from "./permissions.js";
 type Row = Record<string, unknown>;
 const rows = (name: string) => getCollection(name) as Row[];
@@ -19,12 +20,24 @@ function activeCompany(id: unknown): Row | undefined {
   return rows("organizations").some(organization => organization.id === company.parentOrganizationId && organization.status === "active") ? company : undefined;
 }
 
+export function canAssignRole(actor: AuthenticatedUser, role: Row) {
+  if (isMainManager(actor)) return true;
+  if (["role-main-manager", "role-organization-admin"].includes(String(role.id)) || actor.roleId === "role-company-manager" && role.id === "role-company-manager") return false;
+  const grants = Array.isArray(role.permissions) ? role.permissions.map(String) : [];
+  const actions = ["view", "create", "edit", "delete", "approve", "reply", "export", "pay", "configure"] as const;
+  return role.status !== "inactive" && grants.every(grant => {
+    if (grant === "*" || grant === "customerService.inquiries") return false;
+    const [section, action] = grant.split(".");
+    return Boolean(section && action) && (action === "*" ? actions : [action]).every(value => can(actor, section as Parameters<typeof can>[1], value as typeof actions[number]));
+  });
+}
 export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, existing?: Row) {
   const main = isMainManager(actor);
   if (!main && existing && !canManageAccount(actor, existing)) policyError("User not found.", 404);
   if (!rows("accessRoles").some(role => role.id === next.roleId)) policyError("Choose a valid role.");
   if(rows("accessRoles").some(role=>role.id===next.roleId&&role.status==="inactive"))policyError("Choose an active role.");
   if (!main && ["role-main-manager", "role-organization-admin"].includes(String(next.roleId))) policyError("You do not have permission to assign this role.", 403);
+  if (!main && actor.roleId === "role-company-manager" && next.roleId === "role-company-manager") policyError("Only an organization main admin can assign company admins.", 403);
   if (!main && next.id === actor.id) policyError("You cannot change your own administrative access.", 403);
   const companies = Array.isArray(next.organizationIds) ? next.organizationIds.map(String) : [];
   const parents = Array.isArray(next.tenantOrganizationIds) ? next.tenantOrganizationIds.map(String) : [];
@@ -70,6 +83,7 @@ export function canManageAccount(actor: AuthenticatedUser, account: Row) {
   const grants = Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : [];
   if (grants.includes("customerService.inquiries")) return false;
   if (["role-main-manager", "role-organization-admin"].includes(String(account.roleId))) return false;
+  if (actor.roleId === "role-company-manager" && account.roleId === "role-company-manager" && account.id !== actor.id) return false;
   const companies = Array.isArray(account.organizationIds) ? account.organizationIds.map(String) : [];
   const locations = effectiveLocationIds(actor);
   return companies.length === 1 && companyIdsFor(actor).includes(companies[0]) && (!locations.length || (Array.isArray(account.locationIds) && account.locationIds.length > 0 && account.locationIds.every(id => locations.includes(String(id))))) && isWithinScope(actor, { ...account, organizationId: companies[0], locationId: Array.isArray(account.locationIds) ? account.locationIds[0] : undefined });
@@ -82,6 +96,7 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
   if (collection === "attendance" && ["create", "edit", "delete"].includes(action)) policyError("Use the Attendance & Timesheets workflow to create or change attendance records.", 409);
   if (["roles", "users", "accessRoles", "accessUsers", "approvalRules"].includes(collection) && !isMainManager(user)) policyError("Only the Main Admin has permission to change global access settings.", 403);
   if (collection === "organizations") {
+    if (input.mainAdminAccountId !== undefined || input.adminVersion !== undefined) policyError("Use the organization main admin assignment controls.", 403);
     if ((action !== "edit" || (input.status !== undefined && input.status !== current?.status)) && !isMainManager(user)) policyError("Only the Main Admin has permission to create, activate or deactivate organizations.", 403);
     if (action === "delete" && rows("companies").some(company => company.parentOrganizationId === current?.id)) policyError("This organization contains companies. Deactivate it to preserve its records.");
     if (action !== "delete" && rows("organizations").some(org => org.id !== current?.id && normalized(org.name) === normalized(next.name))) policyError("An organization with this name already exists.", 409);
@@ -100,6 +115,10 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
     return input;
   }
   const companyId = next.organizationId ?? next.companyId;
+  if (collection === "employees" && current && ["inactive", "terminated", "suspended"].includes(String(next.status).toLowerCase())) {
+    const account = rows("accessUsers").find(account => account.employeeId === current.id);
+    if (account) protectOrganizationAdmin(account);
+  }
   if (next.organizationId && next.companyId && next.organizationId !== next.companyId) policyError("Company assignments must match.");
   if (action !== "delete" && companyId && !activeCompany(companyId)) policyError("Choose an active company in an active organization.");
   for (const field of ["locationId", "storeId"]) if (action !== "delete" && next[field]) {

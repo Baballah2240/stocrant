@@ -1,3 +1,4 @@
+import { protectOrganizationAdmin } from "./organization-admin-policy.js";
 import { generateUsername } from "./employee-identity.js";
 import { createHash, randomBytes } from "node:crypto";
 import type { AuthenticatedUser } from "./auth.js";
@@ -43,6 +44,7 @@ export function syncEmployeeAccount(actor: AuthenticatedUser, employee: Row, pre
     if (employmentInactive(employee.status) && account.roleId === "role-main-manager" && rows("accessUsers").filter(row => row.roleId === "role-main-manager" && row.status === "active").length <= 1) throw new Error("The last active Main Admin cannot be suspended.");
     if (previous && !isMainManager(actor) && ["role-main-manager", "role-organization-admin"].includes(String(account.roleId)) && (employee.email !== previous.email || employee.name !== previous.name || employmentInactive(employee.status))) throw new Error("Only the Main Admin can change this administrator's linked identity.");
     account = { ...account, name: employee.name, phone: employee.phone || "", ...(email ? { email } : {}), ...(employmentInactive(employee.status) ? { status: "suspended" } : {}) };
+    if (employmentInactive(employee.status)) protectOrganizationAdmin(account);
     data.collections.accessUsers = rows("accessUsers").map(row => row.id === account!.id ? account! : row);
     employee.accountId = account.id;
     if(previous&&String(previous.email||"").toLowerCase()!==email){

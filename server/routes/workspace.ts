@@ -13,7 +13,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { authenticatedUser, hashPassword, publicUser } from "../auth.js";
 import { can, companyIdsFor, isMainManager, isWithinScope, redactRecord, requirePermission, sectionForCollection } from "../permissions.js";
-import { canManageAccount, validateAccountAssignment } from "../organization-policy.js";
+import { canManageAccount, canAssignRole, validateAccountAssignment } from "../organization-policy.js";
+import { protectOrganizationAdmin } from "../organization-admin-policy.js";
 import { registry } from "../registry.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "../storage.js";
 import { createNotification, listNotifications } from "../notifications.js";
@@ -530,7 +531,7 @@ router.post("/customer-service/questions/:id/replies", requirePermission("custom
   } catch (error) { sendError(res, error); }
 });
 
-router.get("/access/roles", requirePermission("access", "view"), (req, res) => res.json({ items: rows("accessRoles").filter(role => isMainManager(req.auth) || !["role-main-manager", "role-organization-admin"].includes(role.id)) }));
+router.get("/access/roles", requirePermission("access", "view"), (req, res) => res.json({ items: rows("accessRoles").filter(role => canAssignRole(req.auth!, role)) }));
 router.get("/access/users", requirePermission("access", "view"), (req, res) => res.json({ items: rows("accessUsers").filter(account => canManageAccount(req.auth!, account)).map(({ passwordHash: _passwordHash, ...user }) => user) }));
 router.patch("/access/roles/:id", requirePermission("access", "edit"), (req, res) => {
   if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to change global roles." });
@@ -621,6 +622,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
   };
   if (passwordHash) { next.passwordHash = passwordHash; next.mustChangePassword = true; next.activationRequired = false; }
   try { validateAccountAssignment(req.auth!, next, existing); } catch (error) { return sendError(res, error); }
+  try { protectOrganizationAdmin(existing, next); } catch (error) { return sendError(res, error); }
   if (next.status === "invited" && existing.activationRequired !== true) return res.status(400).json({ error: "Only accounts awaiting password setup can remain invited." });
   if (next.status === "active" && existing.activationRequired === true && !passwordHash) return res.status(400).json({ error: "Complete employee activation or set a new password before activating this account." });
   const wasManager = existing.roleId === "role-main-manager" && existing.status === "active";
@@ -656,6 +658,7 @@ router.delete("/access/users/:id", requirePermission("access", "delete"), (req, 
   if (!existing) return res.status(404).json({ error: "User not found." });
   if (!canManageAccount(req.auth!, existing)) return res.status(404).json({ error: "User not found." });
   if (existing.id === req.auth!.id) return res.status(400).json({ error: "You cannot delete your own signed-in account." });
+  try { protectOrganizationAdmin(existing); } catch (error) { return sendError(res, error); }
   if (existing.roleId === "role-main-manager" && existing.status === "active" && users.filter(user => user.roleId === "role-main-manager" && user.status === "active").length <= 1) return res.status(400).json({ error: "The last active Main Admin cannot be deleted." });
   const data = getStore();
   data.collections.accessUsers = users.filter(user => user.id !== existing.id);

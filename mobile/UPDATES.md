@@ -2,6 +2,14 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Organization main admins and company HR/staff assignment
+
+- Add a scoped main-admin card to each organization page. Platform Main Admins can assign an existing active organization account or create a new organization admin with a temporary password. Organizations can be created first and show an admin-setup reminder until assignment.
+- Add HR & staff access controls to company Users & Permissions and Attendance & Shifts. Organization admins can appoint company admins; company admins can assign HR Manager, HR Staff and own-record Staff roles within their company.
+- Restrict role lists to grants the acting admin can delegate. Block company-admin peer promotion, cross-company assignments and changes to the designated organization main admin until a replacement is assigned.
+- Keep the previous organization's admin account after replacement; removing its access requires a separate explicit account change. New admin passwords require first-login rotation; role changes revoke existing sessions.
+- Add English/Arabic responsive controls and refresh company account summaries after assignment. Verified isolated hierarchy/account workflows, existing management/administration flows, and mobile RTL layouts. Shared source only; no native package rebuilt or installed.
+
 ## 2026-10-23 - Sudanese pound support
 
 - Add SDG to shared company creation/editing currency selectors and backend company validation.

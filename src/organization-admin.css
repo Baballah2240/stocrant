@@ -1,0 +1,9 @@
+.organization-admin-card { margin-block: 18px; padding: 18px; border: 1px solid var(--ios-separator); border-radius: 14px; min-width: 0; }
+.organization-admin-card > header { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }.organization-admin-card h3 { margin: 0; font-size: 17px; }
+.organization-admin-card > p { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; overflow-wrap: anywhere; }
+.organization-admin-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-top: 16px; }
+.organization-admin-form > label { display: grid; gap: 8px; font-size: 13px; min-width: 0; }.organization-admin-form small { color: var(--ios-label-2); }
+.organization-admin-form > p, .organization-admin-form > .inline-actions, .organization-admin-form > button { grid-column: 1 / -1; }
+.organization-admin-form input { width: 100%; min-width: 0; }.organization-admin-form > button { justify-self: start; }
+.company-staff-access { padding: 22px; min-width: 0; }
+@media(max-width:600px) { .organization-admin-form { grid-template-columns: 1fr; }.organization-admin-form input { font-size: 16px; } }

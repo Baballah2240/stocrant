@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { protectOrganizationAdmin } from "../organization-admin-policy.js";
 import { z } from "zod";
 import { authenticatedUser,verifyPassword } from "../auth.js";
 import { can,isMainManager,isWithinScope,ownRecordsRequired } from "../permissions.js";
@@ -50,9 +51,10 @@ for(const edit of [false,true])router[edit?"patch":"post"](`/roles${edit?"/:id":
  if(input.organizationIds.some(id=>!rows("companies").some(row=>row.id===id))||input.locationIds.some(id=>!getStore().stores.some(row=>row.id===id))||input.departmentIds.some(id=>!rows("departments").some(row=>row.id===id&&row.kind!=="section"))||input.sectionIds.some(id=>!rows("departments").some(row=>row.id===id&&row.kind==="section"))||input.scope==="department"&&!input.departmentIds.length||input.scope==="section"&&!input.sectionIds.length)return res.status(400).json({error:"Choose valid companies and organizational units for the role scope."});
  if(assignedUserIds?.some(id=>!rows("accessUsers").some(row=>row.id===id&&row.roleId!=="role-main-manager")))return res.status(400).json({error:"Main Administrator accounts cannot be reassigned through role editing."});
  if(current?.id===administrationPolicy().defaultRoleId&&input.status==="inactive")return res.status(400).json({error:"Choose another onboarding role before deactivating this role."});
+ try { for(const account of rows("accessUsers").filter(row=>assignedUserIds?.includes(row.id)))protectOrganizationAdmin(account,{...account,roleId:current?.id||"new-custom-role"}); } catch(error) { return res.status((error as {statusCode?:number}).statusCode||400).json({error:(error as Error).message}); }
  const role=transaction(()=>{const item={...current,...input,ownRecordsOnly:input.scope==="own"||input.ownRecordsOnly,id:current?.id||nextCollectionId("accessRoles"),isSystem:current?.isSystem===true,updatedAt:new Date().toISOString(),updatedBy:req.auth!.id};getStore().collections.accessRoles=current?rows("accessRoles").map(row=>row.id===item.id?item:row):[...rows("accessRoles"),item];
   const affected=new Set(rows("accessUsers").filter(row=>row.roleId===item.id||assignedUserIds?.includes(row.id)).map(row=>row.id));
-  if(assignedUserIds)for(const account of rows("accessUsers").filter(row=>assignedUserIds.includes(row.id))){account.roleId=item.id;delete account.permissions;}
+  if(assignedUserIds)for(const account of rows("accessUsers").filter(row=>assignedUserIds.includes(row.id))){protectOrganizationAdmin(account,{...account,roleId:item.id});account.roleId=item.id;delete account.permissions;}
   getStore().collections.sessions=rows("sessions").filter(row=>!affected.has(String(row.accountId)));saveStore(getStore());audit(req.auth,current?"access.role-updated":"access.role-created",{targetId:item.id,before:current?{permissions:current.permissions,scope:current.scope,status:current.status}:undefined,after:input,affectedUsers:affected.size,outcome:"success"});return item;});res.status(edit?200:201).json({item:role});
 });
 export default router;
