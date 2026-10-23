@@ -2,6 +2,13 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-23 - Company control, shop delegation and dashboard sizes
+
+- Upgrade shipped Company Manager permissions to include company editing, Finance, Payroll, approvals and shop configuration within the assigned company. Preserve explicitly customized role/account restrictions and tenant boundaries.
+- Add a Shop Manager role and a full shop permission preset. Staff can manage products, shipments, orders, storefront settings and connections without receiving user administration.
+- Add one-third, half, two-thirds and full dashboard card widths with adjustable heights, automatic-height reset, touch-friendly controls and account-owned saved layouts. Mobile uses a single column.
+- Shared workspace source updated; no native package built or installed.
+
 ## 2026-10-23 - Amal product focus and richer storefront colors
 
 - Refresh Amal's collection with mint, peach, sky and lilac product cards, rounded controls and gentle decorative movement in the hero.

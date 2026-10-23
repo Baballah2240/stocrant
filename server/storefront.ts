@@ -111,7 +111,7 @@ const defaults = {
 function admin(req: Request, companyId: string) {
   const user = req.auth!;
   shopPermission(user, "edit");
-  if (!can(user, "access", "edit"))
+  if (!can(user, "access", "edit") && !can(user, "shops", "configure"))
     fail("Shop settings require access administration permission.", 403);
   return shopCompany(user, companyId);
 }

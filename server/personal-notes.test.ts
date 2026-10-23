@@ -42,7 +42,7 @@ after(async () => { server.closeAllConnections(); await new Promise<void>(resolv
 describe("Private manager notebook and production organization workflow", () => {
   it("persists account-owned dashboard layouts and rejects stale writes", async () => {
     const initial = await json(await api("/workspace/dashboard-layout")); assert.equal(initial.version, 0);
-    const items = [{ id: "notes", hidden: false, wide: false }, { id: "profile", hidden: true, wide: true }];
+    const items = [{ id: "notes", hidden: false, wide: false, width: "third", height: 360 }, { id: "profile", hidden: true, wide: true, width: "full", height: null }];
     const saved = await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items })); assert.equal(saved.version, 1);
     resetTestCache(); assert.deepEqual((await json(await api("/workspace/dashboard-layout"))).items, items);
     for (const session of [main, colleague]) assert.deepEqual((await json(await api("/workspace/dashboard-layout", "GET", undefined, session))).items, []);
@@ -59,6 +59,8 @@ describe("Private manager notebook and production organization workflow", () => 
       { version: 2, items: [{ id: "unknown", hidden: false, wide: false }] },
       { version: 2, items: [{ id: "notes", hidden: false, wide: false }, { id: "notes", hidden: true, wide: false }] },
       { version: -1, items: [] },
+      ...[239, 1601, 300.5, "400"].map(height => ({ version: 2, items: [{ id: "notes", hidden: false, wide: false, height }] })),
+      { version: 2, items: [{ id: "notes", hidden: false, wide: false, width: "giant" }] },
     ]) await json(await api("/workspace/dashboard-layout", "PUT", payload), 400);
     for (const path of ["/collections/managerDashboardLayouts", "/collections/managerDashboardLayouts/export"]) await json(await api(path, "GET", undefined, main), 404);
   });

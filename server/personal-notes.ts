@@ -5,7 +5,7 @@ import type { AuthenticatedUser } from "./auth.js";
 import type { Notification } from "./types.js";
 import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 
-export const managerRoles = ["role-main-manager", "role-manager", "role-organization-admin", "role-company-manager", "role-hr-manager", "role-general-manager", "role-finance-manager"];
+export const managerRoles = ["role-shop-manager", "role-main-manager", "role-manager", "role-organization-admin", "role-company-manager", "role-hr-manager", "role-general-manager", "role-finance-manager"];
 export const isNotebookManager = (user: AuthenticatedUser | undefined) => Boolean(user && managerRoles.includes(user.roleId));
 type Note = { id: string; ownerId: string; title: string; body: string; phone: string; dueAt: string | null; completed: boolean; pinned: boolean; createdAt: string; updatedAt: string; version: number; requestId: string; requestHash: string; notifiedDueAt: string | null };
 const notes = () => getCollection("managerPersonalNotes") as Note[];

@@ -1,10 +1,10 @@
-import { Children, isValidElement, useEffect, useRef, useState, type ReactNode, type ReactElement } from "react";
+import { Children, isValidElement, useEffect, useRef, useState, type ReactNode, type ReactElement, type CSSProperties } from "react";
 import { useLocation } from "react-router-dom";
 import { request } from "../api";
 import { useLanguage } from "../language-context";
 import "../dashboard-layout.css";
 
-type Item = { id: string; hidden: boolean; wide: boolean };
+type Item = { id: string; hidden: boolean; wide: boolean; width?: "third" | "half" | "two-thirds" | "full"; height?: number | null };
 type Layout = { version: number; items: Item[] };
 type Widget = { id: string; title: string; wide?: boolean; available?: boolean; children: ReactNode };
 export function DashboardWidget({ children }: Widget) { return <>{children}</>; }
@@ -12,7 +12,7 @@ const endpoint = "/workspace/dashboard-layout";
 export default function CustomizableDashboard({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   const { t } = useLanguage(), location = useLocation();
   const widgets = (Children.toArray(children).filter(isValidElement) as ReactElement<Widget>[]).filter(widget => widget.props.available !== false);
-  const defaults = widgets.map(({ props }) => ({ id: props.id, hidden: false, wide: Boolean(props.wide) }));
+  const defaults: Item[] = widgets.map(({ props }) => ({ id: props.id, hidden: false, wide: Boolean(props.wide) }));
   const [layout, setLayout] = useState<Layout>({ version: 0, items: [] }), [draft, setDraft] = useState<Item[] | null>(null);
   const [loaded, setLoaded] = useState(!enabled), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const dragging = useRef<string | null>(null), saving = useRef(false);
@@ -56,17 +56,21 @@ export default function CustomizableDashboard({ enabled, children }: { enabled: 
       {ordered.map((item, index) => {
         const widget = widgets.find(widget => widget.props.id === item.id)!;
         const force = item.id === "notes" && new URLSearchParams(location.search).has("personalNote");
-        return <div key={item.id} className={`dashboard-widget${item.wide ? " is-wide" : ""}${item.hidden ? " is-layout-hidden" : ""}`} data-dashboard-card={item.id} hidden={!draft && item.hidden && !force}
+        const width = item.width || (item.wide ? "full" : "half");
+        return <div key={item.id} className={`dashboard-widget${width === "full" ? " is-wide" : ""}${item.hidden ? " is-layout-hidden" : ""}`} data-width={width} style={{ "--widget-height": item.height ? `${item.height}px` : undefined } as CSSProperties} data-dashboard-card={item.id} hidden={!draft && item.hidden && !force}
           onDragOver={event => { if (draft && dragging.current) event.preventDefault(); }}
           onDrop={event => { if (!draft || busy) return; event.preventDefault(); if (dragging.current) move(dragging.current, index); dragging.current = null; }}>
           {draft && <div key="controls" className="dashboard-card-controls"><strong>{t(widget.props.title)}</strong><div>
             <button type="button" draggable={!busy} disabled={busy} onDragStart={event => { dragging.current = item.id; event.dataTransfer.setData("text/plain", item.id); event.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { dragging.current = null; }} aria-label={t("Drag card")}>⠿</button>
             <button type="button" disabled={busy || index === 0} onClick={() => move(item.id, index - 1)} aria-label={t("Move card earlier")}>↑</button>
             <button type="button" disabled={busy || index === ordered.length - 1} onClick={() => move(item.id, index + 1)} aria-label={t("Move card later")}>↓</button>
-            <button type="button" disabled={busy} aria-pressed={item.wide} onClick={() => change(item.id, { wide: !item.wide })}>{t(item.wide ? "Full width" : "Half width")}</button>
+            <button type="button" disabled={busy} aria-pressed={width === "full"} onClick={() => change(item.id, { wide: width !== "full", width: width === "full" ? "half" : "full" })}>{t(width === "full" ? "Full width" : "Half width")}</button>
+            <label>{t("Card width")}<select disabled={busy} value={width} onChange={event => change(item.id, { width: event.target.value as Item["width"], wide: event.target.value === "full" })}>{(["third", "half", "two-thirds", "full"] as const).map((value, i) => <option key={value} value={value}>{t(["One third", "Half width", "Two thirds", "Full width"][i])}</option>)}</select></label>
+            <label>{t("Card height")}<input type="range" min="240" max="1600" step="20" disabled={busy} value={item.height || 480} aria-label={`${t(widget.props.title)}: ${t("Card height")}`} onChange={event => change(item.id, { height: Number(event.target.value) })} /><span>{item.height ? `${item.height}px` : t("Automatic height")}</span></label>
+            <button type="button" disabled={busy || !item.height} onClick={() => change(item.id, { height: null })}>{t("Automatic height")}</button>
             <button type="button" disabled={busy} aria-pressed={!item.hidden} onClick={() => change(item.id, { hidden: !item.hidden })}>{t(item.hidden ? "Hidden" : "Visible")}</button>
           </div></div>}
-          <div key="content" className="dashboard-widget-content">{widget}</div>
+          <div key="content" className="dashboard-widget-content" tabIndex={item.height ? 0 : undefined} role={item.height ? "region" : undefined} aria-label={item.height ? t(widget.props.title) : undefined}>{widget}</div>
         </div>;
       })}
     </div>

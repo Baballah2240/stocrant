@@ -128,7 +128,7 @@ export default function ShopWorkspace() {
   const canCreate =
       permits("inventory", "create") && permits("operations", "create"),
     canEdit = permits("inventory", "edit") && permits("operations", "edit"),
-    canConnect = canEdit && permits("access", "edit");
+    canConnect = canEdit && (permits("access", "edit") || permits("shops", "configure"));
   const c = companies.find((c) => c.id === companyId),
     base = `/workspace/shops/${companyId}`;
   useEffect(() => {

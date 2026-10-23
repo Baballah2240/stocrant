@@ -93,7 +93,7 @@ describe("Organization Manager company access",()=>{
  });
  it("upgrades the shipped role additively while preserving explicit custom restrictions",()=>{
   const copy=structuredClone(getStore()) as StoreData,role=(copy.collections.accessRoles as Row[]).find(row=>row.id==="role-organization-admin")!;
-  role.permissions=role.permissions.filter((grant:string)=>!["payroll.*","organizations.export","organizations.delete"].includes(grant));assert.equal(migrateOrganizations(copy),true);assert.ok(role.permissions.includes("payroll.*"));assert.equal(migrateOrganizations(copy),false);
+  role.permissions=role.permissions.filter((grant:string)=>!["payroll.*","organizations.export","organizations.delete","shops.*"].includes(grant));assert.equal(migrateOrganizations(copy),true);assert.ok(role.permissions.includes("payroll.*"));assert.equal(migrateOrganizations(copy),false);
   role.permissions=["organizations.view","hr.view"];migrateOrganizations(copy);assert.deepEqual(role.permissions,["organizations.view","hr.view"]);
  });
 });

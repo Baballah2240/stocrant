@@ -391,7 +391,7 @@ commerceRouter.get("/:companyId", (req, res) => {
         )
         .slice(-100)
         .reverse(),
-      connectors: can(req.auth, "access", "edit")
+      connectors: (can(req.auth, "access", "edit") || can(req.auth, "shops", "configure"))
         ? rows("shopConnectors")
             .filter((r) => r.organizationId === c.id)
             .map(({ keyHash, ...r }) => r)
@@ -649,7 +649,7 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
 commerceRouter.post("/:companyId/connectors", (req, res) => {
   try {
     shopPermission(req.auth!, "edit");
-    if (!can(req.auth, "access", "edit"))
+    if (!can(req.auth, "access", "edit") && !can(req.auth, "shops", "configure"))
       fail("Access administration permission is required.", 403);
     const c = shopCompany(req.auth!, String(req.params.companyId));
     const b = z.object({ name: text }).strict().parse(req.body);
@@ -672,7 +672,7 @@ commerceRouter.post("/:companyId/connectors", (req, res) => {
 commerceRouter.delete("/:companyId/connectors/:id", (req, res) => {
   try {
     shopPermission(req.auth!, "edit");
-    if (!can(req.auth, "access", "edit"))
+    if (!can(req.auth, "access", "edit") && !can(req.auth, "shops", "configure"))
       fail("Access administration permission is required.", 403);
     const c = shopCompany(req.auth!, String(req.params.companyId));
     res.json(

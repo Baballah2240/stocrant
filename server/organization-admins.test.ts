@@ -1,7 +1,7 @@
 import { TEST_DATA_DIR } from "./test-env.js";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
 import type { Server } from "node:http";
 import { resolve, sep } from "node:path";
@@ -71,13 +71,42 @@ describe("Organization main admins and company staff delegation", () => {
     }
     const roles = (await json(await api("/workspace/access/roles", "GET", undefined, companyAdmin))).items;
     assert.ok(roles.some((row: Row) => row.id === "role-hr-manager")); assert.ok(roles.some((row: Row) => row.id === "role-hr-staff"));
-    assert.ok(!roles.some((row: Row) => ["role-main-manager", "role-organization-admin", "role-company-manager", "role-finance-manager"].includes(row.id)));
+    assert.ok(!roles.some((row: Row) => ["role-main-manager", "role-organization-admin", "role-company-manager"].includes(row.id)));
+    assert.ok(roles.some((row: Row) => row.id === "role-finance-manager"));
+    assert.ok(roles.some((row: Row) => row.id === "role-shop-manager"));
     await json(await api(`/workspace/access/users/${account.id}`, "PATCH", { roleId: "role-company-manager" }, companyAdmin), 403);
-    await json(await api(`/workspace/access/users/${account.id}`, "PATCH", { permissions: ["finance.view"] }, companyAdmin), 403);
+    await json(await api(`/workspace/access/users/${account.id}`, "PATCH", { permissions: ["finance.view"] }, companyAdmin));
+    await json(await api(`/workspace/access/users/${account.id}`, "PATCH", { permissions: ["customerService.inquiries"] }, companyAdmin), 403);
     const foreignEmployee = await create("employees", { name: "Foreign Staff", organizationId: foreign.id, status: "active", hireDate: "2026-10-23" });
     const foreignAccount = (getStore().collections.accessUsers as Row[]).find(row => row.employeeId === foreignEmployee.id)!;
     await json(await api(`/workspace/access/users/${foreignAccount.id}`, "PATCH", { roleId: "role-hr-staff" }, companyAdmin), 404);
     await json(await api("/workspace/access/users", "POST", { name: "Forbidden peer", email: "peer@organization-admins.test", password: secret(), roleId: "role-company-manager", organizationIds: [company.id] }, companyAdmin), 403);
+  });
+  it("delegates a complete shop workflow without granting account administration or another company", async () => {
+    const me = (await json(await api("/auth/me", "GET", undefined, companyAdmin))).user;
+    for (const permission of ["finance.*", "payroll.*", "shops.*", "organizations.edit"]) assert.ok(me.permissions.includes(permission));
+    await json(await api(`/collections/companies/${company.id}`, "PATCH", { name: "Managed retail company" }, companyAdmin));
+    const temporary = secret();
+    const delegate = (await json(await api("/workspace/access/users", "POST", { name: "Shop Delegate", email: "shop@organization-admins.test", password: temporary, roleId: "role-shop-manager", organizationIds: [company.id] }, companyAdmin), 201)).item;
+    const shop = await activateTemporary(delegate.email, temporary);
+    const prefix = `/workspace/shops/${company.id}`;
+    await json(await api(`/workspace/shops/${foreign.id}`, "GET", undefined, shop), 404);
+    await json(await api("/workspace/access/users", "GET", undefined, shop), 403);
+    await json(await api("/workspace/access/users", "POST", { name: "Forbidden", email: "forbidden@organization-admins.test", password: secret(), roleId: "role-employee", organizationIds: [company.id] }, shop), 403);
+    const product = (await json(await api(prefix + "/products", "POST", { products: [{ sku: "SHOP-01", name: "Shop product", price: "10" }] }, shop), 201)).products[0];
+    await json(await api(prefix + "/receipts", "POST", { requestId: randomUUID(), productId: product.id, quantity: 5, supplier: "Supplier", reference: "SHIP-01" }, shop), 201);
+    const defaults = (await json(await api(`/workspace/storefronts/${company.id}`, "GET", undefined, shop))).settings;
+    await json(await api(`/workspace/storefronts/${company.id}`, "PUT", { ...defaults, slug: "delegated-shop", name: "Managed shop", address: "Test collection address", phone: "+249912345678", shippingPolicy: "Collection only", returnsPolicy: "Contact staff", privacyPolicy: "Order use only", terms: "Pay on collection", manualPaymentsAccepted: true, published: true }, shop));
+    const connection = await json(await api(prefix + "/connectors", "POST", { name: "Authorized shop" }, shop), 201);
+    await json(await api(prefix + `/connectors/${connection.connector.id}`, "DELETE", undefined, shop));
+    const order = await json(await api(prefix + "/orders", "POST", { requestId: randomUUID(), externalReference: "DELEGATE-ORDER", customer: "Test customer", phone: "+249912345678", address: "Collection", lines: [{ productId: product.id, quantity: 2 }] }, shop), 201);
+    const preparing = await json(await api(prefix + `/orders/${order.id}/status`, "POST", { version: order.version, status: "preparing" }, shop));
+    const dispatched = await json(await api(prefix + `/orders/${order.id}/status`, "POST", { version: preparing.version, status: "dispatched", tracking: "COLLECTION-01" }, shop));
+    assert.ok(dispatched.saleId);
+    assert.equal((getStore().collections.sales as Row[]).find(sale => sale.id === dispatched.saleId)!.organizationId, company.id);
+    await json(await api(`/workspace/access/users/${delegate.id}`, "PATCH", { permissions: ["operations.view", "inventory.view"] }, companyAdmin));
+    await json(await api(`/workspace/storefronts/${company.id}`, "GET", undefined, shop), 403);
+    await json(await api(prefix + "/products", "POST", { products: [{ sku: "DENIED", name: "Denied", price: "1" }] }, shop), 403);
   });
   it("replaces the primary admin explicitly and releases the previous account for normal administration", async () => {
     const result = await json(await api(`/workspace/organization-admins/${org.id}`, "POST", { version: 1, accountId: companyAccount.id }));

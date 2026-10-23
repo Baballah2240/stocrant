@@ -19,6 +19,12 @@ Amal is the first customer storefront. It uses the same STOCRANT backend and com
 
 ## Set up Amal in a real workspace
 
+Company Managers now receive the shipped full company administration permissions, including Finance, Payroll, approvals and shop configuration. Organization Admins manage the companies under their assigned organization. Existing explicitly customized role permissions and individual account restrictions remain unchanged. Neither role gains platform administration or unrelated companies.
+
+To delegate shop management, open **Access & Settings > Users**, edit a company user and select **Shop Manager**, disable own-record-only access, then save with role defaults. Alternatively, enable individual permissions and choose **Full shop access**. This grants product, receiving, order and dispatch access together with storefront configuration and shop connection management; it includes the Operations, Inventory and Finance permissions needed by the shared workflow. It does not grant user administration. Keep the employee assigned to the intended company; location restrictions still apply. Approval policies remain enforced.
+
+Managers can choose **Customize dashboard** to reorder cards by dragging or arrows, show/hide cards, choose one-third/half/two-thirds/full widths and adjust card heights. **Automatic height** restores natural content height. **Save layout** persists only that account's layout; **Cancel** discards edits and **Reset layout** prepares the defaults for saving. Phones use a single column, and fixed-height content can be scrolled. Company tools provides shortcuts to company records, HR, shops, Finance, Payroll and user management when permitted.
+
 The chosen example company is **Amal Retail**. The tests create it only in isolated data; no production company, stock, contact information or legal policy is invented by deployment. Use a real existing retail company if appropriate, or have the organization administrator create Amal Retail under the correct organization. Do not reuse an unrelated company's inventory.
 
 1. Open **Shops & orders** and choose the owning company. The page prefers an existing company named Amal when available. Set its currency before adding products.

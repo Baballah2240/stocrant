@@ -95,7 +95,7 @@ describe("Structured company management and analytics",()=>{
   department=await create("departments",{name:"Operations",organizationId:company.id,kind:"department",status:"active",managerId:lead.id});
   section=await create("departments",{name:"Support",organizationId:company.id,kind:"section",parentDepartmentId:department.id,status:"active",managerId:lead.id});
   assert.equal((getStore().collections.employees as Row[]).find(row=>row.id===employee.id)!.department,"Legacy Operations");
-  const assigned=await json(await req(`/collections/employees/${employee.id}`,"PATCH",{departmentId:department.id,sectionId:section.id,managerId:lead.id},manager));assert.ok(!Object.hasOwn(assigned.item,"salary"),"Mutation responses must preserve salary privacy");
+  const assigned=await json(await req(`/collections/employees/${employee.id}`,"PATCH",{departmentId:department.id,sectionId:section.id,managerId:lead.id},manager));assert.ok(Object.hasOwn(assigned.item,"salary"),"Company administrators can manage salary data within their company");
   const profile=await json(await req(`/workspace/company-profiles/${company.id}`,"GET",undefined,manager));assert.equal(profile.employees.find((row:Row)=>row.id===employee.id).department,"Operations");assert.equal(profile.records.departments.length,2);
  });
  it("rejects cross-company, circular and malformed reporting links through generic CRUD",async()=>{

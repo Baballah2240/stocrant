@@ -3,7 +3,7 @@ import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore } from "./storage.js";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve" | "reply" | "export" | "pay" | "configure";
-export type WorkspaceSection = "organizations" | "locations" | "hr" | "operations" | "customerService" | "inventory" | "finance" | "payroll" | "access" | "approvals" | "audit";
+export type WorkspaceSection = "organizations" | "locations" | "hr" | "operations" | "customerService" | "inventory" | "finance" | "payroll" | "access" | "approvals" | "audit" | "shops";
 
 const COLLECTION_SECTIONS: Record<string, WorkspaceSection> = {
   organizations: "organizations",
@@ -35,7 +35,7 @@ export function sectionForCollection(collection: string): WorkspaceSection {
 export function can(user: AuthenticatedUser | undefined, section: WorkspaceSection, action: PermissionAction): boolean {
   if (!user) return false;
   if (isMainManager(user)) return true;
-  if(section==="organizations"&&!["view","export"].includes(action))return false;
+  if(section==="organizations"&&!["view","export"].includes(action)&&!isDelegatedAdmin(user))return false;
   if (["access", "audit"].includes(section) && !isDelegatedAdmin(user)) return false;
   const permissions = permissionsFor(user);
   return permissions.includes("*") || permissions.includes(`${section}.*`) || permissions.includes(`${section}.${action}`);

@@ -590,7 +590,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
     password: z.string().min(12).max(256).optional(),
     roleId: z.string().trim().min(1).max(160).optional(),
     employeeId: z.string().trim().max(160).nullable().optional(),
-    permissions: z.array(z.string().trim().regex(/^(organizations|locations|hr|operations|customerService|inventory|finance|payroll|approvals|access|audit)\.(view|create|edit|delete|approve|reply|export|pay|configure|inquiries|\*)$/)).nullable().optional(),
+    permissions: z.array(z.string().trim().regex(/^(organizations|locations|hr|operations|customerService|inventory|finance|payroll|approvals|access|audit|shops)\.(view|create|edit|delete|approve|reply|export|pay|configure|inquiries|\*)$/)).nullable().optional(),
     organizationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),
     tenantOrganizationIds: z.array(z.string().trim().min(1).max(160)).max(1).optional(),
     locationIds: z.array(z.string().trim().min(1).max(160)).max(200).optional(),

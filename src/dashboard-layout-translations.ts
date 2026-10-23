@@ -1,4 +1,12 @@
 export const dashboardLayoutTranslations: Record<string, string> = {
+  "Card width": "عرض البطاقة",
+  "Card height": "ارتفاع البطاقة",
+  "One third": "ثلث العرض",
+  "Two thirds": "ثلثا العرض",
+  "Automatic height": "ارتفاع تلقائي",
+  "Full shop access": "صلاحيات المتجر الكاملة",
+  "Shop Manager": "مدير المتجر",
+  "Company tools": "أدوات الشركة",
   "Dashboard customization": "تخصيص لوحة التحكم",
   "Your dashboard, your way": "لوحة التحكم على طريقتك",
   "Move cards with the arrows or drag a handle. Choose what to show and how wide it should be.": "انقل البطاقات بالأسهم أو اسحب المقبض، واختر البطاقات الظاهرة وعرضها.",

@@ -3,8 +3,8 @@ import { z } from "zod";
 import { isNotebookManager } from "./personal-notes.js";
 import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 
-const ids = ["profile", "notes", "attendance", "activity", "summary", "today", "tasks", "notifications", "policies", "assignment", "analytics", "management"] as const;
-const input = z.object({ version: z.number().int().min(0), items: z.array(z.object({ id: z.enum(ids), hidden: z.boolean(), wide: z.boolean() }).strict()).max(ids.length).refine(items => new Set(items.map(item => item.id)).size === items.length) }).strict();
+const ids = ["shortcuts", "profile", "notes", "attendance", "activity", "summary", "today", "tasks", "notifications", "policies", "assignment", "analytics", "management"] as const;
+const input = z.object({ version: z.number().int().min(0), items: z.array(z.object({ id: z.enum(ids), hidden: z.boolean(), wide: z.boolean(), width: z.enum(["third", "half", "two-thirds", "full"]).optional(), height: z.number().int().min(240).max(1600).nullable().optional() }).strict()).max(ids.length).refine(items => new Set(items.map(item => item.id)).size === items.length) }).strict();
 type Layout = { ownerId: string; version: number; items: z.infer<typeof input>["items"] };
 const layouts = () => getCollection("managerDashboardLayouts") as Layout[];
 export const dashboardLayoutRouter = Router();

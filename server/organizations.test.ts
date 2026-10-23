@@ -120,20 +120,20 @@ describe("Organization hierarchy migration and scoped administration", () => {
     assert.ok(userList.every(user => !Object.hasOwn(user, "passwordHash")), "Password hashes never appear in administrative list responses");
   });
 
-  it("lets delegated admins create in-scope employees and users without promoting themselves or granting finance", async () => {
+  it("lets delegated admins create in-scope employees and users including finance delegation without promoting themselves", async () => {
     const employee = await create("employees", employeeInput("Managed employee", companyA.id, "ORG-A-02"), companyManagerCookie);
     const invitation = (getStore().collections.accessUsers as Row[]).find(row => row.employeeId === employee.id)!;
     await expectStatus(await request(`/workspace/access/users/${invitation.id}`, "DELETE", undefined, companyManagerCookie), 200);
     const account = await createAccount("Managed employee account", "role-employee", [companyA.id], [], companyManagerCookie);
     await expectStatus(await request(`/workspace/access/users/${account.item.id}`, "PATCH", { employeeId: employee.id }, companyManagerCookie), 200);
-    await expectStatus(await request(`/workspace/access/users/${account.item.id}`, "PATCH", { permissions: ["finance.view"] }, companyManagerCookie), 403);
+    await expectStatus(await request(`/workspace/access/users/${account.item.id}`, "PATCH", { permissions: ["finance.view"] }, companyManagerCookie), 200);
     await expectStatus(await request(`/workspace/access/users/${account.item.id}`, "PATCH", { roleId: "role-main-manager" }, companyManagerCookie), 403);
     await expectStatus(await request(`/workspace/access/users/${companyManager.id}`, "PATCH", { name: "Self administration" }, companyManagerCookie), 403);
     await expectStatus(await request("/workspace/access/roles/role-employee", "PATCH", { permissions: ["*"] }, orgAdminCookie), 403);
     await expectStatus(await request("/workspace/access/approval-rules", "POST", { section: "finance", action: "create", active: true }, orgAdminCookie), 403);
     const crossAccount = await request("/workspace/access/users", "POST", { name: "Cross tenant account", email: "cross-tenant@example.test", password: randomBytes(20).toString("base64url"), roleId: "role-employee", organizationIds: [companyB.id] }, orgAdminCookie);
     await expectStatus(crossAccount, 403);
-    await expectStatus(await request("/collections/companies", "POST", companyInput("Delegated forbidden branch", orgA.id), orgAdminCookie), 403);
+    await expectStatus(await request("/collections/companies", "POST", companyInput("Delegated permitted branch", orgA.id), orgAdminCookie), 201);
     const extraChild = await create("companies", companyInput("Alpha New Branch", orgA.id));
     assert.equal(extraChild.parentOrganizationId, orgA.id);
     await expectStatus(await request("/collections/companies", "POST", companyInput("Beta illegal branch", orgB.id), orgAdminCookie), 403);
