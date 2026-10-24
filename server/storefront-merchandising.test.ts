@@ -50,6 +50,16 @@ describe("Workspace-controlled shop merchandising",()=>{
     rows("accessUsers").find(a=>a.id===account.id)!.mustChangePassword=false;saveStore(getStore());const login=await req("/auth/login","POST",{email:account.email,password},"");await json(login);const cookie=login.headers.get("set-cookie")!.split(";")[0];await json(await req(config(),"PUT",payload(),cookie),404);
     await configure(m);
   });
+  it("persists sizing, order and motion while rejecting foreign references and filtering hidden products",async()=>{
+    const m=structuredClone(defaultMerchandising);
+    m.display={...m.display,cardSize:"large",imageShape:"square",spacing:"compact",textSize:"large",productOrder:[bag.id,tea.id],productMotion:[{productId:tea.id,motion:"float"},{productId:bag.id,motion:"glow"}]};
+    m.categories=[{id:"private-home",name:"Home",title:"Home",description:"",visible:false}];
+    await configure(m);resetTestCache();
+    assert.deepEqual((await json(await req(config()))).settings.merchandising.display,m.display);
+    const c=await catalog();assert.deepEqual(c.shop.merchandising.display.productOrder,[tea.id]);assert.deepEqual(c.shop.merchandising.display.productMotion,[{productId:tea.id,motion:"float"}]);
+    for(const display of [{...m.display,cardSize:"huge"},{...m.display,productOrder:[tea.id,tea.id]},{...m.display,productOrder:["foreign-product"]},{...m.display,productMotion:[{productId:"foreign-product",motion:"pulse"}]},{...m.display,productMotion:[{productId:tea.id,motion:"flash"}]}]) await json(await req(config(),"PUT",{...payload(),merchandising:{...m,display}}),400);
+    await configure(structuredClone(defaultMerchandising));
+  });
   it("uses only the best active offer with exact currency rounding and exclusive end times",async()=>{
     const now=Date.now(),m=structuredClone(defaultMerchandising);m.offers=[offer("Ten",10),offer("Twenty",20,{target:"category",category:"Tea"}),offer("Future",80,{startsAt:new Date(now+3600000).toISOString()}),offer("Expired",90,{endsAt:new Date(now-1000).toISOString()})];
     await configure(m);const c=await catalog(),p=c.products.find((p:Row)=>p.id===tea.id);assert.equal(p.price,"8.00");assert.equal(p.originalPrice,"10.00");assert.equal(p.offerId,"Twenty");assert.ok(!JSON.stringify(c.shop.merchandising).includes("Future"));assert.ok(!JSON.stringify(c.shop.merchandising).includes("Expired"));

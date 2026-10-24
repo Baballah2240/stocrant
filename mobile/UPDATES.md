@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-25 - Store sizing, placement and product motion
+
+- Let the customer storefront header scroll away while keeping its single shopping bag visible as a floating control.
+- Add saved card size, image shape, text size, spacing, Featured product ordering and individual float/pulse/glow controls in Customer storefront. Scope product choices to the company and hide unpublished product references from public settings.
+- Keep responsive layouts, Arabic and reduced-motion support. No native build or installation performed.
+
 ## 2026-10-25 - Company store link in shop connections
 
 - Show the selected company's saved storefront address and publication status in Shops & orders → Shop connections, with an Open shop link for published stores and a shortcut to storefront settings.

@@ -224,15 +224,18 @@ export default function Shop() {
     [quoteBusy, setQuoteBusy] = useState(false),
     [busy, setBusy] = useState(false);
   const [bagAdded, setBagAdded] = useState(0);
+  const [floatingBag,setFloatingBag] = useState(false);
+  const bagAnchorRef = useRef<HTMLSpanElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const header = headerRef.current;
     if (!header) return;
-    const update = () => document.documentElement.style.setProperty("--shop-header-height", `${header.getBoundingClientRect().height}px`);
+    const update = () => setFloatingBag(Boolean(bagAnchorRef.current && bagAnchorRef.current.getBoundingClientRect().top < 16));
     update();
+    window.addEventListener("scroll",update,{passive:true});
     const observer = new ResizeObserver(update);
     observer.observe(header);
-    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--shop-header-height"); };
+    return () => { observer.disconnect(); window.removeEventListener("scroll",update); };
   }, [loading, shop]);
   const [liked, setLiked] = useState<string[]>([]), [likesShop, setLikesShop] = useState(""), [onlyLiked, setOnlyLiked] = useState(false);
   useEffect(() => {
@@ -409,12 +412,13 @@ export default function Shop() {
     };
   }, [path, location, slug, apiBase, refreshReceipt]);
   const merchandising = shop?.merchandising || defaultMerchandising;
+  const productRank = (id:string) => {const order=merchandising.display.productOrder||[];return order.includes(id)?order.indexOf(id):order.length;};
   const categoryTitle = (key: string) => merchandising.categories.find(c => c.name === key)?.title || t(key);
   const categoryOptions = [ ...merchandising.categories.filter(c => products.some(p => p.category === c.name)).map(c => c.name), ...[...new Set(products.map(p => p.category))].filter(name => !merchandising.categories.some(c => c.name === name)) ];
   const normalizeSearch = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, "").toLocaleLowerCase().trim();
   const terms = normalizeSearch(merchandising.display.showSearch ? search : "").split(/\s+/).filter(Boolean);
   const count = cart.reduce((n, l) => n + l.quantity, 0),
-    visible = products.filter(p => (!onlyLiked || liked.includes(p.id)) && (!merchandising.display.showCategories || category === "All" || p.category === category) && (!onlyOffers || Boolean(p.offerId)) && (!offerFilter || p.offerId === offerFilter) && terms.every(term => normalizeSearch(`${p.name} ${p.sku} ${p.description} ${p.category} ${categoryTitle(p.category)} ${p.offerTitle || ""}`).includes(term))).sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "low" ? Number(a.price)-Number(b.price) : sort === "high" ? Number(b.price)-Number(a.price) : 0);
+    visible = products.filter(p => (!onlyLiked || liked.includes(p.id)) && (!merchandising.display.showCategories || category === "All" || p.category === category) && (!onlyOffers || Boolean(p.offerId)) && (!offerFilter || p.offerId === offerFilter) && terms.every(term => normalizeSearch(`${p.name} ${p.sku} ${p.description} ${p.category} ${categoryTitle(p.category)} ${p.offerTitle || ""}`).includes(term))).sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "low" ? Number(a.price)-Number(b.price) : sort === "high" ? Number(b.price)-Number(a.price) : productRank(a.id)-productRank(b.id));
   const invalidCart = cart.some(
     (l) =>
       !products.some((p) => p.id === l.productId && p.available >= l.quantity),
@@ -669,7 +673,7 @@ export default function Shop() {
     : [];
   function priceLabel(p: Product) { return <span className="store-price">{p.originalPrice && <del>{moneyLabel(p.originalPrice)}</del>}<span>{moneyLabel(p.price)}</span>{p.offerTitle && <small>{p.offerTitle}</small>}</span>; }
   function likeButton(p: Product, detail = false) { const selected = liked.includes(p.id); return <button type="button" className={detail ? "product-like-detail" : "product-like"} aria-label={t(selected ? "Unlike product" : "Like product") + ": " + p.name} aria-pressed={selected} title={t(selected ? "Unlike product" : "Like product")} disabled={likesShop !== slug} onClick={() => setLiked(current => current.includes(p.id) ? current.filter(id => id !== p.id) : [...current,p.id].slice(-1000))}><Heart filled={selected} />{detail && <span>{t(selected ? "Liked" : "Like")}</span>}</button>; }
-  function renderProduct(p: Product, i: number) { return (<article className="product-card" key={p.id} data-product-id={p.id}>
+  function renderProduct(p: Product, i: number) { return (<article className="product-card" data-motion={merchandising.display.productMotion?.find(row=>row.productId===p.id)?.motion} key={p.id} data-product-id={p.id}>
                     {likeButton(p)}
                     <a
                       href={base + `/product/${p.id}`}
@@ -709,9 +713,9 @@ export default function Shop() {
                       </button>
                     </div>
                   </article>); }
-  function sectionProducts(section: Merchandising["sections"][number]) { const selected = products.filter(p => section.source === "all" || section.source === "category" && p.category === section.category || section.source === "offers" && Boolean(p.offerId) || section.source === "products" && section.productIds.includes(p.id)); return (section.source === "products" ? [...selected].sort((a,b)=>section.productIds.indexOf(a.id)-section.productIds.indexOf(b.id)) : selected).slice(0,section.limit); }
+  function sectionProducts(section: Merchandising["sections"][number]) { const selected = products.filter(p => section.source === "all" || section.source === "category" && p.category === section.category || section.source === "offers" && Boolean(p.offerId) || section.source === "products" && section.productIds.includes(p.id)); return (section.source === "products" ? [...selected].sort((a,b)=>section.productIds.indexOf(a.id)-section.productIds.indexOf(b.id)) : [...selected].sort((a,b)=>productRank(a.id)-productRank(b.id))).slice(0,section.limit); }
   return (
-    <div className="amal">
+    <div className="amal" data-card-size={merchandising.display.cardSize || "medium"} data-image-shape={merchandising.display.imageShape || "portrait"} data-spacing={merchandising.display.spacing || "comfortable"} data-text-size={merchandising.display.textSize || "medium"}>
       <a className="skip" href="#content">
         {t("Skip to content")}
       </a>
@@ -767,11 +771,11 @@ export default function Shop() {
             {language === "en" ? "العربية" : "English"}
           </button>
           <button className="liked-products-link" type="button" aria-label={t("Liked products")} aria-pressed={onlyLiked} onClick={() => { setOnlyLiked(true); setCategory("All"); setSearch(""); setOnlyOffers(false); setOfferFilter(""); navigate("/#collection"); }}><Heart filled={onlyLiked} /><span>{products.filter(p => liked.includes(p.id)).length}</span></button>
-          <a href={base + "/bag"} className={`bag-link${count ? " has-items" : ""}`} aria-label={`${t("Bag")}: ${count}`} onClick={event => { event.preventDefault(); navigate("/bag"); }}>
+          <span className="bag-anchor" ref={bagAnchorRef}><a href={base + "/bag"} className={`bag-link${floatingBag ? " is-floating" : ""}${count ? " has-items" : ""}`} aria-label={`${t("Bag")}: ${count}`} onClick={event => { event.preventDefault(); navigate("/bag"); }}>
               <span key={bagAdded} className={`bag-icon${bagAdded ? " is-added" : ""}`}><Basket /></span>
               <span className="bag-label">{t("Bag")}</span>
               <span className="bag-count" aria-live="polite" aria-atomic="true">{count}</span>
-          </a>
+          </a></span>
         </div>
       </header>
       <div className="product-focus-veil" aria-hidden="true" />

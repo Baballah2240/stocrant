@@ -17,6 +17,9 @@ try {
   async function click(text,selector="button,a"){await evaluate(`(()=>{const button=Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(b=>b.textContent.trim()===${JSON.stringify(text)});if(!button)throw Error('Missing button '+${JSON.stringify(text)});button.click();})()`);}
   await send("Network.setCookie",{name:"stocrant_session",value:fixture.cookie.split("=").slice(1).join("="),url:base,path:"/"});await send("Page.navigate",{url:base+"/shops"});await until('Boolean(document.querySelector(".app-lock-screen input"))');await fill(".app-lock-screen input",fixture.password);await evaluate('document.querySelector(".app-lock-screen form").requestSubmit()');await until('document.querySelectorAll(".shop-product").length===4');
   await click("Customer storefront",".shop-tabs button");await until('Boolean(document.querySelector(".store-merchandising"))');
+  await field("Product card size","small");await field("Product image shape","square");await field("Product spacing","compact");await field("Product text size","large");
+  await field("Special product motion","float",".merch-placement .merch-entry:first-of-type");
+  await evaluate('document.querySelector(".merch-placement .merch-entry button:last-child").click()');
   await field("Collection heading","Shop by your day");await field("Search placeholder","Find tea, bags and more");await check("Show welcome section",false);await check("Show shop story",false);await field("Product display","list");await field("Default sorting","low");
   await field("New category","Gifts");await click("Add category",".merch-categories button");await until('document.querySelectorAll(".merch-categories .merch-entry").length===4');
   await field("Display name","Tea rituals",".merch-categories .merch-entry:first-of-type");
@@ -27,6 +30,7 @@ try {
   await click("Add offer",".merch-offers button");await until('document.querySelectorAll(".merch-offers .merch-entry").length===1');await field("Offer title","Amal opening offer",".merch-offers");await field("Discount percentage","20",".merch-offers");await field("Offer applies to","category",".merch-offers");await until('document.querySelector(".merch-offers").textContent.includes("Choose category")');await field("Category","Tea & pantry",".merch-offers");await check("Offer enabled",true,".merch-offers");
   await click("Save shop settings");await until('document.querySelector(".storefront-settings [role=status]")?.textContent.includes("Shop published")');
   const saved=(await fixture.req(`/workspace/storefronts/${fixture.company.id}`)).data.settings;assert.equal(saved.merchandising.sections[0].title,"Special picks");assert.equal(saved.merchandising.offers[0].percent,20);assert.equal(saved.merchandising.display.showHero,false);
+  assert.equal(saved.merchandising.display.cardSize,"small");assert.equal(saved.merchandising.display.imageShape,"square");assert.equal(saved.merchandising.display.productMotion[0].motion,"float");assert.equal(saved.merchandising.display.productOrder.length,4);
   await click("Products",".shop-tabs button");await until('Boolean(document.querySelector("#shop-category-options option[value=Gifts]"))');
   const workspaceDirectory=resolve(".local-preview/qa/merchandising");mkdirSync(workspaceDirectory,{recursive:true});
   await click("Customer storefront",".shop-tabs button");await until('Boolean(document.querySelector(".store-merchandising"))');await evaluate('document.querySelector(".store-merchandising").scrollIntoView({block:"start"})');writeFileSync(join(workspaceDirectory,"workspace-en-desktop.png"),Buffer.from((await send("Page.captureScreenshot",{format:"png"})).data,"base64"));
@@ -34,6 +38,18 @@ try {
   await send("Emulation.setDeviceMetricsOverride",{width:1440,height:1050,deviceScaleFactor:1,mobile:false});
   await send("Network.deleteCookies",{name:"stocrant_session",url:base});await send("Page.navigate",{url:base+"/shop/amal"});await until('document.querySelectorAll("#collection .product-card").length===4');
   assert.equal(await evaluate('Boolean(document.querySelector(".hero"))'),false);assert.equal(await evaluate('Boolean(document.querySelector(".shop-story"))'),false);
+  assert.equal(await evaluate('document.querySelector(".amal").dataset.cardSize'),"small");
+  assert.ok(await evaluate('(()=>{const grid=document.querySelector("#collection .product-grid"),store=document.querySelector(".amal");grid.classList.remove("is-list");const small=grid.firstElementChild.getBoundingClientRect().width;store.dataset.cardSize="large";const large=grid.firstElementChild.getBoundingClientRect().width;store.dataset.cardSize="small";grid.classList.add("is-list");return large>small;})()'),"Card size changes actual grid dimensions");
+  assert.deepEqual(await evaluate('Array.from(document.querySelectorAll(".store-curated-section")[1].querySelectorAll(".product-card"),card=>card.dataset.productId)'),saved.merchandising.display.productOrder.filter(id=>fixture.products.find(p=>p.id===id)?.category==="Tea & pantry"));
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".product-card[data-motion=float] .product-placeholder > svg")).animationName'),"store-product-float");
+  await send("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"reduce"}]});
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".product-card[data-motion=float] .product-placeholder > svg")).animationName'),"none");
+  await send("Emulation.setEmulatedMedia",{features:[]});
+  await evaluate('window.scrollTo(0,1000)');
+  await until('document.querySelector(".bag-link").classList.contains("is-floating")');
+  assert.ok(await evaluate('document.querySelector(".shop-header").getBoundingClientRect().bottom<0'),"Full header scrolls away");
+  assert.ok(await evaluate('document.querySelector(".bag-link").getBoundingClientRect().top>=0'),"Bag remains visible");
+  await evaluate('window.scrollTo(0,0)');await until('!document.querySelector(".bag-link").classList.contains("is-floating")');
   assert.deepEqual(await evaluate('Array.from(document.querySelectorAll(".store-curated-section h2"),node=>node.textContent)'),["Special picks","Tea time"]);
   assert.ok(await evaluate('document.querySelector(".store-offers").textContent.includes("20%")'));assert.ok(await evaluate('document.querySelector("#collection .product-grid").classList.contains("is-list")'));assert.ok(await evaluate('document.querySelector("#collection h2").textContent.includes("Shop by your day")'));
   await fill(".header-store-search input","notebook");await evaluate('document.querySelector(".header-store-search").requestSubmit()');await until('document.querySelectorAll("#collection .product-card").length===1');assert.ok(await evaluate('document.querySelector("#collection .product-card").textContent.includes("notebook")'));

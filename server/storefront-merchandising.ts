@@ -16,16 +16,17 @@ export const merchandisingSchema = z.object({
   categories: z.array(category).max(50).refine(unique).refine(v => new Set(v.map(c => c.name)).size === v.length),
   sections: z.array(section).max(12).refine(unique),
   offers: z.array(offer).max(30).refine(unique),
-  display: z.object({ showHero: z.boolean(), showStory: z.boolean(), showSearch: z.boolean(), showCategories: z.boolean(), showOffers: z.boolean(), collectionTitle: z.string().trim().max(100), searchPlaceholder: z.string().trim().max(100), defaultSort: z.enum(["featured", "name", "low", "high"]), layout: z.enum(["grid", "list"]) }).strict(),
+  display: z.object({ showHero: z.boolean(), showStory: z.boolean(), showSearch: z.boolean(), showCategories: z.boolean(), showOffers: z.boolean(), collectionTitle: z.string().trim().max(100), searchPlaceholder: z.string().trim().max(100), defaultSort: z.enum(["featured", "name", "low", "high"]), layout: z.enum(["grid", "list"]), cardSize:z.enum(["small","medium","large"]).default("medium"), imageShape:z.enum(["square","portrait","landscape"]).default("portrait"), spacing:z.enum(["compact","comfortable","spacious"]).default("comfortable"), textSize:z.enum(["small","medium","large"]).default("medium"), productOrder:z.array(id).max(1000).refine(v=>new Set(v).size===v.length).default([]), productMotion:z.array(z.object({productId:id,motion:z.enum(["float","pulse","glow"])}).strict()).max(1000).refine(v=>new Set(v.map(p=>p.productId)).size===v.length).default([]) }).strict(),
 }).strict();
 export type Merchandising = z.infer<typeof merchandisingSchema>;
-export const defaultMerchandising: Merchandising = { categories: [], sections: [], offers: [], display: { showHero: true, showStory: true, showSearch: true, showCategories: true, showOffers: true, collectionTitle: "", searchPlaceholder: "", defaultSort: "featured", layout: "grid" } };
+export const defaultMerchandising: Merchandising = merchandisingSchema.parse({ categories: [], sections: [], offers: [], display: { showHero: true, showStory: true, showSearch: true, showCategories: true, showOffers: true, collectionTitle: "", searchPlaceholder: "", defaultSort: "featured", layout: "grid" } });
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
 export function merchandisingFor(settings: Row): Merchandising { return merchandisingSchema.parse(settings.merchandising ?? defaultMerchandising); }
 export function validateMerchandising(user: AuthenticatedUser, companyId: string, m: Merchandising) {
   const products = rows("shopProducts").filter(p => p.organizationId === companyId && isWithinScope(user, rows("inventoryItems").find(i => i.id === p.inventoryItemId) || {}));
   const categories = new Set([...products.map(p => p.category || "Collection"), ...m.categories.map(c => c.name)]);
+  if ([...m.display.productOrder,...m.display.productMotion.map(p=>p.productId)].some(id=>!products.some(p=>p.id===id))) throw Object.assign(new Error("Choose products from this company's accessible catalog."), {statusCode:400});
   for (const entry of [...m.sections.map(s => ({ ...s, target: s.source })), ...m.offers]) {
     if (entry.productIds.some(id => !products.some(p => p.id === id))) throw Object.assign(new Error("Choose products from this company's accessible catalog."), { statusCode: 400 });
     if (entry.target === "products" && !entry.productIds.length) throw Object.assign(new Error("Select at least one product for this section or offer."), { statusCode: 400 });
@@ -44,7 +45,7 @@ export function offeredPrice(m: Merchandising, p: Row, currency: string, now = D
 }
 export function publicMerchandising(m: Merchandising, products: Row[], now = Date.now()) {
   const productIds = new Set(products.map(p => p.id)), offerIds = new Set(products.map(p => p.offerId));
-  return { ...m, categories: m.categories.filter(c => c.visible), sections: m.sections.filter(s => s.visible).map(s => ({ ...s, productIds: s.productIds.filter(id => productIds.has(id)) })), offers: m.offers.filter(o => activeOffer(o, now) && o.visible && offerIds.has(o.id)).map(o => ({ ...o, productIds: o.productIds.filter(id => productIds.has(id)) })) };
+  return { ...m, display:{...m.display,productOrder:m.display.productOrder.filter(id=>productIds.has(id)),productMotion:m.display.productMotion.filter(p=>productIds.has(p.productId))}, categories: m.categories.filter(c => c.visible), sections: m.sections.filter(s => s.visible).map(s => ({ ...s, productIds: s.productIds.filter(id => productIds.has(id)) })), offers: m.offers.filter(o => activeOffer(o, now) && o.visible && offerIds.has(o.id)).map(o => ({ ...o, productIds: o.productIds.filter(id => productIds.has(id)) })) };
 }
 export function nextMerchandisingChange(m: Merchandising, now = Date.now()) {
   return Math.min(now + 60000, ...m.offers.filter(o => o.enabled).flatMap(o => [o.startsAt, o.endsAt]).filter((v): v is string => Boolean(v)).map(v => Date.parse(v)).filter(v => v > now));
