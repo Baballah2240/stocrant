@@ -67,6 +67,7 @@ describe("Connected financial ledger",()=>{
    await expect(await req(`/workspace/payroll/runs/${run.id}/payments`,{...input,amount:"30.20"}),409);
    const dashboard=await expect(await req("/workspace/payroll"));const line=dashboard.entries.find((e:Row)=>e.id===entry.id);assert.equal(line.paidAmount,"30.10");assert.equal(line.outstanding,"70.20");assert.equal(line.payments.length,1);
    const report=ledgerSummary(actor());assert.equal(report.totals.find(t=>t.currency==="QAR")!.salaries,"30.10");assert.equal(report.accounts.find(a=>a.id===bank.id)!.balance,"9969.80");
+   assert.equal(report.obligations.find(r=>r.organizationId==="company-primary"&&r.currency==="QAR")!.payroll,"70.20");
  });
  it("blocks overpayment, draft payment and forged financial writes without partial changes",async()=>{
    const input={version:2,accountId:bank.id,amount:"70.21",paymentDate:"2026-01-03",reference:"PAY-OVER",method:"bank",reason:"Overpayment must fail",confirmed:true,idempotencyKey:"payroll-over-key"};const before=JSON.stringify(rows("financeTransactions"));
@@ -145,5 +146,26 @@ describe("Connected financial ledger",()=>{
      const source=ledgerSummary(actor()).sources.find(s=>s.id===id)!;assert.equal(source.paid,"4.25");assert.equal(source.outstanding,"5.75");
      await expect(await req("/workspace/finance/transactions",movement({type,direction:direction==="in"?"out":"in",sourceCollection:collection,sourceId:id,amount:"6",reference:`SOURCE-${collection}-OVER`,idempotencyKey:`source-${collection}-over-key`})),collection==="returns"?400:409);
    }
+ });
+ it("uses one operating classification and exposes only eligible unpaid obligations, even without a bank account",async()=>{
+   const data=getStore();data.collections.financeAccounts.push({id:"connected-kwd",organizationId:"company-primary",name:"Connected KWD",currency:"KWD",openingBalance:"0.000",type:"bank"});
+   for(const [collection,id,status,key,amount] of [["sales","connected-sale","completed","total","100.000"],["purchases","connected-purchase","received","total","20.000"],["returns","connected-return","approved","refund","2.000"],["sales","connected-unpaid-sale","completed","total","4.000"],["purchases","connected-unpaid-bill","ordered","total","7.500"],["purchases","connected-draft","draft","total","99.000"],["purchases","connected-cancelled","cancelled","total","99.000"]])data.collections[collection].push({id,organizationId:"company-primary",currency:"KWD",status,[key]:amount});
+   data.collections.purchases.push({id:"connected-no-bank",organizationId:"company-primary",currency:"BHD",status:"ordered",total:"9.000"});saveStore(data);
+   const salaryCompany=rows("financeAccounts").find(a=>a.currency==="SDG")!.organizationId;
+   data.collections.expenses.push({id:"connected-payroll-expense",organizationId:salaryCompany,currency:"SDG",status:"approved",category:"salaries",amount:"50.00"});saveStore(data);
+   const payments=[{type:"income",amount:"100.000",sourceCollection:"sales",sourceId:"connected-sale"},{type:"expense",amount:"20.000",sourceCollection:"purchases",sourceId:"connected-purchase"},{type:"refund",direction:"out",amount:"2.000",sourceCollection:"returns",sourceId:"connected-return"},{type:"expense",amount:"5.125"},{type:"loan",direction:"in",amount:"50.000"},{type:"advance",amount:"10.000"},{type:"repayment",direction:"out",amount:"5.000"}];
+   for(const [i,payment] of payments.entries())await expect(await req("/workspace/finance/transactions",movement({...payment,accountId:"connected-kwd",reference:`CONNECTED-${i}`,idempotencyKey:`connected-payment-${i}`})),201);
+   const report=ledgerSummary(actor()),kwd=report.totals.find(r=>r.currency==="KWD")!;
+   assert.equal(kwd.income,"98.000");assert.equal(kwd.expenses,"25.125");assert.equal(kwd.profit,"72.875");assert.equal(kwd.net,"107.875");assert.equal(kwd.otherCash,"35.000");
+   const obligation=report.obligations.find(r=>r.currency==="KWD")!;assert.equal(obligation.receivable,"4.000");assert.equal(obligation.payable,"7.500");
+   assert.equal(report.obligations.find(r=>r.currency==="BHD")!.payable,"9.000");
+   assert.equal(report.sources.find(s=>s.id==="connected-draft")!.canSettle,false);assert.equal(report.sources.find(s=>s.id==="connected-unpaid-bill")!.canSettle,true);
+   assert.equal(report.sources.find(s=>s.id==="connected-payroll-expense")!.canSettle,false);assert.ok(!report.obligations.some(r=>r.organizationId===salaryCompany&&Number(r.payable)>0));
+   const restricted=ledgerSummary({...actor(),roleId:"role-finance-manager",permissions:["finance.view"],organizationIds:["company-primary"]});assert.ok(restricted.obligations.every(r=>Number(r.payroll)===0));
+ });
+ it("rejects orphaned source links and source overpayments at the storage boundary without partial writes",()=>{
+   const before=JSON.stringify(getStore());
+   assert.throws(()=>transaction(()=>{rows("sales").find(s=>s.id==="connected-sale")!.total="99.000";saveStore(getStore());}),/source settlement exceeds/);assert.equal(JSON.stringify(getStore()),before);
+   assert.throws(()=>transaction(()=>{rows("financeTransactions").find(t=>t.reference==="CONNECTED-0")!.sourceId="missing-source";saveStore(getStore());}),/source company\/currency\/type mismatch/);assert.equal(JSON.stringify(getStore()),before);
  });
 });

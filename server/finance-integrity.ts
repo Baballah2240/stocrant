@@ -27,6 +27,16 @@ export function assertFinanceIntegrity(data: StoreData) {
    const digits=precision(t.currency),amount=scaled(t.amount,digits);
    if(amount<=0n||money(amount,digits)!==t.amount||!["in","out"].includes(t.direction))throw Error("Financial integrity: invalid amount or direction.");
    if(t.reference&&(references.get(String(t.organizationId)+":"+String(t.reference).trim().toLowerCase())||[]).some(other=>other.id!==t.id&&!(t.transferGroupId&&t.transferGroupId===other.transferGroupId)))throw Error("Financial integrity: duplicate company payment reference.");
+   if((t.sourceId||t.sourceCollection)&&!t.payrollRunId){
+     if(!["sales","purchases","expenses","returns"].includes(t.sourceCollection))throw Error("Financial integrity: invalid financial source.");
+     const source=rows(t.sourceCollection).find(s=>s.id===t.sourceId),company=rows("companies").find(c=>c.id===t.organizationId);
+     const expectedType=t.sourceCollection==="sales"?"income":t.sourceCollection==="returns"?"refund":"expense";
+     const expectedDirection=t.sourceCollection==="sales"?"in":"out";
+     if(!source||source.organizationId!==t.organizationId||(source.currency||company?.currency)!==t.currency||t.type!==expectedType||t.direction!==(t.reversalOf?(expectedDirection==="in"?"out":"in"):expectedDirection))throw Error("Financial integrity: source company/currency/type mismatch.");
+     const total=scaled(source[t.sourceCollection==="expenses"?"amount":t.sourceCollection==="returns"?"refund":"total"],digits);
+     const settled=transactions.filter(p=>p.status==="paid"&&p.sourceCollection===t.sourceCollection&&p.sourceId===t.sourceId&&p.currency===t.currency).reduce((n,p)=>n+(p.direction===expectedDirection?1n:-1n)*scaled(p.amount,digits),0n);
+     if(settled<0n||settled>total)throw Error("Financial integrity: source settlement exceeds its balance.");
+   }
    if(t.transferGroupId){
      const pair=transfers.get(t.transferGroupId)||[];
      if(pair.length!==2||pair[0].direction===pair[1].direction||pair[0].amount!==pair[1].amount||pair[0].currency!==pair[1].currency||pair[0].accountId!==pair[1].destinationAccountId||pair[1].accountId!==pair[0].destinationAccountId||pair[0].status!==pair[1].status)throw Error("Financial integrity: unbalanced transfer pair.");

@@ -108,6 +108,7 @@ try {
       currency: "SDG",
     })
   ).data.item;
+  const purchase=(await req("/collections/purchases","POST",{organizationId:company.id,poNumber:"QA-PO-001",date:"2026-01-01",supplier:"QA supplier",items:10,subtotal:50,total:50,status:"ordered"})).data.item;
   browser = await browserQa(root);
   const { send, evaluate, until } = browser;
   await send("Network.enable");
@@ -210,10 +211,14 @@ try {
   await button("Incoming shipments");
   await fill("Product", tea.id, "Receive a shipment");
   await fill("Quantity", "10", "Receive a shipment");
+  await fill("Linked purchase (optional)",purchase.id,"Receive a shipment");
   await fill("Supplier", "QA supplier", "Receive a shipment");
   await fill("Shipment reference", "QA-IN-001", "Receive a shipment");
   await button("Confirm receipt");
   await until('document.querySelectorAll(".shop-history").length===1');
+  assert.equal((await req(`/workspace/shops/${company.id}`)).data.receipts[0].purchaseId,purchase.id);
+  assert.equal((await req("/workspace/finance")).data.sources.find(source=>source.id===purchase.id).receiptCount,1);
+  assert.equal((await req("/workspace/finance")).data.transactions.length,0,"Stock receipt does not invent supplier payment");
   await button("Orders");
   await fill("Customer name", "QA customer", "Create order");
   await fill("Mobile number", "+249 912345678", "Create order");
@@ -242,6 +247,7 @@ try {
   const final = (await req(`/workspace/shops/${company.id}`)).data;
   assert.equal(final.products.find((p) => p.id === tea.id).onHand, 8);
   assert.equal(final.orders[0].settlement.paid, "0.00");
+  assert.ok(await evaluate(`Array.from(document.querySelectorAll('.shop-workspace a')).some(a=>a.pathname==='/finance'&&new URLSearchParams(a.search).get('source')===${JSON.stringify(final.orders[0].saleId)})`),"Shop order opens its exact Finance sale");
   await fill("Search orders", "no-such-customer");
   await until('document.querySelectorAll(".shop-orders>button").length===0');
   await fill("Search orders", "QA customer");

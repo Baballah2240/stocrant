@@ -386,6 +386,7 @@ commerceRouter.get("/:companyId", (req, res) => {
       products,
       categories: (rows("shopStorefronts").find(s => s.organizationId === c.id)?.merchandising?.categories || []).map((c: Row) => ({ name: c.name, title: c.title })),
       orders,
+      purchases:rows("purchases").filter(p=>p.organizationId===c.id&&isWithinScope(req.auth!,p)&&["ordered","partial","received"].includes(p.status)).map(p=>({id:p.id,label:p.poNumber||p.id,supplier:p.supplier||"",currency:p.currency||c.currency})),
       receipts: rows("shopReceipts")
         .filter(
           (r) =>
@@ -470,6 +471,7 @@ commerceRouter.post("/:companyId/receipts", (req, res) => {
       .object({
         requestId: z.string().uuid(),
         productId: text,
+        purchaseId:z.string().trim().max(100).optional(),
         quantity: z.number().int().min(1).max(1000000),
         supplier: text,
         reference: text,
@@ -489,6 +491,7 @@ commerceRouter.post("/:companyId/receipts", (req, res) => {
             fail("Receipt request already used.", 409);
           return prior;
         }
+        if(b.purchaseId&&!rows("purchases").some(p=>p.id===b.purchaseId&&p.organizationId===c.id&&isWithinScope(req.auth!,p)&&["ordered","partial","received"].includes(p.status)))fail("Choose an approved purchase from this company.");
         if (
           rows("shopReceipts").some(
             (r) =>
@@ -518,6 +521,7 @@ commerceRouter.post("/:companyId/receipts", (req, res) => {
           reason: b.notes || `Shipment from ${b.supplier}`,
           reference: b.reference,
           shopReceiptId: receipt.id,
+          ...(b.purchaseId?{purchaseId:b.purchaseId}:{}),
           responsibleUser: req.auth!.name,
         });
         return receipt;

@@ -46,6 +46,7 @@ type Order = {
   events: { status: string; at: string; actor: string }[];
 };
 type Receipt = {
+  purchaseId?:string;
   id: string;
   productId: string;
   supplier: string;
@@ -55,6 +56,7 @@ type Receipt = {
 };
 type Connector = { id: string; name: string; active: boolean };
 type Snapshot = {
+  purchases?:{id:string;label:string;supplier:string;currency:string}[];
   categories?: {name: string; title: string}[];
   products: Product[];
   orders: Order[];
@@ -110,7 +112,7 @@ export default function ShopWorkspace() {
   const [key, setKey] = useState(""),
     [connectionName, setConnectionName] = useState("");
   const [receipt, setReceipt] = useState({
-    productId: "",
+    productId: "", purchaseId:"",
     quantity: "1",
     supplier: "",
     reference: "",
@@ -144,6 +146,8 @@ export default function ShopWorkspace() {
   const c = companies.find((c) => c.id === companyId),
     base = `/workspace/shops/${companyId}`;
   useEffect(() => {
+    const requestedTab=new URLSearchParams(location.search).get("tab");
+    if(requestedTab&&["products","receiving","orders","support"].includes(requestedTab))setTab(requestedTab);
     const requestedCompany = new URLSearchParams(location.search).get("company");
     if (requestedCompany && companies.some(company => company.id === requestedCompany)) setCompany(requestedCompany);
   }, [location.search, companies]);
@@ -183,7 +187,7 @@ export default function ShopWorkspace() {
     setProductFilter("all"); setOrderFilter("all"); setSearch(""); setOrderSearch("");
     setProduct(newProduct());
     setReceipt({
-      productId: "",
+      productId: "", purchaseId:"",
       quantity: "1",
       supplier: "",
       reference: "",
@@ -735,7 +739,7 @@ export default function ShopWorkspace() {
                         });
                         requestIds.current.receipt = crypto.randomUUID();
                         setReceipt({
-                          productId: "",
+                          productId: "", purchaseId:"",
                           quantity: "1",
                           supplier: "",
                           reference: "",
@@ -763,6 +767,7 @@ export default function ShopWorkspace() {
                           ))}
                         </select>
                       </label>
+                      <label className="form-field"><span>{t("Linked purchase (optional)")}</span><select value={receipt.purchaseId} onChange={e=>{const purchase=data.purchases?.find(p=>p.id===e.target.value);setReceipt({...receipt,purchaseId:e.target.value,supplier:purchase?.supplier||receipt.supplier});}}><option value="">{t("No purchase linked")}</option>{data.purchases?.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label><p className="hint">{t("Receiving updates stock. Supplier payments are recorded against the purchase in Finance.")}</p>
                       {(
                         [
                           ["Quantity", "quantity", "number"],
@@ -798,7 +803,7 @@ export default function ShopWorkspace() {
                       <p>
                         {r.supplier} · {r.reference}
                       </p>
-                      <small>{new Date(r.createdAt).toLocaleString()}</small>
+                      {r.purchaseId&&<Link to={`/stores/purchases/${encodeURIComponent(r.purchaseId)}`}>{t("Linked purchase")}</Link>}<small>{new Date(r.createdAt).toLocaleString()}</small>
                     </article>
                   ))}
                   {!data.receipts.length && (
@@ -867,7 +872,7 @@ export default function ShopWorkspace() {
                         {t(
                           "A sale is linked. Confirm payments and refunds in Finance.",
                         )}{" "}
-                        <Link to="/finance">{t("Finance")}</Link>
+                        <Link to={`/finance?${new URLSearchParams({tab:"Sales",company:companyId,currency:selected.currency,source:String(selected.saleId)})}`}>{t("Finance")}</Link>
                       </p>
                     )}
                     {selected.settlement && (

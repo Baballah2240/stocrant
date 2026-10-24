@@ -1,4 +1,5 @@
 import EmployeeProfile from "./EmployeeProfile";
+import FinanceSourceLinks from "./FinanceSourceLinks";
 import { useLanguage } from "../language-context";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
@@ -30,5 +31,5 @@ export default function EntityDetail() {
   if (!item) return <p className="empty">{t("This")} {t(spec.singular)}  {t("could not be found.")}</p>;
 
   if (collection === "employees") return <EmployeeProfile id={id!}/>;
-  return <div className="page"><div className="page-head"><div><NavLink className="back-button" to={`/${module}/${collection}`}>{t("← Back to")} {t(spec.label)}</NavLink><h1>{formatFieldValue(item[spec.columns[0]] ?? "—")}</h1><p className="hint">{t(spec.singular)}  {t("details")}</p></div>{canEdit ? <button className="primary" type="button" onClick={() => navigate(`/${module}/${collection}/${id}/edit`)}>{t("Edit")}</button> : null}</div><div className="card">{spec.fields.map((field) => <div key={field.key} className="field"><p className="field-label">{t(field.label)}</p><p className="field-value">{["select", "checkbox"].includes(field.type) ? t(formatFieldValue(item[field.key])) : formatFieldValue(item[field.key])}</p></div>)}</div></div>;
+  return <div className="page"><div className="page-head"><div><NavLink className="back-button" to={`/${module}/${collection}`}>{t("← Back to")} {t(spec.label)}</NavLink><h1>{formatFieldValue(item[spec.columns[0]] ?? "—")}</h1><p className="hint">{t(spec.singular)}  {t("details")}</p></div>{canEdit && !(collection === "sales" && item.shopOrderId) ? <button className="primary" type="button" onClick={() => navigate(`/${module}/${collection}/${id}/edit`)}>{t("Edit")}</button> : null}</div><FinanceSourceLinks collection={collection!} id={id!} item={item}/><div className="card">{spec.fields.map((field) => <div key={field.key} className="field"><p className="field-label">{t(field.label)}</p><p className="field-value">{["select", "checkbox"].includes(field.type) ? t(formatFieldValue(item[field.key])) : formatFieldValue(item[field.key])}</p></div>)}</div></div>;
 }

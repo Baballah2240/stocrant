@@ -19,7 +19,8 @@ try {
   const cookie=response.headers.get('set-cookie').split(';')[0];
   const data=getStore();
   data.collections.financeAccounts.push({id:'qa-bank',organizationId:'company-primary',name:'Finance QA bank',currency:'QAR',type:'bank',openingBalance:'1000.00'});
-  data.collections.sales.push({id:'qa-sale',organizationId:'company-primary',invoiceNo:'QA-SALE',date:'2026-01-01',total:'100.00',currency:'QAR',status:'approved'});
+  data.collections.sales.push({id:'qa-sale',organizationId:'company-primary',invoiceNo:'QA-SALE',date:'2026-01-01',total:'100.00',currency:'QAR',status:'completed'});
+  data.collections.purchases.push({id:'qa-bill',organizationId:'company-primary',poNumber:'QA-BILL',date:'2026-01-01',total:'75.00',currency:'QAR',status:'ordered'});
   saveStore(data);
   browser=await browserQa(root);
   const {send,evaluate,until}=browser;
@@ -36,6 +37,33 @@ try {
   async function tab(label) { await evaluate(`Array.from(document.querySelectorAll('.finance-tabs button')).find(b=>b.textContent===${JSON.stringify(label)}).click()`); }
   await tab('Sales');await until('document.querySelector(".finance-report")?.textContent.includes("QA-SALE")');
   assert.equal(await evaluate(`document.querySelector('.finance-report a[href$="/sales/new"]')?.getAttribute('href')`),'/stores/sales/new');
+  await evaluate('Array.from(document.querySelectorAll(".finance-report button")).find(b=>b.textContent==="Record source payment").click()');
+  await until('Boolean(document.querySelector(".finance-report form"))');
+  async function field(selector,value){await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input),'value').set.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event(input.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);}
+  await field('.finance-report form select','qa-bank');await field('.finance-report form input[type=number]','40.25');
+  await field('.finance-report form input[type=text]','QA-RECEIPT');await field('.finance-report form .form-grid > label:last-child input','Customer bank payment confirmed');
+  await evaluate('document.querySelector(".finance-report form").requestSubmit()');
+  await until('!document.querySelector(".finance-report form")');
+  await until('(async()=>{const r=await(await fetch("/api/workspace/finance")).json();return r.sources.find(s=>s.id==="qa-sale").outstanding==="59.75"&&r.accounts.find(a=>a.id==="qa-bank").balance==="1040.25";})()');
+  await evaluate('Array.from(document.querySelectorAll(".finance-report tr")).find(row=>row.textContent.includes("QA-RECEIPT")).querySelector("button").click()');
+  await until('Boolean(document.querySelector(".finance-report form"))');
+  await field('.finance-report form input[type=text]','QA-REVERSED');await field('.finance-report form .form-grid > label:last-child input','Customer bank payment returned');
+  await evaluate('document.querySelector(".finance-report form").requestSubmit()');await until('!document.querySelector(".finance-report form")');
+  await until('(async()=>{const r=await(await fetch("/api/workspace/finance")).json();return r.sources.find(s=>s.id==="qa-sale").outstanding==="100.00"&&r.accounts.find(a=>a.id==="qa-bank").balance==="1000.00";})()');
+  getStore().collections.approvalRules.push({id:'qa-finance-approval',section:'finance',action:'create',active:true});saveStore(getStore());
+  await evaluate('Array.from(document.querySelectorAll(".finance-report button")).find(b=>b.textContent==="Record source payment").click()');await until('Boolean(document.querySelector(".finance-report form"))');
+  await field('.finance-report form select','qa-bank');await field('.finance-report form input[type=text]','QA-PENDING');await field('.finance-report form .form-grid > label:last-child input','Independent approval requested');
+  await evaluate('document.querySelector(".finance-report form").requestSubmit()');await until('document.querySelector(".finance-report")?.textContent.includes("Payment submitted for approval")');
+  assert.ok(await evaluate('(async()=>{const r=await(await fetch("/api/workspace/finance")).json();return r.sources.find(s=>s.id==="qa-sale").outstanding==="100.00"&&r.accounts.find(a=>a.id==="qa-bank").balance==="1000.00";})()'),'Pending approval does not move balances');
+  getStore().collections.approvalRules=getStore().collections.approvalRules.filter(rule=>rule.id!=='qa-finance-approval');saveStore(getStore());
+  await tab('Overview');await until('document.querySelector(".finance-obligations")?.textContent.includes("100.00")');
+  assert.ok(await evaluate('document.querySelector(".finance-obligations").textContent.includes("75.00")'));
+  await tab('Sales');await until(`Boolean(document.querySelector('a[href$="/sales/qa-sale"]'))`);
+  await evaluate(`document.querySelector('a[href$="/sales/qa-sale"]').click()`);
+  await until('Array.from(document.querySelectorAll("a")).some(a=>a.textContent==="Open payments in Finance")');
+  await evaluate('Array.from(document.querySelectorAll("a")).find(a=>a.textContent==="Open payments in Finance").click()');
+  await until('document.querySelector(".finance-report")?.textContent.includes("Showing the linked document")');
+  assert.ok(await evaluate('new URLSearchParams(location.search).get("source")==="qa-sale"'));
   await tab('Banking');await until('document.querySelector(".finance-report")?.textContent.includes("Finance QA bank")');
   await tab('Salaries & payroll');await until('Boolean(document.querySelector(".payroll-page"))');
   await tab('Profit & loss');await until('Boolean(document.querySelector(".finance-connected table"))');
@@ -43,6 +71,11 @@ try {
   const shots=resolve('.local-preview/qa');mkdirSync(shots,{recursive:true});
   for (const [width,height,mobile] of [[1440,1000,false],[390,844,true]]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile});
+    await tab('Overview');await until('Boolean(document.querySelector(".finance-obligations"))');
+    await evaluate('document.querySelector(".finance-obligations").scrollIntoView({block:"start"})');
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'),'Finance overview fits viewport');
+    writeFileSync(join(shots,`finance-overview-${width}.png`),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+    await tab('Profit & loss');await until('Boolean(document.querySelector(".finance-connected table"))');
     assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'),'Finance fits viewport');
     writeFileSync(join(shots,`finance-connected-${width}.png`),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
   }
@@ -54,7 +87,11 @@ try {
   await until('document.documentElement.dir==="rtl" && Boolean(document.querySelector(".finance-connected"))');
   assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'),'Arabic finance fits viewport');
   writeFileSync(join(shots,'finance-connected-arabic.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
-  console.log('Connected Finance browser checks passed: overview, sales source, banking, embedded payroll, P&L, desktop/mobile and Arabic dark layout.');
+  await evaluate('document.querySelector(".finance-tabs button").click()');await until('Boolean(document.querySelector(".finance-obligations"))');
+  await evaluate('document.querySelector(".finance-obligations").scrollIntoView({block:"start"})');
+  assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'),'Arabic Finance overview fits viewport');
+  writeFileSync(join(shots,'finance-overview-arabic.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+  console.log('Connected Finance browser checks passed: receivables/payables, source settlement and reversal with exact balances, record-to-Finance links, banking, embedded payroll, P&L, desktop/mobile and Arabic dark layout.');
 } finally {
   await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));
 }

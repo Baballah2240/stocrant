@@ -1,4 +1,9 @@
 export const shopTranslations: Record<string, string> = {
+  "Linked purchase (optional)":"المشتريات المرتبطة (اختياري)",
+  "No purchase linked":"بدون مستند مشتريات مرتبط",
+  "Linked purchase":"المشتريات المرتبطة",
+  "Receiving updates stock. Supplier payments are recorded against the purchase in Finance.":"يحدث الاستلام المخزون. تسجل مدفوعات الموردين مقابل مستند المشتريات في المالية.",
+  "Choose an approved purchase from this company.":"اختر مستند مشتريات معتمداً من هذه الشركة.",
   "Shop customer service":"خدمة عملاء المتجر",
   "Private customer conversations for this company's shop only. Replies appear in the customer's shop support page.":"محادثات خاصة بعملاء متجر هذه الشركة فقط. تظهر الردود في صفحة دعم المتجر لدى العميل.",
   "Needs reply":"بانتظار رد المتجر",

@@ -3,6 +3,7 @@ import type { AuthenticatedUser } from "./auth.js";
 import { can, isWithinScope, ownRecordsRequired } from "./permissions.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { dateSchema, money, precision, scaled } from "./payroll-model.js";
+import { financialCategory } from "./finance-categories.js";
 
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
@@ -49,6 +50,7 @@ export function validatePayrollRecovery(source: Row, ignoreId?: string) {
   if (reserved + cash + scaled(source.amount) > scaled(tx.amount)) financialError("Installments and repayments exceed the advance or loan balance.", 409);
 }
 export const sourceCollections = ["sales", "expenses", "purchases", "returns"];
+export const sourceStates:Record<string,string[]>={sales:["completed"],expenses:["approved","reimbursed"],purchases:["ordered","received","partial"],returns:["approved","refunded"]};
 const sourceAmount = (name: string, row: Row) => row[name === "expenses" ? "amount" : name === "returns" ? "refund" : "total"];
 export function settlementRows(name: string, source: Row) {
   const company = rows("companies").find(c => c.id === source.organizationId);
@@ -68,6 +70,10 @@ export function settlementRows(name: string, source: Row) {
 export function validateFinancialMutation(user: AuthenticatedUser, collection: string, action: string, payload: Row, current?: Row): Row {
   if (collection === "financeHistory") financialError("Financial audit history is immutable.");
   if (sourceCollections.includes(collection)) {
+    if(collection==="purchases"&&current&&rows("shopReceipts").some(r=>r.purchaseId===current.id)){
+      const currency=current.currency||rows("companies").find(c=>c.id===current.organizationId)?.currency;
+      if(action==="delete"||payload.organizationId!==undefined&&payload.organizationId!==current.organizationId||payload.currency!==undefined&&payload.currency!==currency||payload.status!==undefined&&!["ordered","partial","received"].includes(payload.status))financialError("A purchase linked to stock receipts must retain its company, currency and receiving status.");
+    }
     if (current && rows("financeTransactions").some(t => t.sourceCollection === collection && t.sourceId === current.id)) financialError("A settled source cannot be rewritten. Reverse its settlement and record a correction.");
     if (action === "delete") return payload;
     const item = { ...current, ...payload };
@@ -117,8 +123,7 @@ export function validateFinancialMutation(user: AuthenticatedUser, collection: s
   if (item.reference && rows("financeTransactions").some(t => t.id !== current?.id && t.organizationId === item.organizationId && t.type !== "transfer" && String(t.reference).trim().toLowerCase() === String(item.reference).trim().toLowerCase())) financialError("This company payment reference is already recorded.", 409);
   if (item.sourceId || item.sourceCollection) {
     const source = sourceCollections.includes(item.sourceCollection) && rows(item.sourceCollection).find(s => s.id === item.sourceId && s.organizationId === account.organizationId && isWithinScope(user, s));
-    const allowedStates:Record<string,string[]>={sales:["completed"],expenses:["approved","reimbursed"],purchases:["ordered","received","partial"],returns:["approved","refunded"]};
-    if (!source || !allowedStates[item.sourceCollection]?.includes(source.status)) financialError("Choose an approved source record in this company.");
+    if (!source || !sourceStates[item.sourceCollection]?.includes(source.status)) financialError("Choose an approved source record in this company.");
     const expectedType = item.sourceCollection === "sales" ? "income" : item.sourceCollection === "returns" ? "refund" : "expense";
     if (item.type !== expectedType || direction !== (item.sourceCollection === "sales" ? "in" : "out")) financialError("The payment type must match its source record.");
     if (item.sourceCollection === "expenses" && source.category === "salaries" && rows("payrollSettings").some(s => s.organizationId === item.organizationId && s.configured)) financialError("Use approved payroll to settle salaries and avoid double counting.");
@@ -170,19 +175,41 @@ export function ledgerSummary(user?: AuthenticatedUser) {
     catch { issues.push({id:a.id,reason:"Unverified account opening balance or currency"}); return {...a,id:String(a.id),balance:null}; }
   });
   const totals = [...new Set(accounts.map(a => String(a.currency)))].filter(c=>currencies.includes(c)).map(currency => {
-    const digits = precision(currency), paid = valid.filter(t => t.currency === currency && t.status === "paid" && t.type !== "transfer");
-    const sum = (items: Row[], kind?: string) => items.filter(t => !kind || t.type === kind).reduce((n, t) => n + (t.direction === "in" ? 1n : -1n) * scaled(t.amount, digits), 0n);
-    const income = paid.filter(t => t.type !== "payroll" && t.direction === "in" && !t.reversalOf).reduce((n, t) => n + scaled(t.amount, digits), 0n)
-      - paid.filter(t => t.reversalOf && t.direction === "out" && t.type !== "payroll").reduce((n, t) => n + scaled(t.amount, digits), 0n);
-    const salaries = -sum(paid, "payroll"), net = sum(paid), expenses = income - salaries - net;
+    const digits = precision(currency), paid = valid.filter(t => t.currency === currency && t.status === "paid");
+    const sum = (items: Row[]) => items.reduce((n,t)=>n+(t.direction === "in"?1n:-1n)*scaled(t.amount,digits),0n);
+    const income=sum(paid.filter(t=>financialCategory(t)==="revenue"));
+    const salaries=-sum(paid.filter(t=>financialCategory(t)==="payroll"));
+    const purchases=-sum(paid.filter(t=>financialCategory(t)==="purchases"));
+    const expenses=purchases-sum(paid.filter(t=>financialCategory(t)==="expenses"));
+    const net=sum(paid),profit=income-expenses-salaries;
     const payroll = (!user || can(user,"payroll","view")&&!ownRecordsRequired(user)) ? rows("payrollEntries").filter(e=>e.currency===currency&&(!user||isWithinScope(user,e))&&rows("payrollRuns").some(r=>r.id===e.runId&&["Approved","Partially Paid","Paid"].includes(r.status))) : [];
-    return { currency, income: money(income, digits), expenses: money(expenses, digits), salaries: money(salaries, digits), net: money(net, digits), balance: money(balances.filter(a => a.currency === currency&&a.balance!==null).reduce((n, a) => n + scaled(a.balance, digits), 0n), digits),
+    return { currency, profit:money(profit,digits), purchases:money(purchases,digits), otherCash:money(net-profit,digits), income: money(income, digits), expenses: money(expenses, digits), salaries: money(salaries, digits), net: money(net, digits), balance: money(balances.filter(a => a.currency === currency&&a.balance!==null).reduce((n, a) => n + scaled(a.balance, digits), 0n), digits),
       approvedPayroll:money(payroll.reduce((n,e)=>n+scaled(e.netPay,digits),0n),digits), outstandingPayroll:money(payroll.reduce((n,e)=>n+scaled(payrollEntryPayments(e).outstanding,digits),0n),digits) };
   });
-  const sources = sourceCollections.flatMap(collection => rows(collection).filter(s => !user || isWithinScope(user, s)).map(s => ({ id: s.id, collection, organizationId: s.organizationId, label: s.title || s.invoiceNo || s.poNumber || s.rmaNumber || s.id, date: s.date, sourceStatus: s.status, ...settlementRows(collection, s) })));
+  const sources = sourceCollections.flatMap(collection => rows(collection).filter(s => !user || isWithinScope(user, s)).map(s => {
+    const settlement=settlementRows(collection,s);
+    const payrollManaged=collection==="expenses"&&s.category==="salaries"&&rows("payrollSettings").some(rule=>rule.organizationId===s.organizationId&&rule.configured);
+    return {payrollManaged,id:String(s.id),collection,organizationId:s.organizationId,label:s.title||s.invoiceNo||s.poNumber||s.rmaNumber||s.id,date:s.date,sourceStatus:s.status,party:s.customer||s.supplier||"",shopOrderId:s.shopOrderId,receiptCount:collection==="purchases"?rows("shopReceipts").filter(r=>r.purchaseId===s.id&&r.organizationId===s.organizationId).length:0,...settlement,eligible:sourceStates[collection].includes(s.status)&&!payrollManaged,canSettle:sourceStates[collection].includes(s.status)&&!payrollManaged&&settlement.outstanding!==null&&scaled(settlement.outstanding)>0n};
+  }));
+  const obligations:Row[]=[];
+  const obligation=(organizationId:string,currency:string)=>{
+    let row=obligations.find(r=>r.organizationId===organizationId&&r.currency===currency);
+    if(!row){row={id:organizationId+":"+currency,organizationId,currency,receivable:"0",payable:"0",payroll:"0"};obligations.push(row);}return row;
+  };
+  for(const source of sources){
+    if(!source.eligible)continue;
+    if(source.outstanding===null){issues.push({id:source.id,organizationId:source.organizationId,currency:source.currency,reason:"Unverified source amount or currency"});continue;}
+    if(scaled(source.outstanding)<0n||source.paid!==null&&scaled(source.paid)<0n){issues.push({id:source.id,organizationId:source.organizationId,currency:source.currency,reason:"Source settlement is outside its allowed balance"});continue;}
+    const row=obligation(String(source.organizationId),source.currency),key=source.collection==="sales"?"receivable":"payable",digits=precision(source.currency);
+    row[key]=money(scaled(row[key],digits)+scaled(source.outstanding,digits),digits);
+  }
+  if(!user||can(user,"payroll","view")&&!ownRecordsRequired(user))for(const entry of rows("payrollEntries").filter(e=>(!user||isWithinScope(user,e))&&rows("payrollRuns").some(r=>r.id===e.runId&&["Approved","Partially Paid","Paid"].includes(r.status)))){
+    const row=obligation(String(entry.organizationId),String(entry.currency)),digits=precision(entry.currency);
+    row.payroll=money(scaled(row.payroll,digits)+scaled(payrollEntryPayments(entry).outstanding,digits),digits);
+  }
   // Legacy numeric fields are meaningful only in a single currency; old clients see no mixed-currency sum.
   const single = totals.length === 1 ? totals[0] : null;
-  return { accounts: balances, transactions: valid, totals, sources, issues, income: single ? Number(single.income) : totals.length ? null : 0, expenses: single ? Number(single.expenses) : totals.length ? null : 0, salaries: single ? Number(single.salaries) : totals.length ? null : 0, net: single ? Number(single.net) : totals.length ? null : 0 };
+  return { accounts: balances, transactions: valid, totals, sources, obligations, issues:issues.map(issue=>{const record=transactions.find(t=>t.id===issue.id)||accounts.find(a=>a.id===issue.id);return {...issue,organizationId:issue.organizationId||record?.organizationId,currency:issue.currency||record?.currency};}), income: single ? Number(single.income) : totals.length ? null : 0, expenses: single ? Number(single.expenses) : totals.length ? null : 0, salaries: single ? Number(single.salaries) : totals.length ? null : 0, net: single ? Number(single.net) : totals.length ? null : 0 };
 }
 
 export function reverseFinancialTransaction(user: AuthenticatedUser, id: string, input: { reason: string; date: string; reference: string; idempotencyKey: string }) {

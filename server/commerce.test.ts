@@ -117,9 +117,12 @@ describe("Connected shop foundations", () => {
     );
   });
   it("receives shipments exactly once and protects the immutable movement", async () => {
+    const data=getStore(),cashBefore=(getCollection("financeTransactions") as Row[]).length;
+    data.collections.purchases.push({id:"receipt-purchase",organizationId:company.id,currency:company.currency,status:"ordered",poNumber:"PO-RECEIPT",total:"10.00"},{id:"foreign-receipt-purchase",organizationId:foreign.id,currency:foreign.currency,status:"ordered",poNumber:"PO-FOREIGN",total:"10.00"});saveStore(data);
     const body = {
       requestId: randomUUID(),
       productId: product.id,
+      purchaseId:"receipt-purchase",
       quantity: 10,
       supplier: "Tea supplier",
       reference: "AWB-100",
@@ -133,6 +136,12 @@ describe("Connected shop foundations", () => {
       201,
     );
     assert.equal(first.id, replay.id);
+    assert.equal(first.purchaseId,"receipt-purchase");
+    assert.equal((getCollection("inventoryMovements") as Row[]).find(m=>m.shopReceiptId===first.id)!.purchaseId,"receipt-purchase");
+    assert.equal((getCollection("financeTransactions") as Row[]).length,cashBefore);
+    const finance=await json(await api("/workspace/finance"));assert.equal(finance.sources.find((s:Row)=>s.id==="receipt-purchase").receiptCount,1);
+    await json(await api(prefix()+"/receipts","POST",{...body,requestId:randomUUID(),reference:"FOREIGN-LINK",purchaseId:"foreign-receipt-purchase"}),400);
+    await json(await api("/collections/purchases/receipt-purchase","DELETE"),400);
     await json(
       await api(prefix() + "/receipts", "POST", { ...body, quantity: 11 }),
       409,

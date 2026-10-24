@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-10-25 - Finance integration review
+
+- Share operating-income and cost classification between API and browser reports so loans, advances and transfers remain separate from profit. Add exact per-company/currency receivables, bills/refunds due and approved unpaid payroll to Finance.
+- Connect source documents, shop orders, Finance settlements and payroll through scoped links; show only eligible source-payment actions and handle bills in currencies without an account yet. Refresh Finance after returning to the app.
+- Enforce source company, currency, type and settlement limits at the storage boundary, including controlled reversals. Preserve permissions, approvals and posted history. No native build or installation performed.
+- Link stock receipts and incoming movements to same-company purchase documents, show their receipt count in Finance and protect linked purchases from deletion or invalid scope/status changes. Receiving does not invent a cash payment.
+
 ## 2026-10-25 - Shop-only customer service
 
 - Add a private support page to the customer storefront and a company-scoped Customer service inbox in Shops & orders, separate from general Customer Service.
