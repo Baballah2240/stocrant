@@ -6,6 +6,7 @@ import { useSession } from "../session-context";
 import "../shop-workspace.css";
 import StorefrontSettings from "./StorefrontSettings";
 import CompanyStoreLink from "./CompanyStoreLink";
+import ShopSupportInbox from "./ShopSupportInbox";
 import ProductPhotos, { ShopImage } from "./ProductPhotos";
 
 type Company = { id: string; name: string; currency: string };
@@ -411,6 +412,7 @@ export default function ShopWorkspace() {
               "receiving",
               "orders",
               ...(canConnect ? ["storefront", "connections"] : []),
+              "support",
             ].map((name) => (
               <button
                 type="button"
@@ -428,7 +430,7 @@ export default function ShopWorkspace() {
                         ? "Orders"
                         : name === "storefront"
                           ? "Customer storefront"
-                          : "Shop connections",
+                          : name === "support" ? "Shop customer service" : "Shop connections",
                 )}
               </button>
             ))}
@@ -1061,6 +1063,7 @@ export default function ShopWorkspace() {
             {tab === "storefront" && canConnect && (
               <StorefrontSettings key={companyId} companyId={companyId} products={data.products} onSaved={() => { void request<Snapshot>(base).then(result => { if (renderGeneration === generation.current) setData(result); }).catch(e => { if (renderGeneration === generation.current) setError(e.message); }); }} />
             )}
+            {tab === "support" && <ShopSupportInbox key={companyId} companyId={companyId} openOrder={id=>{void request<Snapshot>(base).then(result=>{if(renderGeneration===generation.current){setData(result);setSelectedOrder(id);setOrderFilter("all");setOrderSearch("");setTab("orders");}}).catch(e=>{if(renderGeneration===generation.current)setError(e.message);});}}/>}
             {tab === "connections" && canConnect && (
               <section className="card">
                 <CompanyStoreLink key={companyId} companyId={companyId} companyName={companies.find(company => company.id === companyId)?.name || ""} configure={() => setTab("storefront")} />

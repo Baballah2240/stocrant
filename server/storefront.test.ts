@@ -503,6 +503,35 @@ describe("Amal connected storefront", () => {
     account.roleId = role;
     saveStore(getStore());
   });
+  it("keeps shop support private, company-scoped, durable and safe to retry",async()=>{
+    const support=api+"/support",inbox=config()+"/support";
+    const input={requestId:randomUUID(),customer:"Shop customer",email:"customer@example.test",phone:"",subject:"Delivery question",category:"delivery",orderId:order.id,message:"Can you help with my order?"};
+    const first=(await json(await req(support,"POST",input,guest),201)).ticket;
+    assert.equal((await json(await req(support,"POST",input,guest),201)).ticket.id,first.id);
+    await json(await req(support,"POST",{...input,message:"Changed retry"},guest),409);
+    await json(await req(support,"POST",{...input,requestId:randomUUID(),orderId:"another-order"},guest),404);
+    await json(await req(support,"POST",{...input,requestId:randomUUID()},guest,{Origin:"https://other.example"}),403);
+    assert.equal((await json(await req(inbox))).tickets[0].orderId,order.id);
+    assert.equal((await json(await req(`/workspace/storefronts/${foreign.id}/support`))).total,0);
+    const second=await req(api+"/catalog","GET",undefined,"");await json(second);const stranger=second.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await json(await req(support,"GET",undefined,stranger))).tickets.length,0);
+    await json(await req(`${support}/${first.id}/reply`,"POST",{requestId:randomUUID(),version:1,message:"Guessing a ticket"},stranger),404);
+    await json(await req(support,"GET",undefined,""),401);
+    const response={requestId:randomUUID(),version:1,message:"Your order is being prepared.",status:"waiting"};
+    await json(await req(`${inbox}/${first.id}/reply`,"POST",response));
+    await json(await req(`${inbox}/${first.id}/reply`,"POST",response));
+    await json(await req(`${inbox}/${first.id}/reply`,"POST",{...response,requestId:randomUUID()},admin),409);
+    await json(await req(`/workspace/storefronts/${foreign.id}/support/${first.id}/reply`,"POST",response),404);
+    let view=(await json(await req(support,"GET",undefined,guest))).tickets[0];assert.equal(view.status,"waiting");assert.equal(view.messages.length,2);assert.ok(!JSON.stringify(view).includes("guestHash")&&!JSON.stringify(view).includes("actorId")&&!JSON.stringify(view).includes("fingerprint"));
+    await json(await req(`${support}/${first.id}/reply`,"POST",{requestId:randomUUID(),version:2,message:"Thank you, one more question."},guest));
+    resetTestCache();view=(await json(await req(inbox))).tickets[0];assert.equal(view.status,"open");assert.equal(view.messages.length,3);
+    await json(await req(`${inbox}/${first.id}/reply`,"POST",{requestId:randomUUID(),version:3,message:"All sorted, thank you.",status:"resolved"}));
+    assert.equal((await json(await req(support,"GET",undefined,guest))).tickets[0].status,"resolved");
+    await json(await req("/collections/shopSupportTickets"),404);
+    const account=(getCollection("accessUsers") as Row[]).find(a=>a.roleId==="role-main-manager")!;
+    const permissions=account.permissions,role=account.roleId;account.roleId="role-employee";account.permissions=["customerService.*"];saveStore(getStore());
+    try{await json(await req(inbox),403);}finally{account.roleId=role;if(permissions===undefined)delete account.permissions;else account.permissions=permissions;saveStore(getStore());}
+  });
   it("pauses new checkout under finance approval policies and throttles new attempts without breaking retries", async () => {
     const rule = {
       id: randomUUID(),

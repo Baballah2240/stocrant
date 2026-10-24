@@ -343,6 +343,40 @@ function receipt(order: Row) {
 }
 
 export const storefrontAdminRouter = Router();
+const supportMessage = z.string().trim().min(1).max(3000);
+const supportCreate = z.object({requestId:z.string().uuid(),customer:z.string().trim().min(1).max(120),email:z.union([z.literal(""),z.string().trim().email().max(180)]).default(""),phone:z.string().trim().max(60).default(""),subject:z.string().trim().min(1).max(160),category:z.enum(["product","order","delivery","return","other"]),orderId:z.string().trim().max(100).default(""),message:supportMessage}).strict().refine(v=>Boolean(v.email||v.phone),"Provide an email or phone number.");
+const supportSafe = (ticket:Row) => {const {guestHash,fingerprint,...safe}=ticket;return safe;};
+const supportPublic = (ticket:Row) => ({id:ticket.id,subject:ticket.subject,category:ticket.category,orderId:ticket.orderId,status:ticket.status,version:ticket.version,createdAt:ticket.createdAt,updatedAt:ticket.updatedAt,messages:ticket.messages.map((m:Row)=>({id:m.id,from:m.from,message:m.message,at:m.at}))});
+function supportStaff(req:Request,edit=false) {
+  shopPermission(req.auth!,"view");
+  const company=shopCompany(req.auth!,String(req.params.companyId));
+  if(edit&&!can(req.auth!,"shops","edit")&&!(can(req.auth!,"inventory","edit")&&can(req.auth!,"operations","edit"))) fail("Shop edit permission is required.",403);
+  return company;
+}
+storefrontAdminRouter.get("/:companyId/support",(req,res)=>{
+  try {
+    const company=supportStaff(req),query=z.object({page:z.coerce.number().int().min(1).max(100000).default(1),status:z.enum(["","open","waiting","resolved"]).default(""),search:z.string().max(160).default("")}).parse(req.query);
+    const all=rows("shopSupportTickets").filter(t=>t.organizationId===company.id);
+    const filtered=all.filter(t=>(!query.status||t.status===query.status)&&[t.id,t.subject,t.customer,t.email,t.phone,t.orderId].some(v=>String(v||"").toLowerCase().includes(query.search.toLowerCase()))).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    res.json({tickets:filtered.slice((query.page-1)*20,query.page*20).map(supportSafe),total:filtered.length,open:all.filter(t=>t.status==="open").length});
+  }catch(e){error(res,e);}
+});
+storefrontAdminRouter.post("/:companyId/support/:ticketId/reply",(req,res)=>{
+  try {
+    const company=supportStaff(req,true),b=z.object({requestId:z.string().uuid(),version:z.number().int().min(1),message:supportMessage,status:z.enum(["waiting","resolved"])}).strict().parse(req.body);
+    const ticket=transaction(()=>{
+      const ticket=rows("shopSupportTickets").find(t=>t.id===req.params.ticketId&&t.organizationId===company.id);
+      if(!ticket)fail("Support request not found.",404);
+      const prior=ticket.messages.find((m:Row)=>m.id===b.requestId);
+      if(prior){if(prior.from!=="store"||prior.actorId!==req.auth!.id||prior.message!==b.message||prior.status!==b.status)fail("This request key was used with different details.",409);return ticket;}
+      if(ticket.version!==b.version)fail("This support request changed. Refresh and try again.",409);
+      if(ticket.messages.length>=100)fail("This conversation is full. Start a new support request.");
+      const at=new Date().toISOString();ticket.messages.push({id:b.requestId,from:"store",actorId:req.auth!.id,message:b.message,status:b.status,at});ticket.status=b.status;ticket.updatedAt=at;ticket.version++;
+      audit(req.auth!,"shop.support.reply",{organizationId:company.id,targetId:ticket.id,section:"operations"});saveStore(getStore());return ticket;
+    });
+    res.json({ticket:supportSafe(ticket)});
+  }catch(e){error(res,e);}
+});
 storefrontAdminRouter.get("/:companyId", (req, res) => {
   try {
     const c = admin(req, String(req.params.companyId));
@@ -484,6 +518,37 @@ storefrontRouter.get("/:slug/catalog", (req, res) => {
   } catch (e) {
     error(res, e);
   }
+});
+storefrontRouter.get("/:slug/support",(req,res)=>{
+  try {const s=storefront(req);context(s);const owner=guest(req,res);res.json({tickets:rows("shopSupportTickets").filter(t=>t.storefrontId===s.id&&t.guestHash===owner).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,50).map(supportPublic)});}catch(e){error(res,e);}
+});
+storefrontRouter.post("/:slug/support",(req,res)=>{
+  try {
+    const s=storefront(req);context(s);const owner=guest(req,res),b=supportCreate.parse(req.body),fingerprint=hash(JSON.stringify(b));
+    const ticket=transaction(()=>{
+      const prior=rows("shopSupportTickets").find(t=>t.storefrontId===s.id&&t.guestHash===owner&&t.requestId===b.requestId);
+      if(prior){if(prior.fingerprint!==fingerprint)fail("This request key was used with different details.",409);return prior;}
+      rate(req,"shop-support-create",5,600000);
+      if(b.orderId&&!rows("storefrontCheckouts").some(c=>c.storefrontId===s.id&&c.guestHash===owner&&c.orderId===b.orderId))fail("Order not found in this shop and browser.",404);
+      const at=new Date().toISOString(),ticket={...b,id:randomUUID(),organizationId:s.organizationId,storefrontId:s.id,guestHash:owner,fingerprint,status:"open",version:1,createdAt:at,updatedAt:at,messages:[{id:b.requestId,from:"customer",message:b.message,at}]};
+      rows("shopSupportTickets").push(ticket);saveStore(getStore());return ticket;
+    });res.status(201).json({ticket:supportPublic(ticket)});
+  }catch(e){error(res,e);}
+});
+storefrontRouter.post("/:slug/support/:ticketId/reply",(req,res)=>{
+  try {
+    const s=storefront(req);context(s);const owner=guest(req,res),b=z.object({requestId:z.string().uuid(),version:z.number().int().min(1),message:supportMessage}).strict().parse(req.body);
+    const ticket=transaction(()=>{
+      const ticket=rows("shopSupportTickets").find(t=>t.id===req.params.ticketId&&t.storefrontId===s.id&&t.guestHash===owner);
+      if(!ticket)fail("Support request not found.",404);
+      const prior=ticket.messages.find((m:Row)=>m.id===b.requestId);
+      if(prior){if(prior.from!=="customer"||prior.message!==b.message)fail("This request key was used with different details.",409);return ticket;}
+      rate(req,"shop-support-reply",20,600000);
+      if(ticket.version!==b.version)fail("This support request changed. Refresh and try again.",409);
+      if(ticket.messages.length>=100)fail("This conversation is full. Start a new support request.");
+      const at=new Date().toISOString();ticket.messages.push({id:b.requestId,from:"customer",message:b.message,at});ticket.status="open";ticket.updatedAt=at;ticket.version++;saveStore(getStore());return ticket;
+    });res.json({ticket:supportPublic(ticket)});
+  }catch(e){error(res,e);}
 });
 storefrontRouter.post("/:slug/quote", (req, res) => {
   try {

@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-25 - Shop-only customer service
+
+- Add a private support page to the customer storefront and a company-scoped Customer service inbox in Shops & orders, separate from general Customer Service.
+- Support product/order/delivery/return questions, order links verified against the customer's browser, threaded replies, open/waiting/resolved states, search and pagination. Preserve company permissions, retry protection, conversation limits and Arabic/responsive layouts.
+- Replies appear in the storefront conversation; no email or SMS is sent. Customer access requires the original browser cookie. No native build or installation performed.
+
 ## 2026-10-25 - Store sizing, placement and product motion
 
 - Let the customer storefront header scroll away while keeping its single shopping bag visible as a floating control.

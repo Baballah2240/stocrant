@@ -355,3 +355,13 @@
 @media(max-width:540px) { .shop-workspace .page-header { padding: 18px; gap: 14px; } .shop-workspace .page-header p { font-size: .85rem; line-height: 1.5; } .shop-workspace .shop-metrics .card { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px; } .shop-metrics strong { font-size: 1.5rem; } .shop-metrics span { font-size: .73rem; } .shop-line-items > div { gap: 10px; font-size: .85rem; } }
 .shop-company-store-link { padding-block-end:24px;margin-block-end:24px;border-block-end:1px solid var(--border, #64748b); }
 .shop-company-store-link input { width:100%;min-width:0; }
+.shop-support-grid { display:grid;grid-template-columns:minmax(200px,1fr) minmax(0,2fr);gap:24px;margin-block:20px; }
+.shop-support-requests { display:grid;align-content:start;gap:10px; }
+.shop-support-requests button { display:grid;gap:6px;text-align:start;white-space:normal;overflow-wrap:anywhere; }
+.shop-support-requests button[aria-pressed="true"] { border-color:var(--accent,#66b5aa); }
+.shop-support-thread { min-width:0;overflow-wrap:anywhere; }
+.shop-support-messages { display:grid;gap:12px;margin-block:20px; }
+.shop-support-messages blockquote { margin:0;padding:16px;border-inline-start:3px solid var(--accent,#66b5aa);background:rgb(128 128 128 / 8%);border-radius:10px; }
+.shop-support-messages small { display:block; }
+.shop-support-messages p { white-space:pre-wrap;overflow-wrap:anywhere; }
+@media(max-width:700px) { .shop-support-grid { grid-template-columns:minmax(0,1fr); } }

@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from "react";
 import { ar } from "./language";
+import ShopSupport from "./ShopSupport";
 import { defaultMerchandising, type Merchandising } from "../../src/storefront-merchandising";
 type Product = {
   id: string;
@@ -735,6 +736,7 @@ export default function Shop() {
           "wordmark",
         )}
         <nav aria-label={t("Collection")}>
+          {link("/support", t("Customer service"))}
           {link("/#collection", t("Collection"))}
           {link("/about", t("About"))}
           {link("/contact", t("Contact"))}
@@ -1387,10 +1389,11 @@ export default function Shop() {
             </div>
             {link("/", t("Browse products"), "primary")}
           </section>
-        ) : path === "/contact" ? (
+        ) : path === "/support" ? <ShopSupport key={slug} apiBase={apiBase} t={t} preview={shop.preview}/> : path === "/contact" ? (
           <section className="text-page">
             <p className="eyebrow">{t("Contact")}</p>
             <h1>{t("Good things start with a conversation.")}</h1>
+            <p>{link("/support",t("Contact shop customer service"),"primary")}</p>
             <div className="contact-grid">
               {shop.contactEmail && (
                 <article>
@@ -1467,6 +1470,7 @@ export default function Shop() {
           {link("/", t("Browse products"))}
           {link("/about", t("About"))}
           {link("/contact", t("Contact"))}
+          {link("/support", t("Customer service"))}
         </div>
         <div>
           <p className="eyebrow">{t("Our policies")}</p>

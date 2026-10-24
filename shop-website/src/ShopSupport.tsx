@@ -1,0 +1,29 @@
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import type { ShopSupportTicket } from "../../src/shop-support-types";
+
+export default function ShopSupport({apiBase,t,preview}:{apiBase:string;t:(text:string)=>string;preview:boolean}) {
+  const [tickets,setTickets]=useState<ShopSupportTicket[]>([]),[selected,setSelected]=useState(""),[reply,setReply]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false);
+  const [form,setForm]=useState({customer:"",email:"",phone:"",subject:"",category:"product",orderId:"",message:""});
+  const pending=useRef({signature:"",id:""});
+  const base=apiBase+"/support";
+  async function call<T>(url=base,body?:unknown):Promise<T>{const r=await fetch(url,{method:body?"POST":"GET",credentials:"same-origin",headers:{"Content-Type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});const result=await r.json();if(!r.ok)throw Error(result.error||"Could not load shop support.");return result;}
+  async function load(){try{setTickets((await call<{tickets:ShopSupportTicket[]}>()).tickets);setError("");}catch(e){setError((e as Error).message);}finally{setLoaded(true);}}
+  useEffect(()=>{let active=true;const refresh=async()=>{if(preview)return;try{const data=await call<{tickets:ShopSupportTicket[]}>();if(active){setTickets(data.tickets);setError("");}}catch(e){if(active)setError((e as Error).message);}finally{if(active)setLoaded(true);}};void refresh();const timer=setInterval(()=>{if(!document.hidden)void refresh();},30000);return()=>{active=false;clearInterval(timer);};},[base,preview]);
+  const ticket=tickets.find(ticket=>ticket.id===selected)||tickets[0];
+  useEffect(()=>setReply(""),[ticket?.id]);
+  async function send(event:FormEvent,followUp=false){event.preventDefault();if(busy)return;setBusy(true);setError("");setNotice("");try{const body=followUp?{version:ticket!.version,message:reply.trim()}:form;const signature=JSON.stringify({id:followUp?ticket!.id:"new",...body});if(pending.current.signature!==signature)pending.current={signature,id:crypto.randomUUID()};const result=await call<{ticket:ShopSupportTicket}>(followUp?`${base}/${ticket!.id}/reply`:base,{...body,requestId:pending.current.id});setSelected(result.ticket.id);if(followUp)setReply("");else setForm(current=>({...current,subject:"",orderId:"",message:""}));setNotice("Message sent to the shop. Replies will appear here.");await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+  if(preview)return <section className="text-page"><h1>{t("Shop customer service")}</h1><p>{t("Customer service becomes available when this shop is published.")}</p></section>;
+  return <section className="text-page shop-customer-support"><p className="eyebrow">{t("Here to help")}</p><h1>{t("Shop customer service")}</h1><p>{t("Ask this shop about products, orders, delivery or returns. Your conversation is private to this browser and the shop team. Replies appear here, not by email or SMS.")}</p>
+    {error&&<p className="error-banner" role="alert">{t(error)}</p>}{notice&&<p role="status">{t(notice)}</p>}
+    <div className="customer-support-layout"><section><h2>{t("New support request")}</h2><form className="checkout-fields" onSubmit={e=>void send(e)}>
+      {([ ["customer","Your name","text"],["email","Email","email"],["phone","Phone","tel"],["subject","Subject","text"],["orderId","Order ID (optional, from this browser)","text"] ] as const).map(([key,label,type])=><label className="field" key={key}>{t(label)}<input type={type} required={key==="customer"||key==="subject"||key==="phone"&&!form.email.trim()} maxLength={key==="customer"?120:key==="email"?180:key==="phone"?60:key==="subject"?160:100} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}
+      <label className="field">{t("Help topic")}<select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{["product","order","delivery","return","other"].map(category=><option key={category} value={category}>{t(category)}</option>)}</select></label>
+      <label className="field">{t("Your message")}<textarea rows={5} required maxLength={3000} value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/></label><button className="primary" disabled={busy||!loaded}>{t(busy?"Sending…":"Send support request")}</button>
+    </form></section>
+    <section><div className="support-title"><h2>{t("Your conversations")}</h2><button type="button" onClick={()=>void load()}>{t("Refresh")}</button></div>{!loaded&&<p role="status">{t("Loading support…")}</p>}{loaded&&!tickets.length&&<p>{t("No support requests in this browser yet.")}</p>}
+      <div className="support-ticket-list">{tickets.map(item=><button type="button" key={item.id} aria-pressed={ticket?.id===item.id} onClick={()=>{setSelected(item.id);setReply("");}}>{item.subject} · {t(item.status)}</button>)}</div>
+      {ticket&&<article className="support-conversation"><h3>{ticket.subject}</h3><p>{t(ticket.status)} · {t(ticket.category)}</p><small>{ticket.id}</small>{ticket.orderId&&<p>{t("Linked order")}: {ticket.orderId}</p>}<div className="support-messages">{ticket.messages.map(message=><blockquote data-sender={message.from} key={message.id}><strong>{t(message.from==="store"?"Shop team":"You")}</strong><time dateTime={message.at}>{new Date(message.at).toLocaleString()}</time><p dir="auto">{message.message}</p></blockquote>)}</div>
+      <form onSubmit={e=>void send(e,true)}><label className="field">{t("Send a follow-up")}<textarea required rows={3} maxLength={3000} value={reply} onChange={e=>setReply(e.target.value)}/></label><button className="primary" disabled={busy||!reply.trim()}>{t("Send message")}</button></form></article>}
+    </section></div>
+  </section>;
+}
