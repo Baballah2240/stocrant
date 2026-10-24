@@ -2,6 +2,12 @@
 
 Keep mobile changes here in the same commit as their corresponding website changes.
 
+## 2026-10-24 - Connected finance workspace
+
+- Add Finance overview, Sales, Purchases, Banking, all movements and cash-basis profit/loss views using the existing account ledger and source settlements.
+- Bring salary configuration, payroll approvals, payments and payslips into Finance; retain permissions and independent approvals. Refresh linked balances after payments.
+- Exclude financing, advances and transfers from operating profit; show cash movement separately. Include Arabic and responsive layouts. No native build or phone installation performed.
+
 ## 2026-10-23 - Visible shopping bag
 
 - Keep the store header and bag at the top while scrolling. The bag highlights when it contains products and gently moves after successful additions; reduced-motion settings disable the movement.

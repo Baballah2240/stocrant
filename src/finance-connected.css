@@ -1,0 +1,10 @@
+.finance-shortcuts { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-block:20px; }
+.finance-shortcuts button { display:flex;justify-content:space-between;align-items:center;padding:20px;text-align:start;border-radius:14px;font-weight:600;min-height:64px; }
+.finance-connected { display:grid;gap:16px;padding-block:16px; }
+.finance-connected .table th { text-align:start; }
+.finance-connected .table td { text-align:end;font-variant-numeric:tabular-nums; }
+.finance-connected .table tbody tr:last-child { font-weight:700;font-size:1.1em; }
+.finance-page .payroll-page { padding:0;min-width:0; }
+.finance-tabs { flex-wrap:wrap; }
+@media(max-width:640px) { .finance-shortcuts { grid-template-columns:repeat(2,minmax(0,1fr)); } .finance-shortcuts button { padding:14px; } .finance-tabs { flex-wrap:nowrap;overflow-x:auto;max-width:100%; } .finance-tabs button { flex-shrink:0;white-space:nowrap; } }
+@media print { .finance-shortcuts { display:none; } }

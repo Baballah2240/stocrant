@@ -27,7 +27,7 @@
     "mobile:add:android": "npx cap add android",
     "mobile:add:ios": "npx cap add ios",
     "check:data": "node scripts/check-data.mjs",
-    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run test:financial-money && npm run test:translations && npm run build:website && npm run build:shop && npm run build:frontend && npm run test:production",
+    "check": "npm run typecheck && tsc --noEmit -p tsconfig.json && npm test && npm run test:lock && npm run test:notifications && npm run test:finance-connected && npm run test:financial-money && npm run test:translations && npm run build:website && npm run build:shop && npm run build:frontend && npm run test:production",
     "test:translations": "node --test scripts/test-translations.mjs scripts/test-public-language.mjs scripts/test-shop-language.mjs",
     "test:production": "node scripts/verify-production.mjs",
     "test:notifications": "node --test scripts/test-notification-activity.mjs",
@@ -58,7 +58,8 @@
     "build:shop": "node ./node_modules/typescript/bin/tsc --noEmit -p shop-website/tsconfig.json && node ./node_modules/vite/bin/vite.js build --config shop-website/vite.config.ts",
     "test:storefront": "npm run build:full && node scripts/verify-storefront.mjs",
     "test:merchandising": "npm run build:full && node scripts/verify-merchandising.mjs",
-    "preview:shop": "npm run build:full && node scripts/preview-storefront.mjs"
+    "preview:shop": "npm run build:full && node scripts/preview-storefront.mjs",
+    "test:finance-connected": "node --test scripts/test-finance-connected.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "9.1.2",
