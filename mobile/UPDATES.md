@@ -1,5 +1,10 @@
 # Mobile update history
 
+## 2026-10-25 - Company store link in shop connections
+
+- Show the selected company's saved storefront address and publication status in Shops & orders → Shop connections, with an Open shop link for published stores and a shortcut to storefront settings.
+- Use the configured server origin on mobile, keep company switching scoped, and support Arabic and draft/unconfigured states. No native build or installation performed.
+
 Keep mobile changes here in the same commit as their corresponding website changes.
 
 ## 2026-10-24 - Connected finance workspace

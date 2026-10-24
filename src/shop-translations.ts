@@ -1,4 +1,8 @@
 export const shopTranslations: Record<string, string> = {
+  "Company store link": "رابط متجر الشركة",
+  "Store address": "عنوان المتجر",
+  "This store is a draft. Publish it in Customer storefront before sharing the link.": "هذا المتجر مسودة. انشره من واجهة متجر العملاء قبل مشاركة الرابط.",
+  "Set up this company's storefront to create its store link.": "أعد واجهة متجر هذه الشركة لإنشاء رابط المتجر.",
   "Product has a warranty": "المنتج مشمول بضمان",
   "Warranty details (optional)": "تفاصيل الضمان (اختياري)",
   "Warranty included": "يشمل ضماناً",

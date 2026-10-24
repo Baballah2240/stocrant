@@ -5,6 +5,7 @@ import { useLanguage } from "../language-context";
 import { useSession } from "../session-context";
 import "../shop-workspace.css";
 import StorefrontSettings from "./StorefrontSettings";
+import CompanyStoreLink from "./CompanyStoreLink";
 import ProductPhotos, { ShopImage } from "./ProductPhotos";
 
 type Company = { id: string; name: string; currency: string };
@@ -1062,6 +1063,7 @@ export default function ShopWorkspace() {
             )}
             {tab === "connections" && canConnect && (
               <section className="card">
+                <CompanyStoreLink key={companyId} companyId={companyId} companyName={companies.find(company => company.id === companyId)?.name || ""} configure={() => setTab("storefront")} />
                 <h2>{t("Connect your custom shop")}</h2>
                 <p>
                   {t(
