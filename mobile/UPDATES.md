@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-25 - Main Administrator rule editing
+
+- Add approval-rule editing in Access & Settings: create rules, change their section/action and enable or disable them. Keep role creation/editing available to Main Admin.
+- Validate rule edits and reject duplicates and unrelated fields. Keep changes immediate and audited; other admins cannot change global rules. Approval rules continue to apply to other users.
+- No native build or installation performed.
+
 ## 2026-10-25 - Administrator handover
 
 - Allow the Main Administrator to disable an unchanged account after its company or role is archived. Keep reactivation and scope-change validation, designated-admin protection and last-Main protection.

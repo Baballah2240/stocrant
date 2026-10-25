@@ -541,10 +541,11 @@ router.patch("/access/roles/:id", requirePermission("access", "edit"), (req, res
   if (!parsed.success) return res.status(400).json({ error: "Invalid role permissions or access scope." });
   try { res.json(mutateCollection(req.auth!, "accessRoles", "edit", parsed.data, role.id)); } catch (error) { sendError(res, error); }
 });
+const approvalRuleSchema=z.object({section:z.enum(["organizations","locations","hr","operations","customerService","inventory","finance","access"]),action:z.enum(["create","edit","delete"]),active:z.boolean().default(true)}).strict();
 router.get("/access/approval-rules", requirePermission("access", "view"), (req, res) => { if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to view global approval rules." }); res.json({ items: rows("approvalRules") }); });
 router.post("/access/approval-rules", requirePermission("access", "create"), (req, res) => {
   if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to change global approval rules." });
-  const parsed = z.object({ section: z.enum(["organizations", "locations", "hr", "operations", "customerService", "inventory", "finance", "access"]), action: z.enum(["create", "edit", "delete"]), active: z.boolean().default(true) }).safeParse(req.body);
+  const parsed = approvalRuleSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose a section and sensitive action." });
   try {
     const existing = rows("approvalRules").find((rule) => rule.section === parsed.data.section && rule.action === parsed.data.action);
@@ -556,7 +557,11 @@ router.patch("/access/approval-rules/:id", requirePermission("access", "edit"), 
   if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to change global approval rules." });
   const rule = rows("approvalRules").find((item) => item.id === req.params.id);
   if (!rule) return res.status(404).json({ error: "Approval rule not found." });
-  try { res.json(mutateCollection(req.auth!, "approvalRules", "edit", req.body as Record<string, unknown>, rule.id)); } catch (error) { sendError(res, error); }
+  const parsed=approvalRuleSchema.partial().safeParse(req.body);
+  if(!parsed.success||!Object.keys(parsed.data).length)return res.status(400).json({error:"Choose a section, action and valid active status."});
+  const next={...rule,...parsed.data};
+  if(rows("approvalRules").some(item=>item.id!==rule.id&&item.section===next.section&&item.action===next.action))return res.status(409).json({error:"An approval rule already exists for this section and action."});
+  try { res.json(mutateCollection(req.auth!, "approvalRules", "edit", parsed.data, rule.id)); } catch (error) { sendError(res, error); }
 });
 
 router.post("/access/users", requirePermission("access", "create"), async (req, res) => {

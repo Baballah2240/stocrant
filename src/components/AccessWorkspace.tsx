@@ -1,3 +1,4 @@
+import ApprovalRuleManagement from "./ApprovalRuleManagement";
 import RoleManagement from "./RoleManagement";
 import AdministrationPolicy from "./AdministrationPolicy";
 import ApprovalRequests from "./ApprovalRequests";
@@ -57,7 +58,7 @@ export default function AccessWorkspace() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(blankForm);
-  const [ruleForm, setRuleForm] = useState({ section: "finance", action: "create" });
+
 
   const load = useCallback(async () => {
     if (!canView) return;
@@ -122,7 +123,7 @@ export default function AccessWorkspace() {
         {tab === "Onboarding & Security"&&main&&<AdministrationPolicy/>}
         {tab === "Roles" && main && <RoleManagement onChanged={load}/>}
         {tab === "Manage app" && main && <><div className="hr-link-grid">{[{ to: "/organizations", label: "Organizations & companies", detail: "Manage your organization structure" }, { to: "/stores", label: "Locations", detail: "Manage company locations" }, { to: "/hr", label: "Employees & HR", detail: "Add employees and manage HR records" }, { to: "/operations", label: "Operations", detail: "Assignments and business records" }, { to: "/inventory", label: "Inventory", detail: "Items, employee access and movements" }, { to: "/finance", label: "Finance", detail: "Accounts and financial movements" }].map(link => <NavLink className="hr-record-link" key={link.to} to={link.to}><div><strong>{t(link.label)}</strong><span>{t(link.detail)}</span></div></NavLink>)}</div><h3>{t("All records")}</h3><div className="hr-link-grid">{entities.filter(entity => entity.module !== "admin").map(entity => <NavLink className="hr-record-link" key={entity.collection} to={`/${entity.module}/${entity.collection}`}><strong>{t(entity.label)}</strong><span>{t("View, add and edit records")}</span></NavLink>)}</div></>}
-        {tab === "Approval rules" && main && <><form className="inline-form" onSubmit={event => { event.preventDefault(); void perform(() => api.workspace.saveApprovalRule({ ...ruleForm, active: true }), "Approval rule saved."); }}><label className="form-field"><span className="field-label">{t("Section")}</span><ChoiceSelect value={ruleForm.section} onChange={event => setRuleForm({ ...ruleForm, section: event.target.value })}>{sections.filter(section => !["audit", "approvals", "shops"].includes(section)).map(section => <option value={section} key={section}>{t(sectionLabels[section])}</option>)}</ChoiceSelect></label><label className="form-field"><span className="field-label">{t("Action")}</span><ChoiceSelect value={ruleForm.action} onChange={event => setRuleForm({ ...ruleForm, action: event.target.value })}>{["create", "edit", "delete"].map(action => <option key={action} value={action}>{t(action)}</option>)}</ChoiceSelect></label><button className="primary" disabled={saving}>{t("Require approval")}</button></form><div className="stack-list">{rules.length ? rules.map(rule => <div className="approval-row" key={rule.id}><div><strong>{t(sectionLabels[String(rule.section)] || String(rule.section))} · {t(String(rule.action))}</strong><span>{t(rule.active ? "Approval required before change is applied" : "Approval not required")}</span></div><label className="switch-field"><input type="checkbox" checked={rule.active === true} disabled={saving} onChange={event => void perform(() => api.workspace.updateApprovalRule(rule.id, { active: event.target.checked }), "Approval rule saved.")} />{t("Active")}</label></div>) : <p className="empty">{t("No approval rules configured.")}</p>}</div></>}
+        {tab === "Approval rules" && main && <ApprovalRuleManagement rules={rules} saving={saving} onSave={(id,input)=>perform(()=>id?api.workspace.updateApprovalRule(id,input):api.workspace.saveApprovalRule(input),"Approval rule saved.")}/>}
         {tab === "Approvals" && canApprovals && !loading && <ApprovalRequests items={approvals} busy={saving} refresh={load}/>}
         {tab === "Audit" && canAudit && <AuditPanel entries={audit} />}
         {tab === "App lock" && <LockSettings />}{tab === "Mobile app" && main && <ServerSettings />}

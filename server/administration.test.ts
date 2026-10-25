@@ -31,6 +31,18 @@ before(async()=>{
 });
 after(async()=>{for(const value of [server,mailServer]){value.closeAllConnections();await new Promise<void>((resolve,reject)=>value.close(err=>err?reject(err):resolve()));}assert.ok(resolve(TEST_DATA_DIR).startsWith(resolve(tmpdir())+sep));rmSync(TEST_DATA_DIR,{recursive:true,force:true});});
 describe("Access administration and secure onboarding",()=>{
+ it("lets Main Admin create and fully edit approval rules while rejecting invalid or duplicate settings",async()=>{
+  const available=["organizations","locations","hr","operations","customerService","inventory","finance","access"].flatMap(section=>["create","edit","delete"].map(action=>({section,action}))).filter(candidate=>!rows("approvalRules").some(rule=>rule.section===candidate.section&&rule.action===candidate.action));
+  const first=(await json(await req("/workspace/access/approval-rules","POST",{...available[0],active:false}),201)).item;
+  const edited=await json(await req(`/workspace/access/approval-rules/${first.id}`,"PATCH",{...available[1],active:true}));assert.equal(edited.pending,false);assert.equal(edited.item.id,first.id);assert.equal(edited.item.section,available[1].section);assert.equal(edited.item.action,available[1].action);assert.equal(edited.item.active,true);
+  const other=(await json(await req("/workspace/access/approval-rules","POST",{...available[2],active:false}),201)).item;
+  await json(await req(`/workspace/access/approval-rules/${first.id}`,"PATCH",available[2]),409);
+  for(const input of [{section:"unknown"},{active:"true"},{id:"changed-id"},{}])await json(await req(`/workspace/access/approval-rules/${first.id}`,"PATCH",input),400);
+  await json(await req(`/workspace/access/approval-rules/${first.id}`,"PATCH",{active:false},manager),403);
+  await json(await req("/workspace/access/approval-rules","POST",{...available[0],active:true},manager),403);
+  assert.ok(rows("auditLog").some(event=>event.collection==="approvalRules"&&event.targetId===first.id));
+  await json(await req(`/workspace/access/approval-rules/${first.id}`,"PATCH",{active:false}));await json(await req(`/workspace/access/approval-rules/${other.id}`,"PATCH",{active:false}));
+ });
  it("atomically creates one employee, ID, username, account and encrypted mail job under concurrent retries",async()=>{
   const body=person("Repeated Employee","employee@administration.test",{clientRequestId:randomUUID()});const results=await Promise.all([req("/collections/employees","POST",body),req("/collections/employees","POST",body)]);const a=await json(results[0],201),b=await json(results[1],201);employee=a.item;assert.equal(a.item.id,b.item.id);assert.match(employee.employeeCode,/^EMP-/);assert.equal(rows("accessUsers").filter(row=>row.employeeId===employee.id).length,1);assert.equal(rows("onboardingEmails").filter(row=>row.employeeId===employee.id).length,1);assert.equal(onboardingStatus(employee.id).status,"pending");assert.ok(rows("onboardingEmails")[0].encryptedPayload);assert.ok(!JSON.stringify(getStore()).includes("#activate="));
  });

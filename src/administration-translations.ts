@@ -1,4 +1,10 @@
 export const administrationTranslations:Readonly<Record<string,string>>={
+ "Edit approval rule":"تعديل قاعدة الموافقة",
+ "Create approval rule":"إنشاء قاعدة موافقة",
+ "Save approval rule":"حفظ قاعدة الموافقة",
+ "Main Administrator changes apply immediately. These rules apply to other users.":"تُطبّق تغييرات المدير الرئيسي فوراً. تنطبق هذه القواعد على المستخدمين الآخرين.",
+ "An approval rule already exists for this section and action.":"توجد بالفعل قاعدة موافقة لهذا القسم والإجراء.",
+ "Choose a section, action and valid active status.":"اختر قسماً وإجراءً وحالة تفعيل صحيحة.",
  "Main Administrator authority":"صلاحيات المدير الرئيسي",
  "Main Administrator changes apply immediately without approval. Approval rules continue to apply to other users. Changes remain recorded in Audit.":"تطبق تغييرات المدير الرئيسي فوراً دون موافقة. تظل قواعد الموافقة سارية على المستخدمين الآخرين وتسجل التغييرات في التدقيق.",
  "Main Administrator decisions take effect immediately and are recorded in Audit.":"تطبق قرارات المدير الرئيسي فوراً وتسجل في التدقيق.",
