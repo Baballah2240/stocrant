@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-26 - Parent and reverse order numbers
+
+- Assign random unique SO order numbers and persistent RV reverse-order numbers linked to their parent. Add stable numbers to existing orders and returns without changing internal IDs or financial history.
+- Search orders by number, start a reverse order from its parent, and enter a parent number in Shop returns. Preserve the existing paid full-return, stock, approval and refund safeguards.
+- Show parent numbers on customer receipts and printed labels. No native build or installation performed.
+
 ## 2026-10-26 - Shop sales dashboard, returns and labels
 
 - Add Sales dashboard and Shop returns inside Shop settings. Show exact shop sales, credits, collections, refunds and gross profit using dispatch-time product costs; flag historical missing costs instead of estimating profit.

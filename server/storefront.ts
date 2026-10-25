@@ -322,6 +322,7 @@ function quoteToken(
 function receipt(order: Row) {
   return {
     id: order.id,
+    orderNumber:order.orderNumber,
     status: order.status,
     currency: order.currency,
     subtotal: order.subtotal,

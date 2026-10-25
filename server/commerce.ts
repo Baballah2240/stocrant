@@ -8,6 +8,7 @@ import { photoUrl, photoList, validatePhotos, productPhotos } from "./shop-media
 import { can, isWithinScope, ownRecordsRequired, isShopManager } from "./permissions.js";
 import {shopSettings} from "./shop-settings.js";
 import {shopReport} from "./shop-report.js";
+import {newShopNumber} from "./shop-order-numbers.js";
 import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 import { audit, mutateCollection, requiresApproval } from "./workspace.js";
 import {
@@ -303,6 +304,7 @@ export function createShopOrder(
     fail("Discount exceeds the products subtotal.");
   return insert("shopOrders", {
     ...body,
+    orderNumber:newShopNumber("SO",rows("shopOrders")),
     lines,
     delivery,
     discount,
@@ -560,11 +562,11 @@ commerceRouter.post("/:companyId/orders", (req, res) => {
 commerceRouter.put("/:companyId/products/:id/cost",(req,res)=>{
  try{const c=shopCompany(req.auth!,String(req.params.companyId));if(!can(req.auth,"shops","configure")||!can(req.auth,"finance","approve"))fail("Shop configuration and Finance approval permissions are required.",403);const b=z.object({version:z.number().int(),unitCost:z.string()}).strict().parse(req.body);res.json(write(req.auth!,c.id,"cost.updated",()=>{const product=visibleProduct(req.auth!,c.id,String(req.params.id));if(product.version!==b.version)fail("Product changed. Reload before saving.",409);const unitCost=cashAmount(b.unitCost,c.currency);if(scaled(unitCost)<0n)fail("Cost cannot be negative.");product.unitCost=unitCost;product.version++;return product;}));}catch(e){sendError(res,e);}
 });
-commerceRouter.post("/:companyId/orders/:id/returns",(req,res)=>{
+commerceRouter.post(["/:companyId/orders/:id/returns","/:companyId/orders/:id/reverse"],(req,res)=>{
  try{shopPermission(req.auth!,"edit");const c=shopCompany(req.auth!,String(req.params.companyId));if(!can(req.auth,"shops","configure")||!can(req.auth,"finance","approve")||!can(req.auth,"finance","create"))fail("Shop configuration and Finance approval permissions are required.",403);
  const b=z.object({requestId:z.string().uuid(),reason:z.enum(["damaged","wrong-item","defective","change-of-mind","expired"]),restock:z.boolean()}).strict().parse(req.body);
- res.status(201).json(write(req.auth!,c.id,"return.created",()=>{const order=rows("shopOrders").find(o=>o.id===req.params.id&&o.organizationId===c.id);if(!order)fail("Order not found.",404);order.lines.forEach((l:Row)=>visibleProduct(req.auth!,c.id,l.productId));const prior=rows("returns").find(r=>r.organizationId===c.id&&r.shopOrderId===order.id);if(prior){if(prior.shopRequestId===b.requestId&&prior.reason===b.reason&&prior.restock===b.restock)return prior;fail("This order already has a return.",409);}if(!order.saleId||!["dispatched","delivered"].includes(order.status))fail("Only dispatched or delivered orders can be returned.",409);const sale=rows("sales").find(s=>s.id===order.saleId&&s.organizationId===c.id);const settlement=sale&&settlementRows("sales",sale);if(!settlement||settlement.outstanding===null||scaled(settlement.outstanding)!==0n)fail("Fully settle this order before creating a full return.",409);
- const result=mutateCollection(req.auth!,"returns","create",{organizationId:c.id,currency:order.currency,rmaNumber:`SHOP-R-${b.requestId}`,date:companyFinanceDate(c.id),invoiceNo:sale!.invoiceNo,customer:order.customer,reason:b.reason,refund:order.total,status:"approved",shopOrderId:order.id,shopRequestId:b.requestId,restock:b.restock},undefined,"create",c.id);if(result.pending||!result.item)fail("An authorized shop manager must approve this return.",409);
+ res.status(201).json(write(req.auth!,c.id,"return.created",()=>{const order=rows("shopOrders").find(o=>(o.id===req.params.id||o.orderNumber===String(req.params.id).trim().toUpperCase())&&o.organizationId===c.id);if(!order)fail("Order not found.",404);order.lines.forEach((l:Row)=>visibleProduct(req.auth!,c.id,l.productId));const prior=rows("returns").find(r=>r.organizationId===c.id&&r.shopOrderId===order.id);if(prior){if(prior.shopRequestId===b.requestId&&prior.reason===b.reason&&prior.restock===b.restock)return prior;fail("This order already has a return.",409);}if(!order.saleId||!["dispatched","delivered"].includes(order.status))fail("Only dispatched or delivered orders can be returned.",409);const sale=rows("sales").find(s=>s.id===order.saleId&&s.organizationId===c.id);const settlement=sale&&settlementRows("sales",sale);if(!settlement||settlement.outstanding===null||scaled(settlement.outstanding)!==0n)fail("Fully settle this order before creating a full return.",409);
+ const reverseOrderNumber=newShopNumber("RV",rows("returns"));const result=mutateCollection(req.auth!,"returns","create",{organizationId:c.id,currency:order.currency,parentOrderNumber:order.orderNumber,reverseOrderNumber,rmaNumber:reverseOrderNumber,date:companyFinanceDate(c.id),invoiceNo:sale!.invoiceNo,customer:order.customer,reason:b.reason,refund:order.total,status:"approved",shopOrderId:order.id,shopRequestId:b.requestId,restock:b.restock},undefined,"create",c.id);if(result.pending||!result.item)fail("An authorized shop manager must approve this return.",409);
  if(b.restock)for(const line of order.lines){const p=visibleProduct(req.auth!,c.id,line.productId);insert("inventoryMovements",{inventoryItemId:p.inventoryItemId,organizationId:c.id,locationId:p.locationId,type:"return",quantity:line.quantity,date:companyFinanceDate(c.id),reason:"Shop order returned",reference:result.item.rmaNumber,shopOrderId:order.id,shopReturnId:result.item.id,createdBy:req.auth!.id,createdByName:req.auth!.name});}
  return result.item;}));}catch(e){sendError(res,e);}
 });
@@ -664,6 +666,7 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
                       .locationId
                   : undefined,
               invoiceNo: `SHOP-${o.id}`,
+              parentOrderNumber:o.orderNumber,
               date: companyFinanceDate(c.id),
               customer: o.customer,
               channel: "online",
@@ -833,6 +836,7 @@ shopIntegrationRouter.post("/orders", (req, res) => {
     );
     res.status(201).json({
       id: order.id,
+      orderNumber: order.orderNumber,
       status: order.status,
       total: order.total,
       currency: order.currency,
@@ -860,6 +864,7 @@ shopIntegrationRouter.get("/orders/:id", (req, res) => {
   if (!order) return res.status(404).json({ error: "Order not found." });
   res.json({
     id: order.id,
+    orderNumber:order.orderNumber,
     status: order.status,
     tracking: order.tracking || "",
     total: order.total,

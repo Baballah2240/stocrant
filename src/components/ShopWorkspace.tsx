@@ -38,6 +38,7 @@ type Product = {
 };
 type Order = {
   id: string;
+  orderNumber?:string;
   customer: string;
   phone: string;
   email: string;
@@ -124,6 +125,7 @@ export default function ShopWorkspace() {
   const [selectedOrder, setSelectedOrder] = useState(""),
     [tracking, setTracking] = useState("");
   const [label,setLabel]=useState<{id:string;reference?:string}|null>(null);
+  const [reverseParent,setReverseParent]=useState("");
   const [key, setKey] = useState(""),
     [connectionName, setConnectionName] = useState("");
   const [receipt, setReceipt] = useState({
@@ -198,6 +200,7 @@ export default function ShopWorkspace() {
     setPreview([]);
     setSelectedOrder("");
     setLabel(null);
+    setReverseParent("");
     setEditingProduct(null);
     setPhotoBusy(false);
     setProductFilter("all"); setOrderFilter("all"); setSearch(""); setOrderSearch("");
@@ -284,7 +287,7 @@ export default function ShopWorkspace() {
   function warrantyFields(enabled: boolean, details: string, update: (warranty: boolean, warrantyDetails: string) => void) { return <div className="shop-warranty-fields"><label className="merch-check"><input type="checkbox" checked={enabled} onChange={event=>update(event.target.checked,event.target.checked ? details : "")} />{t("Product has a warranty")}</label>{enabled && field("Warranty details (optional)",details,value=>update(true,value),"text",false)}</div>; }
   const selected = data.orders.find((o) => o.id === selectedOrder);
   const visibleProducts = data.products.filter(p => (`${p.name} ${p.sku} ${p.category || ""}`).toLowerCase().includes(search.toLowerCase()) && (productFilter === "all" || productFilter === "active" && p.active || productFilter === "paused" && !p.active || productFilter === "out" && p.available === 0));
-  const visibleOrders = data.orders.filter(o => (orderFilter === "all" || o.status === orderFilter) && (`${o.customer} ${o.phone} ${o.id} ${o.tracking || ""}`).toLowerCase().includes(orderSearch.toLowerCase()));
+  const visibleOrders = data.orders.filter(o => (orderFilter === "all" || o.status === orderFilter) && (`${o.customer} ${o.phone} ${o.orderNumber||""} ${o.id} ${o.tracking || ""}`).toLowerCase().includes(orderSearch.toLowerCase()));
   const completionBlocked = Boolean(selected?.status === "dispatched" && data.settings?.requirePaymentBeforeCompletion && (!selected.settlement || selected.settlement.outstanding == null || Number(selected.settlement.outstanding) > 0));
   async function importExcel(file?: File) {
     if (!file) return;
@@ -483,7 +486,7 @@ export default function ShopWorkspace() {
               </section>
             )}
             {tab==="dashboard"&&canConnect&&<ShopSalesDashboard companyId={companyId} report={data.report} orders={data.orders} products={data.products} canConfigure={Boolean(permits("shops","configure")&&permits("finance","approve"))} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}} openOrder={id=>{setSelectedOrder(id);setOrderFilter("all");setOrderSearch("");setTab("orders");}} print={id=>setLabel({id})}/>}
-            {tab==="returns"&&canConnect&&<ShopReturns key={companyId} companyId={companyId} orders={data.orders} returns={data.returns||[]} canManage={Boolean(permits("shops","configure")&&permits("finance","approve")&&permits("finance","create"))} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);window.dispatchEvent(new Event("stocrant:finance-changed"));}} print={(id,reference)=>setLabel({id,reference})}/>}
+            {tab==="returns"&&canConnect&&<ShopReturns key={companyId} initialParent={reverseParent} openOrder={id=>{setSelectedOrder(id);setOrderFilter("all");setOrderSearch("");setTab("orders");}} companyId={companyId} orders={data.orders} returns={data.returns||[]} canManage={Boolean(permits("shops","configure")&&permits("finance","approve")&&permits("finance","create"))} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);window.dispatchEvent(new Event("stocrant:finance-changed"));}} print={(id,reference)=>setLabel({id,reference})}/>}
             {tab==="settings"&&canConnect&&<ShopOperationsSettings key={companyId} companyId={companyId} currency={c?.currency||""} settings={data.settings} accounts={data.paymentAccounts||[]} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}}/>}
             {tab==="shop-users"&&canConnect&&permits("access","create")&&<ShopStaffSettings key={companyId} companyId={companyId}/>}
             {tab === "products" && (
@@ -876,7 +879,7 @@ export default function ShopWorkspace() {
                       >
                         <span>
                           <strong>{o.customer}</strong>
-                          <small dir="ltr">#{o.id.slice(0, 8)}</small>
+                          <small dir="ltr">{o.orderNumber||`#${o.id.slice(0, 8)}`}</small>
                         </span>
                         <span className={`shop-status status-${o.status}`}>{t(o.status)}</span>
                         <strong>
@@ -898,10 +901,13 @@ export default function ShopWorkspace() {
                   <section className="card shop-order-detail" aria-live="polite">
                     <div className="shop-section-title">
                       <h2>{selected.customer}</h2>
+                      <strong dir="ltr">{selected.orderNumber}</strong>
                       <button type="button" onClick={()=>setLabel({id:selected.id})}>{t("Print label")}</button>
+                      {canConnect&&permits("finance","approve")&&["dispatched","delivered"].includes(selected.status)&&<button type="button" onClick={()=>{setReverseParent(selected.orderNumber||"");setTab("returns");}}>{t("Create reverse order")}</button>}
                       <span className={`shop-status status-${selected.status}`}>{t(selected.status)}</span>
                     </div>
                     <ShopOrderProgress status={selected.status} paymentRequired={Boolean(data.settings?.requirePaymentBeforeCompletion)} outstanding={selected.settlement?.outstanding}/>
+                    {(data.returns||[]).filter(item=>item.shopOrderId===selected.id).map(item=><p key={item.id}>{t("Reverse order number")}: <button type="button" onClick={()=>{setReverseParent(selected.orderNumber||"");setTab("returns");}}>{item.reverseOrderNumber||item.rmaNumber}</button></p>)}
                     <p className="shop-contact-line">
                       <a dir="ltr" href={`tel:${selected.phone.replace(/[^+\d]/g, "")}`}>{selected.phone}</a>
                       {selected.email && <a dir="ltr" href={`mailto:${selected.email}`}>{selected.email}</a>}

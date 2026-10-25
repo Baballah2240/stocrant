@@ -1,6 +1,7 @@
 /** Additive tenant migration. Legacy organizationId/organizationIds mean COMPANY.
  * Keep them unchanged; only parentOrganizationId/tenantOrganizationIds mean organization. */
 import type { StoreData } from "./storage.js";
+import {migrateShopNumbers} from "./shop-order-numbers.js";
 
 export const DEFAULT_ORGANIZATION_ID = "organization-primary";
 export function migrateOrganizations(data: StoreData): boolean {
@@ -53,5 +54,5 @@ export function migrateOrganizations(data: StoreData): boolean {
     if (account) { org.mainAdminAccountId = account.id; org.adminVersion = 1; changed = true; }
   }
   if (settings && settings.schemaVersion !== 4) { settings.schemaVersion = 4; changed = true; }
-  return changed;
+  return migrateShopNumbers(data.collections) || changed;
 }

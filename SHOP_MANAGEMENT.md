@@ -11,6 +11,8 @@ Open **Shops & orders → Shop settings** for the selected company:
 
 Use **Print label** on an order, a dashboard sales row or a return to preview and print its customer, item and tracking/reference details. No shipping carrier booking is performed.
 
+Each order has a random unique `SO-…` parent order number. Search it in Orders and choose **Create reverse order**, or enter the number in **Shop returns → Parent order number**. A confirmed full return gets an independent `RV-…` reverse order number linked to the same parent, stock movement and Finance refund record. Existing orders receive stable numbers without changing their internal URLs, sales or payment references. Order numbers are references, not credentials; company access and the private customer receipt token are still required.
+
 Orders reserve stock when placed. Preparing preserves the reservation. Dispatch deducts stock once and creates the linked credit sale. In the order details, **Record confirmed payment** records money already received into the selected account. This is the same Finance transaction, source sale and reference, including partial payments and duplicate/overpayment protection. Completion can require a zero outstanding balance. Payment reversal and refunds use the existing Finance controls.
 
 These are manual payment confirmations after dispatch. This change does not add card processing, a payment gateway, or capture money from customers online.

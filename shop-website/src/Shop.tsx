@@ -65,6 +65,7 @@ type Quote = {
 };
 type Receipt = {
   id: string;
+  orderNumber?:string;
   status: string;
   currency: string;
   subtotal: string;
@@ -1273,7 +1274,7 @@ export default function Shop() {
         ) : path.startsWith("/order/") ? (
           <section className="receipt-page">
             <p className="eyebrow">
-              {t("Order reference")} / {order?.id.slice(0, 8) || "…"}
+              {t("Order reference")} / {order?.orderNumber || order?.id.slice(0, 8) || "…"}
             </p>
             <h1>{t(order ? "Order received." : "Order tracking")}</h1>
             <p>{t("A little closer to your door.")}</p>

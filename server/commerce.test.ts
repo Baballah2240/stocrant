@@ -7,6 +7,7 @@ import { resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import type { Server } from "node:http";
 import { createApp } from "./app.js";
+import {migrateShopNumbers} from "./shop-order-numbers.js";
 import {
   getCollection,
   getStore,
@@ -571,6 +572,13 @@ describe("Company product photo uploads", () => {
 });
 
 describe("Optional product warranties", () => {
+  it("adds stable parent and reverse numbers to legacy records without rewriting financial references",()=>{
+    const collections:Record<string,Row[]>={shopOrders:[{id:"legacy-order",organizationId:"company-a"},{id:"second-order",organizationId:"company-b"}],returns:[{id:"legacy-return",shopOrderId:"legacy-order",organizationId:"company-a",rmaNumber:"KEEP-RMA"}]};
+    assert.equal(migrateShopNumbers(collections),true);const snapshot=JSON.stringify(collections);
+    assert.match(collections.shopOrders[0].orderNumber,/^SO-[A-F0-9]{12}$/);assert.notEqual(collections.shopOrders[0].orderNumber,collections.shopOrders[1].orderNumber);
+    assert.match(collections.returns[0].reverseOrderNumber,/^RV-[A-F0-9]{12}$/);assert.equal(collections.returns[0].parentOrderNumber,collections.shopOrders[0].orderNumber);assert.equal(collections.returns[0].rmaNumber,"KEEP-RMA");
+    assert.equal(migrateShopNumbers(collections),false);assert.equal(JSON.stringify(collections),snapshot);
+  });
   it("persists coverage, preserves it on other edits and clears details when disabled", async () => {
     const created = (await json(await api(prefix() + "/products", "POST", {products:[{sku:"WARRANTY-01",name:"Covered product",price:"10",warranty:true,warrantyDetails:"12 months"},{sku:"WARRANTY-02",name:"Standard product",price:"5"}]}),201)).products;
     assert.equal(created[0].warranty,true); assert.equal(created[1].warranty,false);
@@ -622,6 +630,7 @@ describe("Optional product warranties", () => {
     await json(await api(base+"/receipts","POST",{requestId:randomUUID(),productId:product.id,quantity:5,supplier:"Report supplier",reference:"REPORT-IN"}),201);
     const account=(await json(await api(base+"/settings/accounts","POST",{name:"Report Till",type:"cash"}),201)).item;
     let order=await json(await api(base+"/orders","POST",orderBody({lines:[{productId:product.id,quantity:2}]})),201);
+    assert.match(order.orderNumber,/^SO-[A-F0-9]{12}$/);resetTestCache();assert.equal((await json(await api(base))).orders.find((o:Row)=>o.id===order.id).orderNumber,order.orderNumber);
     await json(await api(base+`/orders/${order.id}/returns`,"POST",{requestId:randomUUID(),reason:"damaged",restock:false}),409);
     order=await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"preparing"}));order=await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"dispatched",tracking:"REPORT-OUT"}));
     assert.equal(order.lines[0].costTotal,"6.50");
@@ -629,7 +638,9 @@ describe("Optional product warranties", () => {
     await json(await api(base+`/orders/${order.id}/returns`,"POST",{requestId:randomUUID(),reason:"damaged",restock:true}),409);
     await json(await api(base+`/orders/${order.id}/payments`,"POST",{idempotencyKey:randomUUID(),accountId:account.id,amount:"20.00",date:new Date().toISOString().slice(0,10),method:"cash",reference:"REPORT-PAID"}),201);
     let snapshot=await json(await api(base));assert.equal(snapshot.report.sales,"20.00");assert.equal(snapshot.report.grossProfit,"13.50");assert.equal(snapshot.report.costs,"6.50");
-    const body={requestId:randomUUID(),reason:"change-of-mind",restock:true},returned=await json(await api(base+`/orders/${order.id}/returns`,"POST",body),201);
+    const body={requestId:randomUUID(),reason:"change-of-mind",restock:true},returned=await json(await api(base+`/orders/${order.orderNumber.toLowerCase()}/reverse`,"POST",body),201);
+    assert.equal(returned.parentOrderNumber,order.orderNumber);assert.match(returned.reverseOrderNumber,/^RV-[A-F0-9]{12}$/);assert.equal(returned.rmaNumber,returned.reverseOrderNumber);
+    await json(await api(`/workspace/shops/${foreign.id}/orders/${order.orderNumber}/reverse`,"POST",body),404);
     const replay=await json(await api(base+`/orders/${order.id}/returns`,"POST",body),201);assert.equal(returned.id,replay.id);
     await json(await api(base+`/orders/${order.id}/returns`,"POST",{...body,requestId:randomUUID()}),409);
     await json(await api(`/workspace/shops/${foreign.id}/orders/${order.id}/returns`,"POST",body),404);
