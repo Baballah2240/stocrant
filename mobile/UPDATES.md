@@ -1,5 +1,10 @@
 # Mobile update history
 
+## 2026-10-25 - Role editor crash fix
+
+- Fix Create role and Edit role crashing when rendering Shops permissions. Add the Shops & orders label and a safe display-name fallback for future permission modules, including search and permission previews.
+- Verify actual role creation and editing with shop permissions, immediate Main changes, and English/Arabic desktop/mobile forms. No native build or installation performed.
+
 ## 2026-10-25 - Main Administrator rule editing
 
 - Add approval-rule editing in Access & Settings: create rules, change their section/action and enable or disable them. Keep role creation/editing available to Main Admin.
