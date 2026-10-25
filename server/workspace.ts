@@ -6,7 +6,7 @@ import { syncEmployeeAccount } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { validateHierarchyMutation } from "./organization-policy.js";
-import { can, canViewSalaryData, canManageHr, isMainManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
+import { can, canViewSalaryData, canManageHr, isMainManager, isShopManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
 import { createNotification } from "./notifications.js";
 import { newProductAwb } from "./product-awb.js";
 import { applyDocumentApproval, managesDocuments, documentCompanyScope } from "./documents.js";
@@ -177,8 +177,10 @@ export function mutateCollection(
   payload: Record<string, unknown> = {},
   targetId?: string,
   permissionAction: PermissionAction = action,
+  shopApprovalCompany?: string,
 ): { pending: boolean; item?: Row; request?: ApprovalRequest } {
-  return transaction(() => performMutation(user, collection, action, payload, targetId, permissionAction));
+  const shopApproved=Boolean(shopApprovalCompany&&isShopManager(user)&&can(user,"finance","approve")&&["sales","financeTransactions","financeAccounts"].includes(collection)&&payload.organizationId===shopApprovalCompany&&isWithinScope(user,{organizationId:shopApprovalCompany}));
+  return transaction(() => performMutation(user, collection, action, payload, targetId, permissionAction, shopApproved));
 }
 
 function currentPayrollTransaction(id?: string) { return id && rows("financeTransactions").some(row => row.id === id && row.payrollRunId); }
@@ -189,7 +191,7 @@ function protectPayrollMutation(collection: string, action: MutationAction, payl
   if (collection === "financeTransactions" && (payload.payrollRunId || (currentPayrollTransaction(targetId)))) throw new Error("Confirmed payroll ledger entries are immutable. Use an approved later-period payroll adjustment.");
 }
 
-function performMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId: string | undefined, permissionAction: PermissionAction): { pending: boolean; item?: Row; request?: ApprovalRequest } {
+function performMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId: string | undefined, permissionAction: PermissionAction, shopApproved=false): { pending: boolean; item?: Row; request?: ApprovalRequest } {
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   const section = sectionForCollection(collection);
   if (!can(user, section, permissionAction)) throw new Error(`You do not have permission to ${action} ${section}.`);
@@ -239,7 +241,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
     if (pending) return { pending:true, request:pending };
     payload.employeeRequestKey = key;
   }
-  if (requiresApproval(section, action, user)) {
+  if (requiresApproval(section, action, user) && !shopApproved) {
     const request: ApprovalRequest = {
       id: rowId("approvalRequests"),
       status: "pending",
@@ -351,6 +353,11 @@ export function approveRequest(user: AuthenticatedUser, requestId: string, appro
 /** Resolve legacy requests through their target/payload without broadening scope. */
 function approvalWithinScope(user: AuthenticatedUser, request: Row): boolean {
   const payload = request.payload && typeof request.payload === "object" ? request.payload as Record<string, unknown> : {};
+  if (user.roleId === "role-shop-manager") {
+    if (!isShopManager(user) || !can(user, "finance", "approve")) return false;
+    const order = rows("shopOrders").find(order => order.id === payload.shopOrderId && order.organizationId === request.organizationId);
+    if (!order || request.collection !== "financeTransactions" || payload.sourceCollection !== "sales" || payload.sourceId !== order.saleId) return false;
+  }
   const current = request.targetId ? rows(String(request.collection)).find(row => row.id === request.targetId) : undefined;
   const scope: Row = { ...current, ...payload, ...request,
     locationId: request.locationId ?? payload.locationId ?? current?.locationId,

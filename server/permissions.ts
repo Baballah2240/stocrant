@@ -74,7 +74,8 @@ export function canReadWebsiteInquiry(user: AuthenticatedUser, _row: Record<stri
   return platformWebsiteInquiries(user);
 }
 
-export function isDelegatedAdmin(user: AuthenticatedUser | undefined) { return Boolean(user && ["role-organization-admin", "role-company-manager"].includes(user.roleId)); }
+export function isDelegatedAdmin(user: AuthenticatedUser | undefined) { return Boolean(user && ["role-organization-admin", "role-company-manager", "role-shop-manager"].includes(user.roleId)); }
+export function isShopManager(user: AuthenticatedUser | undefined) { return Boolean(user?.roleId==="role-shop-manager" && can(user,"shops","configure")); }
 export function companyIdsFor(user: AuthenticatedUser): string[] {
   const role = roleFor(user);
   const roleCompanies = Array.isArray(role?.organizationIds) ? role.organizationIds.map(String) : [];

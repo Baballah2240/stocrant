@@ -584,4 +584,35 @@ describe("Optional product warranties", () => {
     const disabled=await json(await api(prefix()+`/products/${covered.id}`,"PATCH",{...patch,version:paused.version,warranty:false}));
     assert.equal(disabled.warranty,false);assert.equal(disabled.warrantyDetails,"");
   });
+  it("gives the scoped shop manager staff control and immediate shop approvals while posting payments once to Finance",async()=>{
+    const temporary=credentials(),email="shop-owner@commerce.test";
+    const manager=(await json(await api("/workspace/access/users","POST",{name:"Shop Owner",email,password:temporary,roleId:"role-shop-manager",organizationIds:[company.id]}),201)).item;
+    let response=await api("/auth/login","POST",{email,password:temporary},"");await json(response);let ownerCookie=response.headers.get("set-cookie")!.split(";")[0];const password=credentials();await json(await api("/auth/password","POST",{currentPassword:temporary,newPassword:password},ownerCookie));response=await api("/auth/login","POST",{email,password},"");await json(response);ownerCookie=response.headers.get("set-cookie")!.split(";")[0];
+    const staff=(await json(await api("/workspace/access/users","POST",{name:"Shop Staff",email:"shop-staff@commerce.test",password:credentials(),roleId:"role-shop-staff",organizationIds:[company.id]},ownerCookie),201)).item;
+    await json(await api(`/workspace/access/users/${staff.id}`,"PATCH",{roleId:"role-main-manager"},ownerCookie),403);
+    await json(await api("/workspace/access/users","POST",{name:"Foreign shop staff",email:"foreign-staff@commerce.test",password:credentials(),roleId:"role-shop-staff",organizationIds:[foreign.id]},ownerCookie),403);
+    assert.ok((await json(await api("/workspace/access/users","GET",undefined,ownerCookie))).items.every((user:Row)=>user.organizationIds.includes(company.id)&&["role-shop-staff","role-customer-service"].includes(user.roleId)));
+    const rules:Row[]=[];for(const section of ["finance","inventory","operations"]){const response=await api("/workspace/access/approval-rules","POST",{section,action:"create",active:true});assert.ok([200,201].includes(response.status));rules.push((await json(response,response.status)).item);}
+    try{
+      const base=prefix(),newProduct=(await json(await api(base+"/products","POST",{products:[{sku:"MANAGER-FLOW",name:"Manager flow product",price:"10.00"}]},ownerCookie),201)).products[0];
+      await json(await api(base+"/receipts","POST",{requestId:randomUUID(),productId:newProduct.id,quantity:5,supplier:"Shop Supplier",reference:"MANAGER-STOCK"},ownerCookie),201);
+      const account=(await json(await api(base+"/settings/accounts","POST",{name:"Shop Till",type:"cash"},ownerCookie),201)).item;
+      const settings=await json(await api(base+"/settings","PUT",{version:0,paymentAccountId:account.id,requirePaymentBeforeCompletion:true,requireTracking:true,allowedPaymentMethods:["cash"]},ownerCookie));assert.equal(settings.version,1);
+      await json(await api(base+"/settings","PUT",{version:0,paymentAccountId:account.id,requirePaymentBeforeCompletion:true,requireTracking:true,allowedPaymentMethods:["cash"]},ownerCookie),409);
+      let order=await json(await api(base+"/orders","POST",orderBody({externalReference:"MANAGER-ORDER",lines:[{productId:newProduct.id,quantity:2}]}),ownerCookie),201);
+      order=await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"preparing"},ownerCookie));order=await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"dispatched",tracking:"PICKUP-MANAGER"},ownerCookie));assert.ok(order.saleId);
+      await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"delivered"},ownerCookie),409);
+      const payment={idempotencyKey:randomUUID(),accountId:account.id,amount:"20.00",date:new Date().toISOString().slice(0,10),method:"cash",reference:"SHOP-PAID-MANAGER"};
+      const paid=await json(await api(base+`/orders/${order.id}/payments`,"POST",payment,ownerCookie),201);assert.equal(paid.pending,false);const replay=await json(await api(base+`/orders/${order.id}/payments`,"POST",payment,ownerCookie),201);assert.equal(replay.item.id,paid.item.id);
+      await json(await api(base+`/orders/${order.id}/payments`,"POST",{...payment,idempotencyKey:randomUUID(),reference:"EXCESS-SHOP",amount:"1.00"},ownerCookie),409);
+      await json(await api(`/workspace/shops/${foreign.id}/orders/${order.id}/payments`,"POST",payment,ownerCookie),404);
+      await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"delivered"},ownerCookie));
+      const snapshot=await json(await api(base,"GET",undefined,ownerCookie));assert.equal(snapshot.orders.find((item:Row)=>item.id===order.id).settlement.outstanding,"0.00");assert.equal(snapshot.payments.filter((item:Row)=>item.reference===payment.reference).length,1);
+      const finance=await json(await api("/workspace/finance","GET",undefined,ownerCookie));assert.equal(finance.accounts.find((item:Row)=>item.id===account.id).balance,"20.00");assert.ok(finance.transactions.some((item:Row)=>item.reference===payment.reference&&item.sourceId===order.saleId));
+      const ordinary=await json(await api("/workspace/finance/transactions","POST",{accountId:account.id,type:"income",amount:"1.00",date:payment.date,status:"paid",reference:"ORDINARY-FINANCE-RULE"},ownerCookie),202);assert.equal(ordinary.pending,true,"Shop approval authority must not bypass unrelated Finance approval rules");
+      const approvals=await json(await api("/workspace/approvals","GET",undefined,ownerCookie));assert.ok(!approvals.items.some((item:Row)=>item.id===ordinary.request.id),"Shop managers must not see unrelated Finance approvals");
+      assert.equal((getCollection("accessUsers") as Row[]).find(user=>user.id===manager.id)!.roleId,"role-shop-manager");
+    }finally{for(const rule of rules)await json(await api(`/workspace/access/approval-rules/${rule.id}`,"PATCH",{active:false}));}
+  });
+
 });

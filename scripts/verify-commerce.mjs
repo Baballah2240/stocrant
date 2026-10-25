@@ -256,6 +256,7 @@ try {
   await until('document.querySelectorAll(".shop-orders>button").length===0');
   await fill("Order status", "all");
   await until('document.querySelectorAll(".shop-orders>button").length===1');
+  await button("Shop settings");
   await button("Shop connections");
   await fill("Connection name", "Future storefront");
   await button("Create connection key");

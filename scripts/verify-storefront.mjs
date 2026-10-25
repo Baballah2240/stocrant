@@ -52,7 +52,8 @@ try {
   await until('Boolean(document.querySelector(".shop-tabs"))');
   await fill(".shop-workspace .page-header select", fixture.company.id);
   await until('document.querySelectorAll(".shop-product").length===4');
-  await click("Shop connections", ".shop-tabs button");
+  await click("Shop settings", ".shop-tabs button");
+  await click("Shop connections", ".shop-settings-tabs button");
   await until('Boolean(document.querySelector(".shop-company-store-link input"))');
   assert.equal(await evaluate('document.querySelector(".shop-company-store-link input").value'), base + "/shop/amal");
   assert.equal(await evaluate('document.querySelector(".shop-company-store-link a").href'), base + "/shop/amal");

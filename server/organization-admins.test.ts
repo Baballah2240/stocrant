@@ -82,7 +82,7 @@ describe("Organization main admins and company staff delegation", () => {
     await json(await api(`/workspace/access/users/${foreignAccount.id}`, "PATCH", { roleId: "role-hr-staff" }, companyAdmin), 404);
     await json(await api("/workspace/access/users", "POST", { name: "Forbidden peer", email: "peer@organization-admins.test", password: secret(), roleId: "role-company-manager", organizationIds: [company.id] }, companyAdmin), 403);
   });
-  it("delegates a complete shop workflow without granting account administration or another company", async () => {
+  it("delegates a complete shop workflow with scoped shop staff administration", async () => {
     const me = (await json(await api("/auth/me", "GET", undefined, companyAdmin))).user;
     for (const permission of ["finance.*", "payroll.*", "shops.*", "organizations.edit"]) assert.ok(me.permissions.includes(permission));
     await json(await api(`/collections/companies/${company.id}`, "PATCH", { name: "Managed retail company" }, companyAdmin));
@@ -91,7 +91,7 @@ describe("Organization main admins and company staff delegation", () => {
     const shop = await activateTemporary(delegate.email, temporary);
     const prefix = `/workspace/shops/${company.id}`;
     await json(await api(`/workspace/shops/${foreign.id}`, "GET", undefined, shop), 404);
-    await json(await api("/workspace/access/users", "GET", undefined, shop), 403);
+    const shopUsers = await json(await api("/workspace/access/users", "GET", undefined, shop), 200); assert.ok(shopUsers.items.every((user: any) => ["role-shop-staff", "role-customer-service"].includes(user.roleId) && user.organizationIds.includes(company.id)));
     await json(await api("/workspace/access/users", "POST", { name: "Forbidden", email: "forbidden@organization-admins.test", password: secret(), roleId: "role-employee", organizationIds: [company.id] }, shop), 403);
     const product = (await json(await api(prefix + "/products", "POST", { products: [{ sku: "SHOP-01", name: "Shop product", price: "10" }] }, shop), 201)).products[0];
     await json(await api(prefix + "/receipts", "POST", { requestId: randomUUID(), productId: product.id, quantity: 5, supplier: "Supplier", reference: "SHIP-01" }, shop), 201);

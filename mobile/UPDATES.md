@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-10-25 - Connected shop payments and management
+
+- Record confirmed order payments inside Shops with one shared Finance transaction and reference; preserve ledger validation, duplicate protection and company scope.
+- Group order/payment controls, storefront, shop users and connections under Shop settings. Configure payment methods, account, tracking and full-payment completion requirements.
+- Let assigned Shop Managers create and manage Shop Staff and Customer Service accounts, and approve their shop workflow immediately. Protect other companies and platform accounts.
+- Shared website/mobile source updated; no native build or installation performed.
+
 ## 2026-10-25 - Super Admin and additional owner login
 
 - Clearly label the protected platform-wide owner role Super Admin, retaining existing Main Manager/Main Administrator account IDs and logins. Show global user control in Access & Settings and prevent custom roles from imitating the protected name.

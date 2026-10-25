@@ -2,7 +2,7 @@ import type { AuthenticatedUser } from "./auth.js";
 import { validateStructure } from "./company-structure.js";
 import { getCollection, getStore } from "./storage.js";
 import { protectOrganizationAdmin } from "./organization-admin-policy.js";
-import { can, companyIdsFor, effectiveLocationIds, hasLocationRestriction, isMainManager, isWithinScope, ownRecordsRequired } from "./permissions.js";
+import { can, companyIdsFor, effectiveLocationIds, hasLocationRestriction, isMainManager, isShopManager, isWithinScope, ownRecordsRequired } from "./permissions.js";
 type Row = Record<string, unknown>;
 const rows = (name: string) => getCollection(name) as Row[];
 const normalized = (value: unknown) => String(value ?? "").trim().toLocaleLowerCase();
@@ -22,6 +22,7 @@ function activeCompany(id: unknown): Row | undefined {
 
 export function canAssignRole(actor: AuthenticatedUser, role: Row) {
   if (isMainManager(actor)) return true;
+  if(actor.roleId==="role-shop-manager"&&(!isShopManager(actor)||!["role-shop-staff","role-customer-service"].includes(String(role.id))))return false;
   if (["role-main-manager", "role-organization-admin"].includes(String(role.id)) || actor.roleId === "role-company-manager" && role.id === "role-company-manager") return false;
   const grants = Array.isArray(role.permissions) ? role.permissions.map(String) : [];
   const actions = ["view", "create", "edit", "delete", "approve", "reply", "export", "pay", "configure"] as const;
@@ -33,6 +34,7 @@ export function canAssignRole(actor: AuthenticatedUser, role: Row) {
 }
 export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, existing?: Row) {
   const main = isMainManager(actor);
+  if(actor.roleId==="role-shop-manager"&&(!isShopManager(actor)||!["role-shop-staff","role-customer-service"].includes(String(next.roleId))))policyError("Shop managers can assign shop staff and Customer Service roles only.",403);
   if (!main && existing && !canManageAccount(actor, existing)) policyError("User not found.", 404);
   // Revoking an unchanged account must remain possible after its company or
   // role is archived. Reactivation and scope changes still require valid scope.
@@ -82,6 +84,7 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
 
 export function canManageAccount(actor: AuthenticatedUser, account: Row) {
   if (isMainManager(actor)) return true;
+  if(actor.roleId==="role-shop-manager"&&(!isShopManager(actor)||!["role-shop-staff","role-customer-service"].includes(String(account.roleId))))return false;
   const role = rows("accessRoles").find(role => role.id === account.roleId);
   const grants = Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : [];
   if (grants.includes("customerService.inquiries")) return false;

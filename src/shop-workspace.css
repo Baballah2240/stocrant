@@ -100,6 +100,12 @@
 .shop-form textarea {
   min-height: 100px;
 }
+.shop-operation-settings .shop-form > label,.shop-order-payment .shop-form > label,.shop-staff-settings .shop-form > label { display:grid;gap:7px;min-width:0; }
+.shop-operation-settings .shop-form .check-field { display:flex;align-items:center;gap:10px; }
+.shop-operation-settings input[type="checkbox"] { width:22px;height:22px;min-height:22px;flex:0 0 22px;padding:0; }
+.shop-operation-settings fieldset { display:grid;gap:12px;min-width:0;border:1px solid var(--border);border-radius:12px;padding:16px; }
+.shop-operation-settings form + form,.shop-order-payment { border-top:1px solid var(--border);padding-top:24px;margin-top:24px; }
+.shop-staff-settings .approval-row { overflow-wrap:anywhere; }
 .shop-section-title {
   display: flex;
   align-items: center;

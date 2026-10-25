@@ -610,7 +610,7 @@ router.patch("/access/users/:id", requirePermission("access", "edit"), async (re
   const existing = users.find((user) => user.id === req.params.id);
   if (!existing) return res.status(404).json({ error: "User not found." });
   if (!canManageAccount(req.auth!, existing)) return res.status(404).json({ error: "User not found." });
-  if (parsed.data.permissions?.some(permission => /^(access|audit)\./.test(permission)) && !["role-main-manager", "role-organization-admin", "role-company-manager"].includes(String(parsed.data.roleId ?? existing.roleId))) return res.status(400).json({ error: "Account administration requires an administrator role." });
+  if (parsed.data.permissions?.some(permission => /^(access|audit)\./.test(permission)) && !["role-main-manager", "role-organization-admin", "role-company-manager", "role-shop-manager"].includes(String(parsed.data.roleId ?? existing.roleId))) return res.status(400).json({ error: "Account administration requires an administrator role." });
   if (parsed.data.roleId && !rows("accessRoles").some((role) => role.id === parsed.data.roleId)) return res.status(400).json({ error: "Choose a valid role." });
   if (parsed.data.email && users.some((user) => user.id !== existing.id && normalized(user.email) === normalized(parsed.data.email))) return res.status(409).json({ error: "An account with that email already exists." });
   if(parsed.data.email&&rows("employees").some(row=>row.id!==existing.employeeId&&normalized(row.email)===normalized(parsed.data.email)))return res.status(409).json({error:"This email is already in use."});

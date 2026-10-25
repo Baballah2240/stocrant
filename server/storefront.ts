@@ -8,7 +8,7 @@ import {
 } from "node:crypto";
 import { z } from "zod";
 import { publicUser, type AuthenticatedUser } from "./auth.js";
-import { can, isWithinScope } from "./permissions.js";
+import { can, isWithinScope, isShopManager } from "./permissions.js";
 import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 import { audit, requiresApproval } from "./workspace.js";
 import {
@@ -270,7 +270,7 @@ function quote(
   currency: string,
   input: z.infer<typeof cartSchema>,
 ) {
-  if (requiresApproval("finance", "create"))
+  if (requiresApproval("finance", "create")&&!rows("accessUsers").filter(a=>a.status==="active").map(a=>publicUser(a as any)).some(manager=>isShopManager(manager)&&can(manager,"finance","create")&&can(manager,"finance","approve")&&isWithinScope(manager,{organizationId:s.organizationId})))
     fail("Checkout is temporarily unavailable. Please contact the shop.", 503);
   if (!s.manualPaymentsAccepted)
     fail("Checkout is not enabled for this shop.", 409);

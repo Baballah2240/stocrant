@@ -1,3 +1,6 @@
+import ShopOperationsSettings, {type ShopOperationSettings,type ShopPaymentAccount} from "./ShopOperationsSettings";
+import ShopOrderPayment, {type ShopPayment} from "./ShopOrderPayment";
+import ShopStaffSettings from "./ShopStaffSettings";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { request } from "../api";
@@ -56,6 +59,10 @@ type Receipt = {
 };
 type Connector = { id: string; name: string; active: boolean };
 type Snapshot = {
+  settings?:ShopOperationSettings;
+  paymentAccounts?:ShopPaymentAccount[];
+  payments?:ShopPayment[];
+  financeDate?:string;
   purchases?:{id:string;label:string;supplier:string;currency:string}[];
   categories?: {name: string; title: string}[];
   products: Product[];
@@ -147,7 +154,7 @@ export default function ShopWorkspace() {
     base = `/workspace/shops/${companyId}`;
   useEffect(() => {
     const requestedTab=new URLSearchParams(location.search).get("tab");
-    if(requestedTab&&["products","receiving","orders","support"].includes(requestedTab))setTab(requestedTab);
+    if(requestedTab&&["products","receiving","orders","support","settings","storefront","connections","shop-users"].includes(requestedTab))setTab(requestedTab);
     const requestedCompany = new URLSearchParams(location.search).get("company");
     if (requestedCompany && companies.some(company => company.id === requestedCompany)) setCompany(requestedCompany);
   }, [location.search, companies]);
@@ -415,13 +422,13 @@ export default function ShopWorkspace() {
               "products",
               "receiving",
               "orders",
-              ...(canConnect ? ["storefront", "connections"] : []),
+              ...(canConnect ? ["settings"] : []),
               "support",
             ].map((name) => (
               <button
                 type="button"
                 key={name}
-                aria-current={tab === name ? "page" : undefined}
+                aria-current={tab === name || name === "settings" && ["storefront","connections","shop-users"].includes(tab) ? "page" : undefined}
                 disabled={busy || photoBusy}
                 onClick={() => setTab(name)}
               >
@@ -434,12 +441,15 @@ export default function ShopWorkspace() {
                         ? "Orders"
                         : name === "storefront"
                           ? "Customer storefront"
-                          : name === "support" ? "Shop customer service" : "Shop connections",
+                          : name === "settings" ? "Shop settings" : name === "support" ? "Shop customer service" : "Shop connections",
                 )}
               </button>
             ))}
           </nav>
           <fieldset disabled={busy || loading || photoBusy} className="shop-controls">
+            {canConnect&&["settings","storefront","connections","shop-users"].includes(tab)&&<nav className="shop-tabs shop-settings-tabs" aria-label={t("Shop settings")}>{[["settings","Orders & payments"],["storefront","Customer storefront"],["shop-users","Shop users"],["connections","Shop connections"]].filter(([key])=>key!=="shop-users"||permits("access","create")).map(([key,label])=><button key={key} type="button" aria-current={tab===key?"page":undefined} onClick={()=>setTab(key)}>{t(label)}</button>)}</nav>}
+            {tab==="settings"&&canConnect&&<ShopOperationsSettings key={companyId} companyId={companyId} currency={c?.currency||""} settings={data.settings} accounts={data.paymentAccounts||[]} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}}/>}
+            {tab==="shop-users"&&canConnect&&permits("access","create")&&<ShopStaffSettings key={companyId} companyId={companyId}/>}
             {tab === "products" && (
               <>
                 <section className="card shop-catalog">
@@ -870,7 +880,7 @@ export default function ShopWorkspace() {
                     {selected.saleId && (
                       <p>
                         {t(
-                          "A sale is linked. Confirm payments and refunds in Finance.",
+                          "A sale is linked. Record customer payments here; Finance keeps the same reference.",
                         )}{" "}
                         <Link to={`/finance?${new URLSearchParams({tab:"Sales",company:companyId,currency:selected.currency,source:String(selected.saleId)})}`}>{t("Finance")}</Link>
                       </p>
@@ -881,6 +891,7 @@ export default function ShopWorkspace() {
                         {t("Outstanding")}: {selected.settlement.outstanding}
                       </p>
                     )}
+                    {selected.saleId&&<ShopOrderPayment key={companyId+selected.id} companyId={companyId} orderId={selected.id} saleId={selected.saleId} currency={selected.currency} outstanding={selected.settlement?.outstanding} accounts={data.paymentAccounts||[]} settings={data.settings} payments={data.payments||[]} date={data.financeDate||""} canRecord={Boolean(permits("finance","create")&&canEdit)} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);window.dispatchEvent(new Event("stocrant:finance-changed"));}}/>}
                     {canEdit && (
                       <div className="shop-order-actions">
                         {selected.status === "preparing" &&

@@ -5,7 +5,8 @@ import type { AuthenticatedUser } from "./auth.js";
 import { publicUser } from "./auth.js";
 import { newProductAwb } from "./product-awb.js";
 import { photoUrl, photoList, validatePhotos, productPhotos } from "./shop-media.js";
-import { can, isWithinScope, ownRecordsRequired } from "./permissions.js";
+import { can, isWithinScope, ownRecordsRequired, isShopManager } from "./permissions.js";
+import {shopSettings} from "./shop-settings.js";
 import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 import { audit, mutateCollection, requiresApproval } from "./workspace.js";
 import {
@@ -386,6 +387,10 @@ commerceRouter.get("/:companyId", (req, res) => {
       products,
       categories: (rows("shopStorefronts").find(s => s.organizationId === c.id)?.merchandising?.categories || []).map((c: Row) => ({ name: c.name, title: c.title })),
       orders,
+      settings: shopSettings(c.id),
+      financeDate: companyFinanceDate(c.id),
+      paymentAccounts: can(req.auth,"finance","view") ? rows("financeAccounts").filter(a=>a.organizationId===c.id&&isWithinScope(req.auth!,a)).map(a=>({id:a.id,name:a.name,currency:a.currency,type:a.type})) : [],
+      payments: can(req.auth,"finance","view") ? rows("financeTransactions").filter(t=>t.organizationId===c.id&&t.sourceCollection==="sales"&&orders.some((o:Row)=>o.saleId===t.sourceId)&&isWithinScope(req.auth!,t)).map(t=>({id:t.id,sourceId:t.sourceId,amount:t.amount,currency:t.currency,date:t.date,reference:t.reference,method:t.method,status:t.status})) : [],
       purchases:rows("purchases").filter(p=>p.organizationId===c.id&&isWithinScope(req.auth!,p)&&["ordered","partial","received"].includes(p.status)).map(p=>({id:p.id,label:p.poNumber||p.id,supplier:p.supplier||"",currency:p.currency||c.currency})),
       receipts: rows("shopReceipts")
         .filter(
@@ -548,6 +553,21 @@ commerceRouter.post("/:companyId/orders", (req, res) => {
     sendError(res, e);
   }
 });
+commerceRouter.put("/:companyId/settings",(req,res)=>{
+  try{const c=shopCompany(req.auth!,String(req.params.companyId));if(!can(req.auth,"shops","configure"))fail("Shop configuration permission is required.",403);
+    const b=z.object({version:z.number().int().min(0),paymentAccountId:z.string().max(160),requirePaymentBeforeCompletion:z.boolean(),requireTracking:z.boolean(),allowedPaymentMethods:z.array(z.enum(["cash","bank","card","cheque","other"])).min(1).max(5)}).strict().parse(req.body);
+    res.json(write(req.auth!,c.id,"settings.updated",()=>{const current=shopSettings(c.id);if(current.version!==b.version)fail("Shop settings changed. Reload before saving.",409);if(b.paymentAccountId&&!rows("financeAccounts").some(a=>a.id===b.paymentAccountId&&a.organizationId===c.id&&a.currency===c.currency&&isWithinScope(req.auth!,a)))fail("Choose a payment account from this shop company and currency.");const item={...b,id:`shop-settings-${c.id}`,organizationId:c.id,version:b.version+1,updatedBy:req.auth!.id,updatedAt:new Date().toISOString()};getStore().collections.shopOperationalSettings=[...rows("shopOperationalSettings").filter(s=>s.organizationId!==c.id),item];return item;}));
+  }catch(e){sendError(res,e);}
+});
+commerceRouter.post("/:companyId/settings/accounts",(req,res)=>{
+  try{const c=shopCompany(req.auth!,String(req.params.companyId));if(!can(req.auth,"shops","configure")||!can(req.auth,"finance","create"))fail("Shop configuration and finance create permissions are required.",403);const b=z.object({name:text,type:z.enum(["bank","cash","wallet","other"])}).strict().parse(req.body);const result=mutateCollection(req.auth!,"financeAccounts","create",{...b,organizationId:c.id,currency:c.currency,openingBalance:"0"},undefined,"create",c.id);res.status(result.pending?202:201).json(result);}catch(e){sendError(res,e);}
+});
+commerceRouter.post("/:companyId/orders/:id/payments",(req,res)=>{
+  try{shopPermission(req.auth!,"edit");const c=shopCompany(req.auth!,String(req.params.companyId));if(!can(req.auth,"finance","create"))fail("Finance create permission is required to record shop payments.",403);
+    const b=z.object({accountId:z.string().min(1),amount:z.union([z.string(),z.number()]),date:z.string(),method:z.enum(["cash","bank","card","cheque","other"]),reference:z.string().trim().max(160).default(""),idempotencyKey:z.string().uuid()}).strict().parse(req.body);
+    const result=transaction(()=>{const order=rows("shopOrders").find(o=>o.id===req.params.id&&o.organizationId===c.id);if(!order)fail("Order not found.",404);order.lines.forEach((line:Row)=>visibleProduct(req.auth!,c.id,line.productId));if(!order.saleId||!["dispatched","delivered"].includes(order.status))fail("Dispatch the order before confirming its payment.",409);const account=rows("financeAccounts").find(a=>a.id===b.accountId&&a.organizationId===c.id&&a.currency===order.currency&&isWithinScope(req.auth!,a));if(!account)fail("Choose a payment account from this shop company and currency.");if(!shopSettings(c.id).allowedPaymentMethods.includes(b.method))fail("This payment method is disabled in shop settings.");const payment=mutateCollection(req.auth!,"financeTransactions","create",{...b,reference:b.reference||`SHOP-${b.idempotencyKey}`,organizationId:c.id,type:"income",direction:"in",status:"paid",sourceCollection:"sales",sourceId:order.saleId,shopOrderId:order.id,description:`Shop order ${order.id}`},undefined,"create",c.id);audit(req.auth!,"shop.payment-recorded",{organizationId:c.id,targetId:payment.item?.id||payment.request?.id,shopOrderId:order.id,pending:payment.pending});return payment;});res.status(result.pending?202:201).json(result);
+  }catch(e){sendError(res,e);}
+});
 commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
   try {
     shopPermission(req.auth!, "edit");
@@ -590,12 +610,13 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
                 "Dispatch also requires inventory and finance create permissions.",
                 403,
               );
-            if (requiresApproval("finance", "create", req.auth!))
+            if (requiresApproval("finance", "create", req.auth!) && !(isShopManager(req.auth)&&can(req.auth,"finance","approve")))
               fail(
                 "Finance approval rules are active. Resolve the sales approval workflow before dispatch.",
                 409,
               );
-            if (!b.tracking) fail("Enter a shipment or collection reference.");
+            if (!b.tracking && shopSettings(c.id).requireTracking) fail("Enter a shipment or collection reference.");
+            if(!b.tracking)b.tracking=`SHOP-${o.id}`;
             for (const line of o.lines) {
               const p = visibleProduct(req.auth!, c.id, line.productId);
               if (shopStock(p).onHand < reservedStock(p.inventoryItemId))
@@ -638,11 +659,12 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
               payment: "credit",
               status: "completed",
               shopOrderId: o.id,
-            });
+            },undefined,"create",c.id);
             if (sale.pending || !sale.item)
               fail("Sale could not be posted.", 409);
             o.saleId = sale.item.id;
           }
+          if(b.status==="delivered"&&shopSettings(c.id).requirePaymentBeforeCompletion){const sale=rows("sales").find(s=>s.id===o.saleId&&s.organizationId===c.id);if(!sale||settlementRows("sales",sale).outstanding===null||scaled(settlementRows("sales",sale).outstanding!)>0n)fail("Record the full shop payment before completing this order.",409);}
           o.status = b.status;
           o.tracking = b.tracking || o.tracking;
           o.version++;
