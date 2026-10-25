@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-10-25 - Administrator handover
+
+- Allow the Main Administrator to disable an unchanged account after its company or role is archived. Keep reactivation and scope-change validation, designated-admin protection and last-Main protection.
+- Allow organization edits to retain their existing designated-admin fields; changes to those fields still use the dedicated assignment controls.
+- Add a Render Shell handover command that verifies a private backup and replacement Main login before archiving companies/organizations and disabling old users through the running API. Keep all business records. The command must be run explicitly; source publication does not perform a live handover.
+- No native build or installation performed.
+
 ## 2026-10-25 - Company Customer Service
 
 - Show company questions and shop conversations only within the staff account's assigned company. Allow Customer Service staff to read and reply to that shop's support requests without shop-management or Finance access.

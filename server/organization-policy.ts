@@ -34,6 +34,9 @@ export function canAssignRole(actor: AuthenticatedUser, role: Row) {
 export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, existing?: Row) {
   const main = isMainManager(actor);
   if (!main && existing && !canManageAccount(actor, existing)) policyError("User not found.", 404);
+  // Revoking an unchanged account must remain possible after its company or
+  // role is archived. Reactivation and scope changes still require valid scope.
+  if(main&&existing&&next.status==="inactive"&&["roleId","employeeId","organizationIds","tenantOrganizationIds","locationIds"].every(key=>JSON.stringify(next[key])===JSON.stringify(existing[key])))return;
   if (!rows("accessRoles").some(role => role.id === next.roleId)) policyError("Choose a valid role.");
   if(rows("accessRoles").some(role=>role.id===next.roleId&&role.status==="inactive"))policyError("Choose an active role.");
   if (!main && ["role-main-manager", "role-organization-admin"].includes(String(next.roleId))) policyError("You do not have permission to assign this role.", 403);
@@ -96,7 +99,7 @@ export function validateHierarchyMutation(user: AuthenticatedUser, collection: s
   if (collection === "attendance" && ["create", "edit", "delete"].includes(action)) policyError("Use the Attendance & Timesheets workflow to create or change attendance records.", 409);
   if (["roles", "users", "accessRoles", "accessUsers", "approvalRules"].includes(collection) && !isMainManager(user)) policyError("Only the Main Admin has permission to change global access settings.", 403);
   if (collection === "organizations") {
-    if (input.mainAdminAccountId !== undefined || input.adminVersion !== undefined) policyError("Use the organization main admin assignment controls.", 403);
+    if ((input.mainAdminAccountId !== undefined && input.mainAdminAccountId !== current?.mainAdminAccountId) || (input.adminVersion !== undefined && input.adminVersion !== current?.adminVersion)) policyError("Use the organization main admin assignment controls.", 403);
     if ((action !== "edit" || (input.status !== undefined && input.status !== current?.status)) && !isMainManager(user)) policyError("Only the Main Admin has permission to create, activate or deactivate organizations.", 403);
     if (action === "delete" && rows("companies").some(company => company.parentOrganizationId === current?.id)) policyError("This organization contains companies. Deactivate it to preserve its records.");
     if (action !== "delete" && rows("organizations").some(org => org.id !== current?.id && normalized(org.name) === normalized(next.name))) policyError("An organization with this name already exists.", 409);
