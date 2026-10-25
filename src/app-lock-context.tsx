@@ -5,6 +5,7 @@ import { api, isNativeApp } from "./api";
 import { useSession } from "./session-context";
 import { useLanguage } from "./language-context";
 import { inactivityExpired } from "./app-lock-timer";
+import LockScreenBackground from "./components/LockScreenBackground";
 
 export const LOCK_MINUTES = [1, 2, 5, 10, 15, 30, 60];
 type LockPreferences = { minutes: number; biometric: boolean; background: boolean };
@@ -129,7 +130,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   }, [locked, user?.id, accountId, loading, foreground, preferences.biometric, available, busy]);
   const value = { preferences, available, setPreferences, lock, authenticateBiometric };
   if (user && accountId !== user.id) return <main className="app-lock-screen" aria-busy="true" />;
-  return <Context.Provider value={value}>{user && locked ? <main className="app-lock-screen"><section className="app-lock-card" aria-labelledby="app-lock-title">
+  return <Context.Provider value={value}>{user && locked ? <main className="app-lock-screen"><LockScreenBackground/><section className="app-lock-card" aria-labelledby="app-lock-title">
     <svg className="app-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
     <p className="eyebrow">STOCRANT</p><h1 id="app-lock-title">{t("Workspace locked")}</h1><p>{user.name}</p><p className="hint">{t("Enter your account password to continue.")}</p>
     <form className="form" onSubmit={unlockPassword}><label className="form-field"><span>{t("Password")}</span><input autoFocus required type="password" autoComplete="current-password" disabled={busy} maxLength={256} value={password} onChange={event => setPassword(event.target.value)} /></label>{error && <p className="error" role="alert">{t(error)}</p>}<button className="primary" disabled={busy}>{busy ? t("Unlocking…") : t("Unlock")}</button></form>

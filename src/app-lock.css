@@ -14,5 +14,9 @@
 .app-lock-settings select, .app-lock-settings input[type=password] { width: 100%; min-height: 46px; font-size: 16px; }
 .app-lock-settings .check-field { display: flex; gap: 10px; align-items: center; min-height: 44px; }
 .app-lock-now { margin-top: 22px; }
+.app-lock-screen { position:relative;isolation:isolate; }
+.lock-screen-background { position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none; }
+.app-lock-card { position:relative;z-index:1; }
+@media print { .lock-screen-background { display:none; } }
 html[data-theme="dark"] .app-lock-card button.primary { background: #357563; color: #fff; }
 @media (max-width: 380px) { .app-lock-card { padding: 24px 18px; } }

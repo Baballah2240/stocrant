@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-26 - Animated lock-screen background
+
+- Add the public website's drifting constellation effect behind the workspace lock card in light/dark themes and mobile layouts.
+- Keep the form opaque and interactive; bound canvas resolution/particle count, pause when hidden, stop on unlock and respect reduced-motion preferences.
+- No native build or installation performed.
+
 ## 2026-10-26 - Parent and reverse order numbers
 
 - Assign random unique SO order numbers and persistent RV reverse-order numbers linked to their parent. Add stable numbers to existing orders and returns without changing internal IDs or financial history.
