@@ -348,7 +348,7 @@ export default function ShopWorkspace() {
             {t("Products, stock and customer orders in one company workspace.")}
           </p>
         </div>
-        <label className="form-field">
+        {(user?.roleId === "role-main-manager" || companies.length > 1) && <label className="form-field">
           <span>{t("Company")}</span>
           <select
             aria-label={t("Company")}
@@ -365,7 +365,7 @@ export default function ShopWorkspace() {
               </option>
             ))}
           </select>
-        </label>
+        </label>}
       </header>
       {error && (
         <p className="error" role="alert">

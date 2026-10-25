@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-25 - Company Customer Service
+
+- Show company questions and shop conversations only within the staff account's assigned company. Allow Customer Service staff to read and reply to that shop's support requests without shop-management or Finance access.
+- Automatically use the assigned company for questions and appointments, and hide company selectors for single-company staff in Customer Service and Shops. Keep company selection for Main Admin and explicitly assigned multi-company accounts.
+- Keep platform website inquiries behind explicit platform-inbox access. Keep reply and resolution permissions separate. No native build or installation performed.
+
 ## 2026-10-25 - Assigned company access
 
 - Restrict admins and managers to explicitly assigned companies across company selectors, business records, Finance, payroll, reports, exports and audit history. Keep the platform Main Administrator's access to all companies.

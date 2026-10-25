@@ -348,9 +348,9 @@ const supportCreate = z.object({requestId:z.string().uuid(),customer:z.string().
 const supportSafe = (ticket:Row) => {const {guestHash,fingerprint,...safe}=ticket;return safe;};
 const supportPublic = (ticket:Row) => ({id:ticket.id,subject:ticket.subject,category:ticket.category,orderId:ticket.orderId,status:ticket.status,version:ticket.version,createdAt:ticket.createdAt,updatedAt:ticket.updatedAt,messages:ticket.messages.map((m:Row)=>({id:m.id,from:m.from,message:m.message,at:m.at}))});
 function supportStaff(req:Request,edit=false) {
-  shopPermission(req.auth!,"view");
+  if(!can(req.auth!,"customerService","view"))shopPermission(req.auth!,"view");
   const company=shopCompany(req.auth!,String(req.params.companyId));
-  if(edit&&!can(req.auth!,"shops","edit")&&!(can(req.auth!,"inventory","edit")&&can(req.auth!,"operations","edit"))) fail("Shop edit permission is required.",403);
+  if(edit&&!can(req.auth!,"customerService","reply")&&!can(req.auth!,"shops","edit")&&!(can(req.auth!,"inventory","edit")&&can(req.auth!,"operations","edit"))) fail("Shop edit permission is required.",403);
   return company;
 }
 storefrontAdminRouter.get("/:companyId/support",(req,res)=>{
@@ -364,6 +364,7 @@ storefrontAdminRouter.get("/:companyId/support",(req,res)=>{
 storefrontAdminRouter.post("/:companyId/support/:ticketId/reply",(req,res)=>{
   try {
     const company=supportStaff(req,true),b=z.object({requestId:z.string().uuid(),version:z.number().int().min(1),message:supportMessage,status:z.enum(["waiting","resolved"])}).strict().parse(req.body);
+    if(b.status==="resolved"&&!can(req.auth!,"customerService","edit")&&!can(req.auth!,"shops","edit")&&!(can(req.auth!,"inventory","edit")&&can(req.auth!,"operations","edit")))fail("You do not have permission to resolve support requests.",403);
     const ticket=transaction(()=>{
       const ticket=rows("shopSupportTickets").find(t=>t.id===req.params.ticketId&&t.organizationId===company.id);
       if(!ticket)fail("Support request not found.",404);

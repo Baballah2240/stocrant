@@ -23,7 +23,7 @@ before(async () => {
   const setup = await api("/api/auth/setup", { name: "Website Manager", email: "website-manager@example.test", password, setupKey: "local-setup" }); assert.equal(setup.status, 201); main = cookie(setup);
   for (const name of ["agent", "other"]) {
     const result = await api("/api/workspace/access/users", { name: `Website ${name}`, email: `${name}@website.test`, password, roleId: "role-employee", organizationIds: ["company-primary"], permissions: ["customerService.*"] }, main);
-    assert.equal(result.status, 201); const user = await result.json() as any; const account=(getStore().collections.accessUsers as any[]).find(row=>row.id===user.item.id); account.permissions=["customerService.*"]; account.mustChangePassword=false; saveStore(getStore()); if (name === "agent") agentId = user.item.id;
+    assert.equal(result.status, 201); const user = await result.json() as any; const account=(getStore().collections.accessUsers as any[]).find(row=>row.id===user.item.id); account.permissions=name === "agent" ? ["customerService.*","customerService.inquiries"] : ["customerService.*"]; account.mustChangePassword=false; saveStore(getStore()); if (name === "agent") agentId = user.item.id;
     const login = await api("/api/auth/login", { email: `${name}@website.test`, password }); assert.equal(login.status, 200);
     if (name === "agent") agent = cookie(login); else other = cookie(login);
   }
@@ -53,20 +53,20 @@ describe("Public website inquiries and private Customer Service handoff", () => 
     assert.equal((await api("/api/collections/websiteInquiries", undefined, other)).status, 404);
     assert.equal((await api("/api/public/inquiries")).status >= 400, true);
   });
-  it("delivers the request to the private inbox and grants only the assigned staff member access", async () => {
+  it("delivers the request to the private inbox and grants access only to explicitly authorized platform staff", async () => {
     const list = await (await api("/api/workspace/customer-service/website-inquiries", undefined, main)).json() as any; assert.equal(list.total, 1); assert.equal(list.canAssign, true);
     const assigned = await api(`/api/workspace/customer-service/website-inquiries/${leadId}`, { version: 1, assignedTo: agentId, status: "in-progress", note: "Assigned for a phone follow-up." }, main, "PATCH"); assert.equal(assigned.status, 200);
-    const own = await (await api("/api/workspace/customer-service/website-inquiries", undefined, agent)).json() as any; assert.equal(own.items[0].id, leadId); assert.equal(own.canAssign, false);
+    const own = await (await api("/api/workspace/customer-service/website-inquiries", undefined, agent)).json() as any; assert.equal(own.items[0].id, leadId); assert.equal(own.canAssign, true);
     const update = await api(`/api/workspace/customer-service/website-inquiries/${leadId}`, { version: 2, status: "contacted", note: "Discussed products and delivery requirements." }, agent, "PATCH"); assert.equal(update.status, 200);
     const item = ((await update.json()) as any).item; assert.equal(item.history.length, 2); assert.equal(item.status, "contacted");
-    assert.equal((await api(`/api/workspace/customer-service/website-inquiries/${leadId}`, { version: 3, assignedTo: "", status: "closed" }, agent, "PATCH")).status, 403);
+    assert.equal((await api(`/api/workspace/customer-service/website-inquiries/${leadId}`, { version: 3, assignedTo: "", status: "closed" }, other, "PATCH")).status, 404);
     assert.equal((await api(`/api/workspace/customer-service/website-inquiries/${leadId}`, { version: 1, status: "closed" }, main, "PATCH")).status, 409);
     assert.equal((await api(`/api/workspace/customer-service/website-inquiries/${leadId}`, { version: 3, status: "closed" }, other, "PATCH")).status, 404);
   });
   it("reserves platform grants for Main Admin and applies explicit access and revocation immediately", async () => {
     const account = (getStore().collections.accessUsers as any[]).find(row => row.email === "other@website.test");
     account.roleId = "role-company-manager"; account.permissions = ["access.view", "access.edit", "customerService.*"]; saveStore(getStore());
-    assert.equal((await api(`/api/workspace/access/users/${agentId}`, { permissions: ["customerService.view", "customerService.inquiries"] }, other, "PATCH")).status, 403);
+    assert.equal((await api(`/api/workspace/access/users/${agentId}`, { permissions: ["customerService.view", "customerService.inquiries"] }, other, "PATCH")).status, 404);
     assert.equal((await api(`/api/workspace/access/users/${account.id}`, { permissions: ["customerService.view", "customerService.inquiries"] }, main, "PATCH")).status, 200);
     assert.equal((await api(`/api/workspace/customer-service/website-inquiries/${leadId}`, undefined, other)).status, 200);
     const received = await (await api("/api/public/inquiries", inquiry())).json() as any;

@@ -1117,6 +1117,14 @@ describe("Customer Service permissions and session revocation", () => {
     const storedReply = (getStore().collections.customerReplies as Record<string, unknown>[]).find(row => row.questionId === questionId)!;
     assert.equal(storedReply.channel, "local");
     assert.equal((getStore().collections.customerQuestions as Record<string, unknown>[]).find(row => row.id === questionId)?.status, "resolved");
+    const primary=(getStore().collections.companies as Record<string,unknown>[]).find(company=>company.id==="company-primary")!;
+    const foreignCompany=await request("/collections/companies",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"Other customer service company",parentOrganizationId:primary.parentOrganizationId,organizationType:"office",industry:"services",currency:"QAR",status:"active"})},mainCookie);
+    assert.equal(foreignCompany.status,201,await foreignCompany.clone().text());const foreignId=(await json<{item:{id:string}}>(foreignCompany)).item.id;
+    const foreignQuestion=await request("/workspace/customer-service/questions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerName:"Foreign Customer",organizationId:foreignId,subject:"Private foreign question",message:"Only the other company may read this."})},mainCookie);
+    assert.equal(foreignQuestion.status,201,await foreignQuestion.clone().text());const foreignQuestionId=(await json<{item:{id:string}}>(foreignQuestion)).item.id;
+    const ownInbox=await json<{companies:{id:string}[];questions:{id:string}[]}>(await request("/workspace/customer-service",{},cookie));assert.deepEqual(ownInbox.companies.map(company=>company.id),["company-primary"]);assert.ok(!ownInbox.questions.some(question=>question.id===foreignQuestionId));
+    assert.equal((await request(`/workspace/customer-service/questions/${foreignQuestionId}/replies`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"Unauthorized foreign reply"})},cookie)).status,404);
+    assert.equal((await request("/workspace/customer-service/questions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerName:"Foreign Customer",organizationId:foreignId,subject:"Forbidden question",message:"Wrong company"})},cookie)).status,403);
     const replyOnlyPermissions = await request(`/workspace/access/users/${account.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: ["customerService.view", "customerService.reply"] }) }, mainCookie);
     assert.equal(replyOnlyPermissions.status, 200, await replyOnlyPermissions.clone().text());
     const replyOnlyLogin = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });

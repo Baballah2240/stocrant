@@ -29,10 +29,28 @@ try {
   await manager();await fill('.shop-support-thread textarea','Please collect during our opening hours.');await click('Reply & resolve');await until('document.querySelector(".shop-support-thread")?.textContent.includes("resolved")');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:1000,deviceScaleFactor:1,mobile:true});assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'),'Shop support inbox fits phone');
   writeFileSync(join(shots,'shop-inbox-mobile.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+  const serviceEmail='company-service@support-browser.test',temporary=crypto.randomUUID()+crypto.randomUUID(),servicePassword=crypto.randomUUID()+crypto.randomUUID();
+  await fixture.req('/workspace/access/users','POST',{name:'Company Customer Service',email:serviceEmail,password:temporary,roleId:'role-customer-service',organizationIds:[fixture.company.id]});
+  async function serviceRequest(path,body,cookie=''){const response=await fetch(base+'/api'+path,{method:'POST',headers:{'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body)});assert.ok(response.ok,await response.clone().text());return response;}
+  const firstLogin=await serviceRequest('/auth/login',{email:serviceEmail,password:temporary});const temporaryCookie=firstLogin.headers.get('set-cookie').split(';')[0];
+  await serviceRequest('/auth/password',{currentPassword:temporary,newPassword:servicePassword},temporaryCookie);
+  const serviceLogin=await serviceRequest('/auth/login',{email:serviceEmail,password:servicePassword});const serviceCookie=serviceLogin.headers.get('set-cookie').split(';')[0];
+  await send('Network.setCookie',{name:'stocrant_session',value:serviceCookie.split('=').slice(1).join('='),url:base,path:'/'});
+  await send('Page.navigate',{url:base+'/customer-service'});await until('Boolean(document.querySelector(".app-lock-screen input"))');await fill('.app-lock-screen input',servicePassword);await evaluate('document.querySelector(".app-lock-screen form").requestSubmit()');
+  await until('document.querySelector(".shop-support-thread")?.textContent.includes("Product question")');
+  assert.ok(!await evaluate('Array.from(document.querySelectorAll(".form-field")).some(label=>label.querySelector("select")&&label.querySelector(".field-label")?.textContent==="Company")'),'Single-company Customer Service has no company selector');
+  assert.ok(!await evaluate('Boolean(document.querySelector(".website-inquiries"))'),'Company staff do not see platform leads');
+  await evaluate('Array.from(document.querySelectorAll("section")).find(section=>section.querySelector("h2")?.textContent==="Record customer question").querySelector("form").dataset.qa="company-question"');
+  for(const subject of ['Company question one','Company question two']){
+    await fill('form[data-qa=company-question] input','Company Customer');await fill('form[data-qa=company-question] input[type=email]','customer@example.test');await fill('form[data-qa=company-question] .form-field:nth-child(3) input',subject);await fill('form[data-qa=company-question] textarea','Please help with our company order.');await evaluate('document.querySelector("form[data-qa=company-question]").requestSubmit()');await until(`document.body.textContent.includes(${JSON.stringify(subject)})`);
+  }
+  const serviceData=await fetch(base+'/api/workspace/customer-service',{headers:{Cookie:serviceCookie}}).then(response=>response.json());assert.equal(serviceData.questions.filter(question=>question.subject.startsWith('Company question')).length,2);assert.ok(serviceData.questions.filter(question=>question.subject.startsWith('Company question')).every(question=>question.organizationId===fixture.company.id));
+  assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'),'Company Customer Service fits phone');
+  writeFileSync(join(shots,'company-service-mobile.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
   for(const [language,theme,width] of [['en','light',1440],['ar','dark',390],['en','light',320]]) {
     await evaluate(`localStorage.setItem('amal.language',JSON.stringify(${JSON.stringify(language)}));localStorage.setItem('amal.theme',JSON.stringify(${JSON.stringify(theme)}))`);
     await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});await send('Page.navigate',{url:base+'/shop/amal/support'});await until('document.querySelector(".support-conversation")?.textContent.includes("Please collect during our opening hours.")');assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'),`Customer support fits ${language}/${width}`);
     await evaluate('document.querySelector(".support-conversation").scrollIntoView({block:"center"})');writeFileSync(join(shots,`customer-${language}-${width}.png`),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
   }
-  console.log('Shop support browser checks passed: customer request, company inbox, staff reply, customer follow-up, resolution, persistence and responsive English/Arabic layouts.');
+  console.log('Shop support browser checks passed: customer request, company inbox, staff reply, customer follow-up, resolution, single-company Customer Service without company selectors, automatic company assignment, persistence and responsive English/Arabic layouts.');
 } finally {await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}

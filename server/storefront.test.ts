@@ -528,9 +528,19 @@ describe("Amal connected storefront", () => {
     await json(await req(`${inbox}/${first.id}/reply`,"POST",{requestId:randomUUID(),version:3,message:"All sorted, thank you.",status:"resolved"}));
     assert.equal((await json(await req(support,"GET",undefined,guest))).tickets[0].status,"resolved");
     await json(await req("/collections/shopSupportTickets"),404);
-    const account=(getCollection("accessUsers") as Row[]).find(a=>a.roleId==="role-main-manager")!;
-    const permissions=account.permissions,role=account.roleId;account.roleId="role-employee";account.permissions=["customerService.*"];saveStore(getStore());
-    try{await json(await req(inbox),403);}finally{account.roleId=role;if(permissions===undefined)delete account.permissions;else account.permissions=permissions;saveStore(getStore());}
+    const temporary=token(),email="shop-service@storefront.test";
+    const service=(await json(await req("/workspace/access/users","POST",{name:"Shop Service",email,password:temporary,roleId:"role-customer-service",organizationIds:[company.id]}),201)).item;
+    const staffAccount=(getCollection("accessUsers") as Row[]).find(row=>row.id===service.id)!;staffAccount.mustChangePassword=false;saveStore(getStore());
+    const login=await req("/auth/login","POST",{email,password:temporary},"");await json(login);const serviceCookie=login.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await json(await req(inbox,"GET",undefined,serviceCookie))).total,1);
+    await json(await req(`/workspace/storefronts/${foreign.id}/support`,"GET",undefined,serviceCookie),404);
+    await json(await req(`/workspace/storefronts/${foreign.id}/support/${first.id}/reply`,"POST",{requestId:randomUUID(),version:4,message:"Outside company",status:"waiting"},serviceCookie),404);
+    await json(await req("/workspace/finance","GET",undefined,serviceCookie),403);
+    await json(await req(`${inbox}/${first.id}/reply`,"POST",{requestId:randomUUID(),version:4,message:"Our company service team can help.",status:"waiting"},serviceCookie));
+    (getCollection("accessUsers") as Row[]).find(row=>row.id===service.id)!.permissions=["customerService.view","customerService.reply"];saveStore(getStore());
+    await json(await req(`${inbox}/${first.id}/reply`,"POST",{requestId:randomUUID(),version:5,message:"Unauthorized resolution",status:"resolved"},serviceCookie),403);
+    (getCollection("accessUsers") as Row[]).find(row=>row.id===service.id)!.permissions=[];saveStore(getStore());
+    await json(await req(inbox,"GET",undefined,serviceCookie),403);
   });
   it("pauses new checkout under finance approval policies and throttles new attempts without breaking retries", async () => {
     const rule = {

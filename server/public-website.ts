@@ -19,7 +19,7 @@ export function platformInquiries(user: AuthenticatedUser) {
   return platformWebsiteInquiries(user);
 }
 const readable = canReadWebsiteInquiry;
-const staff = () => rows("accessUsers").filter(row => row.status === "active").map(row => publicUser(row as any)).filter(user => can(user, "customerService", "view"));
+const staff = () => rows("accessUsers").filter(row => row.status === "active").map(row => publicUser(row as any)).filter(user => platformWebsiteInquiries(user));
 const publicInput = z.object({
   name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(160).transform(value => value.toLowerCase()),
   phone: z.string().trim().min(5).max(40).regex(/^[+\d\s().-]+$/).refine(value => value.replace(/\D/g, "").length >= 6 && value.replace(/\D/g, "").length <= 20), company: z.string().trim().max(160).default(""),

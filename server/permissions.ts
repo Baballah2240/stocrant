@@ -69,8 +69,8 @@ export function isMainManager(user: AuthenticatedUser | undefined): boolean {
 export function platformWebsiteInquiries(user: AuthenticatedUser): boolean {
   return isMainManager(user) || (can(user, "customerService", "view") && permissionsFor(user).includes("customerService.inquiries"));
 }
-export function canReadWebsiteInquiry(user: AuthenticatedUser, row: Record<string, unknown>): boolean {
-  return platformWebsiteInquiries(user) || (can(user, "customerService", "view") && row.assignedTo === user.id);
+export function canReadWebsiteInquiry(user: AuthenticatedUser, _row: Record<string, unknown>): boolean {
+  return platformWebsiteInquiries(user);
 }
 
 export function isDelegatedAdmin(user: AuthenticatedUser | undefined) { return Boolean(user && ["role-organization-admin", "role-company-manager"].includes(user.roleId)); }
