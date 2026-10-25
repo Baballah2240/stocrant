@@ -2,7 +2,7 @@ import { notifyAction, actionMessage } from "./action-feedback";
 import type { PersonalAttendanceSnapshot, PersonalAttendanceRecord } from "./attendance-model";
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public fieldErrors: Record<string, string> = {}) { super(message); this.name = "ApiError"; }
+  constructor(message: string, public status: number, public fieldErrors: Record<string, string> = {},public code?:string) { super(message); this.name = "ApiError"; }
 }
 import type {
   CollectionItem,
@@ -154,9 +154,11 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
     let fieldErrors: Record<string, string> = {};
+    let code:string|undefined;
     try {
       const body = (await res.json()) as { error?: string; fieldErrors?: Record<string, unknown>; code?: string };
       if (body.error) message = body.error;
+      code=body.code;
       if (body.fieldErrors) fieldErrors = Object.fromEntries(Object.entries(body.fieldErrors).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
       if (body.code === "PASSWORD_CHANGE_REQUIRED") window.dispatchEvent(new Event("stocrant:session-changed"));
     } catch {
@@ -164,7 +166,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     }
     if (action) notifyAction(message, "error");
     if (res.status === 401 && !path.startsWith("/auth/")) window.dispatchEvent(new Event("stocrant:session-changed"));
-    throw new ApiError(message, res.status, fieldErrors);
+    throw new ApiError(message, res.status, fieldErrors,code);
   }
   const result = (await res.json()) as T;
   if (action) {
@@ -186,7 +188,7 @@ export const api = {
     changePassword: (input: { currentPassword: string; newPassword: string }) => request<{ ok: boolean }>("/auth/password", { method: "POST", body: JSON.stringify(input) }),
     status: () => request<{ authenticated: boolean; setupRequired: boolean; setupKeyConfigured: boolean; user: AuthUser | null }>("/auth/status"),
     setup: (input: { name: string; email: string; password: string; setupKey: string }) => request<{ user: AuthUser; sessionToken?: string }>("/auth/setup", { method: "POST", body: JSON.stringify(input) }),
-    login: (input: { email: string; password: string }) => request<{ user: AuthUser; sessionToken?: string }>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
+    login: (input: { email: string; password: string;closeOtherSessions?:boolean }) => request<{ user: AuthUser; sessionToken?: string }>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
     logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
     me: () => request<{ user: AuthUser }>("/auth/me"),
   },

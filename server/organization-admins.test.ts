@@ -45,6 +45,7 @@ describe("Organization main admins and company staff delegation", () => {
     assert.equal(result.admin.passwordHash, undefined);
     orgAdmin = await signIn(primary.email, temporary);
     await json(await api(`/workspace/company-profiles/${company.id}`, "GET", undefined, orgAdmin), 403);
+    await json(await api("/auth/logout","POST",undefined,orgAdmin));
     orgAdmin = await activateTemporary(primary.email, temporary);
     await json(await api(`/workspace/company-profiles/${company.id}`, "GET", undefined, orgAdmin));
     await json(await api(`/workspace/company-profiles/${foreign.id}`, "GET", undefined, orgAdmin), 404);

@@ -229,6 +229,9 @@ const existingArabic: Readonly<Record<string, string>> = {
 };
 
 export const arabicTranslations: Readonly<Record<string, string>> = {
+  "This account is already signed in elsewhere. Sign out there or close the previous session to continue.": "هذا الحساب مسجل دخوله في مكان آخر. سجل الخروج هناك أو أغلق الجلسة السابقة للمتابعة.",
+  "Close your previous session before opening this one. You can sign out on the other device or close it here.": "أغلق الجلسة السابقة قبل فتح هذه الجلسة. يمكنك تسجيل الخروج من الجهاز الآخر أو إغلاق الجلسة من هنا.",
+  "Close previous session and sign in": "إغلاق الجلسة السابقة وتسجيل الدخول",
   ...personalNotesTranslations,
   ...dashboardLayoutTranslations,
   ...organizationAdminTranslations,

@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
-import { getCollection, getStore, saveStore } from "./storage.js";
+import { getCollection, getStore, saveStore, transaction } from "./storage.js";
 
 const scrypt = promisify(scryptCallback);
 const SESSION_COOKIE = "stocrant_session";
@@ -142,6 +142,9 @@ function accountRows() {
 function sessionRows() {
   return getCollection("sessions") as Array<Record<string, unknown>>;
 }
+function newestSession(rows:Array<Record<string,unknown>>) {
+  return rows.reduce<Record<string,unknown>|undefined>((latest,row)=>!latest||(Date.parse(String(row.createdAt))||0)>=(Date.parse(String(latest.createdAt))||0)?row:latest,undefined);
+}
 
 function activeAccountById(id: string) {
   return accountRows().find((account) => account.id === id && ["active", "pending", "rejected"].includes(account.status) && accountScopeActive(account));
@@ -171,6 +174,13 @@ export function authenticatedUser(req: Request): AuthenticatedUser | undefined {
   );
   if (!session || typeof session.accountId !== "string") return undefined;
   const account = activeAccountById(session.accountId);
+  // Legacy concurrent sessions and a downgraded Super Admin retain only their
+  // most recent unexpired session. Read the current role on every request.
+  if(account&&account.roleId!=="role-main-manager"){
+    const all=sessionRows(),latest=newestSession(all.filter(row=>row.accountId===account.id&&Date.parse(String(row.expiresAt))>Date.now()));
+    if(all.filter(row=>row.accountId===account.id).length>1){const data=getStore();data.collections.sessions=all.filter(row=>row.accountId!==account.id||row===latest);saveStore(data);}
+    if(latest!==session)return undefined;
+  }
   return account ? publicUser(account) : undefined;
 }
 
@@ -184,13 +194,19 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-export function createSession(res: Response, account: AccountRow): string {
+export function createSession(res: Response, account: AccountRow, req?:Request, closeOtherSessions=false): string {
   const token = randomBytes(32).toString("base64url");
+  transaction(()=>{
   const data = getStore();
   const signedInAt = new Date().toISOString();
-  // Keep active sessions for the same account on other devices. The web
-  // management dashboard and a phone can therefore work simultaneously.
-  const sessions = sessionRows().filter((row) => typeof row.expiresAt === "string" && Date.parse(row.expiresAt) > Date.now());
+  let sessions = sessionRows().filter((row) => typeof row.expiresAt === "string" && Date.parse(row.expiresAt) > Date.now());
+  const existing=newestSession(sessions.filter(row=>row.accountId===account.id));
+  const currentToken=req&&verifiedSessionToken(sessionTokenFromRequest(req));
+  if(account.roleId!=="role-main-manager"){
+    if(existing&&existing.tokenHash!==(currentToken?hashToken(currentToken):undefined)&&!closeOtherSessions)throw Object.assign(new Error("This account is already signed in elsewhere. Sign out there or close the previous session to continue."),{statusCode:409,code:"SESSION_ALREADY_ACTIVE"});
+    sessions=sessions.filter(row=>row.accountId!==account.id);
+    if(existing&&closeOtherSessions)data.collections.auditLog=[...getCollection("auditLog"),{id:`session-close-${randomBytes(10).toString("hex")}`,action:"auth.previous-session-closed",actorId:account.id,actorName:account.name,occurredAt:signedInAt}];
+  }
   sessions.push({
     id: `session-${randomBytes(10).toString("hex")}`,
     accountId: account.id,
@@ -205,6 +221,7 @@ export function createSession(res: Response, account: AccountRow): string {
     : storedAccount);
   data.collections.sessions = sessions;
   saveStore(data);
+  });
   const signed = `${token}.${sign(token)}`;
   res.setHeader("Set-Cookie", cookie(signed, SESSION_TTL_MS));
   return signed;

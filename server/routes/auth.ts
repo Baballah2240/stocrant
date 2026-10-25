@@ -160,7 +160,7 @@ function recordDeniedLoginAttempt(email: string): void {
 }
 
 router.post("/login", async (req, res) => {
-  const parsed = credentialsSchema.extend({ email: z.string().trim().min(3).max(160).refine(value => validUsername(value.toLowerCase()) || z.string().email().safeParse(value).success, "Enter a valid email or username.") }).safeParse(req.body);
+  const parsed = credentialsSchema.extend({ closeOtherSessions:z.boolean().default(false), email: z.string().trim().min(3).max(160).refine(value => validUsername(value.toLowerCase()) || z.string().email().safeParse(value).success, "Enter a valid email or username.") }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   const email = parsed.data.email.toLowerCase();
   // Brute-force protection: per-IP and per-account failure windows.
@@ -185,8 +185,10 @@ router.post("/login", async (req, res) => {
   }
   clearFailures(ipKey);
   clearFailures(accountKey);
-  const sessionToken = createSession(res, currentAccount);
-  res.json(authResponse(req, currentAccount, sessionToken));
+  try{
+    const sessionToken = createSession(res, currentAccount,req,parsed.data.closeOtherSessions);
+    res.json(authResponse(req, currentAccount, sessionToken));
+  }catch(error){const conflict=error as Error&{code?:string};if(conflict.code==="SESSION_ALREADY_ACTIVE")return res.status(409).json({error:conflict.message,code:conflict.code});throw error;}
 });
 
 router.post("/logout", (req, res) => {

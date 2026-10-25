@@ -2,7 +2,7 @@ import { isAndroidDevice, openDeviceWebsite } from "../device-actions";
 import AppearanceSelector from "./AppearanceSelector";
 import ConstellationBackground from "../../public-website/src/components/ConstellationBackground";
 import { useState } from "react";
-import { api, serverUrl } from "../api";
+import { api, ApiError, serverUrl } from "../api";
 import { useSession } from "../session-context";
 import { useLanguage } from "../language-context";
 import MobileIcon from "./MobileIcon";
@@ -20,10 +20,11 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [sessionConflict,setSessionConflict]=useState(false);
   const registering = !setupRequired && mode === "register";
   const forgot = !setupRequired && mode === "forgot";
   const newAccount = setupRequired || registering;
-  function changeMode(next: typeof mode) { setMode(next); setError(""); setNotice(""); setPassword(""); setConfirmPassword(""); }
+  function changeMode(next: typeof mode) { setMode(next); setError(""); setNotice(""); setPassword(""); setConfirmPassword("");setSessionConflict(false); }
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setError(""); setNotice("");
     if (newAccount && password !== confirmPassword) { setError("Passwords do not match."); return; }
@@ -32,8 +33,8 @@ export default function AuthPage() {
       if (setupRequired) await setup({ name, email, password, setupKey });
       else if (registering) { const result = await api.auth.register({ name, email, password }); setNotice(result.message); setMode("login"); setPassword(""); setConfirmPassword(""); }
       else if (forgot) setNotice((await api.auth.forgotPassword(email)).message);
-      else await signIn(email, password);
-    } catch (err) { setError(err instanceof Error ? err.message : "Unable to continue."); }
+      else await signIn(email, password,(event.nativeEvent as SubmitEvent).submitter?.getAttribute("name")==="closeOtherSessions");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to continue.");setSessionConflict(err instanceof ApiError&&err.code==="SESSION_ALREADY_ACTIVE"); }
     finally { setBusy(false); }
   }
   const websiteUrl = import.meta.env.VITE_PUBLIC_WEBSITE_URL?.trim() || `${serverUrl.current()}/website/`;
@@ -51,11 +52,12 @@ export default function AuthPage() {
         {error && <p id="auth-error" className="error" role="alert">{t(error)}</p>}{notice && <p className="alert alert--good" role="status">{t(notice)}</p>}
         <form className="form" onSubmit={submit} aria-describedby={error ? "auth-error" : undefined}>
           {newAccount && <label className="form-field"><span>{t("Full name")}</span><input required minLength={2} maxLength={120} autoComplete="name" disabled={busy} value={name} onChange={event => setName(event.target.value)} /></label>}
-          <label className="form-field"><span>{t(!setupRequired && !registering && !forgot ? "Email or username" : "Email")}</span><input required type={!setupRequired && !registering && !forgot ? "text" : "email"} dir="ltr" autoComplete={!setupRequired && !registering && !forgot ? "username" : "email"} autoCapitalize="none" spellCheck={false} disabled={busy} value={email} onChange={event => setEmail(event.target.value)} /></label>
-          {!forgot && <label className="form-field"><span>{t("Password")}</span><div className="auth-password-field"><input required type={showPassword ? "text" : "password"} autoComplete={newAccount ? "new-password" : "current-password"} minLength={newAccount ? 12 : 1} maxLength={256} disabled={busy} value={password} onChange={event => setPassword(event.target.value)} /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{t(showPassword ? "Hide" : "Show")}</button></div>{newAccount && <small>{t("Use at least 12 characters.")}</small>}</label>}
+          <label className="form-field"><span>{t(!setupRequired && !registering && !forgot ? "Email or username" : "Email")}</span><input required type={!setupRequired && !registering && !forgot ? "text" : "email"} dir="ltr" autoComplete={!setupRequired && !registering && !forgot ? "username" : "email"} autoCapitalize="none" spellCheck={false} disabled={busy} value={email} onChange={event => {setEmail(event.target.value);setSessionConflict(false);}} /></label>
+          {!forgot && <label className="form-field"><span>{t("Password")}</span><div className="auth-password-field"><input required type={showPassword ? "text" : "password"} autoComplete={newAccount ? "new-password" : "current-password"} minLength={newAccount ? 12 : 1} maxLength={256} disabled={busy} value={password} onChange={event => {setPassword(event.target.value);setSessionConflict(false);}} /><button type="button" aria-label={t(showPassword ? "Hide password" : "Show password")} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{t(showPassword ? "Hide" : "Show")}</button></div>{newAccount && <small>{t("Use at least 12 characters.")}</small>}</label>}
           {newAccount && <label className="form-field"><span>{t("Confirm password")}</span><input required type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={256} disabled={busy} value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} /></label>}
           {setupRequired && <label className="form-field"><span>{t("Setup key")}</span><input required type="password" autoComplete="off" disabled={busy} value={setupKey} onChange={event => setSetupKey(event.target.value)} /></label>}
           <button className="primary" type="submit" disabled={busy}>{t(submitLabel)}</button>
+          {sessionConflict&&!newAccount&&!forgot&&<div className="auth-session-conflict"><p>{t("Close your previous session before opening this one. You can sign out on the other device or close it here.")}</p><button type="submit" name="closeOtherSessions" disabled={busy}>{t("Close previous session and sign in")}</button></div>}
         </form>
         {!setupRequired && <button type="button" className="auth-recovery-link" disabled={busy} onClick={() => changeMode(forgot ? "login" : "forgot")}>{t(forgot ? "Back to sign in" : "Forgot password")}</button>}
       </section>

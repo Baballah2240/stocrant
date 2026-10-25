@@ -61,3 +61,7 @@ html[data-theme="dark"] .auth-connected .auth-card input { border-color: #60728f
   .auth-connected .auth-card input { font-size: 16px; }
 }
 @media(max-width:380px) { .auth-connected .auth-card { padding: 22px; }.auth-connected .auth-card h1 { font-size: 29px; } }
+/* Explicit recovery for an account already signed in on another device. */
+.auth-session-conflict { display:grid;gap:12px;padding:16px;border:1px solid var(--ios-separator);border-radius:14px; }
+.auth-session-conflict p { margin:0;line-height:1.6;font-size:.85rem; }
+.auth-session-conflict button { white-space:normal;width:100%; }

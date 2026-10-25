@@ -112,7 +112,7 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal(badLogin.status, 401);
   });
 
-  it("keeps web and native sessions active while accepting the native bearer session", async () => {
+  it("exempts Super Admin from the single-session policy for web and native bearer sessions", async () => {
     const nativeLogin = await request("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-STOCRANT-NATIVE": "1" },
@@ -128,6 +128,29 @@ describe("STOCRANT secure workspace API", () => {
     assert.equal(webOverview.status, 200, "web session remains valid after native sign-in");
   });
 
+  it("requires closing the prior session for ordinary users and revokes it atomically on confirmed replacement",async()=>{
+    const email="one-session@example.test",password="one-session-strong-password";
+    const created=await request("/workspace/access/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"One Session",email,password,roleId:"role-employee"})},mainCookie);assert.equal(created.status,201);
+    const login=(body:Record<string,unknown>={},cookie?:string)=>request("/auth/login",{method:"POST",headers:{"Content-Type":"application/json","X-STOCRANT-NATIVE":"1"},body:JSON.stringify({email,password,...body})},cookie);
+    const first=await login();assert.equal(first.status,200);const firstCookie=cookieFrom(first),firstToken=(await json<{sessionToken:string}>(first)).sessionToken;
+    const userId=(getStore().collections.accessUsers as Record<string,unknown>[]).find(a=>a.email===email)!.id;
+    const legacySession=structuredClone((getStore().collections.sessions as Record<string,unknown>[]).find(s=>s.accountId===userId)!);
+    const blocked=await login({roleId:"role-main-manager"});assert.equal(blocked.status,409);assert.equal((await json<{code:string}>(blocked)).code,"SESSION_ALREADY_ACTIVE");assert.equal(blocked.headers.get("set-cookie"),null);
+    assert.equal((await request("/auth/me",{},firstCookie)).status,200);
+    assert.equal((await login({password:"incorrect-password",closeOtherSessions:true})).status,401);assert.equal((await request("/auth/me",{},firstCookie)).status,200);
+    const replacement=await login({closeOtherSessions:true});assert.equal(replacement.status,200);const secondCookie=cookieFrom(replacement);
+    assert.equal((await request("/auth/me",{},firstCookie)).status,401);assert.equal((await request("/auth/me",{headers:{Authorization:`Bearer ${firstToken}`}})).status,401);assert.equal((await request("/auth/me",{},secondCookie)).status,200);
+    const renewed=await login({},secondCookie);assert.equal(renewed.status,200);const currentCookie=cookieFrom(renewed);assert.equal((await request("/auth/me",{},secondCookie)).status,401);
+    await request("/auth/logout",{method:"POST"},currentCookie);
+    const races=await Promise.all([login(),login()]);assert.deepEqual(races.map(r=>r.status).sort(),[200,409]);const winner=races.find(r=>r.status===200)!;const winnerCookie=cookieFrom(winner);
+    const account=(getStore().collections.accessUsers as Record<string,unknown>[]).find(a=>a.email===email)!;
+    const sessions=(getStore().collections.sessions as Record<string,unknown>[]).filter(s=>s.accountId===account.id);assert.equal(sessions.length,1);sessions[0].expiresAt=new Date(Date.now()-1).toISOString();saveStore(getStore());
+    assert.equal((await request("/auth/me",{},winnerCookie)).status,401);const last=await login();assert.equal(last.status,200);const lastCookie=cookieFrom(last);
+    legacySession.createdAt=new Date(Date.now()-60_000).toISOString();getStore().collections.sessions.push(legacySession);saveStore(getStore());
+    assert.equal((await request("/auth/me",{},firstCookie)).status,401,"Legacy duplicate tokens are rejected");await request("/auth/logout",{method:"POST"},lastCookie);
+    assert.equal((await request("/auth/me",{},firstCookie)).status,401,"Signing out the newest session must not reactivate a legacy token");
+    assert.ok((getStore().collections.auditLog as Record<string,unknown>[]).some(entry=>entry.action==="auth.previous-session-closed"&&entry.actorId===account.id));
+  });
   it("enforces saved permissions instead of a client-selected role", async () => {
     const createManager = await request("/workspace/access/users", {
       method: "POST", headers: { "Content-Type": "application/json", Cookie: mainCookie },
@@ -1127,7 +1150,7 @@ describe("Customer Service permissions and session revocation", () => {
     assert.equal((await request("/workspace/customer-service/questions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerName:"Foreign Customer",organizationId:foreignId,subject:"Forbidden question",message:"Wrong company"})},cookie)).status,403);
     const replyOnlyPermissions = await request(`/workspace/access/users/${account.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permissions: ["customerService.view", "customerService.reply"] }) }, mainCookie);
     assert.equal(replyOnlyPermissions.status, 200, await replyOnlyPermissions.clone().text());
-    const replyOnlyLogin = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+    const replyOnlyLogin = await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) },cookie);
     assert.equal(replyOnlyLogin.status, 200);
     const replyOnlyCookie = cookieFrom(replyOnlyLogin);
     const deniedResolve = await request(`/workspace/customer-service/questions/${questionId}/replies`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "This reply must not be saved.", resolve: true }) }, replyOnlyCookie);

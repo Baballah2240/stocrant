@@ -127,7 +127,7 @@ describe("Smart operations shared workflow",()=>{
  });
  it("keeps manager edits under configured approval rules and rejects stale approvals",async()=>{
    const manager=rows("accessUsers").find(a=>a.email==="preparer@task.test")!;
-   const password=secret();const {hashPassword}=await import("./auth.js");manager.passwordHash=await hashPassword(password);saveStore(getStore());const login=await req("/auth/login",{email:manager.email,password},"");await expect(login);const session=cookie(login);
+   const password=secret();const {hashPassword}=await import("./auth.js");manager.passwordHash=await hashPassword(password);saveStore(getStore());const login=await req("/auth/login",{email:manager.email,password,closeOtherSessions:true},"");await expect(login);const session=cookie(login);
    getStore().collections.approvalRules.push({id:"task-edit-rule",section:"operations",action:"edit",active:true});saveStore(getStore());
    const created=(await expect(await req("/workspace/tasks",create({assignmentMode:"individual",assigneeIds:["task-other"],reviewRequired:false}),session),201)).item;assert.equal(created.reviewRequired,true);
    const pending=await expect(await req(`/workspace/tasks/${created.id}/manage`,{version:created.version,action:"edit",title:"Approved management change",reason:"Manager requests a title change"},session),202);assert.notEqual(rows("workItems").find(t=>t.id===created.id)!.title,"Approved management change");

@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-26 - One active session per user
+
+- Limit ordinary accounts to one active browser/native login. Require signing out of the old session or explicitly closing it from the new sign-in screen after password verification. Super Admin retains concurrent access.
+- Enforce the policy on the server for cookies and native bearer tokens, including concurrent logins, expired sessions, legacy duplicate sessions and role changes. Audit explicit session replacement.
+- Check session validity on focus and while visible so a replaced session returns to sign-in. Include English and Arabic recovery copy. No native build or installation performed.
+
 ## 2026-10-26 - Animated lock-screen background
 
 - Add the public website's drifting constellation effect behind the workspace lock card in light/dark themes and mobile layouts.

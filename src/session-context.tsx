@@ -9,7 +9,7 @@ interface SessionContextValue {
   loading: boolean;
   setupRequired: boolean;
   error: string | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string,closeOtherSessions?:boolean) => Promise<void>;
   setup: (input: { name: string; email: string; password: string; setupKey: string }) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -61,11 +61,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     window.addEventListener("stocrant:session-changed", update);
     return () => window.removeEventListener("stocrant:session-changed", update);
   }, [refresh]);
+  useEffect(()=>{
+    if(!user)return;let active=true,checking=false;const operation=authOperation.current;
+    const check=async()=>{if(document.hidden||checking)return;checking=true;try{const status=await api.auth.status();if(active&&operation===authOperation.current&&(!status.user||status.user.id!==user.id))await refresh();}catch{/* Retry on the next focus or interval when the connection returns. */}finally{checking=false;}};
+    const timer=window.setInterval(()=>void check(),30_000);window.addEventListener("focus",check);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",check);};
+  },[user?.id,refresh]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string,closeOtherSessions=false) => {
     const operation = ++authOperation.current;
     revision.current++;
-    const response = await api.auth.login({ email, password }).catch(error => { if (operation === authOperation.current) setLoading(false); throw error; });
+    const response = await api.auth.login({ email, password,closeOtherSessions }).catch(error => { if (operation === authOperation.current) setLoading(false); throw error; });
     if (operation !== authOperation.current) return;
     revision.current++;
     mobileSession.save(response.sessionToken);
