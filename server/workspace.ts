@@ -4,6 +4,7 @@ import { protectCommerceStock } from "./commerce-stock.js";
 import { generateEmployeeCode } from "./employee-identity.js";
 import { syncEmployeeAccount } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
+import {applyContractApproval,canReadContractApproval} from "./employment-contracts.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { validateHierarchyMutation } from "./organization-policy.js";
 import { can, canViewSalaryData, canManageHr, isMainManager, isShopManager, isWithinScope, sectionForCollection, type PermissionAction, type WorkspaceSection } from "./permissions.js";
@@ -179,6 +180,7 @@ export function mutateCollection(
   permissionAction: PermissionAction = action,
   shopApprovalCompany?: string,
 ): { pending: boolean; item?: Row; request?: ApprovalRequest } {
+  if(["contracts","employmentContracts"].includes(collection))throw new Error("Use HR contract management to prepare and approve contracts.");
   if(collection==="returns"&&payload.shopOrderId&&!shopApprovalCompany)throw new Error("Create shop returns through the shop workflow.");
   const shopApproved=Boolean(shopApprovalCompany&&isShopManager(user)&&can(user,"finance","approve")&&["sales","returns","financeTransactions","financeAccounts"].includes(collection)&&payload.organizationId===shopApprovalCompany&&isWithinScope(user,{organizationId:shopApprovalCompany}));
   return transaction(() => performMutation(user, collection, action, payload, targetId, permissionAction, shopApproved));
@@ -353,6 +355,7 @@ export function approveRequest(user: AuthenticatedUser, requestId: string, appro
 
 /** Resolve legacy requests through their target/payload without broadening scope. */
 function approvalWithinScope(user: AuthenticatedUser, request: Row): boolean {
+  if(request.collection==="employmentContracts")return canReadContractApproval(user,request);
   const payload = request.payload && typeof request.payload === "object" ? request.payload as Record<string, unknown> : {};
   if (user.roleId === "role-shop-manager") {
     if (!isShopManager(user) || !can(user, "finance", "approve")) return false;
@@ -392,8 +395,10 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
     const decisions = pair.map(row => decideRequest(user, row.id, approve, note, true));
     return decisions.find(row => row.id === requestId)!;
   }
+  if(request.collection==="employmentContracts")applyContractApproval(user,request,approve,note);
   if (approve) {
-    if(request.collection==="workItems"&&request.payload?.smartTaskManagement)applyTaskManagementApproval(user,request);
+    if(request.collection==="employmentContracts"){/* Published by the dedicated contract workflow above. */}
+    else if(request.collection==="workItems"&&request.payload?.smartTaskManagement)applyTaskManagementApproval(user,request);
     else if(request.collection==="workItems"&&request.payload?.smartTaskInput)applySmartTaskApproval(user,request);
     else if (request.collection === "documents") applyDocumentApproval(user, request);
     else {

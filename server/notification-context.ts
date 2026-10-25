@@ -5,6 +5,7 @@ import type { Notification } from "./types.js";
 import { getCollection } from "./storage.js";
 import { can, isMainManager, isWithinScope, canViewSalaryData } from "./permissions.js";
 import { canReadDocument } from "./documents.js";
+import {canReadContract} from "./employment-contracts.js";
 import { inventorySummary } from "./workspace.js";
 
 type Row = Record<string, unknown>;
@@ -20,7 +21,10 @@ export function notificationContext(user: AuthenticatedUser, item: Notification)
     const company = find("companies", String(row.organizationId || row.companyId || ""));
     if (company) details.company = company.name;
   };
-  if (target.startsWith("shop-order:") && can(user, "operations", "view") && can(user, "inventory", "view")) {
+  if(target.startsWith("employment-contract:")){
+    const row=find("employmentContracts",target.slice(20));
+    if(row&&canReadContract(user,row)){link={to:`/hr/contracts?employee=${encodeURIComponent(String(row.employeeId))}`,label:"Open employment contract"};}
+  } else if (target.startsWith("shop-order:") && can(user, "operations", "view") && can(user, "inventory", "view")) {
     const row = find("shopOrders", target.slice(11));
     const lines = Array.isArray(row?.lines) ? row.lines as Row[] : [];
     if (row && isWithinScope(user, row) && lines.length && lines.every(line => { const item = find("inventoryItems", String(line.inventoryItemId)); return item && isWithinScope(user, item); })) {
@@ -69,7 +73,7 @@ export function notificationContext(user: AuthenticatedUser, item: Notification)
     const row = find("approvalRequests", target);
     if (row && (isMainManager(user) || can(user, "approvals", "view") && isWithinScope(user, row))) {
       add(row, ["section", "action", "collection", "status", "requestedByName", "requestedAt", "decisionNote"]);
-      link = { to: row.collection === "documents" ? `/hr/documents/requests/${encodeURIComponent(target)}` : "/admin?tab=Approvals", label: "Open approvals" };
+      link = { to: row.collection === "employmentContracts" ? `/hr/contracts?employee=${encodeURIComponent(String(row.employeeId))}` : row.collection === "documents" ? `/hr/documents/requests/${encodeURIComponent(target)}` : "/admin?tab=Approvals", label: "Open approvals" };
     }
   } else if (["registration_request", "password_reset"].includes(item.type) && isMainManager(user)) {
     const row = find("accessUsers", target);

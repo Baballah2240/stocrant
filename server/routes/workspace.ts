@@ -19,6 +19,7 @@ import { getCollection, getStore, nextCollectionId, saveStore, transaction } fro
 import { createNotification, listNotifications } from "../notifications.js";
 import { approveRequest, audit, canReadApproval, financeSummary, inventorySummary, mutateCollection, type Row } from "../workspace.js";
 import { canReadDocument, safeDocument } from "../documents.js";
+import {canApproveContract} from "../employment-contracts.js";
 
 const router = Router();
 router.use("/analytics", analyticsRouter);
@@ -675,10 +676,11 @@ router.delete("/access/users/:id", requirePermission("access", "delete"), (req, 
   res.json({ ok: true });
 });
 
-router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)).map(row=>({...row,canSelfApprove:row.requestedBy===req.auth!.id&&isMainManager(req.auth),canDecide:can(req.auth,"approvals","approve")&&(row.requestedBy!==req.auth!.id||isMainManager(req.auth))})) }));
+router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)).map(row=>({...row,canSelfApprove:row.requestedBy===req.auth!.id&&isMainManager(req.auth),canDecide:(row.collection!=="employmentContracts"||canApproveContract(req.auth!,row))&&can(req.auth,"approvals","approve")&&(row.requestedBy!==req.auth!.id||isMainManager(req.auth))})) }));
 router.post("/approvals/:id/changes",requirePermission("approvals","approve"),(req,res)=>{
  const parsed=z.object({note:z.string().trim().min(8).max(2000)}).strict().safeParse(req.body);if(!parsed.success)return res.status(400).json({error:"Explain the required changes in at least 8 characters."});
  const row=rows("approvalRequests").find(row=>row.id===req.params.id&&canReadApproval(req.auth!,row));if(!row)return res.status(404).json({error:"Approval request not found."});
+ if(row.collection==="employmentContracts")return res.status(400).json({error:"Reject the contract with a note so HR can prepare a new revision."});
  if(row.status!=="pending"||row.requestedBy===req.auth!.id)return res.status(400).json({error:"Only another pending request can be returned for changes."});
  transaction(()=>{Object.assign(row,{status:"changes-requested",decisionNote:parsed.data.note,decidedBy:req.auth!.id,decidedByName:req.auth!.name,decidedAt:new Date().toISOString()});saveStore(getStore());audit(req.auth,"approval.changes-requested",{targetId:row.id,collection:row.collection,organizationId:row.organizationId,requesterId:row.requestedBy,reason:parsed.data.note,outcome:"changes-requested"});createNotification({userId:String(row.requestedBy),user:String(row.requestedByName||""),type:"message",severity:"info",message:"Changes were requested. Revise and submit through the original workflow: "+parsed.data.note,target:row.id});});res.json({item:row});
 });

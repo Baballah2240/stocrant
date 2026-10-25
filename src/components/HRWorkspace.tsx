@@ -20,6 +20,7 @@ interface HrOverview {
 }
 
 const recordLinks: Array<{ collection: string; label: string; description: string; to?: string }> = [
+  {collection:"contracts",label:"Employee contracts",description:"HR drafts, Company Manager approval and private employee PDFs",to:"/hr/contracts"},
   { collection: "employees", label: "Employee accounts & notifications", description: "Account activation, private messages and acknowledgment tracking", to: "/hr/communication" },
   { collection: "documents", label: "Documents", description: "Private employee records, company files and expiry reminders", to: "/hr/documents" },
   { collection: "employees", label: "Employee directory", description: "Profiles, contacts, jobs and assignments" },
@@ -133,7 +134,7 @@ export default function HRWorkspace() {
         <article className="card"><div className="hr-section-heading"><div><p className="eyebrow">{t("Celebrate")}</p><h2>{t("Upcoming birthdays")}</h2></div><span className="hr-muted">{t("Next 60 days")}</span></div>{overview.birthdays.length ? <div className="hr-compact-list">{overview.birthdays.map((employee) => <NavLink to={`/hr/employees/${employee.id}`} className="hr-birthday-row" key={employee.id}><span className="hr-avatar hr-avatar--green" aria-hidden="true">{initials(employee.name)}</span><div><strong>{readable(employee.name, "Unnamed employee")}</strong><small>{readable(employee.jobTitle, readable(employee.department, "Employee"))}</small></div><time dateTime={String(employee.birthday)}>{formatDate(String(employee.birthday))}</time></NavLink>)}</div> : <EmptyState message={t("Add birthdays to employee profiles to see upcoming celebrations.")} actionTo="/hr/employees" actionLabel={t("Open employees")} />}</article>
       </section>
 
-        <section className="hr-library card"><div className="hr-section-heading"><div><p className="eyebrow">{t("Workforce records")}</p><h2>{t("Manage HR")}</h2></div>{canViewPayroll ? <NavLink to="/hr/payroll">{t("Payroll")}</NavLink> : canViewFinance ? <NavLink to="/finance">{t("Payroll & finance →")}</NavLink> : null}</div><div className="hr-link-grid">{recordLinks.map((link) => <NavLink className="hr-record-link" key={link.collection} to={link.to ?? `/hr/${link.collection}`}><div><strong>{link.label}</strong><span>{link.description}</span></div><span aria-hidden="true">→</span></NavLink>)}</div></section>
+        <section className="hr-library card"><div className="hr-section-heading"><div><p className="eyebrow">{t("Workforce records")}</p><h2>{t("Manage HR")}</h2></div>{canViewPayroll ? <NavLink to="/hr/payroll">{t("Payroll")}</NavLink> : canViewFinance ? <NavLink to="/finance">{t("Payroll & finance →")}</NavLink> : null}</div><div className="hr-link-grid">{recordLinks.map((link) => <NavLink className="hr-record-link" key={link.collection} to={link.to ?? `/hr/${link.collection}`}><div><strong>{t(link.label)}</strong><span>{t(link.description)}</span></div><span aria-hidden="true">→</span></NavLink>)}</div></section>
     </> : null}
   </div>;
 }

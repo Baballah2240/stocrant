@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-26 - Approved employee contract PDFs
+
+- Add HR contract management covering every assigned employee, private PDF uploads/replacements and versioned HR Manager drafts. Require Company Manager approval for each published revision; other roles cannot author contracts.
+- Deliver approved PDFs to the employee's own account/profile and Documents with easy downloading. Keep the previous approved PDF visible during new reviews, retain historical files, notify the employee and audit all transitions.
+- Block generic contract/document editing bypasses, stale approvals, cross-company access and employee draft downloads. Include English/Arabic desktop/mobile layouts; no native build or installation performed.
+
 ## 2026-10-26 - One active session per user
 
 - Limit ordinary accounts to one active browser/native login. Require signing out of the old session or explicitly closing it from the new sign-in screen after password verification. Super Admin retains concurrent access.

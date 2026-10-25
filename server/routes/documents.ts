@@ -16,7 +16,7 @@ function failure(res: Response, error: unknown) {
 }
 router.get("/config", (req, res) => {
   if (!can(req.auth, "hr", "view")) return res.status(403).json({ error: "You do not have permission to view documents." });
-  res.json({ ...documentUploadConfig(), employeeTypes: EMPLOYEE_DOCUMENT_TYPES, companyTypes: COMPANY_DOCUMENT_TYPES });
+  res.json({ ...documentUploadConfig(), employeeTypes: EMPLOYEE_DOCUMENT_TYPES.filter(type=>type!=="employment-contract"), companyTypes: COMPANY_DOCUMENT_TYPES });
 });
 router.get("/requests/:id", (req, res) => {
   const request = documentRows("approvalRequests").find(request => request.id === req.params.id);
@@ -108,7 +108,7 @@ router.get("/:id/file", (req, res) => {
 router.get("/:id", (req, res) => {
   const item = documentRows().find(row => row.id === req.params.id);
   if (!item || !canReadDocument(req.auth!, item)) return res.status(404).json({ error: "Document not found." });
-  res.json({ item: safeDocument(req.auth!, item), permissions: { edit: managesDocuments(req.auth!, "edit"), archive: managesDocuments(req.auth!, "delete") } });
+  res.json({ item: safeDocument(req.auth!, item), permissions: { edit: item.type!=="employment-contract"&&managesDocuments(req.auth!, "edit"), archive: item.type!=="employment-contract"&&managesDocuments(req.auth!, "delete") } });
 });
 router.patch("/:id", (req, res) => { try { const result = saveDocument(req.auth!, req.body, String(req.params.id)); res.status(result.pending ? 202 : 200).json(mutationResponse(req, result)); } catch (error) { failure(res, error); } });
 router.post("/:id/archive", (req, res) => {

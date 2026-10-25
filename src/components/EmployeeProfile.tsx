@@ -1,4 +1,5 @@
 import CompanyWork from "./CompanyWork";
+import {EmployeeContract} from "./EmployeeContract";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api, request } from "../api";
@@ -11,7 +12,7 @@ import { ReportLink } from "./CompanyReport";
 import "../company-profile.css";
 
 type Profile={delivery?:{status:string;error?:string};employee:CollectionItem;company:{id:string;name:string;parentOrganizationId:string};records:Record<string,CollectionItem[]>;payroll:CollectionItem[];account:null|{id:string;username:string;status:string;avatar?:string;roleName:string};permissions:Record<string,boolean>};
-const tabs=[["personal","Personal information"],["employment","Employment information"],["contact","Contact information"],["account","Account & access"],["records","HR & Attendance"],["payroll","Payroll"],["tasks","Tasks"],["notes","Notes"],["documents","Documents"],["history","Activity history"]];
+const tabs=[["personal","Personal information"],["employment","Employment information"],["contact","Contact information"],["account","Account & access"],["records","HR & Attendance"],["payroll","Payroll"],["tasks","Tasks"],["notes","Notes"],["contracts","Employment contract"],["documents","Documents"],["history","Activity history"]];
 const text=(v:unknown)=>typeof v==="string"||typeof v==="number"?String(v):"";
 const fields:Record<string,[string,string][]>={personal:[["employeeCode","Employee ID"],["name","Full name"],["birthday","Birthday"]],employment:[["jobTitle","Job title"],["department","Department"],["employmentType","Employment"],["status","Employment status"],["hireDate","Joining date"],["manager","Manager"],["location","Location"],["salary","Base salary"],["notes","Notes"]],contact:[["email","Email"],["phone","Phone"],["address","Address"]]};
 export default function EmployeeProfile({id}:{id:string}){
@@ -36,6 +37,7 @@ export default function EmployeeProfile({id}:{id:string}){
  {section==="payroll"&&permissions.payroll&&<section className="card company-record-panel"><header><h2>{t("Payroll history")}</h2><Link to={`/hr/payroll?company=${encodeURIComponent(company.id)}&employee=${encodeURIComponent(id)}`}>{t("Payroll & payslips")}</Link></header>{data.payroll.length?<div className="table-wrap"><table className="table"><thead><tr>{["Period","Gross pay","Overtime","Deductions","Net pay"].map(label=><th key={label}>{t(label)}</th>)}</tr></thead><tbody>{data.payroll.map(row=><tr key={row.id}><td>{text(row.start)} — {text(row.end)}</td><td>{text(row.gross)} {text(row.currency)}</td><td>{text(row.overtimePay)}</td><td>{text(row.deductions)}</td><td>{text(row.netPay)}</td></tr>)}</tbody></table></div>:<p>{t("No payroll records match these filters.")}</p>}</section>}
  {(section==="tasks"||section==="notes")&&permissions.notes&&<CompanyWork key={company.id+id+section} companyId={company.id} employeeId={id} mode={section}/>}
  {section==="documents"&&<EmployeeDocuments employeeId={id} companyId={company.id}/>}
+ {section==="contracts"&&<EmployeeContract employeeId={id}/>}
  <div className="company-actions"><Link to={`/organization/companies/${company.id}?section=employees`}>{t("Back to company")}</Link><button type="button" onClick={()=>{setParams({section:"personal"});}}>{t("Personal information")}</button></div>
  </main>;
 }

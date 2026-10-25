@@ -29,6 +29,7 @@ const ShopWorkspace = lazy(() => import("./components/ShopWorkspace"));
 const FinanceWorkspace = lazy(() => import("./components/FinanceWorkspace"));
 const AccessWorkspace = lazy(() => import("./components/AccessWorkspace"));
 const HRWorkspace = lazy(() => import("./components/HRWorkspace"));
+const ContractsWorkspace = lazy(() => import("./components/ContractsWorkspace"));
 const AttendanceWorkspace = lazy(() => import("./components/AttendanceWorkspace"));
 const DocumentsWorkspace = lazy(() => import("./components/DocumentsWorkspace"));
 const DocumentForm = lazy(() => import("./components/DocumentsWorkspace").then(module => ({ default: module.DocumentForm })));
@@ -85,6 +86,7 @@ const router = createBrowserRouter([
       { path: "hr/communication", element: <HRCommunication /> },
       { path: "notifications", element: <EmployeeInbox /> },
       { path: "hr/documents", element: <DocumentsWorkspace /> },
+      { path: "hr/contracts", element: <ContractsWorkspace /> },
       { path: "hr/documents/new", element: <DocumentForm /> },
       { path: "hr/documents/requests/:id", element: <DocumentRequestReview /> },
       { path: "hr/documents/:id", element: <DocumentDetail /> },

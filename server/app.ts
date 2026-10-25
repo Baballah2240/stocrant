@@ -20,6 +20,7 @@ import authRouter from "./routes/auth.js";
 import workspaceRouter from "./routes/workspace.js";
 import attendanceRouter from "./routes/attendance.js";
 import documentsRouter from "./routes/documents.js";
+import employmentContractsRouter from "./employment-contracts.js";
 import {
   attachAuth,
   productionConfigurationError,
@@ -106,6 +107,8 @@ export function createApp() {
   app.use("/api/people", peopleRouter);
   app.use("/api/occupancy", occupancyRouter);
   app.use("/api/collections/documents", documentsRouter);
+  app.use("/api/collections/contracts", employmentContractsRouter);
+  app.use("/api/workspace/contracts", employmentContractsRouter);
   app.use("/api/workspace/documents", documentsRouter);
   app.use("/api/collections", collectionsRouter);
   app.use("/api/workspace/payroll", payrollRouter);

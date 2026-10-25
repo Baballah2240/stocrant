@@ -45,6 +45,7 @@ export function documentCompanyScope(user: AuthenticatedUser, companyId: unknown
 }
 export function canReadDocument(user: AuthenticatedUser, row: Record<string, unknown>) {
   if (isMainManager(user)) return true;
+  if(row.contractId&&user.employeeId!==row.employeeId&&!["role-hr-manager","role-company-manager","role-organization-admin"].includes(user.roleId))return false;
   if (!can(user, "hr", "view") || !documentCompanyScope(user, row.organizationId ?? row.companyId, row.category === "employee" ? row.employeeId : undefined)) return false;
   if (managesDocuments(user)) return true;
   if (row.lifecycle === "archived") return false;
@@ -87,6 +88,8 @@ export function saveDocument(user: AuthenticatedUser, input: unknown, id?: strin
       documentError(messages[field] || "Review the document fields and try again.");
     }
     const values = parsed.data;
+    if(values.type==="employment-contract"||current?.type==="employment-contract")documentError("Use HR contract management to prepare and approve contracts.",403);
+    if(values.fileId&&documentRows("documentFiles").some(file=>file.id===values.fileId&&file.contractOnly))documentError("Contract PDFs must be managed through HR contract management.",403);
     if (current && values.version !== Number(current.version || 1)) documentError("This document changed. Reload it before saving.", 409);
     const company = documentRows("companies").find(company => company.id === values.organizationId);
     if (!company || company.status === "inactive" || !documentRows("organizations").some(org => org.id === company.parentOrganizationId && org.status === "active") || !documentCompanyScope(user, company.id, values.employeeId)) documentError("Choose an active company within your access.", 403);
@@ -128,6 +131,7 @@ export function setDocumentArchive(user: AuthenticatedUser, id: string, archive:
     if (!managesDocuments(user, archive ? "delete" : "edit")) documentError("You do not have permission to archive or restore documents.", 403);
     const current = documentRows().find(row => row.id === id);
     if (!current || !canReadDocument(user, current)) documentError("Document not found.", 404);
+    if(current.type==="employment-contract")documentError("Use HR contract management to prepare and approve contracts.",403);
     if (Number(current.version || 1) !== version) documentError("This document changed. Reload it before saving.", 409);
     const action = archive ? "delete" : "edit";
     if (approval && (!can(approval.approver, "approvals", "approve") || !managesDocuments(approval.approver, action))) documentError("You do not have permission to approve this document change.", 403);
