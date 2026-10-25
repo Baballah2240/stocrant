@@ -1,6 +1,7 @@
 import ShopOperationsSettings, {type ShopOperationSettings,type ShopPaymentAccount} from "./ShopOperationsSettings";
 import ShopOrderPayment, {type ShopPayment} from "./ShopOrderPayment";
 import ShopStaffSettings from "./ShopStaffSettings";
+import ShopOrderProgress from "./ShopOrderProgress";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { request } from "../api";
@@ -276,6 +277,7 @@ export default function ShopWorkspace() {
   const selected = data.orders.find((o) => o.id === selectedOrder);
   const visibleProducts = data.products.filter(p => (`${p.name} ${p.sku} ${p.category || ""}`).toLowerCase().includes(search.toLowerCase()) && (productFilter === "all" || productFilter === "active" && p.active || productFilter === "paused" && !p.active || productFilter === "out" && p.available === 0));
   const visibleOrders = data.orders.filter(o => (orderFilter === "all" || o.status === orderFilter) && (`${o.customer} ${o.phone} ${o.id} ${o.tracking || ""}`).toLowerCase().includes(orderSearch.toLowerCase()));
+  const completionBlocked = Boolean(selected?.status === "dispatched" && data.settings?.requirePaymentBeforeCompletion && (!selected.settlement || selected.settlement.outstanding == null || Number(selected.settlement.outstanding) > 0));
   async function importExcel(file?: File) {
     if (!file) return;
     setPreview([]);
@@ -399,7 +401,7 @@ export default function ShopWorkspace() {
               [
                 "Open orders",
                 data.orders.filter((o) =>
-                  ["reserved", "preparing"].includes(o.status),
+                  ["reserved", "preparing", "dispatched"].includes(o.status),
                 ).length,
               ],
               [
@@ -446,6 +448,9 @@ export default function ShopWorkspace() {
               </button>
             ))}
           </nav>
+          {tab === "orders" && <nav className="shop-order-stages" aria-label={t("Order stages")}>
+            {["all", "reserved", "preparing", "dispatched", "delivered"].map(status => <button key={status} type="button" aria-pressed={orderFilter === status} disabled={busy || loading} onClick={() => {setOrderFilter(status);setOrderSearch("");setSelectedOrder("");}}><span>{t(status === "all" ? "All orders" : status)}</span><strong>{data.orders.filter(order => status === "all" || order.status === status).length}</strong></button>)}
+          </nav>}
           <fieldset disabled={busy || loading || photoBusy} className="shop-controls">
             {canConnect && ["settings", "storefront", "connections", "shop-users"].includes(tab) && (
               <section className="card shop-settings-hub" aria-labelledby="shop-settings-title">
@@ -882,6 +887,7 @@ export default function ShopWorkspace() {
                       <h2>{selected.customer}</h2>
                       <span className={`shop-status status-${selected.status}`}>{t(selected.status)}</span>
                     </div>
+                    <ShopOrderProgress status={selected.status} paymentRequired={Boolean(data.settings?.requirePaymentBeforeCompletion)} outstanding={selected.settlement?.outstanding}/>
                     <p className="shop-contact-line">
                       <a dir="ltr" href={`tel:${selected.phone.replace(/[^+\d]/g, "")}`}>{selected.phone}</a>
                       {selected.email && <a dir="ltr" href={`mailto:${selected.email}`}>{selected.email}</a>}
@@ -917,6 +923,8 @@ export default function ShopWorkspace() {
                             "Shipment or collection reference",
                             tracking,
                             setTracking,
+                            "text",
+                            data.settings?.requireTracking !== false,
                           )}
                         {(
                           {
@@ -928,6 +936,8 @@ export default function ShopWorkspace() {
                           <button
                             type="button"
                             key={status}
+                            className={status === "cancelled" ? "shop-cancel-order" : "primary"}
+                            disabled={status === "delivered" && completionBlocked || status === "dispatched" && data.settings?.requireTracking !== false && !tracking.trim()}
                             onClick={() =>
                               void action(async () => {
                                 await post(`/orders/${selected.id}/status`, {
@@ -951,6 +961,7 @@ export default function ShopWorkspace() {
                         ))}
                       </div>
                     )}
+                    {completionBlocked && <p className="hint" role="status">{t("Full payment is required before this order can be completed.")}</p>}
                     <details>
                       <summary>{t("Order history")}</summary>
                       {selected.events.map((e, i) => (
@@ -981,6 +992,9 @@ export default function ShopWorkspace() {
                         });
                         requestIds.current.order = crypto.randomUUID();
                         setSelectedOrder(result.id);
+                        setOrderFilter("all");
+                        setOrderSearch("");
+                        setTracking("");
                         setLines([{ productId: "", quantity: 1 }]);
                         setOrder({
                           customer: "",

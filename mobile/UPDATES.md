@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-10-25 - Shop workflow and layout improvements
+
+- Keep shop navigation visible with wrapping tabs; add order-stage counts and filters plus a per-order progress guide and next-step instructions.
+- Disable dispatch until required tracking is entered, and disable completion until the configured full-payment requirement is met. Retain server-side validation.
+- Use a desktop settings sidebar and compact mobile settings cards; group completion rules and payment methods with an unsaved-changes indicator.
+- Improve storefront form grouping and mobile checkboxes. No native build or installation performed.
+
 ## 2026-10-25 - Shop settings section
 
 - Add a clearly labeled settings section in Shops & orders, with responsive cards for orders/payments, storefront, shop users and connections.
