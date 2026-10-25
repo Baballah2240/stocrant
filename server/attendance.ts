@@ -668,10 +668,11 @@ export function createManualAttendance(user: AuthenticatedUser, input: { organiz
     const row: AttendanceRow = {
       id: nextCollectionId("attendance"), organizationId: input.organizationId, employeeId: employee.id, employee: String(employee.name), date: input.date,
       sessions, checkIn: input.checkIn, checkOut: input.checkOut, checkInAt: sessions[0]?.checkIn, checkOutAt: sessions[0]?.checkOut,
-      status: input.status ?? (sessions.length ? "present" : "absent"), approvalStatus: "Draft", note: text(input.note), createdBy: user.id, createdByName: user.name,
+      status: input.status ?? (sessions.length ? "present" : "absent"), approvalStatus: isMainManager(user)?"Approved":"Draft", ...(isMainManager(user)?{finalizedAt:now(),finalizedBy:user.id}:{}), note: text(input.note), createdBy: user.id, createdByName: user.name,
     };
     const enriched = enrichAttendance(row, employee, settings);
     writeRow("attendance", { ...row, status: enriched.status, hours: enriched.hours, estimatedDeduction: enriched.estimatedDeduction });
+    if(isMainManager(user))postPayrollDeduction(row,employee,settings,user);
     audit(user, "attendance.recorded", { collection: "attendance", targetId: row.id, employeeId: employee.id, date: row.date });
     return enriched;
   });
@@ -684,6 +685,7 @@ export function submitAttendanceForApproval(user: AuthenticatedUser, attendanceI
     if (!canManageAttendance(user, record.organizationId) || !isWithinScope(user, record)) failure("You do not have permission to submit this attendance record.", 403);
     if (!["Draft", "Returned for Correction", "Rejected"].includes(record.approvalStatus ?? "Draft")) failure("This attendance record is already in an approval workflow.", 409);
     const settings = settingsFor(record.organizationId);
+    if(isMainManager(user)){const next:AttendanceRow={...record,approvalStatus:"Approved",submittedBy:user.id,submittedAt:now(),finalizedBy:user.id,finalizedAt:now(),updatedAt:now()};writeRow("attendance",next);const employee=employeeById(record.employeeId);if(employee)postPayrollDeduction(next,employee,settings,user);audit(user,"attendance.main-finalized",{targetId:record.id,organizationId:record.organizationId});if(!employee)failure("Employee not found.",404);return enrichAttendance(next,employee,settings);}
     const first = settings.approvalStages[0];
     const next: AttendanceRow = { ...record, approvalStatus: stageStatus(first), approvalHistory: [], submittedAt: now(), submittedBy: user.id, submittedByName: user.name, submissionComment: text(comment), updatedAt: now() };
     writeRow("attendance", next);
@@ -747,7 +749,7 @@ export function decideAttendanceApproval(user: AuthenticatedUser, attendanceId: 
     else if (decision === "return") approvalStatus = "Returned for Correction";
     else {
       const approvedStages = history.filter((item) => item.decision === "approved").length + 1;
-      approvalStatus = approvedStages >= settings.approvalStages.length ? "Approved" : stageStatus(settings.approvalStages[approvedStages]);
+      approvalStatus = isMainManager(user)||approvedStages >= settings.approvalStages.length ? "Approved" : stageStatus(settings.approvalStages[approvedStages]);
     }
     const next: AttendanceRow = { ...record, approvalStatus, approvalHistory: [...history, entry], updatedAt: now(), ...(approvalStatus === "Approved" ? { finalizedAt: now(), finalizedBy: user.id } : {}) };
     writeRow("attendance", next);
@@ -825,7 +827,7 @@ export function decideCorrectionRequest(user: AuthenticatedUser, requestId: stri
         : sessionsFor(original);
       if (!nextSessions.length && request.requestedCheckOut) failure("A clock-in time is required before a clock-out correction can be approved.");
       const base: AttendanceRow = original ?? { id: nextCollectionId("attendance"), organizationId: request.organizationId, employeeId: employee.id, employee: String(employee.name), date: request.attendanceDate, approvalStatus: "Draft" };
-      const corrected: AttendanceRow = { ...base, sessions: nextSessions, checkIn: request.requestedCheckIn ?? base.checkIn, checkOut: request.requestedCheckOut ?? base.checkOut, checkInAt: nextSessions[0]?.checkIn, checkOutAt: nextSessions[nextSessions.length - 1]?.checkOut, status: "approved-correction", approvalStatus: settings.approvalStages.length > 1 ? stageStatus(settings.approvalStages[1]) : "Approved", approvalHistory: [{ stage: hrStage.key, roleId: hrStage.roleId, decision: "approved", comment: text(comment), decidedAt: now(), decidedBy: user.id, decidedByName: user.name }], correctionRequestId: request.id, updatedAt: now() };
+      const corrected: AttendanceRow = { ...base, sessions: nextSessions, checkIn: request.requestedCheckIn ?? base.checkIn, checkOut: request.requestedCheckOut ?? base.checkOut, checkInAt: nextSessions[0]?.checkIn, checkOutAt: nextSessions[nextSessions.length - 1]?.checkOut, status: "approved-correction", approvalStatus: !isMainManager(user)&&settings.approvalStages.length > 1 ? stageStatus(settings.approvalStages[1]) : "Approved", approvalHistory: [{ stage: hrStage.key, roleId: hrStage.roleId, decision: "approved", comment: text(comment), decidedAt: now(), decidedBy: user.id, decidedByName: user.name }], correctionRequestId: request.id, updatedAt: now() };
       const enriched = enrichAttendance(corrected, employee, settings);
       writeRow("attendance", { ...corrected, status: "approved-correction", hours: enriched.hours, estimatedDeduction: enriched.estimatedDeduction });
       attendanceId = corrected.id;

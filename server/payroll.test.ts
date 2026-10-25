@@ -83,4 +83,9 @@ describe("Controlled payroll API",()=>{
    const own=await expect(await req(path,"GET",undefined,staff),200);assert.ok(own.runs.every((r:Row)=>r.payment===undefined));assert.ok(own.entries.every((e:Row)=>e.employeeId===employeeId));
  });
 
+ it("lets Main save payroll sources and finalize a run without another approver",async()=>{
+   const source=(await expect(await req(path+"/sources","POST",{employeeId,date:"2027-01-04",type:"bonus",amount:"12.25",reference:"MAIN-DIRECT-BONUS",reason:"Main confirms this bonus"}),201)).item;assert.equal(source.status,"approved");assert.equal(source.reviewedBy,source.createdBy);
+   const p={companyId:"company-primary",frequency:"monthly",start:"2027-01-01",end:"2027-01-31",employeeIds:[employeeId]};const preview=await expect(await req(path+"/preview","POST",p),200);let direct=(await expect(await req(path+"/runs","POST",{period:p,previewToken:preview.previewToken}),201)).run;
+   direct=(await expect(await req(path+`/runs/${direct.id}/transition`,"POST",{action:"submit",version:direct.version,reason:"Main finalizes validated payroll"}),200)).run;assert.equal(direct.status,"Approved");assert.equal(direct.approvedBy,direct.createdBy);assert.equal((await expect(await req(path),200)).permissions.main,true);
+ });
 });

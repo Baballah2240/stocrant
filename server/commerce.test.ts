@@ -454,9 +454,9 @@ describe("Connected shop foundations", () => {
         status: "dispatched",
         tracking: "X",
       }),
-      409,
+      200,
     );
-    assert.equal((await json(await api(prefix()))).products[0].onHand, 7);
+    assert.equal((await json(await api(prefix()))).products[0].onHand, 5);
     const role = (getCollection("accessRoles") as Row[]).find(
       (r) => r.id === "role-company-manager",
     )!;

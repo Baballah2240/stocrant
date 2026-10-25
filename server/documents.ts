@@ -108,7 +108,7 @@ export function saveDocument(user: AuthenticatedUser, input: unknown, id?: strin
     const file = values.fileId ? documentRows("documentFiles").find(file => file.id === values.fileId) : undefined;
     if (file?.approvalId && file.approvalId !== approval?.requestId && documentRows("approvalRequests").some(request => request.id === file.approvalId && request.status === "pending")) documentError("This upload is awaiting approval and cannot be reused.", 409);
     if (values.fileId && (!file || !storedFileExists(file.id) || (file.id !== current?.fileId && (file.createdBy !== user.id || file.organizationId !== company.id || file.documentId)))) documentError("Upload a new attachment for this document.");
-    if (!approval && requiresApproval("hr", action)) return queueDocumentChange(user, action, values, company.id, id);
+    if (!approval && requiresApproval("hr", action, user)) return queueDocumentChange(user, action, values, company.id, id);
     const now = new Date().toISOString();
     const { clientRequestId: _requestKey, ...metadata } = values;
     const item: DocRow = { ...current, ...metadata, id: id || nextCollectionId("documents"), employeeId: employee?.id || "", employee: employee?.name || "", locationId: employee?.locationId || "", lifecycle: "active", documentSchemaVersion: 1, version: current ? Number(current.version || 1) + 1 : 1, createdAt: current?.createdAt || now, createdBy: current?.createdBy || user.id, updatedAt: now, updatedBy: user.id, updatedByName: user.name, ...(values.clientRequestId && !current ? { clientRequestId: values.clientRequestId } : {}), revisions: [...(Array.isArray(current?.revisions) ? current.revisions : []), ...(current ? [{ version: Number(current.version || 1), fileId: current.fileId || "", updatedAt: current.updatedAt || current.createdAt, replacedAt: now, replacedBy: user.id }] : [])] };
@@ -131,7 +131,7 @@ export function setDocumentArchive(user: AuthenticatedUser, id: string, archive:
     if (Number(current.version || 1) !== version) documentError("This document changed. Reload it before saving.", 409);
     const action = archive ? "delete" : "edit";
     if (approval && (!can(approval.approver, "approvals", "approve") || !managesDocuments(approval.approver, action))) documentError("You do not have permission to approve this document change.", 403);
-    if (!approval && requiresApproval("hr", action)) return queueDocumentChange(user, action, { documentArchive: archive, version }, current.organizationId, id);
+    if (!approval && requiresApproval("hr", action, user)) return queueDocumentChange(user, action, { documentArchive: archive, version }, current.organizationId, id);
     const item = { ...current, lifecycle: archive ? "archived" : "active", version: version + 1, updatedAt: new Date().toISOString(), updatedBy: user.id, updatedByName: user.name };
     const data = getStore(); data.collections.documents = documentRows().map(row => row.id === id ? item : row); saveStore(data);
     audit(user, archive ? "documents.archived" : "documents.restored", { collection: "documents", targetId: id });

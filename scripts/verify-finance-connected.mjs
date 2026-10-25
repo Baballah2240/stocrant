@@ -52,11 +52,11 @@ try {
   await until('(async()=>{const r=await(await fetch("/api/workspace/finance")).json();return r.sources.find(s=>s.id==="qa-sale").outstanding==="100.00"&&r.accounts.find(a=>a.id==="qa-bank").balance==="1000.00";})()');
   getStore().collections.approvalRules.push({id:'qa-finance-approval',section:'finance',action:'create',active:true});saveStore(getStore());
   await evaluate('Array.from(document.querySelectorAll(".finance-report button")).find(b=>b.textContent==="Record source payment").click()');await until('Boolean(document.querySelector(".finance-report form"))');
-  await field('.finance-report form select','qa-bank');await field('.finance-report form input[type=text]','QA-PENDING');await field('.finance-report form .form-grid > label:last-child input','Independent approval requested');
-  await evaluate('document.querySelector(".finance-report form").requestSubmit()');await until('document.querySelector(".finance-report")?.textContent.includes("Payment submitted for approval")');
-  assert.ok(await evaluate('(async()=>{const r=await(await fetch("/api/workspace/finance")).json();return r.sources.find(s=>s.id==="qa-sale").outstanding==="100.00"&&r.accounts.find(a=>a.id==="qa-bank").balance==="1000.00";})()'),'Pending approval does not move balances');
+  await field('.finance-report form select','qa-bank');await field('.finance-report form input[type=number]','0.25');await field('.finance-report form input[type=text]','QA-MAIN-DIRECT');await field('.finance-report form .form-grid > label:last-child input','Main direct financial change');
+  await evaluate('document.querySelector(".finance-report form").requestSubmit()');await until('document.querySelector(".finance-report")?.textContent.includes("Source payment recorded")');
+  assert.ok(await evaluate('(async()=>{const r=await(await fetch("/api/workspace/finance")).json();return r.sources.find(s=>s.id==="qa-sale").outstanding==="99.75"&&r.accounts.find(a=>a.id==="qa-bank").balance==="1000.25";})()'),'Main changes post immediately despite approval rules');
   getStore().collections.approvalRules=getStore().collections.approvalRules.filter(rule=>rule.id!=='qa-finance-approval');saveStore(getStore());
-  await tab('Overview');await until('document.querySelector(".finance-obligations")?.textContent.includes("100.00")');
+  await tab('Overview');await until('document.querySelector(".finance-obligations")?.textContent.includes("99.75")');
   assert.ok(await evaluate('document.querySelector(".finance-obligations").textContent.includes("75.00")'));
   await tab('Sales');await until(`Boolean(document.querySelector('a[href$="/sales/qa-sale"]'))`);
   await evaluate(`document.querySelector('a[href$="/sales/qa-sale"]').click()`);

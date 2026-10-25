@@ -24,7 +24,7 @@ const movement=(extra:Row={})=>({accountId:bank.id,type:"expense",amount:"0.10",
 before(async()=>{
  server=createApp().listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
  const setup=await req("/auth/setup",{name:"Flow admin",email:"flow@example.test",password:randomBytes(24).toString("hex"),setupKey:"local-setup"});await expect(setup,201);cookie=setup.headers.get("set-cookie")!.split(";")[0];
- const data=getStore();data.collections.financeAccounts.push(bank);data.collections.employees.push({id:"flow-worker",name:"Flow worker",employeeCode:"FLOW-1",organizationId:"company-primary",status:"active"});
+ const data=getStore();data.collections.accessRoles.push({id:"role-flow-fixture",name:"Finance test submitter",permissions:["finance.*","payroll.*"],status:"active"});data.collections.financeAccounts.push(bank);data.collections.employees.push({id:"flow-worker",name:"Flow worker",employeeCode:"FLOW-1",organizationId:"company-primary",status:"active"});
  run={id:"flow-run",organizationId:"company-primary",companyId:"company-primary",start:"2026-01-01",end:"2026-01-31",currency:"QAR",status:"Approved",version:1,approvedBy:"independent-approver",totals:{netPay:"100.30"}};
  entry={id:"flow-entry",runId:run.id,employeeId:"flow-worker",employee:"Flow worker",organizationId:"company-primary",currency:"QAR",netPay:"100.30",snapshot:{salary:{base:"100.30"},company:{name:"Company"}},components:[],sourceIds:[]};
  data.collections.payrollRuns.push(run);data.collections.payrollEntries.push(entry);saveStore(data);
@@ -97,7 +97,7 @@ describe("Connected financial ledger",()=>{
    saveSalary(actor(),"flow-worker",{currency:"QAR",frequency:"monthly",base:"100",overtimeEligible:false,allowances:[],effectiveFrom:"2026-01-01",reason:"Confirmed contract for recovery"});
    const tx=(await expect(await req("/workspace/finance/transactions",movement({type:"advance",employeeId:"flow-worker",amount:"100",reference:"FLOW-ADVANCE",idempotencyKey:"advance-flow-key"})),201)).item;
    const input={employeeId:"flow-worker",date:"2026-02-01",type:"advance",amount:"30",reference:"ADVANCE-INSTALLMENT-1",reason:"Approved installment recovery",financeTransactionId:tx.id};
-   const source=createPayrollSource(actor(),input);
+   const source=createPayrollSource({...actor(),id:"non-main-source",roleId:"role-flow-fixture",organizationIds:["company-primary"]},input);
    assert.throws(()=>createPayrollSource(actor(),{...input,amount:"71",reference:"ADVANCE-OVER"}),/exceed/);
    assert.throws(()=>revisePayrollSource(actor(),source.id,{amount:"101",minutes:0,reason:"Must refuse excessive revision"}),/exceed/);
    const reviewer={...actor(),id:"independent-reviewer"};decidePayrollSource(reviewer,source.id,true,"Confirmed repayment schedule");
@@ -109,13 +109,14 @@ describe("Connected financial ledger",()=>{
  it("revalidates pending source settlements on approval and preserves idempotent requests",async()=>{
    const data=getStore();data.collections.approvalRules.push({id:"flow-finance-approval",section:"finance",action:"create",active:true});data.collections.expenses.push({id:"flow-approval-expense",organizationId:"company-primary",currency:"QAR",amount:"10",status:"approved"});saveStore(data);
    const input=movement({sourceCollection:"expenses",sourceId:"flow-approval-expense",reference:"APPROVAL-PAY",amount:"10",idempotencyKey:"approval-replay-key"});
-   const first=await expect(await req("/workspace/finance/transactions",input),202),second=await expect(await req("/workspace/finance/transactions",input),202);assert.equal(first.request.id,second.request.id);
+   const creator={...actor(),id:"finance-submitter",roleId:"role-flow-fixture",organizationIds:["company-primary"]};const submit=()=>mutateCollection(creator,"financeTransactions","create",{...input,organizationId:"company-primary",direction:"out"});
+   const first=submit() as any,second=submit() as any;assert.equal(first.pending,true);assert.equal(first.request.id,second.request.id);
    // A source change before approval cannot authorize an excessive payment.
    rows("expenses").find(s=>s.id==="flow-approval-expense")!.amount="5";saveStore(getStore());
    const {approveRequest}=await import("./workspace.js");assert.throws(()=>approveRequest({...actor(),id:"separate-finance-approver"},first.request.id,true,"Independent review"),/exceeds/);
    assert.equal(rows("approvalRequests").find(r=>r.id===first.request.id)!.status,"pending");assert.equal(rows("financeTransactions").some(t=>t.reference==="APPROVAL-PAY"),false);
    rows("expenses").find(s=>s.id==="flow-approval-expense")!.amount="10";saveStore(getStore());approveRequest({...actor(),id:"separate-finance-approver"},first.request.id,true,"Independent review");
-   const replay=await expect(await req("/workspace/finance/transactions",input),201);assert.equal(replay.item.reference,"APPROVAL-PAY");
+   const replay=submit() as any;assert.equal(replay.item.reference,"APPROVAL-PAY");
    getStore().collections.approvalRules=rows("approvalRules").filter(r=>r.id!=="flow-finance-approval");saveStore(getStore());
  });
  it("rolls back both memory and disk on persistence failure and detects history tampering",async()=>{
@@ -167,5 +168,12 @@ describe("Connected financial ledger",()=>{
    const before=JSON.stringify(getStore());
    assert.throws(()=>transaction(()=>{rows("sales").find(s=>s.id==="connected-sale")!.total="99.000";saveStore(getStore());}),/source settlement exceeds/);assert.equal(JSON.stringify(getStore()),before);
    assert.throws(()=>transaction(()=>{rows("financeTransactions").find(t=>t.reference==="CONNECTED-0")!.sourceId="missing-source";saveStore(getStore());}),/source company\/currency\/type mismatch/);assert.equal(JSON.stringify(getStore()),before);
+ });
+ it("posts Main Admin finance changes and attendance immediately under active approval rules",async()=>{
+   const data=getStore();for(const section of ["finance","inventory","hr","locations","operations"])data.collections.approvalRules.push({id:`main-bypass-${section}`,section,action:"create",active:true});saveStore(data);
+   const {requiresApproval}=await import("./workspace.js");for(const section of ["finance","inventory","hr","locations","operations"] as const){assert.equal(requiresApproval(section,"create",actor()),false);assert.equal(requiresApproval(section,"create"),true);}
+   const result=await expect(await req("/workspace/finance/transactions",movement({reference:"MAIN-NO-APPROVAL",idempotencyKey:"main-no-approval-key"})),201);assert.equal(result.pending,false);assert.ok(result.item.id);
+   const {createManualAttendance}=await import("./attendance.js");const attendance=createManualAttendance(actor(),{organizationId:"company-primary",employeeId:"flow-worker",date:"2026-01-05",checkIn:"08:00",checkOut:"17:00"});assert.equal(attendance.approvalStatus,"Approved");
+   assert.ok(!rows("approvalRequests").some(r=>r.requestedBy===actor().id&&r.payload?.reference==="MAIN-NO-APPROVAL"));
  });
 });

@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-25 - Main Administrator approval exemption
+
+- Apply Main Administrator changes immediately without configurable approval queues, including Finance, transfers, inventory, documents and tasks. Keep approval rules for other users.
+- Main payroll adjustments are approved on save; finalizing a Main payroll run goes directly to Approved without a second approver. Main attendance entries/finalization do not require HR/General/Finance stages.
+- Keep audit attribution, validation, duplicate-payment/stock checks and controlled correction flows. Update policy copy and Arabic labels. No native build or installation performed.
+
 ## 2026-10-25 - Finance integration review
 
 - Share operating-income and cost classification between API and browser reports so loans, advances and transfers remain separate from profit. Add exact per-company/currency receivables, bills/refunds due and approved unpaid payroll to Finance.

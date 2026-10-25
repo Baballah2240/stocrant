@@ -202,13 +202,11 @@ describe("Organization hierarchy migration and scoped administration", () => {
   });
 
   it("revokes sessions for approved deactivation so reactivation cannot restore old sessions", async () => {
-    const secondAdmin = await createAccount("Approval administrator", "role-main-manager", []);
     const driver = await createAccount("Approval company manager", "role-company-manager", [companyA2.id]);
     const rule = await expectStatus(await request("/workspace/access/approval-rules", "POST", { section: "organizations", action: "edit", active: true }), 201);
     const ruleId = (rule.item as Row).id;
     try {
-      const queued = await expectStatus(await request(`/collections/companies/${companyA2.id}`, "PATCH", { status: "inactive" }), 202);
-      await expectStatus(await request(`/workspace/approvals/${(queued.request as Row).id}`, "POST", { decision: "approve" }, secondAdmin.cookie), 200);
+      await expectStatus(await request(`/collections/companies/${companyA2.id}`, "PATCH", { status: "inactive" }), 200);
       await expectStatus(await request("/workspace/overview", "GET", undefined, driver.cookie), 401);
       assert.ok(!(getStore().collections.sessions as Row[]).some(session => session.accountId === driver.item.id));
     } finally {

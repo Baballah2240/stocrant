@@ -5,7 +5,6 @@ import { payrollCan } from "../payroll.js";
 import analyticsRouter from "./analytics.js";
 import administrationRouter from "./administration.js";
 import dashboardActivityRouter from "./dashboard-activity.js";
-import { eligibleSelfApproval } from "../admin-policy.js";
 import { randomUUID } from "node:crypto";
 import { csvCell } from "../csv.js";
 import { generateUsername, validUsername } from "../employee-identity.js";
@@ -671,7 +670,7 @@ router.delete("/access/users/:id", requirePermission("access", "delete"), (req, 
   res.json({ ok: true });
 });
 
-router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)).map(row=>({...row,canSelfApprove:row.requestedBy===req.auth!.id&&isMainManager(req.auth)&&eligibleSelfApproval(row),canDecide:can(req.auth,"approvals","approve")&&(row.requestedBy!==req.auth!.id||isMainManager(req.auth)&&eligibleSelfApproval(row))})) }));
+router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)).map(row=>({...row,canSelfApprove:row.requestedBy===req.auth!.id&&isMainManager(req.auth),canDecide:can(req.auth,"approvals","approve")&&(row.requestedBy!==req.auth!.id||isMainManager(req.auth))})) }));
 router.post("/approvals/:id/changes",requirePermission("approvals","approve"),(req,res)=>{
  const parsed=z.object({note:z.string().trim().min(8).max(2000)}).strict().safeParse(req.body);if(!parsed.success)return res.status(400).json({error:"Explain the required changes in at least 8 characters."});
  const row=rows("approvalRequests").find(row=>row.id===req.params.id&&canReadApproval(req.auth!,row));if(!row)return res.status(404).json({error:"Approval request not found."});

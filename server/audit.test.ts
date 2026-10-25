@@ -97,10 +97,11 @@ describe("Application audit security and workflow regressions", () => {
 
   async function queuedTransfer() {
     const reviewer = await account("TransferReviewer");
+    const submitter=await account("TransferSubmitter",["finance.view","finance.create"]);
     const first = (await body(await req("/workspace/finance/accounts", "POST", { name: "Source", type: "bank", currency: "QAR", openingBalance: 500, organizationId: "company-primary" }), 201)).item;
     const second = (await body(await req("/workspace/finance/accounts", "POST", { name: "Destination", type: "bank", currency: "QAR", openingBalance: 0, organizationId: "company-primary" }), 201)).item;
     await body(await req("/workspace/access/approval-rules", "POST", { section: "finance", action: "create", active: true }), 201);
-    await body(await req("/workspace/finance/transactions", "POST", { type: "transfer", accountId: first.id, destinationAccountId: second.id, amount: 100, date: "2026-10-20", status: "paid", reference: "AUDIT-TRANSFER" }), 202);
+    await body(await req("/workspace/finance/transactions", "POST", { type: "transfer", accountId: first.id, destinationAccountId: second.id, amount: 100, date: "2026-10-20", status: "paid", reference: "AUDIT-TRANSFER" }, submitter.cookie), 202);
     const pair = (getStore().collections.approvalRequests as Row[]).filter(row => (row.payload as Row)?.reference === "AUDIT-TRANSFER");
     assert.equal(pair.length, 2); return { reviewer, first, second, pair };
   }

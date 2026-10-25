@@ -1,4 +1,8 @@
 const payrollTranslations: Readonly<Record<string,string>> = {
+ "Each source needs a unique reference. Main Administrator adjustments apply immediately; other users need approval. Finalized payslips use later-period corrections.":"يحتاج كل مصدر إلى مرجع فريد. تطبق تسويات المدير الرئيسي فوراً ويحتاج المستخدمون الآخرون إلى الموافقة. تصحح قسائم الرواتب النهائية في فترات لاحقة.",
+ "Finalize payroll":"اعتماد مسير الرواتب مباشرة",
+ "Save adjustment":"حفظ التسوية",
+ "Save corrected source":"حفظ المصدر المصحح",
  "Overtime":"العمل الإضافي", "Sunday":"الأحد", "Monday":"الاثنين", "Tuesday":"الثلاثاء", "Wednesday":"الأربعاء", "Thursday":"الخميس", "Friday":"الجمعة", "Saturday":"السبت",
  "Revise":"تصحيح", "Revise payroll source":"تصحيح مصدر الراتب", "Request corrected source approval":"طلب اعتماد المصدر المصحح", "superseded":"استُبدل بإصدار جديد", "source-revised":"تصحيح مصدر الراتب",
  "Payroll":"الرواتب", "My payslips":"قسائم راتبي", "Employee portal":"بوابة الموظف", "Workforce & finance":"الموظفون والمالية",

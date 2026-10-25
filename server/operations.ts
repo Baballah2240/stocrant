@@ -1,3 +1,4 @@
+import { isMainManager } from "./permissions.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { AuthenticatedUser } from "./auth.js";
@@ -112,7 +113,7 @@ export function createSmartTask(user:AuthenticatedUser,input:unknown){
 export function requestSmartTask(user:AuthenticatedUser,input:unknown){
  const p=taskInput.parse(input);
  if(!canCreateTask(user))taskError("You do not have permission to create tasks.",403);
- if(!taskRows("approvalRules").some(r=>r.section==="operations"&&r.action==="create"&&r.active))return {pending:false,item:createSmartTask(user,p)};
+ if(isMainManager(user)||!taskRows("approvalRules").some(r=>r.section==="operations"&&r.action==="create"&&r.active))return {pending:false,item:createSmartTask(user,p)};
  return transaction(()=>{
   const employees=recipients(user,p);if(p.startDate&&p.dueDate&&p.startDate>p.dueDate)taskError("Due date must be on or after the start date.");
   const prior=taskRows("approvalRequests").find(r=>r.collection==="workItems"&&r.requestedBy===user.id&&r.payload?.smartTaskInput?.clientRequestId===p.clientRequestId);
@@ -200,7 +201,7 @@ export function manageTask(user:AuthenticatedUser,id:string,input:unknown){const
  });}
 export function requestManageTask(user:AuthenticatedUser,id:string,input:unknown){
  const p=manageInput.parse(input),task=accessibleTask(user,id);if(["approve","rework"].includes(p.action)?!canReviewTask(user,task):!canManageTask(user,task))taskError("Only authorized managers can manage this task.",403);
- if(!["approve","rework"].includes(p.action)&&taskRows("approvalRules").some(r=>r.section==="operations"&&r.action==="edit"&&r.active))return transaction(()=>{
+ if(!isMainManager(user)&&!["approve","rework"].includes(p.action)&&taskRows("approvalRules").some(r=>r.section==="operations"&&r.action==="edit"&&r.active))return transaction(()=>{
    if((task.version||1)!==p.version)taskError("This task changed. Refresh before saving your update.",409);
    const prior=taskRows("approvalRequests").find(r=>r.collection==="workItems"&&r.status==="pending"&&r.requestedBy===user.id&&r.targetId===id&&JSON.stringify(r.payload?.smartTaskManagement)===JSON.stringify(p));if(prior)return {pending:true,request:prior};
    const request={id:nextCollectionId("approvalRequests"),section:"operations",action:"edit",collection:"workItems",targetId:id,organizationId:task.organizationId,locationId:task.locationId,status:"pending",requestedBy:user.id,requestedByName:user.name,requestedAt:now(),payload:{organizationId:task.organizationId,smartTaskManagement:p}};

@@ -88,7 +88,7 @@ export function shopPermission(
     action !== "view" &&
     ["inventory", "operations"].some(
       (section) =>
-        requiresApproval(section as "inventory" | "operations", action) &&
+        requiresApproval(section as "inventory" | "operations", action, user) &&
         !can(user, section as "inventory" | "operations", "approve"),
     )
   )
@@ -590,7 +590,7 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
                 "Dispatch also requires inventory and finance create permissions.",
                 403,
               );
-            if (requiresApproval("finance", "create"))
+            if (requiresApproval("finance", "create", req.auth!))
               fail(
                 "Finance approval rules are active. Resolve the sales approval workflow before dispatch.",
                 409,

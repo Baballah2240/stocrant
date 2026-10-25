@@ -25,7 +25,7 @@ router.get("/:id", requirePermission("locations", "view"), (req: Request, res: R
 });
 
 router.post("/", requirePermission("locations", "create"), (req: Request, res: Response) => {
-  if (requiresApproval("locations", "create")) return res.status(409).json({ error: "A Locations create approval rule is active. Submit this change through the approval-aware workspace flow." });
+  if (requiresApproval("locations", "create", req.auth!)) return res.status(409).json({ error: "A Locations create approval rule is active. Submit this change through the approval-aware workspace flow." });
   const input = parseJson(storeSchema, req.body, "store");
   const store: import("../types.js").Store = {
     ...input,
@@ -41,7 +41,7 @@ router.post("/", requirePermission("locations", "create"), (req: Request, res: R
 });
 
 router.patch("/:id", requirePermission("locations", "edit"), (req: Request, res: Response) => {
-  if (requiresApproval("locations", "edit")) return res.status(409).json({ error: "A Locations edit approval rule is active. Submit this change through the approval-aware workspace flow." });
+  if (requiresApproval("locations", "edit", req.auth!)) return res.status(409).json({ error: "A Locations edit approval rule is active. Submit this change through the approval-aware workspace flow." });
   const existing = getStore().stores.find((s) => s.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing as unknown as Record<string, unknown>)) return res.status(404).json({ error: "Store not found." });
   const input = parseJson(storeSchema, req.body, "store");
@@ -52,7 +52,7 @@ router.patch("/:id", requirePermission("locations", "edit"), (req: Request, res:
 });
 
 router.delete("/:id", requirePermission("locations", "delete"), (req: Request, res: Response) => {
-  if (requiresApproval("locations", "delete")) return res.status(409).json({ error: "A Locations delete approval rule is active. Submit this change through the approval-aware workspace flow." });
+  if (requiresApproval("locations", "delete", req.auth!)) return res.status(409).json({ error: "A Locations delete approval rule is active. Submit this change through the approval-aware workspace flow." });
   const store = getStore().stores.find((candidate) => candidate.id === req.params.id);
   if (!store || !isWithinScope(req.auth!, store as unknown as Record<string, unknown>)) return res.status(404).json({ error: "Store not found." });
   deleteStore(req.params.id as string);

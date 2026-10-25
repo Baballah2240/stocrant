@@ -2,7 +2,6 @@ import { applySmartTaskApproval, applyTaskManagementApproval, prepareTaskMutatio
 import { appendFinancialHistory, ledgerSummary, validateFinancialMutation } from "./finance-ledger.js";
 import { protectCommerceStock } from "./commerce-stock.js";
 import { generateEmployeeCode } from "./employee-identity.js";
-import { eligibleSelfApproval } from "./admin-policy.js";
 import { syncEmployeeAccount } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
@@ -62,7 +61,8 @@ export function audit(user: AuthenticatedUser | undefined, action: string, detai
   return entry;
 }
 
-export function requiresApproval(section: WorkspaceSection, action: MutationAction): boolean {
+export function requiresApproval(section: WorkspaceSection, action: MutationAction, user?: AuthenticatedUser): boolean {
+  if(isMainManager(user))return false;
   return (rows("approvalRules") as ApprovalRule[]).some(
     (rule) => rule.active === true && rule.section === section && rule.action === action,
   );
@@ -239,7 +239,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
     if (pending) return { pending:true, request:pending };
     payload.employeeRequestKey = key;
   }
-  if (requiresApproval(section, action)) {
+  if (requiresApproval(section, action, user)) {
     const request: ApprovalRequest = {
       id: rowId("approvalRequests"),
       status: "pending",
@@ -374,8 +374,7 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
   if (request.collection === "documents" && !managesDocuments(user, request.action)) throw new Error("You do not have permission to decide HR document requests.");
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
   const selfApproved=request.requestedBy===user.id;
-  if(selfApproved&&(!isMainManager(user)||!eligibleSelfApproval(request)))throw new Error("A requester cannot approve their own request.");
-  if(selfApproved&&String(note||"").trim().length<8)throw new Error("Enter a reason of at least 8 characters for Main Administrator self-approval.");
+  if(selfApproved&&!isMainManager(user))throw new Error("A requester cannot approve their own request.");
   if (!pairedTransfer && request.collection === "financeTransactions" && request.payload?.type === "transfer" && request.payload.transferGroupId) {
     const pair = list.filter(row => row.collection === "financeTransactions" && row.payload?.type === "transfer" && row.payload.transferGroupId === request.payload!.transferGroupId);
     if (pair.length !== 2 || pair.some(row => row.status !== "pending")) throw new Error("Both sides of a transfer must be pending for joint review.");

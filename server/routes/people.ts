@@ -32,7 +32,7 @@ router.get("/:id", requirePermission("hr", "view"), (req: Request, res: Response
 });
 
 router.post("/", requirePermission("hr", "create"), (req: Request, res: Response) => {
-  if (requiresApproval("hr", "create")) return res.status(409).json({ error: "An HR create approval rule is active. Submit this change through the approval-aware employee workflow." });
+  if (requiresApproval("hr", "create", req.auth!)) return res.status(409).json({ error: "An HR create approval rule is active. Submit this change through the approval-aware employee workflow." });
   const input = parseJson(personSchema, req.body, "person");
   const person: import("../types.js").Person = {
     ...input,
@@ -47,7 +47,7 @@ router.post("/", requirePermission("hr", "create"), (req: Request, res: Response
 });
 
 router.patch("/:id", requirePermission("hr", "edit"), (req: Request, res: Response) => {
-  if (requiresApproval("hr", "edit")) return res.status(409).json({ error: "An HR edit approval rule is active. Submit this change through the approval-aware employee workflow." });
+  if (requiresApproval("hr", "edit", req.auth!)) return res.status(409).json({ error: "An HR edit approval rule is active. Submit this change through the approval-aware employee workflow." });
   const existing = getStore().people.find((p) => p.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing as unknown as Record<string, unknown>)) return res.status(404).json({ error: "Person not found." });
   const input = parseJson(personSchema, req.body, "person");
@@ -58,7 +58,7 @@ router.patch("/:id", requirePermission("hr", "edit"), (req: Request, res: Respon
 });
 
 router.delete("/:id", requirePermission("hr", "delete"), (req: Request, res: Response) => {
-  if (requiresApproval("hr", "delete")) return res.status(409).json({ error: "An HR delete approval rule is active. Deactivate access or use the approval-aware employee workflow instead." });
+  if (requiresApproval("hr", "delete", req.auth!)) return res.status(409).json({ error: "An HR delete approval rule is active. Deactivate access or use the approval-aware employee workflow instead." });
   const person = getStore().people.find((candidate) => candidate.id === req.params.id);
   if (!person || !isWithinScope(req.auth!, person as unknown as Record<string, unknown>)) return res.status(404).json({ error: "Person not found." });
   deletePerson(req.params.id as string);
