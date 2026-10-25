@@ -25,6 +25,10 @@ try{
  async function fill(selector,value){await evaluate(`(()=>{const i=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(Object.getPrototypeOf(i),'value').set.call(i,${JSON.stringify(value)});i.dispatchEvent(new Event(i.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);}
  async function click(text,selector='button'){await evaluate(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(i=>i.textContent.trim()===${JSON.stringify(text)}).click()`);}
  await send('Page.navigate',{url:base+'/shops?company='+company.id+'&tab=settings'});await until('Boolean(document.querySelector(".app-lock-screen input"))');await fill('.app-lock-screen input',password);await evaluate('document.querySelector(".app-lock-screen form").requestSubmit()');await until('Boolean(document.querySelector(".shop-operation-settings"))');
+ assert.equal(await evaluate('document.querySelectorAll(".shop-settings-hub .shop-settings-tabs article").length'),4);
+ await click('Customer storefront','.shop-settings-tabs button');await until('Boolean(document.querySelector(".storefront-settings"))');
+ await click('Shop connections','.shop-settings-tabs button');await until('Boolean(document.querySelector(".shop-company-store-link"))');
+ await click('Orders & payments','.shop-settings-tabs button');await until('Boolean(document.querySelector(".shop-operation-settings"))');
  await fill('.shop-operation-settings form + form input','Browser Shop Till');await evaluate('document.querySelector(".shop-operation-settings form + form").requestSubmit()');await until('document.querySelector(".shop-operation-settings")?.textContent.includes("Shop payment account created in Finance.")');
  const snapshot=(await fixture.req(shop)).data,account=snapshot.paymentAccounts.find(a=>a.name==='Browser Shop Till');assert.ok(account);
  await fill('.shop-operation-settings form select',account.id);await evaluate('document.querySelector(".shop-operation-settings form").requestSubmit()');await until('document.querySelector(".shop-operation-settings")?.textContent.includes("Shop settings saved.")');

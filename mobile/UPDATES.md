@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-25 - Shop settings section
+
+- Add a clearly labeled settings section in Shops & orders, with responsive cards for orders/payments, storefront, shop users and connections.
+- Keep every store setting accessible from the same section, including publishing, layout, offers, delivery, policies, payment controls, staff and integration keys. Include English and Arabic descriptions.
+- No native build or installation performed.
+
 ## 2026-10-25 - Connected shop payments and management
 
 - Record confirmed order payments inside Shops with one shared Finance transaction and reference; preserve ledger validation, duplicate protection and company scope.

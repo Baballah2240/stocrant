@@ -447,7 +447,25 @@ export default function ShopWorkspace() {
             ))}
           </nav>
           <fieldset disabled={busy || loading || photoBusy} className="shop-controls">
-            {canConnect&&["settings","storefront","connections","shop-users"].includes(tab)&&<nav className="shop-tabs shop-settings-tabs" aria-label={t("Shop settings")}>{[["settings","Orders & payments"],["storefront","Customer storefront"],["shop-users","Shop users"],["connections","Shop connections"]].filter(([key])=>key!=="shop-users"||permits("access","create")).map(([key,label])=><button key={key} type="button" aria-current={tab===key?"page":undefined} onClick={()=>setTab(key)}>{t(label)}</button>)}</nav>}
+            {canConnect && ["settings", "storefront", "connections", "shop-users"].includes(tab) && (
+              <section className="card shop-settings-hub" aria-labelledby="shop-settings-title">
+                <h2 id="shop-settings-title">{t("Shop settings")}</h2>
+                <p>{t("Manage all settings for this company's shop and online store in one place.")}</p>
+                <nav className="shop-settings-tabs" aria-label={t("Shop settings")}>
+                  {[
+                    ["settings", "Orders & payments", "Payment accounts, accepted methods, tracking and order completion."],
+                    ["storefront", "Customer storefront", "Store details, publishing, delivery, pickup, policies, layout and offers."],
+                    ["shop-users", "Shop users", "Create shop staff, manage access and reset passwords."],
+                    ["connections", "Shop connections", "Store link, integration keys and connected shops."],
+                  ].filter(([key]) => key !== "shop-users" || permits("access", "create")).map(([key, label, description]) => (
+                    <article key={key} className={tab === key ? "selected" : undefined}>
+                      <button type="button" aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>{t(label)}</button>
+                      <p>{t(description)}</p>
+                    </article>
+                  ))}
+                </nav>
+              </section>
+            )}
             {tab==="settings"&&canConnect&&<ShopOperationsSettings key={companyId} companyId={companyId} currency={c?.currency||""} settings={data.settings} accounts={data.paymentAccounts||[]} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}}/>}
             {tab==="shop-users"&&canConnect&&permits("access","create")&&<ShopStaffSettings key={companyId} companyId={companyId}/>}
             {tab === "products" && (
