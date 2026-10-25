@@ -611,8 +611,32 @@ describe("Optional product warranties", () => {
       const finance=await json(await api("/workspace/finance","GET",undefined,ownerCookie));assert.equal(finance.accounts.find((item:Row)=>item.id===account.id).balance,"20.00");assert.ok(finance.transactions.some((item:Row)=>item.reference===payment.reference&&item.sourceId===order.saleId));
       const ordinary=await json(await api("/workspace/finance/transactions","POST",{accountId:account.id,type:"income",amount:"1.00",date:payment.date,status:"paid",reference:"ORDINARY-FINANCE-RULE"},ownerCookie),202);assert.equal(ordinary.pending,true,"Shop approval authority must not bypass unrelated Finance approval rules");
       const approvals=await json(await api("/workspace/approvals","GET",undefined,ownerCookie));assert.ok(!approvals.items.some((item:Row)=>item.id===ordinary.request.id),"Shop managers must not see unrelated Finance approvals");
+      const returned=await json(await api(base+`/orders/${order.id}/returns`,"POST",{requestId:randomUUID(),reason:"damaged",restock:false},ownerCookie),201);assert.equal(returned.shopOrderId,order.id);assert.equal(returned.status,"approved","The assigned manager must be able to approve shop returns under active Finance rules");
       assert.equal((getCollection("accessUsers") as Row[]).find(user=>user.id===manager.id)!.roleId,"role-shop-manager");
     }finally{for(const rule of rules)await json(await api(`/workspace/access/approval-rules/${rule.id}`,"PATCH",{active:false}));}
+  });
+  it("reports exact saved costs and returns a paid shop order once with a connected Finance refund",async()=>{
+    const reportCompany=await create("companies",{name:"Reporting Shop",parentOrganizationId:company.parentOrganizationId,currency:"USD",status:"active",organizationType:"store",industry:"retail"}),base=`/workspace/shops/${reportCompany.id}`;
+    let product=(await json(await api(base+"/products","POST",{products:[{sku:"REPORT-COST",name:"Reporting product",price:"10"}]}),201)).products[0];
+    product=await json(await api(base+`/products/${product.id}/cost`,"PUT",{version:product.version,unitCost:"3.25"}));
+    await json(await api(base+"/receipts","POST",{requestId:randomUUID(),productId:product.id,quantity:5,supplier:"Report supplier",reference:"REPORT-IN"}),201);
+    const account=(await json(await api(base+"/settings/accounts","POST",{name:"Report Till",type:"cash"}),201)).item;
+    let order=await json(await api(base+"/orders","POST",orderBody({lines:[{productId:product.id,quantity:2}]})),201);
+    await json(await api(base+`/orders/${order.id}/returns`,"POST",{requestId:randomUUID(),reason:"damaged",restock:false}),409);
+    order=await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"preparing"}));order=await json(await api(base+`/orders/${order.id}/status`,"POST",{version:order.version,status:"dispatched",tracking:"REPORT-OUT"}));
+    assert.equal(order.lines[0].costTotal,"6.50");
+    await json(await api(base+`/products/${product.id}/cost`,"PUT",{version:product.version,unitCost:"8.00"}));
+    await json(await api(base+`/orders/${order.id}/returns`,"POST",{requestId:randomUUID(),reason:"damaged",restock:true}),409);
+    await json(await api(base+`/orders/${order.id}/payments`,"POST",{idempotencyKey:randomUUID(),accountId:account.id,amount:"20.00",date:new Date().toISOString().slice(0,10),method:"cash",reference:"REPORT-PAID"}),201);
+    let snapshot=await json(await api(base));assert.equal(snapshot.report.sales,"20.00");assert.equal(snapshot.report.grossProfit,"13.50");assert.equal(snapshot.report.costs,"6.50");
+    const body={requestId:randomUUID(),reason:"change-of-mind",restock:true},returned=await json(await api(base+`/orders/${order.id}/returns`,"POST",body),201);
+    const replay=await json(await api(base+`/orders/${order.id}/returns`,"POST",body),201);assert.equal(returned.id,replay.id);
+    await json(await api(base+`/orders/${order.id}/returns`,"POST",{...body,requestId:randomUUID()}),409);
+    await json(await api(`/workspace/shops/${foreign.id}/orders/${order.id}/returns`,"POST",body),404);
+    snapshot=await json(await api(base));assert.equal(snapshot.products[0].onHand,5);assert.equal(snapshot.returns.length,1);assert.equal(snapshot.returns[0].settlement.outstanding,"20.00");assert.equal(snapshot.report.grossProfit,"0.00");assert.equal(snapshot.report.netSales,"0.00");assert.equal(snapshot.report.refunded,"0.00");
+    await json(await api(`/collections/returns/${returned.id}`,"PATCH",{refund:"1.00"}),400);
+    await json(await api("/workspace/finance/transactions","POST",{idempotencyKey:randomUUID(),accountId:account.id,type:"refund",direction:"out",amount:"20.00",date:new Date().toISOString().slice(0,10),status:"paid",reference:"REPORT-REFUND",sourceCollection:"returns",sourceId:returned.id}),201);
+    snapshot=await json(await api(base));assert.equal(snapshot.report.refunded,"20.00");assert.equal(snapshot.returns[0].settlement.outstanding,"0.00");
   });
 
 });

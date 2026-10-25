@@ -2,6 +2,9 @@ import ShopOperationsSettings, {type ShopOperationSettings,type ShopPaymentAccou
 import ShopOrderPayment, {type ShopPayment} from "./ShopOrderPayment";
 import ShopStaffSettings from "./ShopStaffSettings";
 import ShopOrderProgress from "./ShopOrderProgress";
+import ShopSalesDashboard,{type ShopReport} from "./ShopSalesDashboard";
+import ShopReturns,{type ShopReturn} from "./ShopReturns";
+import ShopLabel from "./ShopLabel";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { request } from "../api";
@@ -31,6 +34,7 @@ type Product = {
   available: number;
   active: boolean;
   version: number;
+  unitCost?:string;
 };
 type Order = {
   id: string;
@@ -60,6 +64,8 @@ type Receipt = {
 };
 type Connector = { id: string; name: string; active: boolean };
 type Snapshot = {
+  report?:ShopReport;
+  returns?:ShopReturn[];
   settings?:ShopOperationSettings;
   paymentAccounts?:ShopPaymentAccount[];
   payments?:ShopPayment[];
@@ -117,6 +123,7 @@ export default function ShopWorkspace() {
     [search, setSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(""),
     [tracking, setTracking] = useState("");
+  const [label,setLabel]=useState<{id:string;reference?:string}|null>(null);
   const [key, setKey] = useState(""),
     [connectionName, setConnectionName] = useState("");
   const [receipt, setReceipt] = useState({
@@ -155,7 +162,7 @@ export default function ShopWorkspace() {
     base = `/workspace/shops/${companyId}`;
   useEffect(() => {
     const requestedTab=new URLSearchParams(location.search).get("tab");
-    if(requestedTab&&["products","receiving","orders","support","settings","storefront","connections","shop-users"].includes(requestedTab))setTab(requestedTab);
+    if(requestedTab&&["products","receiving","orders","support","settings","storefront","connections","shop-users","dashboard","returns"].includes(requestedTab))setTab(requestedTab);
     const requestedCompany = new URLSearchParams(location.search).get("company");
     if (requestedCompany && companies.some(company => company.id === requestedCompany)) setCompany(requestedCompany);
   }, [location.search, companies]);
@@ -190,6 +197,7 @@ export default function ShopWorkspace() {
     setKey("");
     setPreview([]);
     setSelectedOrder("");
+    setLabel(null);
     setEditingProduct(null);
     setPhotoBusy(false);
     setProductFilter("all"); setOrderFilter("all"); setSearch(""); setOrderSearch("");
@@ -348,6 +356,7 @@ export default function ShopWorkspace() {
   const renderGeneration = generation.current;
   return (
     <main className="page shop-workspace">
+      {label&&data.orders.find(order=>order.id===label.id)&&<ShopLabel company={c?.name||""} order={data.orders.find(order=>order.id===label.id)!} reference={label.reference} onClose={()=>setLabel(null)}/>}
       <datalist id="shop-category-options">{[...new Set([...(data.categories || []).map(c=>c.name), ...data.products.map(p=>p.category || "Collection")])].map(name=><option key={name} value={name}>{data.categories?.find(c=>c.name===name)?.title || name}</option>)}</datalist>
       <header className="page-header">
         <div>
@@ -430,7 +439,7 @@ export default function ShopWorkspace() {
               <button
                 type="button"
                 key={name}
-                aria-current={tab === name || name === "settings" && ["storefront","connections","shop-users"].includes(tab) ? "page" : undefined}
+                aria-current={tab === name || name === "settings" && ["storefront","connections","shop-users","dashboard","returns"].includes(tab) ? "page" : undefined}
                 disabled={busy || photoBusy}
                 onClick={() => setTab(name)}
               >
@@ -452,16 +461,18 @@ export default function ShopWorkspace() {
             {["all", "reserved", "preparing", "dispatched", "delivered"].map(status => <button key={status} type="button" aria-pressed={orderFilter === status} disabled={busy || loading} onClick={() => {setOrderFilter(status);setOrderSearch("");setSelectedOrder("");}}><span>{t(status === "all" ? "All orders" : status)}</span><strong>{data.orders.filter(order => status === "all" || order.status === status).length}</strong></button>)}
           </nav>}
           <fieldset disabled={busy || loading || photoBusy} className="shop-controls">
-            {canConnect && ["settings", "storefront", "connections", "shop-users"].includes(tab) && (
+            {canConnect && ["settings", "storefront", "connections", "shop-users","dashboard","returns"].includes(tab) && (
               <section className="card shop-settings-hub" aria-labelledby="shop-settings-title">
                 <h2 id="shop-settings-title">{t("Shop settings")}</h2>
                 <p>{t("Manage all settings for this company's shop and online store in one place.")}</p>
                 <nav className="shop-settings-tabs" aria-label={t("Shop settings")}>
                   {[
+                    ["dashboard", "Sales dashboard", "Shop sales, returns, collections and gross profit."],
                     ["settings", "Orders & payments", "Payment accounts, accepted methods, tracking and order completion."],
                     ["storefront", "Customer storefront", "Store details, publishing, delivery, pickup, policies, layout and offers."],
                     ["shop-users", "Shop users", "Create shop staff, manage access and reset passwords."],
                     ["connections", "Shop connections", "Store link, integration keys and connected shops."],
+                    ["returns", "Shop returns", "Return paid orders, restock items and track Finance refunds."],
                   ].filter(([key]) => key !== "shop-users" || permits("access", "create")).map(([key, label, description]) => (
                     <article key={key} className={tab === key ? "selected" : undefined}>
                       <button type="button" aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>{t(label)}</button>
@@ -471,6 +482,8 @@ export default function ShopWorkspace() {
                 </nav>
               </section>
             )}
+            {tab==="dashboard"&&canConnect&&<ShopSalesDashboard companyId={companyId} report={data.report} orders={data.orders} products={data.products} canConfigure={Boolean(permits("shops","configure")&&permits("finance","approve"))} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}} openOrder={id=>{setSelectedOrder(id);setOrderFilter("all");setOrderSearch("");setTab("orders");}} print={id=>setLabel({id})}/>}
+            {tab==="returns"&&canConnect&&<ShopReturns key={companyId} companyId={companyId} orders={data.orders} returns={data.returns||[]} canManage={Boolean(permits("shops","configure")&&permits("finance","approve")&&permits("finance","create"))} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);window.dispatchEvent(new Event("stocrant:finance-changed"));}} print={(id,reference)=>setLabel({id,reference})}/>}
             {tab==="settings"&&canConnect&&<ShopOperationsSettings key={companyId} companyId={companyId} currency={c?.currency||""} settings={data.settings} accounts={data.paymentAccounts||[]} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}}/>}
             {tab==="shop-users"&&canConnect&&permits("access","create")&&<ShopStaffSettings key={companyId} companyId={companyId}/>}
             {tab === "products" && (
@@ -885,6 +898,7 @@ export default function ShopWorkspace() {
                   <section className="card shop-order-detail" aria-live="polite">
                     <div className="shop-section-title">
                       <h2>{selected.customer}</h2>
+                      <button type="button" onClick={()=>setLabel({id:selected.id})}>{t("Print label")}</button>
                       <span className={`shop-status status-${selected.status}`}>{t(selected.status)}</span>
                     </div>
                     <ShopOrderProgress status={selected.status} paymentRequired={Boolean(data.settings?.requirePaymentBeforeCompletion)} outstanding={selected.settlement?.outstanding}/>

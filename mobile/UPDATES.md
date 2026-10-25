@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-10-26 - Shop sales dashboard, returns and labels
+
+- Add Sales dashboard and Shop returns inside Shop settings. Show exact shop sales, credits, collections, refunds and gross profit using dispatch-time product costs; flag historical missing costs instead of estimating profit.
+- Let authorized shop managers set product unit costs and create one full-order return for a fully paid dispatched/delivered order. Optional restocking is atomic and duplicate protected. Actual refunds remain linked Finance confirmations.
+- Add printable order and return labels with customer, items and tracking/reference details. Include keyboard-accessible previews and print-only layout.
+- Shared website/mobile source updated. No native build or installation performed.
+
 ## 2026-10-25 - Shop workflow and layout improvements
 
 - Keep shop navigation visible with wrapping tabs; add order-stage counts and filters plus a per-order progress guide and next-step instructions.

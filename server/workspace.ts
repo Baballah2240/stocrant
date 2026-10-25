@@ -179,7 +179,8 @@ export function mutateCollection(
   permissionAction: PermissionAction = action,
   shopApprovalCompany?: string,
 ): { pending: boolean; item?: Row; request?: ApprovalRequest } {
-  const shopApproved=Boolean(shopApprovalCompany&&isShopManager(user)&&can(user,"finance","approve")&&["sales","financeTransactions","financeAccounts"].includes(collection)&&payload.organizationId===shopApprovalCompany&&isWithinScope(user,{organizationId:shopApprovalCompany}));
+  if(collection==="returns"&&payload.shopOrderId&&!shopApprovalCompany)throw new Error("Create shop returns through the shop workflow.");
+  const shopApproved=Boolean(shopApprovalCompany&&isShopManager(user)&&can(user,"finance","approve")&&["sales","returns","financeTransactions","financeAccounts"].includes(collection)&&payload.organizationId===shopApprovalCompany&&isWithinScope(user,{organizationId:shopApprovalCompany}));
   return transaction(() => performMutation(user, collection, action, payload, targetId, permissionAction, shopApproved));
 }
 

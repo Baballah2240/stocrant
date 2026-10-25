@@ -70,6 +70,7 @@ export function settlementRows(name: string, source: Row) {
 export function validateFinancialMutation(user: AuthenticatedUser, collection: string, action: string, payload: Row, current?: Row): Row {
   if (collection === "financeHistory") financialError("Financial audit history is immutable.");
   if (sourceCollections.includes(collection)) {
+    if(collection==="returns"&&current?.shopOrderId)financialError("Shop returns are immutable. Record a correction through Finance.");
     if(collection==="purchases"&&current&&rows("shopReceipts").some(r=>r.purchaseId===current.id)){
       const currency=current.currency||rows("companies").find(c=>c.id===current.organizationId)?.currency;
       if(action==="delete"||payload.organizationId!==undefined&&payload.organizationId!==current.organizationId||payload.currency!==undefined&&payload.currency!==currency||payload.status!==undefined&&!["ordered","partial","received"].includes(payload.status))financialError("A purchase linked to stock receipts must retain its company, currency and receiving status.");
@@ -189,7 +190,7 @@ export function ledgerSummary(user?: AuthenticatedUser) {
   const sources = sourceCollections.flatMap(collection => rows(collection).filter(s => !user || isWithinScope(user, s)).map(s => {
     const settlement=settlementRows(collection,s);
     const payrollManaged=collection==="expenses"&&s.category==="salaries"&&rows("payrollSettings").some(rule=>rule.organizationId===s.organizationId&&rule.configured);
-    return {payrollManaged,id:String(s.id),collection,organizationId:s.organizationId,label:s.title||s.invoiceNo||s.poNumber||s.rmaNumber||s.id,date:s.date,sourceStatus:s.status,party:s.customer||s.supplier||"",shopOrderId:s.shopOrderId,receiptCount:collection==="purchases"?rows("shopReceipts").filter(r=>r.purchaseId===s.id&&r.organizationId===s.organizationId).length:0,...settlement,eligible:sourceStates[collection].includes(s.status)&&!payrollManaged,canSettle:sourceStates[collection].includes(s.status)&&!payrollManaged&&settlement.outstanding!==null&&scaled(settlement.outstanding)>0n};
+    return {payrollManaged,id:String(s.id),collection,organizationId:s.organizationId,label:(collection==="returns"?s.rmaNumber:undefined)||s.title||s.invoiceNo||s.poNumber||s.rmaNumber||s.id,date:s.date,sourceStatus:s.status,party:s.customer||s.supplier||"",shopOrderId:s.shopOrderId,receiptCount:collection==="purchases"?rows("shopReceipts").filter(r=>r.purchaseId===s.id&&r.organizationId===s.organizationId).length:0,...settlement,eligible:sourceStates[collection].includes(s.status)&&!payrollManaged,canSettle:sourceStates[collection].includes(s.status)&&!payrollManaged&&settlement.outstanding!==null&&scaled(settlement.outstanding)>0n};
   }));
   const obligations:Row[]=[];
   const obligation=(organizationId:string,currency:string)=>{

@@ -6,6 +6,10 @@ Open **Shops & orders → Shop settings** for the selected company:
 - **Customer storefront:** publish the shop and manage its storefront, merchandising and customer policies.
 - **Shop users:** create Shop Staff or Customer Service logins, edit their details, reset passwords, and suspend access. New passwords must change at first sign-in.
 - **Shop connections:** manage scoped integration credentials and the company's store link.
+- **Sales dashboard:** all-time shop sales, return credits, collections and actual refunds. Gross profit is net sales minus saved product costs, excluding payroll and operating expenses. Set unit costs under Product costs before dispatch. Costs are frozen at dispatch; historical missing costs make profit unavailable.
+- **Shop returns:** an authorized manager can create one full-order return for a fully paid dispatched/delivered order. Check restocking only when all items are resalable. The original sale remains in history; the return creates a linked credit/refund obligation in Finance. Record actual money refunded against that return in Finance. Partial and unpaid-order returns are not supported by this screen.
+
+Use **Print label** on an order, a dashboard sales row or a return to preview and print its customer, item and tracking/reference details. No shipping carrier booking is performed.
 
 Orders reserve stock when placed. Preparing preserves the reservation. Dispatch deducts stock once and creates the linked credit sale. In the order details, **Record confirmed payment** records money already received into the selected account. This is the same Finance transaction, source sale and reference, including partial payments and duplicate/overpayment protection. Completion can require a zero outstanding balance. Payment reversal and refunds use the existing Finance controls.
 
