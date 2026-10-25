@@ -44,6 +44,7 @@ try {
   }
   const org = (await req("/collections/organizations", "POST", { name: "Browser Admin Organization", status: "active" })).data.item;
   const company = (await req("/collections/companies", "POST", { name: "Browser Admin Company", parentOrganizationId: org.id, status: "active", organizationType: "office", industry: "services", currency: "SDG" })).data.item;
+  const sibling = (await req("/collections/companies", "POST", { name: "Hidden Sibling Company", parentOrganizationId: org.id, status: "active", organizationType: "office", industry: "services", currency: "SDG" })).data.item;
   const people = [];
   for (const [name, email] of [["Company Administrator", "company@org-admin-browser.test"], ["HR Staff Person", "staff@org-admin-browser.test"]]) {
     const employee = (await req("/collections/employees", "POST", { name, email, organizationId: company.id, status: "active", hireDate: "2026-10-23" })).data.item;
@@ -61,6 +62,7 @@ try {
   await fill('.organization-admin-form input[type="email"]', "org@org-admin-browser.test");
   const temporary = secret();
   await fill('.organization-admin-form input[type="password"]', temporary);
+  await evaluate('document.querySelector(".organization-admin-form input[type=checkbox]").click()');
   await evaluate('document.querySelector(".organization-admin-form").requestSubmit()');
   await until('!document.querySelector(".organization-admin-form") && document.querySelector(".organization-admin-card")?.textContent.includes("Browser Organization Main Admin")');
   const primary = (await req(`/workspace/organization-admins/${org.id}`)).data.admin;
@@ -72,6 +74,8 @@ try {
   }
   await login("org@org-admin-browser.test", temporary, true);
   const orgCookie = cookie, orgPassword = password;
+  assert.deepEqual((await req("/collections/companies")).data.items.map(row=>row.id),[company.id]);
+  assert.ok(!(await req("/workspace/finance")).data.companies.some(row=>row.id===sibling.id));
   const companyPath = `/organization/companies/${company.id}?section=users`;
   await navigate(companyPath);
   await until('document.querySelectorAll(".company-staff-access select option").length>4');
@@ -102,7 +106,7 @@ try {
   assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'));
   writeFileSync(join(directory, "company-staff-ar-mobile.png"), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
   cookie = ownerCookie;
-  await req(`/workspace/organization-admins/${org.id}`, "POST", { version: 1, accountId: people[0].accountId });
+  await req(`/workspace/organization-admins/${org.id}`, "POST", { version: 1, accountId: people[0].accountId, organizationIds: [company.id] });
   const stale = await fetch(base + "/api/workspace/access/users", { headers: { Cookie: companyCookie } }); assert.equal(stale.status, 401);
   // Original organization admin remains authorized until explicitly changed.
   cookie = orgCookie; password = orgPassword;
@@ -112,7 +116,7 @@ try {
   assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+2'));
   writeFileSync(join(directory, "organization-admin-ar-mobile.png"), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
   assert.ok(companyPassword);
-  console.log("Organization administration browser checks passed: create main admin from the organization page, real first-login rotation, organization-to-company admin delegation, company HR/Staff assignments, role restrictions, replacement/session revocation and Arabic mobile layouts.");
+  console.log("Organization administration browser checks passed: create main admin from the organization page, real first-login rotation, explicit company selection, hidden sibling companies, organization-to-company admin delegation, company HR/Staff assignments, role restrictions, replacement/session revocation and Arabic mobile layouts.");
 } finally {
   await browser?.close();
   server.closeAllConnections();

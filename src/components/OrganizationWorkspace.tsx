@@ -51,7 +51,7 @@ export default function OrganizationWorkspace() {
   const canCreateUsers = allowed(permissions, "access", "create", mainAdmin);
   const canViewAudit = allowed(permissions, "audit", "view", mainAdmin);
   // Structure changes are Main Admin-only in the API; do not offer dead actions to delegated managers.
-  const canCreateCompany = allowed(permissions, "organizations", "create", mainAdmin) && (mainAdmin || user?.roleId === "role-organization-admin");
+  const canCreateCompany = mainAdmin;
   const canEdit = allowed(permissions, "organizations", "edit", mainAdmin) && (mainAdmin || user?.roleId === "role-organization-admin");
   const canEditCompany = allowed(permissions, "organizations", "edit", mainAdmin);
   const canDelete = allowed(permissions, "organizations", "delete", mainAdmin) && (mainAdmin || user?.roleId === "role-organization-admin");

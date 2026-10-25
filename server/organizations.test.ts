@@ -90,14 +90,14 @@ describe("Organization hierarchy migration and scoped administration", () => {
     assert.ok([companyA.id, companyA2.id, companyB.id].every(id => (all.items as Row[]).some(row => row.id === id)));
   });
 
-  it("gives an Organization Admin all child companies while Company Managers see one child", async () => {
-    const org = await createAccount("Alpha organization administrator", "role-organization-admin", [], [orgA.id]); organizationAdmin = org.item; orgAdminCookie = org.cookie;
+  it("restricts Organization Admins and Company Managers to explicitly assigned companies", async () => {
+    const org = await createAccount("Alpha organization administrator", "role-organization-admin", [companyA.id], [orgA.id]); organizationAdmin = org.item; orgAdminCookie = org.cookie;
     const company = await createAccount("Alpha company manager", "role-company-manager", [companyA.id]); companyManager = company.item; companyManagerCookie = company.cookie;
     const other = await createAccount("Beta company manager", "role-company-manager", [companyB.id]); otherCompanyManager = other.item; otherCompanyCookie = other.cookie;
     const orgCompanies = (await expectStatus(await request("/collections/companies", "GET", undefined, orgAdminCookie), 200)).items as Row[];
-    assert.deepEqual(orgCompanies.map(row => row.id).sort(), [companyA.id, companyA2.id].sort());
+    assert.deepEqual(orgCompanies.map(row => row.id).sort(), [companyA.id].sort());
     const orgEmployees = (await expectStatus(await request("/collections/employees", "GET", undefined, orgAdminCookie), 200)).items as Row[];
-    assert.deepEqual(orgEmployees.map(row => row.id).sort(), [employeeA.id, employeeA2.id].sort());
+    assert.deepEqual(orgEmployees.map(row => row.id).sort(), [employeeA.id].sort());
     const companyCompanies = (await expectStatus(await request("/collections/companies", "GET", undefined, companyManagerCookie), 200)).items as Row[];
     assert.deepEqual(companyCompanies.map(row => row.id), [companyA.id]);
     const companyEmployees = (await expectStatus(await request("/collections/employees", "GET", undefined, companyManagerCookie), 200)).items as Row[];
@@ -133,7 +133,7 @@ describe("Organization hierarchy migration and scoped administration", () => {
     await expectStatus(await request("/workspace/access/approval-rules", "POST", { section: "finance", action: "create", active: true }, orgAdminCookie), 403);
     const crossAccount = await request("/workspace/access/users", "POST", { name: "Cross tenant account", email: "cross-tenant@example.test", password: randomBytes(20).toString("base64url"), roleId: "role-employee", organizationIds: [companyB.id] }, orgAdminCookie);
     await expectStatus(crossAccount, 403);
-    await expectStatus(await request("/collections/companies", "POST", companyInput("Delegated permitted branch", orgA.id), orgAdminCookie), 201);
+    await expectStatus(await request("/collections/companies", "POST", companyInput("Delegated permitted branch", orgA.id), orgAdminCookie), 403);
     const extraChild = await create("companies", companyInput("Alpha New Branch", orgA.id));
     assert.equal(extraChild.parentOrganizationId, orgA.id);
     await expectStatus(await request("/collections/companies", "POST", companyInput("Beta illegal branch", orgB.id), orgAdminCookie), 403);
@@ -201,6 +201,25 @@ describe("Organization hierarchy migration and scoped administration", () => {
     assert.equal(JSON.stringify(getStore()), before); assert.equal(readFileSync(file, "utf8"), diskBefore);
   });
 
+  it("hides unassigned sibling companies across modules, exports, audit and direct URLs", async () => {
+    const sibling = await create("companies", companyInput("New unassigned sibling", orgA.id));
+    const event = { id: "unassigned-company-audit", organizationId: sibling.id, parentOrganizationId: orgA.id, action: "private.sibling", occurredAt: new Date().toISOString() };
+    getStore().collections.auditLog.push(event); saveStore(getStore());
+    for (const path of ["/workspace/hr/companies", "/workspace/locations", "/workspace/work", "/workspace/inventory", "/workspace/finance", "/workspace/payroll", "/workspace/customer-service", "/workspace/analytics?metric=workforce"]) {
+      const data = await expectStatus(await request(path, "GET", undefined, orgAdminCookie), 200);
+      assert.deepEqual((data.companies as Row[]).map(row => row.id), [companyA.id], path);
+    }
+    for (const path of [`/collections/companies/${sibling.id}`, `/workspace/company-profiles/${sibling.id}`, `/workspace/company-profiles/${sibling.id}/reports/company`, `/workspace/shops/${sibling.id}`, `/workspace/analytics?metric=workforce&company=${sibling.id}`]) await expectStatus(await request(path, "GET", undefined, orgAdminCookie), 404);
+    await expectStatus(await request(`/collections/companies/${sibling.id}`, "PATCH", {name:"Forbidden sibling edit"}, orgAdminCookie), 404);
+    const audit = (await expectStatus(await request("/workspace/audit", "GET", undefined, orgAdminCookie), 200)).items as Row[];
+    assert.ok(!audit.some(row=>row.id===event.id));
+    const exported = await request("/workspace/export/companies", "GET", undefined, orgAdminCookie); assert.equal(exported.status,200); assert.ok(!(await exported.text()).includes("New unassigned sibling"));
+    const all = (await expectStatus(await request("/collections/companies"),200)).items as Row[]; assert.ok(all.some(row=>row.id===sibling.id));
+    const unassigned = await createAccount("Unassigned organization admin", "role-organization-admin", [], [orgA.id]);
+    const empty = (await expectStatus(await request("/collections/companies", "GET", undefined, unassigned.cookie),200)).items as Row[]; assert.deepEqual(empty,[]);
+    await expectStatus(await request(`/workspace/company-profiles/${companyA.id}`, "GET", undefined, unassigned.cookie),404);
+  });
+
   it("revokes sessions for approved deactivation so reactivation cannot restore old sessions", async () => {
     const driver = await createAccount("Approval company manager", "role-company-manager", [companyA2.id]);
     const rule = await expectStatus(await request("/workspace/access/approval-rules", "POST", { section: "organizations", action: "edit", active: true }), 201);
@@ -220,7 +239,7 @@ describe("Organization hierarchy migration and scoped administration", () => {
     const employeeCount = getStore().collections.employees.length; const companyCount = getStore().collections.companies.length;
     await expectStatus(await request(`/collections/companies/${companyA.id}`, "PATCH", { status: "inactive" }), 200);
     await expectStatus(await request("/workspace/overview", "GET", undefined, companyManagerCookie), 401);
-    await expectStatus(await request("/workspace/overview", "GET", undefined, orgAdminCookie), 200);
+    await expectStatus(await request("/workspace/overview", "GET", undefined, orgAdminCookie), 401);
     await expectStatus(await request(`/collections/organizations/${orgA.id}`, "PATCH", { status: "inactive" }), 200);
     await expectStatus(await request("/workspace/overview", "GET", undefined, orgAdminCookie), 401);
     await expectStatus(await request("/workspace/overview", "GET", undefined, otherCompanyCookie), 200);

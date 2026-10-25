@@ -1,4 +1,7 @@
 export const organizationAdminTranslations: Record<string, string> = {
+  "Assigned companies": "الشركات المعيّنة",
+  "This administrator can access only the companies selected for this account.": "يمكن لهذا المسؤول الوصول فقط إلى الشركات المحددة لهذا الحساب.",
+  "Unassigned companies are hidden, even when the account has management permissions.": "تُخفى الشركات غير المعيّنة حتى لو كان الحساب يملك صلاحيات إدارية.",
   "Organization main admin": "المسؤول الرئيسي للمؤسسة",
   "This administrator manages only this organization and its companies.": "يدير هذا المسؤول هذه المؤسسة وشركاتها فقط.",
   "Change main admin": "تغيير المسؤول الرئيسي",

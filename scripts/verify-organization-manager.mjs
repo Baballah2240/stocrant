@@ -13,7 +13,7 @@ try{
  const org=(await req("/collections/organizations","POST",{name:"Manager Organization",status:"active"})).data.item;
  const makeCompany=async name=>(await req("/collections/companies","POST",{name,parentOrganizationId:org.id,status:"active",organizationType:"office",industry:"services",currency:"QAR"})).data.item;
  const company=await makeCompany("Managed Company"),sister=await makeCompany("Second Managed Company");
- const temporary=secret();await req("/workspace/access/users","POST",{name:"Organization Manager",email:"manager@manager-browser.test",password:temporary,roleId:"role-organization-admin",tenantOrganizationIds:[org.id],organizationIds:[]});
+ const temporary=secret();await req("/workspace/access/users","POST",{name:"Organization Manager",email:"manager@manager-browser.test",password:temporary,roleId:"role-organization-admin",tenantOrganizationIds:[org.id],organizationIds:[company.id,sister.id]});
  const login=await req("/auth/login","POST",{email:"manager@manager-browser.test",password:temporary});cookie=login.response.headers.get("set-cookie").split(";")[0];const password=secret();await req("/auth/password","POST",{currentPassword:temporary,newPassword:password});cookie=(await req("/auth/login","POST",{email:"manager@manager-browser.test",password})).response.headers.get("set-cookie").split(";")[0];
  const employee=async name=>(await req("/collections/employees","POST",{name,organizationId:company.id,status:"active",hireDate:"2026-10-20",employmentType:"full-time",department:"Operations"})).data.item;
  const first=await employee("Manager Employee One"),second=await employee("Manager Employee Two");

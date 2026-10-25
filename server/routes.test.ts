@@ -222,7 +222,7 @@ describe("STOCRANT secure workspace API", () => {
     const credentials = { email: "organization-admin-isolation@example.test", password: "organization-admin-isolation-password" };
     const account = await request("/workspace/access/users", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Isolation Organization Admin", ...credentials, roleId: "role-organization-admin", tenantOrganizationIds: [firstOrganization], organizationIds: [], locationIds: [], ownRecordsOnly: false, status: "active" }),
+      body: JSON.stringify({ name: "Isolation Organization Admin", ...credentials, roleId: "role-organization-admin", tenantOrganizationIds: [firstOrganization], organizationIds: [firstCompany], locationIds: [], ownRecordsOnly: false, status: "active" }),
     }, mainCookie);
     assert.equal(account.status, 201, await account.clone().text());
     const organizationAdminCookie = cookieFrom(await request("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) }));
@@ -236,9 +236,8 @@ describe("STOCRANT secure workspace API", () => {
 
     const deactivateCompany = await request(`/collections/companies/${firstCompany}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "inactive" }) }, mainCookie);
     assert.equal(deactivateCompany.status, 200, await deactivateCompany.clone().text());
-    const afterCompanyDeactivation = await json<{ items: Array<{ id: string }> }>(await request("/collections/companies", {}, organizationAdminCookie));
-    assert.deepEqual(afterCompanyDeactivation.items, [], "inactive companies remain stored but leave delegated operational scope");
-    assert.equal((await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeCode: "INACTIVE-ORG", name: "Inactive Company Employee", email: "inactive-company@example.test", employmentType: "full-time", status: "active", hireDate: "2026-10-18", organizationId: firstCompany }) }, organizationAdminCookie)).status, 400);
+    assert.equal((await request("/collections/companies", {}, organizationAdminCookie)).status, 401, "company deactivation revokes the assigned administrator session");
+    assert.equal((await request("/collections/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeCode: "INACTIVE-ORG", name: "Inactive Company Employee", email: "inactive-company@example.test", employmentType: "full-time", status: "active", hireDate: "2026-10-18", organizationId: firstCompany }) }, organizationAdminCookie)).status, 401);
 
     const deactivateOrganization = await request(`/collections/organizations/${firstOrganization}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "inactive" }) }, mainCookie);
     assert.equal(deactivateOrganization.status, 200, await deactivateOrganization.clone().text());

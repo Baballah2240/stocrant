@@ -81,7 +81,7 @@ export function companyIdsFor(user: AuthenticatedUser): string[] {
   const organizations = getCollection("organizations") as Record<string, unknown>[];
   const parents = (user.tenantOrganizationIds ?? []).filter(id => organizations.some(org => org.id === id && org.status === "active"));
   return (getCollection("companies") as Record<string, unknown>[])
-    .filter(company => company.status !== "inactive" && parents.includes(String(company.parentOrganizationId)) && (!roleCompanies.length || roleCompanies.includes(String(company.id))))
+    .filter(company => company.status !== "inactive" && parents.includes(String(company.parentOrganizationId)) && user.organizationIds.includes(String(company.id)) && (!roleCompanies.length || roleCompanies.includes(String(company.id))))
     .map(company => String(company.id));
 }
 export function effectiveLocationIds(user: AuthenticatedUser): string[] {
@@ -122,7 +122,7 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   const location = getStore().stores.find(item => item.id === locationId || item.id === row.id);
   const employee = row.employeeId ? (getCollection("employees") as Record<string, unknown>[]).find(item => item.id === row.employeeId) : undefined;
   const companyRow = (getCollection("companies") as Record<string, unknown>[]).find(item => item.id === row.id);
-  if (!row.id && row.parentOrganizationId && user.roleId === "role-organization-admin") return (user.tenantOrganizationIds ?? []).includes(String(row.parentOrganizationId));
+  if (!row.id && row.parentOrganizationId && user.roleId === "role-organization-admin") return false;
   const organizationId = companyRow?.id ?? row.organizationId ?? row.companyId ?? inventoryItem?.organizationId ?? location?.companyId ?? employee?.organizationId;
   if (!organizationId || !organizationIds.includes(String(organizationId))) return false;
   if (roleOrganizations.length && !roleOrganizations.includes(String(organizationId))) return false;

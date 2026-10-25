@@ -39,9 +39,9 @@ describe("Organization main admins and company staff delegation", () => {
     const endpoint = `/workspace/organization-admins/${org.id}`;
     assert.equal((await json(await api(endpoint))).admin, null);
     const temporary = secret();
-    const result = await json(await api(endpoint, "POST", { version: 0, name: "Organization Owner", email: "org-owner@organization-admins.test", password: temporary }), 201); primary = result.admin;
+    const result = await json(await api(endpoint, "POST", { version: 0, name: "Organization Owner", email: "org-owner@organization-admins.test", password: temporary, organizationIds: [company.id] }), 201); primary = result.admin;
     const stored = (getStore().collections.accessUsers as Row[]).find(row => row.id === primary.id)!;
-    assert.equal(stored.roleId, "role-organization-admin"); assert.deepEqual(stored.tenantOrganizationIds, [org.id]); assert.deepEqual(stored.organizationIds, []); assert.ok(stored.mustChangePassword); assert.notEqual(stored.passwordHash, temporary);
+    assert.equal(stored.roleId, "role-organization-admin"); assert.deepEqual(stored.tenantOrganizationIds, [org.id]); assert.deepEqual(stored.organizationIds, [company.id]); assert.ok(stored.mustChangePassword); assert.notEqual(stored.passwordHash, temporary);
     assert.equal(result.admin.passwordHash, undefined);
     orgAdmin = await signIn(primary.email, temporary);
     await json(await api(`/workspace/company-profiles/${company.id}`, "GET", undefined, orgAdmin), 403);
@@ -109,7 +109,7 @@ describe("Organization main admins and company staff delegation", () => {
     await json(await api(prefix + "/products", "POST", { products: [{ sku: "DENIED", name: "Denied", price: "1" }] }, shop), 403);
   });
   it("replaces the primary admin explicitly and releases the previous account for normal administration", async () => {
-    const result = await json(await api(`/workspace/organization-admins/${org.id}`, "POST", { version: 1, accountId: companyAccount.id }));
+    const result = await json(await api(`/workspace/organization-admins/${org.id}`, "POST", { version: 1, accountId: companyAccount.id, organizationIds: [company.id] }));
     assert.equal(result.admin.id, companyAccount.id);
     await json(await api(`/workspace/company-profiles/${company.id}`, "GET", undefined, companyAdmin), 401);
     await json(await api(`/workspace/access/users/${primary.id}`, "PATCH", { status: "suspended" }));
@@ -118,7 +118,7 @@ describe("Organization main admins and company staff delegation", () => {
   it("preserves a linked primary admin through employee deactivation and bulk role editing", async () => {
     const account = (getStore().collections.accessUsers as Row[]).find(row => row.employeeId === staff.id)!;
     await json(await api(`/workspace/access/users/${account.id}`, "PATCH", { status: "active", password: secret() }));
-    await json(await api(`/workspace/organization-admins/${org.id}`, "POST", { version: 2, accountId: account.id }));
+    await json(await api(`/workspace/organization-admins/${org.id}`, "POST", { version: 2, accountId: account.id, organizationIds: [company.id] }));
     await json(await api(`/collections/employees/${staff.id}`, "PATCH", { status: "terminated" }), 409);
     await json(await api("/workspace/administration/roles", "POST", { name: "Bulk reassignment attempt", description: "Should not demote a primary administrator", permissions: ["hr.view"], assignedUserIds: [account.id], currentPassword: mainPassword }), 409);
     assert.equal((getStore().collections.accessUsers as Row[]).find(row => row.id === account.id)!.roleId, "role-organization-admin");

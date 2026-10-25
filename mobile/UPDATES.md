@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-10-25 - Assigned company access
+
+- Restrict admins and managers to explicitly assigned companies across company selectors, business records, Finance, payroll, reports, exports and audit history. Keep the platform Main Administrator's access to all companies.
+- Add company selection when assigning an Organization Admin and when editing account access. Organization membership alone no longer grants access to sibling or newly created companies; accounts without company assignments see no company records.
+- Preserve role, location and employee ownership restrictions within assigned companies. No native build or installation performed.
+
 ## 2026-10-25 - Main Administrator approval exemption
 
 - Apply Main Administrator changes immediately without configurable approval queues, including Finance, transfers, inventory, documents and tasks. Keep approval rules for other users.

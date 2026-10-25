@@ -44,7 +44,7 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
   if (next.roleId === "role-organization-admin") {
     if (parents.length !== 1 || !rows("organizations").some(org => org.id === parents[0] && org.status === "active")) policyError("Assign the Organization Admin to one active organization.");
     if (companies.length && companies.some(id => activeCompany(id)?.parentOrganizationId !== parents[0])) policyError("Choose active companies from the assigned organization.");
-    if (next.employeeId && !rows("employees").some(employee => employee.id === next.employeeId && activeCompany(employee.organizationId)?.parentOrganizationId === parents[0])) policyError("Choose an employee from the assigned organization.");
+    if (next.employeeId && !rows("employees").some(employee => employee.id === next.employeeId && companies.includes(String(employee.organizationId)) && activeCompany(employee.organizationId)?.parentOrganizationId === parents[0])) policyError("Choose an employee from the assigned organization.");
   } else if (next.roleId !== "role-main-manager") {
     // An unassigned pending registration may stay pending; activation always needs scope.
     if (!(next.status === "pending" && !companies.length) && (companies.length !== 1 || !activeCompany(companies[0]))) policyError("Assign this user to one active company.");
@@ -55,7 +55,7 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
   if (next.employeeId && next.status === "active" && rows("employees").some(employee => employee.id === next.employeeId && ["terminated", "inactive", "suspended"].includes(String(employee.status).toLowerCase()))) policyError("Reactivate the employee profile before restoring account access.");
   const locations = Array.isArray(next.locationIds) ? next.locationIds.map(String) : [];
   const allowed = next.roleId === "role-organization-admin"
-    ? rows("companies").filter(company => parents.includes(String(company.parentOrganizationId)) && activeCompany(company.id)).map(company => String(company.id))
+    ? companies.filter(id => activeCompany(id)?.parentOrganizationId === parents[0])
     : companies.filter(company => activeCompany(company));
   if (locations.some(id => !getStore().stores.some(location => location.id === id && allowed.includes(location.companyId)))) policyError("Choose locations from the assigned company.");
   const actorLocations = effectiveLocationIds(actor);

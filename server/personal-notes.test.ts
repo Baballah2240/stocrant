@@ -20,7 +20,7 @@ async function json(response: Response, status = 200): Promise<Row> { assert.equ
 async function create(collection: string, input: unknown, session = main) { return (await json(await api(`/collections/${collection}`, "POST", input, session), 201)).item; }
 async function account(name: string, roleId: string, tenant = false) {
   const temporary = credentials(), email = `${name.toLowerCase().replace(/\s+/g, "-")}@personal-notes.test`;
-  const item = (await json(await api("/workspace/access/users", "POST", { name, email, password: temporary, roleId, organizationIds: tenant ? [] : [company.id], tenantOrganizationIds: tenant ? [org.id] : [] }, main), 201)).item;
+  const item = (await json(await api("/workspace/access/users", "POST", { name, email, password: temporary, roleId, organizationIds: [company.id], tenantOrganizationIds: tenant ? [org.id] : [] }, main), 201)).item;
   let response = await api("/auth/login", "POST", { email, password: temporary }, ""); await json(response); const first = cookie(response), password = credentials();
   await json(await api("/auth/password", "POST", { currentPassword: temporary, newPassword: password }, first));
   response = await api("/auth/login", "POST", { email, password }, ""); await json(response); return { item, session: cookie(response) };

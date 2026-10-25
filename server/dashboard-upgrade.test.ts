@@ -26,7 +26,7 @@ before(async()=>{
  company=await create("companies",companyInput("Analytics Company",org.id));sister=await create("companies",companyInput("Sister Analytics Company",org.id));foreign=await create("companies",companyInput("Private Foreign Company",other.id));
  const person=(name:string,organizationId:string)=>({name,organizationId,status:"active",hireDate:"2026-10-20",department:"Legacy Operations",salary:87531});
  lead=await create("employees",person("Team Lead",company.id));employee=await create("employees",person("Scoped Employee",company.id));outsider=await create("employees",person("Foreign Employee",foreign.id));await create("employees",person("Sister Employee",sister.id));
- manager=await loginManager("company@analytics.test","role-company-manager",{organizationIds:[company.id]});orgManager=await loginManager("org@analytics.test","role-organization-admin",{tenantOrganizationIds:[org.id],organizationIds:[]});
+ manager=await loginManager("company@analytics.test","role-company-manager",{organizationIds:[company.id]});orgManager=await loginManager("org@analytics.test","role-organization-admin",{tenantOrganizationIds:[org.id],organizationIds:[company.id,sister.id]});
  const invite=await json(await req(`/workspace/hr/communication/employees/${employee.id}/invitation`,"POST")),password=secret();await json(await req("/auth/activate-employee","POST",{token:invite.token,email:"staff@analytics.test",password},""));const response=await req("/auth/login","POST",{email:"staff@analytics.test",password},"");await json(response);staff=cookie(response);
 });
 describe("Work Activity and timezone-aware dashboard periods",()=>{

@@ -683,6 +683,6 @@ router.post("/approvals/:id", requirePermission("approvals", "approve"), (req, r
   try { res.json({ item: approveRequest(req.auth!, req.params.id as string, parsed.data.decision === "approve", parsed.data.note) }); } catch (error) { sendError(res, error); }
 });
 
-router.get("/audit", requirePermission("audit", "view"), (req, res) => res.json({ items: rows("auditLog").filter(entry => isMainManager(req.auth) || isWithinScope(req.auth!, entry) || (req.auth!.roleId === "role-organization-admin" && req.auth!.tenantOrganizationIds?.includes(String(entry.parentOrganizationId)))).sort((a, b) => String(b.occurredAt).localeCompare(String(a.occurredAt))) }));
+router.get("/audit", requirePermission("audit", "view"), (req, res) => res.json({ items: rows("auditLog").filter(entry => isMainManager(req.auth) || isWithinScope(req.auth!, entry)).sort((a, b) => String(b.occurredAt).localeCompare(String(a.occurredAt))) }));
 
 export default router;
