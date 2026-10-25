@@ -1,4 +1,7 @@
 export const administrationTranslations:Readonly<Record<string,string>>={
+ "Super Admin":"المسؤول الأعلى",
+ "All platform users":"جميع مستخدمي المنصة",
+ "Super Admin controls all users, roles and companies. Changes apply immediately and are recorded in Audit.":"يتحكم المسؤول الأعلى في جميع المستخدمين والأدوار والشركات. تُطبّق التغييرات فوراً وتُسجّل في سجل التدقيق.",
  "Edit approval rule":"تعديل قاعدة الموافقة",
  "Create approval rule":"إنشاء قاعدة موافقة",
  "Save approval rule":"حفظ قاعدة الموافقة",

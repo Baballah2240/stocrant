@@ -17,6 +17,8 @@ export function migrateOrganizations(data: StoreData): boolean {
     changed = true;
   }
   const roles = data.collections.accessRoles as Record<string, unknown>[];
+  const superAdmin=roles.find(role=>role.id==="role-main-manager");
+  if(superAdmin&&superAdmin.name!=="Super Admin"){superAdmin.name="Super Admin";changed=true;}
   for (const role of [
     { id: "role-shop-manager", name: "Shop Manager", permissions: ["organizations.view", "shops.*", "operations.view", "operations.create", "operations.edit", "operations.export", "inventory.view", "inventory.create", "inventory.edit", "inventory.export", "finance.view", "finance.create"], description: "Manages company products, stock, orders, storefront publication and shop connections without user administration." },
     { id: "role-organization-admin", name: "Organization Admin", permissions: ["organizations.view", "organizations.create", "organizations.edit", "organizations.delete", "organizations.export", "payroll.*", "locations.*", "hr.*", "operations.*", "inventory.*", "finance.*", "customerService.*", "access.view", "access.create", "access.edit", "access.delete", "audit.view", "approvals.view", "approvals.approve"], description: "Manages permitted records and accounts in one assigned organization." },

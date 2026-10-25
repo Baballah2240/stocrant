@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-10-25 - Super Admin and additional owner login
+
+- Clearly label the protected platform-wide owner role Super Admin, retaining existing Main Manager/Main Administrator account IDs and logins. Show global user control in Access & Settings and prevent custom roles from imitating the protected name.
+- Preserve full access for owner accounts with legacy own-record restrictions; company admins and managers retain their company scopes.
+- Add an authenticated Render Shell command to generate and verify an additional Super Admin login without archiving companies or disabling existing users. Require a unique email and password change at first sign-in. Live account creation remains an explicit runtime action.
+- No native build or installation performed.
+
 ## 2026-10-25 - Role editor crash fix
 
 - Fix Create role and Edit role crashing when rendering Shops permissions. Add the Shops & orders label and a safe display-name fallback for future permission modules, including search and permission previews.

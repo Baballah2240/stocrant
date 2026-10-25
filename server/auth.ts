@@ -122,7 +122,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     name: account.name,
     phone: typeof account.phone === "string" ? account.phone : "",
     avatar: typeof account.avatar === "string" ? account.avatar : "",
-    position: String(employee?.jobTitle || role?.name || "Employee"),
+    position: account.roleId === "role-main-manager" ? "Super Admin" : String(employee?.jobTitle || role?.name || "Employee"),
     description: String(role?.description || ""),
     bio: typeof account.bio === "string" ? account.bio : "",
     roleId: account.roleId,
@@ -130,7 +130,7 @@ export function publicUser(account: AccountRow): AuthenticatedUser {
     organizationIds: assigned.filter((id): id is string => typeof id === "string" && validCompanies.has(id)),
     tenantOrganizationIds: Array.isArray(account.tenantOrganizationIds) ? account.tenantOrganizationIds.filter((id): id is string => typeof id === "string") : [],
     locationIds: Array.isArray(account.locationIds) ? account.locationIds.filter((id): id is string => typeof id === "string") : [],
-    ownRecordsOnly: account.ownRecordsOnly === true,
+    ownRecordsOnly: account.roleId !== "role-main-manager" && account.ownRecordsOnly === true,
     permissions: account.status !== "active" ? [] : account.roleId === "role-main-manager" ? ["*"] : (Array.isArray(account.permissions) ? account.permissions : Array.isArray(role?.permissions) ? role.permissions : []).filter((permission): permission is string => typeof permission === "string" && permission !== "*" && (delegated || (!permission.startsWith("access.") && !permission.startsWith("audit.")))).flatMap(permission=>delegated?[permission]:permission==="organizations.*"?["organizations.view","organizations.export"]:/^organizations\.(create|edit|delete|approve|configure)$/.test(permission)?[]:[permission]),
   };
 }

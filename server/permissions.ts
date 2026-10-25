@@ -61,10 +61,11 @@ export function canViewPersonalData(user: AuthenticatedUser | undefined): boolea
   return permissions.includes("*") || permissions.includes("hr.*") || permissions.includes("hr.create") || permissions.includes("hr.edit") || permissions.includes("hr.personal.view") || can(user, "finance", "view");
 }
 
-/** The Main Admin is the sole account-administration override role. */
-export function isMainManager(user: AuthenticatedUser | undefined): boolean {
+/** Super Admin is the platform owner; retain the existing role ID for account compatibility. */
+export function isSuperAdmin(user: AuthenticatedUser | undefined): boolean {
   return user?.roleId === "role-main-manager";
 }
+export const isMainManager = isSuperAdmin;
 
 export function platformWebsiteInquiries(user: AuthenticatedUser): boolean {
   return isMainManager(user) || (can(user, "customerService", "view") && permissionsFor(user).includes("customerService.inquiries"));
@@ -89,7 +90,7 @@ export function effectiveLocationIds(user: AuthenticatedUser): string[] {
   const locations = Array.isArray(role?.locationIds) ? role.locationIds.map(String) : [];
   return user.locationIds.length ? user.locationIds.filter(id => !locations.length || locations.includes(id)) : locations;
 }
-export function ownRecordsRequired(user: AuthenticatedUser) { return user.ownRecordsOnly || roleFor(user)?.ownRecordsOnly === true; }
+export function ownRecordsRequired(user: AuthenticatedUser) { return !isSuperAdmin(user) && (user.ownRecordsOnly || roleFor(user)?.ownRecordsOnly === true); }
 export function hasLocationRestriction(user: AuthenticatedUser) { return user.locationIds.length > 0 || (Array.isArray(roleFor(user)?.locationIds) && (roleFor(user)!.locationIds as unknown[]).length > 0); }
 
 export function requirePermission(section: WorkspaceSection, action: PermissionAction) {

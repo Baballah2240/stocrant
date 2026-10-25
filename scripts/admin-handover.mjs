@@ -63,7 +63,7 @@ export async function handover({base,storeFile,currentEmail,currentPassword,emai
   return {email,accountId:target.id,backup,archivedCompanies:companies.length,disabledUsers:finalUsers.filter(user=>user.id!==target.id).length};
 }
 
-async function secretPrompt(label){
+export async function secretPrompt(label){
   if(!process.stdin.isTTY)throw new Error('Use an interactive Shell, or set STOCRANT_CURRENT_ADMIN_PASSWORD privately in the process environment.');
   process.stdout.write(label);process.stdin.setRawMode(true);process.stdin.resume();
   try{return await new Promise((resolve,reject)=>{let value='';const read=chunk=>{for(const c of chunk.toString()){if(c==='\u0003'){process.stdin.off('data',read);reject(new Error('Cancelled.'));return;}if(c==='\r'||c==='\n'){process.stdin.off('data',read);resolve(value);return;}if(c==='\u007f'||c==='\b')value=value.slice(0,-1);else value+=c;}};process.stdin.on('data',read);});}

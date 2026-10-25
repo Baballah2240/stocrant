@@ -41,7 +41,7 @@ for(const edit of [false,true])router[edit?"patch":"post"](`/roles${edit?"/:id":
  const current=edit?rows("accessRoles").find(row=>row.id===(req.params as Record<string,string>).id):undefined;if(edit&&!current)return res.status(404).json({error:"Role not found."});
  if(current?.id==="role-main-manager")return res.status(403).json({error:"The Main Administrator system role is protected."});
  const {currentPassword:_,assignedUserIds,...input}=parsed.data;
- if(["main administrator","main admin","root"].includes(input.name.toLowerCase()))return res.status(400).json({error:"This role name is reserved for the protected Main Administrator."});
+ if(["main administrator","main admin","main manager","super admin","super administrator","superadmin","root"].includes(input.name.toLowerCase()))return res.status(400).json({error:"This role name is reserved for the protected Main Administrator."});
  const grants=Object.entries(moduleActions).flatMap(([section,actions])=>actions.map(action=>`${section}.${action}`));
  const delegated=["role-organization-admin","role-company-manager"].includes(current?.id||"");
  if(Object.entries(moduleActions).some(([section])=>input.permissions.some(p=>p.startsWith(section+".")&&p!==section+".view")&&!input.permissions.includes(section+".view")))return res.status(400).json({error:"Grant view access before write actions."});

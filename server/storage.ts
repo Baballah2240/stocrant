@@ -155,7 +155,7 @@ function systemRoles(): Row[] {
   return [
     {
       id: "role-main-manager",
-      name: "Main Manager",
+      name: "Super Admin",
       permissions: ["*"],
       isSystem: true,
       dataClassification: "system",
