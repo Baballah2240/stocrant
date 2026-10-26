@@ -9,7 +9,7 @@ export function validateSchedule(input) {
   for (const row of input) {
     if (!row || typeof row.id!=='string' || row.id.length>80 || ids.has(row.id)) throw new Error('Each timetable entry needs a unique ID.');
     ids.add(row.id);
-    if (!Number.isInteger(row.day) || row.day<0 || row.day>6 || !['lesson','break'].includes(row.type)) throw new Error('Choose a valid day and activity.');
+    if (!Number.isInteger(row.day) || row.day<0 || row.day>6 || !['lesson','break','event'].includes(row.type)) throw new Error('Choose a valid day and activity.');
     if (![row.start,row.end].every(t=>typeof t==='string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)) || minutes(row.end)<=minutes(row.start)) throw new Error('End time must be after start time on the same day.');
     for(const key of ['subjectEn','subjectAr','teacherEn','teacherAr','room']) if(typeof row[key]!=='string' || row[key].length>120) throw new Error('Keep timetable text within 120 characters.');
     if (!row.subjectEn.trim() && !row.subjectAr.trim()) throw new Error('Add an activity name in Arabic or English.');
@@ -33,7 +33,7 @@ export function scheduleState(schedule,settings,now=new Date()) {
 export function displayPresentation(state,settings,enabled=true){
   if(!enabled||settings.paused||state.current?.type==='lesson')return 'panel';
   if(state.phase==='break')return settings.fullscreenBreaks!==false?'break':'panel';
-  return !state.current&&!state.next&&settings.fullscreenIdle!==false?'idle':'panel';
+  return !state.current&&!state.next?'clock':'panel';
 }
 export function sampleSchedule() {
   return [0,1,2,3,4].flatMap(day=>[

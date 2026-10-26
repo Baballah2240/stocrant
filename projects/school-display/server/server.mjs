@@ -40,32 +40,48 @@ export async function startServer({directory,port=4318,desktop=null}={}) {
         let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>limit)fail('Request too large.',413);chunks.push(chunk);}try{body=JSON.parse(Buffer.concat(chunks).toString());}catch{fail('Invalid JSON.');}
       }
       const token=(req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('school_session='))?.slice(15);
-      const session=sessions.get(token);const authenticated=Boolean(session&&session>Date.now());
+      const state=store.get(),session=sessions.get(token);
+      const users=[state.admin,...state.users].filter(Boolean);
+      const user=session&&users.find(u=>u.id===session.userId&&u.active!==false);
+      const authenticated=Boolean(user&&session.expires>Date.now());
+      const publicUser=u=>({id:u.id,name:u.name,email:u.email,active:u.active!==false,owner:u===state.admin});
       if(session&&!authenticated)sessions.delete(token);
-      const state=store.get();
+
       if(path.startsWith('/api/images/')&&req.method==='GET'){
         if(!authenticated&&url.searchParams.get('token')!==state.displayToken)fail('Invalid display access.',403);
         if(!authenticated&&![state.settings.breakImage,state.settings.returnImage].includes(path))fail('Image not found.',404);
         const image=images.read(path);res.setHeader('Content-Type',image.type);res.end(image.bytes);return;
       }
-      if(path==='/api/status'&&req.method==='GET')return reply({setup:!state.admin,authenticated,admin:authenticated?{name:state.admin.name,email:state.admin.email}:null,desktop:Boolean(desktop)});
-      if(path==='/api/setup'&&req.method==='POST') {if(state.admin)fail('The administrator already exists.',409);throttle('setup');state.admin=credentials(body);audit('Administrator created');store.save();return reply({ok:true});}
-      if(path==='/api/login'&&req.method==='POST'){throttle('login');if(!state.admin||String(body.email).toLowerCase().trim()!==state.admin.email||!verify(body.password,state.admin))fail('Email or password is incorrect.',401);for(const key of sessions.keys())sessions.delete(key);const value=randomBytes(32).toString('hex');sessions.set(value,Date.now()+8*3600000);res.setHeader('Set-Cookie',`school_session=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`);return reply({ok:true});}
+      if(path==='/api/status'&&req.method==='GET')return reply({setup:!state.admin,authenticated,admin:authenticated?publicUser(user):null,desktop:Boolean(desktop)});
+      if(path==='/api/setup'&&req.method==='POST') {if(state.admin)fail('The administrator already exists.',409);throttle('setup');state.admin={...credentials(body),id:randomBytes(16).toString('hex'),active:true};audit('Administrator created');store.save();return reply({ok:true});}
+      if(path==='/api/login'&&req.method==='POST'){throttle('login');const account=users.find(u=>u.active!==false&&String(body.email).toLowerCase().trim()===u.email);if(!account||!verify(body.password,account))fail('Email or password is incorrect.',401);for(const [key,value] of sessions)if(value.expires<Date.now()||value.userId===account.id)sessions.delete(key);const value=randomBytes(32).toString('hex');sessions.set(value,{userId:account.id,expires:Date.now()+8*3600000});res.setHeader('Set-Cookie',`school_session=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`);return reply({ok:true});}
       if(path==='/api/display'&&req.method==='GET') {if(url.searchParams.get('token')!==state.displayToken)fail('Invalid display access.',403);return reply({settings:state.settings,schedule:state.published,revision:state.revision,publishedAt:state.publishedAt,serverTime:Date.now(),configured:Boolean(state.admin)});}
       if(path.startsWith('/api/')) {
         if(!authenticated)fail('Sign in to the control panel.',401);
+        if(path==='/api/users'&&req.method==='GET')return reply({users:users.map(publicUser)});
+        if(path==='/api/users'&&req.method==='POST'){
+          throttle('users');if(users.length>=50)fail('A maximum of 50 administrators is supported.');
+          const account=credentials(body);if(users.some(u=>u.email===account.email))fail('This email already has an account.',409);
+          const created={...account,id:randomBytes(16).toString('hex'),active:true};state.users.push(created);audit('Administrator added: '+created.email);store.save();return reply({user:publicUser(created)});
+        }
+        if(path==='/api/users'&&req.method==='PUT'){
+          const target=state.users.find(u=>u.id===body.id);if(!target||target===user)fail('The original administrator and your own account cannot be disabled.');
+          if(typeof body.active!=='boolean')fail('Choose an account status.');target.active=body.active;
+          for(const [key,value] of sessions)if(value.userId===target.id)sessions.delete(key);
+          audit((target.active?'Administrator enabled: ':'Administrator disabled: ')+target.email);store.save();return reply({ok:true});
+        }
         if(path==='/api/images'&&req.method==='POST'){const image=images.upload(body.data);audit('Display image uploaded');store.save();return reply({image});}
         if(path==='/api/logout'&&req.method==='POST'){sessions.delete(token);res.setHeader('Set-Cookie','school_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return reply({ok:true});}
-        if(path==='/api/state'&&req.method==='GET')return reply({settings:state.settings,draft:state.draft,published:state.published,revision:state.revision,publishedAt:state.publishedAt,audit:state.audit,displayUrl:`/display?token=${state.displayToken}`,monitors:desktop?.monitors()||[],desktop:Boolean(desktop),admin:{name:state.admin.name,email:state.admin.email}});
+        if(path==='/api/state'&&req.method==='GET')return reply({settings:state.settings,draft:state.draft,published:state.published,revision:state.revision,publishedAt:state.publishedAt,audit:state.audit,displayUrl:`/display?token=${state.displayToken}`,monitors:desktop?.monitors()||[],desktop:Boolean(desktop),admin:publicUser(user)});
         if(path==='/api/draft'&&req.method==='PUT'){state.draft=validateSchedule(body.schedule);audit('Draft timetable saved');store.save();return reply({ok:true});}
         if(path==='/api/sample'&&req.method==='POST'){state.draft=sampleSchedule();audit('Sample timetable loaded into draft');store.save();return reply({ok:true});}
         if(path==='/api/publish'&&req.method==='POST'){state.published=validateSchedule(state.draft);state.revision++;state.publishedAt=new Date().toISOString();audit('Timetable published');store.save();return reply({ok:true});}
         if(path==='/api/settings'&&req.method==='PUT'){const settings=validateSettings(body);images.check(settings);await desktop?.apply(settings);state.settings=settings;audit('Display settings updated');store.save();return reply({ok:true});}
         if(path==='/api/backup'&&req.method==='GET')return reply({format:'school-display-1',settings:state.settings,draft:state.draft,published:state.published,images:images.export(state.settings)});
-        if(path==='/api/restore'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,state.admin))fail('Administrator password is incorrect.',403);const b=body.backup;if(b?.format!=='school-display-1')fail('Choose a School Display backup.');const draft=validateSchedule(b.draft),published=validateSchedule(b.published),settings=validateSettings(b.settings);const saveImages=images.prepareRestore(b.images,settings);await desktop?.apply(settings);saveImages();Object.assign(state,{draft,published,settings,revision:state.revision+1,publishedAt:new Date().toISOString()});audit('Backup restored');store.save();return reply({ok:true});}
-        if(path==='/api/account'&&req.method==='PUT'){throttle('sensitive');if(!verify(body.currentPassword,state.admin))fail('Current password is incorrect.',403);state.admin=credentials(body);sessions.clear();audit('Administrator account updated');store.save();return reply({ok:true});}
-        if(path==='/api/rotate-display'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,state.admin))fail('Administrator password is incorrect.',403);state.displayToken=randomBytes(32).toString('hex');audit('Display access renewed');store.save();await desktop?.reload(state.displayToken);return reply({ok:true});}
-        if(path==='/api/exit'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,state.admin))fail('Administrator password is incorrect.',403);if(!desktop)fail('The desktop app is not running.',409);audit('Desktop exit authorized');store.save();reply({ok:true});setTimeout(()=>desktop.exit(),250);return;}
+        if(path==='/api/restore'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);const b=body.backup;if(b?.format!=='school-display-1')fail('Choose a School Display backup.');const draft=validateSchedule(b.draft),published=validateSchedule(b.published),settings=validateSettings(b.settings);const saveImages=images.prepareRestore(b.images,settings);await desktop?.apply(settings);saveImages();Object.assign(state,{draft,published,settings,revision:state.revision+1,publishedAt:new Date().toISOString()});audit('Backup restored');store.save();return reply({ok:true});}
+        if(path==='/api/account'&&req.method==='PUT'){throttle('sensitive');if(!verify(body.currentPassword,user))fail('Current password is incorrect.',403);const updated=credentials(body);if(users.some(u=>u!==user&&u.email===updated.email))fail('This email already has an account.',409);Object.assign(user,updated);for(const [key,value] of sessions)if(value.userId===user.id)sessions.delete(key);audit('Administrator account updated');store.save();return reply({ok:true});}
+        if(path==='/api/rotate-display'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);state.displayToken=randomBytes(32).toString('hex');audit('Display access renewed');store.save();await desktop?.reload(state.displayToken);return reply({ok:true});}
+        if(path==='/api/exit'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);if(!desktop)fail('The desktop app is not running.',409);audit('Desktop exit authorized');store.save();reply({ok:true});setTimeout(()=>desktop.exit(),250);return;}
         fail('Not found.',404);
       }
       const files={'/':'web/index.html','/control':'web/index.html','/display':'web/display.html','/app.js':'web/app.js','/display.js':'web/display.js','/i18n.js':'web/i18n.js','/styles.css':'web/styles.css','/display.css':'web/display.css','/schedule.mjs':'shared/schedule.mjs','/icon.svg':'assets/icon.svg','/images/student-break.png':'assets/student-break.png','/images/student-return.png':'assets/student-return.png'};
