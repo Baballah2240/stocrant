@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {validateSchedule,scheduleState,sampleSchedule} from '../shared/schedule.mjs';
+import {validateSchedule,scheduleState,sampleSchedule,displayPresentation} from '../shared/schedule.mjs';
 import {defaultSettings} from '../server/store.mjs';
 const rows=sampleSchedule(),settings=defaultSettings();
 test('sample timetable has distinct lessons, teachers and breaks',()=>{assert.equal(validateSchedule(rows).length,25);assert.equal(rows.filter(r=>r.type==='break').length,5);});
@@ -8,3 +8,14 @@ test('exact lesson and break boundaries use school timezone',()=>{const at=time=
 test('holidays, unscheduled days and gaps are explicit states',()=>{assert.equal(scheduleState(rows,{...settings,holidays:['2026-10-25']},new Date('2026-10-25T05:00:00Z')).phase,'holiday');assert.equal(scheduleState(rows,settings,new Date('2026-10-30T05:00:00Z')).phase,'no-school');assert.equal(scheduleState(rows.filter(r=>r.id!=='0-2'),settings,new Date('2026-10-25T05:30:00Z')).phase,'gap');});
 test('rejects overlaps, duplicate IDs, invalid times and missing teachers',()=>{assert.throws(()=>validateSchedule([...rows,{...rows[0],id:'extra'}]),/overlap/);assert.throws(()=>validateSchedule([...rows,rows[0]]),/unique/);assert.throws(()=>validateSchedule([{...rows[0],end:'01:00'}]),/after/);assert.throws(()=>validateSchedule([{...rows[0],start:'24:00'}]),/after/);assert.throws(()=>validateSchedule([{...rows[0],teacherEn:'',teacherAr:''}]),/teacher/);});
 test('timezones and date rollover are calculated independently of host clock',()=>{assert.equal(scheduleState(rows,{...settings,timezone:'UTC'},new Date('2026-10-25T04:30:00Z')).phase,'before-school');assert.equal(scheduleState(rows,settings,new Date('2026-10-24T22:00:00Z')).clock.date,'2026-10-25');});
+test('full-screen breaks and end of day restore the compact panel for lessons',()=>{
+ const at=time=>scheduleState(rows,settings,new Date('2026-10-25T'+time+'Z'));
+ assert.equal(displayPresentation(at('06:00:00'),settings),'break');
+ assert.equal(displayPresentation(at('06:20:00'),settings),'panel');
+ assert.equal(displayPresentation(at('07:00:00'),settings),'panel','Last lesson must remain compact even without a next activity.');
+ assert.equal(displayPresentation(at('07:50:00'),settings),'idle');
+ assert.equal(displayPresentation(at('06:00:00'),{...settings,fullscreenBreaks:false}),'panel');
+ assert.equal(displayPresentation(at('07:50:00'),{...settings,fullscreenIdle:false}),'panel');
+ assert.equal(displayPresentation(at('06:00:00'),{...settings,paused:true}),'panel');
+ assert.equal(displayPresentation(at('06:00:00'),settings,false),'panel','Unpublished/unconfigured screens cannot expand.');
+});

@@ -30,6 +30,11 @@ export function scheduleState(schedule,settings,now=new Date()) {
   const phase=current?current.type:!list.length?'no-school':clock.seconds<minutes(list[0].start)*60?'before-school':next?'gap':'finished';
   return {phase,current,next,remaining:current?minutes(current.end)*60-clock.seconds:next?minutes(next.start)*60-clock.seconds:0,clock};
 }
+export function displayPresentation(state,settings,enabled=true){
+  if(!enabled||settings.paused||state.current?.type==='lesson')return 'panel';
+  if(state.phase==='break')return settings.fullscreenBreaks!==false?'break':'panel';
+  return !state.current&&!state.next&&settings.fullscreenIdle!==false?'idle':'panel';
+}
 export function sampleSchedule() {
   return [0,1,2,3,4].flatMap(day=>[
     {id:`${day}-1`,day,type:'lesson',start:'07:30',end:'08:15',subjectEn:'Mathematics',subjectAr:'الرياضيات',teacherEn:'Ahmed Hassan',teacherAr:'أحمد حسن',room:'Grade 6 · A'},

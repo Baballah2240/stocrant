@@ -1,0 +1,11 @@
+# Student photo assets
+
+Created with the built-in image_gen tool for this project. The depicted students are generated fictional people. The originals were copied into this project without visual edits. Administrators can replace both assets through the local control panel; replacements remain in runtime storage and must not enter source control.
+
+## student-break.png
+
+Prompt: Create a photorealistic premium school website photograph, landscape 3:2 composition, for a bilingual Arabic/English school timetable's break-time screen. Fictional students aged about 12-15, two boys and two girls, fully clothed in modest contemporary school uniforms of navy, cream and soft emerald, relaxing and talking together during a healthy morning break in a clean sunlit school courtyard. Natural candid expressions, a bench and subtle greenery, culturally inclusive Middle Eastern international school setting, tasteful polished editorial school photography. Place students on center-right with a calm uncluttered courtyard background; softly shaded teal/emerald color grading harmonizing with deep navy UI, realistic skin and hands. No text, lettering, logos, watermarks, UI, borders or collage. A single complete photograph, not a mockup. Save as a production-ready image asset.
+
+## student-return.png
+
+Prompt: Photorealistic premium editorial photograph for a school timetable app's return-to-class or end-of-day screen. Single landscape 3:2 photo of three fictional students aged 12-15 in modest navy, cream and emerald school uniforms with backpacks and books, walking confidently together toward an open classroom door along a clean sunlit school corridor, friendly calm smiles, culturally inclusive Middle Eastern international school. One student glancing toward a classmate, natural candid movement, neat contemporary architecture, gentle greenery visible through windows, realistic hands and faces, warm daylight with restrained emerald and navy color accents. Composition focused on center-right, clear optimistic readiness for learning, suitable for a professional bilingual Arabic/English school monitor interface. No text, logos, watermarks, UI, frames or collage. This is a production photograph asset, not a screen mockup.

@@ -4,7 +4,7 @@ An independent Windows classroom overlay with a local bilingual web control pane
 
 ## Use the Windows application
 
-1. Open `releases/School-Display-Setup-1.0.0-x64.exe` to install, or run the portable executable.
+1. Open `releases/School-Display-Setup-1.1.0-x64.exe` to install, or run the portable executable.
 2. School Display opens the control panel at **http://127.0.0.1:4318/control** and places its read-only overlay above ordinary desktop windows.
 3. Create your one administrator account. Choose a password of at least 12 characters and keep it safely. There is no default account or password.
 4. Open **Display & school** to enter the school name, timezone and display language. Choose Arabic, English or bilingual. The control panel language is independent.
@@ -15,6 +15,16 @@ An independent Windows classroom overlay with a local bilingual web control pane
 The overlay is non-focusable and click-through, so teachers can work in the application behind it. Settings allow top/bottom placement, compact/standard size, target monitor, pre-lesson notice and optional sound. Windows startup is opt-in. Pausing hides the native overlay; the web preview remains available.
 
 Closing a normal window does not close the overlay. This application is not an operating-system lockdown: Task Manager, OS administrators, shutdown, secure desktops and some exclusive fullscreen applications can override it. Test actual teaching applications on classroom hardware. If a teacher switches HDMI input to a separate laptop, install/run the app on that laptop to display above its output.
+
+## Full-screen breaks and photos
+
+In **Display & school ? Full-screen school moments**, choose whether breaks and periods with no remaining activities fill the selected monitor. Both are enabled by default. An active lesson always uses the compact glass panel, including the last lesson of the day. When a break finishes, the panel returns automatically and a short back-to-class notification appears with its image.
+
+Upload your own **PNG, JPEG or WebP photos up to 2 MB** for the break and the back-to-class/end-of-day screen, or restore the defaults. Select **Save settings** to apply them. Uploaded images stay in the local app data folder and are included in exported backups; only the signed-in administrator or the current display link can access them. Keep backups under 6 MB. Default photos are generated fictional students; provenance and prompts are in [assets/IMAGES.md](assets/IMAGES.md).
+
+**Press Ctrl+Alt+Shift+S** to open the local administrator panel above the full-screen photo. This only opens the login/control window; changing settings or closing the overlay still requires administrator authentication.
+
+Full-screen mode remains click-through and does not take keyboard focus. It visually covers the selected monitor until the timetable changes or the administrator disables it. Pausing the overlay still hides it. Browser previews fill their page; the Windows overlay fills the selected monitor.
 
 ## Local scope and data
 
@@ -36,6 +46,8 @@ npm.cmd start              # Web-only control panel; no overlay
 npm.cmd run desktop       # Desktop app + local web control
 npm.cmd test
 npm.cmd run test:browser   # Requires installed Chrome
+npm.cmd run test:glass     # Compact glass layout and hover checks
+npm.cmd run test:moments   # Break/photo/full-screen transition checks
 npm.cmd run dist:win       # Installer + portable app
 ```
 

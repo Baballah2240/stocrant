@@ -1,15 +1,15 @@
-const {app,BrowserWindow,Tray,Menu,shell,screen,nativeImage,ipcMain,dialog,powerMonitor}=require('electron');
+const {app,BrowserWindow,Tray,Menu,shell,screen,nativeImage,ipcMain,dialog,powerMonitor,globalShortcut}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const {randomBytes}=require('node:crypto');
-let service,overlay,tray,quitting=false,displayToken,alertAt=0,pointerPoll,panelBounds=null,contentHeight=240,pointerInside=null;
+let service,overlay,tray,quitting=false,displayToken,alertAt=0,pointerPoll,panelBounds=null,contentHeight=240,pointerInside=null,expanded=false,controlWindow=null;
 const smoke=process.argv.includes('--smoke-test');
 if(smoke&&process.env.SCHOOL_DATA_DIR)app.setPath('userData',process.env.SCHOOL_DATA_DIR);
 if(!app.requestSingleInstanceLock())app.quit();else{
  app.on('second-instance',()=>openControl());
  app.on('window-all-closed',()=>{});
- app.on('will-quit',()=>clearInterval(pointerPoll));
+ app.on('will-quit',()=>{clearInterval(pointerPoll);globalShortcut.unregisterAll();});
  app.on('before-quit',event=>{if(!quitting){event.preventDefault();openControl();}});
  app.whenReady().then(async()=>{
   app.setAppUserModelId('online.schooldisplay.desktop');
@@ -32,7 +32,8 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    if(event.sender!==overlay.webContents||!bounds||!['x','y','width','height','contentHeight'].every(key=>Number.isFinite(bounds[key])&&bounds[key]>=0&&bounds[key]<=10000))return;
    panelBounds={x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height};
    const height=Math.ceil(bounds.contentHeight);
-   if(height!==contentHeight){contentHeight=height;applyBounds(service.store.get().settings);}
+   const nextExpanded=bounds.expanded===true;
+   if(height!==contentHeight||nextExpanded!==expanded){contentHeight=height;expanded=nextExpanded;applyBounds(service.store.get().settings);}
   });
   await overlay.loadURL(displayUrl());applyBounds(service.store.get().settings);
   pointerPoll=setInterval(()=>{
@@ -42,8 +43,10 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    if(inside!==pointerInside){pointerInside=inside;overlay.webContents.send('school:pointer',inside);}
   },50);pointerPoll.unref();
   const image=nativeImage.createFromPath(path.join(__dirname,'../assets/icon.png'));tray=new Tray(image.resize({width:20,height:20}));tray.setToolTip('School Display · جدول المدرسة');tray.setContextMenu(Menu.buildFromTemplate([{label:'Open control panel · لوحة التحكم',click:openControl},{label:'Open timetable · عرض الجدول',click:()=>shell.openExternal(service.origin+'/display?token='+displayToken)},{type:'separator'},{label:'Close app (administrator) · إغلاق التطبيق',click:openControl}]));tray.on('double-click',openControl);
+  globalShortcut.register('Control+Alt+Shift+S',()=>{if(service)showLocalControl();});
   screen.on('display-metrics-changed',()=>applyBounds(service.store.get().settings));screen.on('display-removed',()=>applyBounds(service.store.get().settings));powerMonitor.on('resume',()=>overlay.webContents.reload());
   if(smoke){
+   const progress=stage=>{if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify({stage}));};progress('started');
    assert.equal(service.store.get().admin,null,'Smoke tests require a fresh isolated database.');
    overlay.close();assert.ok(!overlay.isDestroyed(),'Normal close must preserve the overlay.');
    const password=randomBytes(24).toString('hex');let cookie='';
@@ -52,6 +55,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    assert.equal((await post('setup',{name:'Desktop QA',email:'desktop@school.test',password})).status,200);
    const login=await post('login',{email:'desktop@school.test',password});assert.equal(login.status,200);cookie=login.headers.get('set-cookie').split(';')[0];
    assert.equal((await post('exit',{password:'wrong'})).status,403);
+   Object.assign(service.store.get().settings,{fullscreenBreaks:false,fullscreenIdle:false});service.store.save();
    assert.equal((await post('publish',{})).status,200);
    await overlay.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let attempts=0;const timer=setInterval(()=>{if(document.querySelector('.publication')){clearInterval(timer);resolve();}else if(++attempts>60){clearInterval(timer);reject(Error('Display data did not arrive'));}},100);})`);
    // Native cursor IPC must preserve the 500ms dwell while staying click-through.
@@ -62,15 +66,32 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    overlay.webContents.send('school:pointer',true);await new Promise(r=>setTimeout(r,650));
    assert.equal(await overlay.webContents.executeJavaScript("document.querySelector('.ribbon').classList.contains('is-hovered')"),true);
    overlay.webContents.send('school:pointer',false);
+   const waitFor=async predicate=>{for(let i=0;i<60;i++){if(predicate())return;await new Promise(r=>setTimeout(r,100));}throw Error('Native presentation transition timed out');};
+   service.store.get().published=[];service.store.get().settings.fullscreenIdle=true;service.store.save();
+   await waitFor(()=>expanded);assert.deepEqual(overlay.getBounds(),screen.getPrimaryDisplay().bounds);
+   progress('fullscreen-verified');const controller=showLocalControl();progress('controller-created');assert.equal(controller.isAlwaysOnTop(),true);await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('Admin panel did not load')),5000);controller.webContents.once('did-finish-load',()=>{clearTimeout(timeout);resolve();});});progress('controller-loaded');controller.close();
+   service.store.get().settings.fullscreenIdle=false;service.store.save();await waitFor(()=>!expanded);
+   assert.ok(overlay.getBounds().height<screen.getPrimaryDisplay().bounds.height);
    const result={packaged:app.isPackaged,alwaysOnTop:overlay.isAlwaysOnTop(),focusable:overlay.isFocusable(),normalCloseBlocked:!overlay.isDestroyed(),unauthenticatedExitBlocked:true,incorrectPasswordBlocked:true,published:true,bounds:overlay.getBounds(),url:service.origin,version:process.versions.electron,userData:app.getPath('userData')};
+   result.fullScreenAndCompactRestoreVerified=true;
+   result.adminControlsAboveFullScreenVerified=true;
    result.nativeHoverDelayVerified=true;result.panelBounds=panelBounds;
    assert.equal(result.alwaysOnTop,true);assert.equal(result.focusable,false);
    assert.equal((await post('exit',{password})).status,200);result.authorizedExitAccepted=true;
    if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify(result,null,2));return;
   }
   if(!process.argv.includes('--background'))openControl();
- }).catch(error=>{quitting=true;dialog.showErrorBox('School Display',error.code==='EADDRINUSE'?'Port 4318 is already in use. Close the local preview or the other School Display instance, then reopen the app.':error.message);app.exit(1);});
+ }).catch(error=>{quitting=true;if(smoke){if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify({error:error.stack},null,2));app.exit(1);return;}dialog.showErrorBox('School Display',error.code==='EADDRINUSE'?'Port 4318 is already in use. Close the local preview or the other School Display instance, then reopen the app.':error.message);app.exit(1);});
 }
 function displayUrl(){return service.origin+'/display?overlay=1&token='+displayToken;}
-function openControl(){if(service&&!smoke)shell.openExternal(service.origin+'/control');}
-function applyBounds(settings){if(!overlay)return;const monitor=screen.getAllDisplays().find(m=>String(m.id)===settings.monitor)||screen.getPrimaryDisplay(),area=monitor.workArea;const height=Math.min(Math.max(140,contentHeight),area.height-24);overlay.setBounds({x:area.x+12,y:settings.position==='bottom'?area.y+area.height-height-12:area.y+12,width:Math.max(300,area.width-24),height});overlay.setIgnoreMouseEvents(true,{forward:true});if(settings.paused)overlay.hide();else overlay.showInactive();}
+function openControl(){if(service&&!smoke){if(expanded)showLocalControl();else shell.openExternal(service.origin+'/control');}}
+function showLocalControl(){
+ if(controlWindow&&!controlWindow.isDestroyed()){controlWindow.show();controlWindow.focus();return controlWindow;}
+ const area=screen.getPrimaryDisplay().workArea;
+ controlWindow=new BrowserWindow({width:Math.min(1180,area.width-40),height:Math.min(850,area.height-40),alwaysOnTop:true,show:!smoke,title:'School Display · Administrator',webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true}});
+ controlWindow.setAlwaysOnTop(true,'screen-saver');controlWindow.setMenu(null);
+ controlWindow.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+ controlWindow.webContents.on('will-navigate',(event,url)=>{if(url!==service.origin+'/control'&&url!==service.origin+'/')event.preventDefault();});
+ controlWindow.on('closed',()=>{controlWindow=null;});controlWindow.loadURL(service.origin+'/control').catch(error=>{if(!smoke&&controlWindow&&!controlWindow.isDestroyed()&&error.code!=='ERR_ABORTED'&&error.errno!==-3)dialog.showErrorBox('School Display',error.message);});return controlWindow;
+}
+function applyBounds(settings){if(!overlay)return;const monitor=screen.getAllDisplays().find(m=>String(m.id)===settings.monitor)||screen.getPrimaryDisplay(),area=monitor.workArea;const height=Math.min(Math.max(140,contentHeight),area.height-24);overlay.setBounds(expanded?monitor.bounds:{x:area.x+12,y:settings.position==='bottom'?area.y+area.height-height-12:area.y+12,width:Math.max(300,area.width-24),height});overlay.setIgnoreMouseEvents(true,{forward:true});if(settings.paused)overlay.hide();else{overlay.showInactive();if(controlWindow&&!controlWindow.isDestroyed()&&controlWindow.isVisible())controlWindow.moveTop();}}
