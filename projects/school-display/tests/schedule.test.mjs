@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {validateSchedule,scheduleState,sampleSchedule} from '../shared/schedule.mjs';
+import {defaultSettings} from '../server/store.mjs';
+const rows=sampleSchedule(),settings=defaultSettings();
+test('sample timetable has distinct lessons, teachers and breaks',()=>{assert.equal(validateSchedule(rows).length,25);assert.equal(rows.filter(r=>r.type==='break').length,5);});
+test('exact lesson and break boundaries use school timezone',()=>{const at=time=>scheduleState(rows,settings,new Date('2026-10-25T'+time+'Z'));assert.equal(at('04:29:59').phase,'before-school');assert.equal(at('04:30:00').current.subjectEn,'Mathematics');assert.equal(at('05:15:00').current.subjectEn,'English');assert.equal(at('06:00:00').phase,'break');assert.equal(at('06:19:59').remaining,1);assert.equal(at('06:20:00').current.subjectEn,'Science');assert.equal(at('07:50:00').phase,'finished');});
+test('holidays, unscheduled days and gaps are explicit states',()=>{assert.equal(scheduleState(rows,{...settings,holidays:['2026-10-25']},new Date('2026-10-25T05:00:00Z')).phase,'holiday');assert.equal(scheduleState(rows,settings,new Date('2026-10-30T05:00:00Z')).phase,'no-school');assert.equal(scheduleState(rows.filter(r=>r.id!=='0-2'),settings,new Date('2026-10-25T05:30:00Z')).phase,'gap');});
+test('rejects overlaps, duplicate IDs, invalid times and missing teachers',()=>{assert.throws(()=>validateSchedule([...rows,{...rows[0],id:'extra'}]),/overlap/);assert.throws(()=>validateSchedule([...rows,rows[0]]),/unique/);assert.throws(()=>validateSchedule([{...rows[0],end:'01:00'}]),/after/);assert.throws(()=>validateSchedule([{...rows[0],start:'24:00'}]),/after/);assert.throws(()=>validateSchedule([{...rows[0],teacherEn:'',teacherAr:''}]),/teacher/);});
+test('timezones and date rollover are calculated independently of host clock',()=>{assert.equal(scheduleState(rows,{...settings,timezone:'UTC'},new Date('2026-10-25T04:30:00Z')).phase,'before-school');assert.equal(scheduleState(rows,settings,new Date('2026-10-24T22:00:00Z')).clock.date,'2026-10-25');});
