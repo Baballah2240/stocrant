@@ -3,11 +3,13 @@ const path=require('node:path');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const {randomBytes}=require('node:crypto');
-let service,overlay,tray,quitting=false,displayToken,alertAt=0;
+let service,overlay,tray,quitting=false,displayToken,alertAt=0,pointerPoll,panelBounds=null,contentHeight=240,pointerInside=null;
 const smoke=process.argv.includes('--smoke-test');
+if(smoke&&process.env.SCHOOL_DATA_DIR)app.setPath('userData',process.env.SCHOOL_DATA_DIR);
 if(!app.requestSingleInstanceLock())app.quit();else{
  app.on('second-instance',()=>openControl());
  app.on('window-all-closed',()=>{});
+ app.on('will-quit',()=>clearInterval(pointerPoll));
  app.on('before-quit',event=>{if(!quitting){event.preventDefault();openControl();}});
  app.whenReady().then(async()=>{
   app.setAppUserModelId('online.schooldisplay.desktop');
@@ -25,7 +27,20 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   overlay.on('close',event=>{if(!quitting){event.preventDefault();openControl();}});
   overlay.webContents.setWindowOpenHandler(()=>({action:'deny'}));overlay.webContents.on('will-navigate',(event,url)=>{if(url!==displayUrl())event.preventDefault();});overlay.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
   ipcMain.on('school:alert',event=>{if(event.sender===overlay.webContents&&Date.now()-alertAt>3000){alertAt=Date.now();shell.beep();}});
+  // Observe the OS cursor without making the overlay intercept teachers' clicks.
+  ipcMain.on('school:layout',(event,bounds)=>{
+   if(event.sender!==overlay.webContents||!bounds||!['x','y','width','height','contentHeight'].every(key=>Number.isFinite(bounds[key])&&bounds[key]>=0&&bounds[key]<=10000))return;
+   panelBounds={x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height};
+   const height=Math.ceil(bounds.contentHeight);
+   if(height!==contentHeight){contentHeight=height;applyBounds(service.store.get().settings);}
+  });
   await overlay.loadURL(displayUrl());applyBounds(service.store.get().settings);
+  pointerPoll=setInterval(()=>{
+   if(overlay.isDestroyed())return;
+   const cursor=screen.getCursorScreenPoint(),windowBounds=overlay.getBounds(),p=panelBounds;
+   const inside=Boolean(overlay.isVisible()&&p&&cursor.x>=windowBounds.x+p.x&&cursor.x<=windowBounds.x+p.x+p.width&&cursor.y>=windowBounds.y+p.y&&cursor.y<=windowBounds.y+p.y+p.height);
+   if(inside!==pointerInside){pointerInside=inside;overlay.webContents.send('school:pointer',inside);}
+  },50);pointerPoll.unref();
   const image=nativeImage.createFromPath(path.join(__dirname,'../assets/icon.png'));tray=new Tray(image.resize({width:20,height:20}));tray.setToolTip('School Display · جدول المدرسة');tray.setContextMenu(Menu.buildFromTemplate([{label:'Open control panel · لوحة التحكم',click:openControl},{label:'Open timetable · عرض الجدول',click:()=>shell.openExternal(service.origin+'/display?token='+displayToken)},{type:'separator'},{label:'Close app (administrator) · إغلاق التطبيق',click:openControl}]));tray.on('double-click',openControl);
   screen.on('display-metrics-changed',()=>applyBounds(service.store.get().settings));screen.on('display-removed',()=>applyBounds(service.store.get().settings));powerMonitor.on('resume',()=>overlay.webContents.reload());
   if(smoke){
@@ -38,7 +53,17 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    const login=await post('login',{email:'desktop@school.test',password});assert.equal(login.status,200);cookie=login.headers.get('set-cookie').split(';')[0];
    assert.equal((await post('exit',{password:'wrong'})).status,403);
    assert.equal((await post('publish',{})).status,200);
+   await overlay.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let attempts=0;const timer=setInterval(()=>{if(document.querySelector('.publication')){clearInterval(timer);resolve();}else if(++attempts>60){clearInterval(timer);reject(Error('Display data did not arrive'));}},100);})`);
+   // Native cursor IPC must preserve the 500ms dwell while staying click-through.
+   overlay.webContents.send('school:pointer',true);await new Promise(r=>setTimeout(r,250));
+   assert.equal(await overlay.webContents.executeJavaScript("document.querySelector('.ribbon').classList.contains('is-hovered')"),false);
+   overlay.webContents.send('school:pointer',false);await new Promise(r=>setTimeout(r,350));
+   assert.equal(await overlay.webContents.executeJavaScript("document.querySelector('.ribbon').classList.contains('is-hovered')"),false);
+   overlay.webContents.send('school:pointer',true);await new Promise(r=>setTimeout(r,650));
+   assert.equal(await overlay.webContents.executeJavaScript("document.querySelector('.ribbon').classList.contains('is-hovered')"),true);
+   overlay.webContents.send('school:pointer',false);
    const result={packaged:app.isPackaged,alwaysOnTop:overlay.isAlwaysOnTop(),focusable:overlay.isFocusable(),normalCloseBlocked:!overlay.isDestroyed(),unauthenticatedExitBlocked:true,incorrectPasswordBlocked:true,published:true,bounds:overlay.getBounds(),url:service.origin,version:process.versions.electron,userData:app.getPath('userData')};
+   result.nativeHoverDelayVerified=true;result.panelBounds=panelBounds;
    assert.equal(result.alwaysOnTop,true);assert.equal(result.focusable,false);
    assert.equal((await post('exit',{password})).status,200);result.authorizedExitAccepted=true;
    if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify(result,null,2));return;
@@ -48,4 +73,4 @@ if(!app.requestSingleInstanceLock())app.quit();else{
 }
 function displayUrl(){return service.origin+'/display?overlay=1&token='+displayToken;}
 function openControl(){if(service&&!smoke)shell.openExternal(service.origin+'/control');}
-function applyBounds(settings){if(!overlay)return;const monitor=screen.getAllDisplays().find(m=>String(m.id)===settings.monitor)||screen.getPrimaryDisplay(),area=monitor.workArea;const height=settings.size==='compact'?205:240;overlay.setBounds({x:area.x+12,y:settings.position==='bottom'?area.y+area.height-height-12:area.y+12,width:Math.max(300,area.width-24),height:Math.min(height,area.height-24)});overlay.setIgnoreMouseEvents(true,{forward:true});if(settings.paused)overlay.hide();else overlay.showInactive();}
+function applyBounds(settings){if(!overlay)return;const monitor=screen.getAllDisplays().find(m=>String(m.id)===settings.monitor)||screen.getPrimaryDisplay(),area=monitor.workArea;const height=Math.min(Math.max(140,contentHeight),area.height-24);overlay.setBounds({x:area.x+12,y:settings.position==='bottom'?area.y+area.height-height-12:area.y+12,width:Math.max(300,area.width-24),height});overlay.setIgnoreMouseEvents(true,{forward:true});if(settings.paused)overlay.hide();else overlay.showInactive();}

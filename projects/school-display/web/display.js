@@ -2,6 +2,31 @@ import {scheduleState} from '/schedule.mjs';
 import {arabic,escape as e} from './i18n.js';
 const params=new URLSearchParams(location.search),token=params.get('token')||'',preview=params.has('preview'),overlay=params.has('overlay'),node=document.querySelector('#display');
 document.body.classList.add(preview?'preview':overlay?'overlay':'full');
+// Keep the hover target mounted while live clock and timetable text update.
+node.innerHTML='<div class="panel-shell"><section class="ribbon"></section><div class="display-status"></div></div>';
+const panel=node.querySelector('.ribbon'),shell=node.querySelector('.panel-shell'),statusNode=node.querySelector('.display-status');
+const hoverMedia=matchMedia('(hover: hover) and (pointer: fine)');
+let hoverTimer=null,pointerInside=false,disposed=false,measureFrame=0;
+function setHovered(inside,native=false){
+ if(disposed)return;
+ if(inside&&!native&&!hoverMedia.matches)return;
+ if(inside===pointerInside)return;
+ pointerInside=inside;clearTimeout(hoverTimer);hoverTimer=null;
+ if(!inside){panel.classList.remove('is-hovered');return;}
+ hoverTimer=setTimeout(()=>{hoverTimer=null;if(pointerInside&&!disposed)panel.classList.add('is-hovered');},500);
+}
+const enter=event=>{if(event.pointerType!=='touch')setHovered(true);};
+const leave=()=>setHovered(false);
+panel.addEventListener('pointerenter',enter);panel.addEventListener('pointerleave',leave);panel.addEventListener('pointercancel',leave);
+hoverMedia.addEventListener('change',leave);window.addEventListener('blur',leave);
+const unsubscribePointer=window.schoolDesktop?.onPointer?.(inside=>setHovered(inside,true));
+function measure(){
+ if(!overlay||!window.schoolDesktop?.reportLayout||disposed||measureFrame)return;
+ measureFrame=requestAnimationFrame(()=>{measureFrame=0;const rect=shell.getBoundingClientRect();window.schoolDesktop.reportLayout({x:rect.x,y:rect.y,width:panel.offsetWidth,height:panel.offsetHeight,contentHeight:document.body.offsetHeight});});
+}
+const resizeObserver=new ResizeObserver(measure);resizeObserver.observe(document.body);resizeObserver.observe(shell);resizeObserver.observe(document.querySelector('#alert'));
+window.addEventListener('resize',measure);
+
 let data=null,offset=0,online=false,invalid=false,lastSync=0,lastKey=null,lastRevision=null,lastTick=Date.now();const alerted=new Set();
 const cache='school-display-cache:'+token;
 try{const saved=JSON.parse(localStorage.getItem(cache));if(saved?.data){data=saved.data;offset=Number(saved.offset)||0;lastSync=Number(saved.lastSync)||0;}}catch{}
@@ -11,7 +36,7 @@ const duration=seconds=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${Str
 const notifications=[];let showing=false;
 function showNotification(){if(showing||!notifications.length)return;showing=true;const {title,detail}=notifications.shift(),el=document.querySelector('#alert');const icon=({'Lesson started':'▶','Lesson finished':'✓','Break started':'☕','Break finished':'✓','Starting soon':'◷','Schedule updated':'↻'})[title]||'◷';el.innerHTML=`<strong>${icon} ${e(label(title))}</strong><span>${e(detail)}</span>`;el.className='show';if(data?.settings.sound&&window.schoolDesktop)window.schoolDesktop.alert();setTimeout(()=>{el.className='';showing=false;showNotification();},4000);}
 function notify(key,title,detail=''){if(preview||alerted.has(key))return;alerted.add(key);if(alerted.size>200)alerted.delete(alerted.values().next().value);notifications.push({title,detail});showNotification();}
-function render(){if(!data){node.innerHTML=`<section class="empty-display"><h1>School Display</h1><p>${invalid?'API access lost. Ask the administrator to reopen the display.':'Connecting to the local school timetable…'}</p></section>`;return;}
+function render(){if(disposed)return;if(!data){leave();panel.classList.remove('ribbon','break','lesson','paused');panel.classList.add('is-empty');panel.innerHTML=`<section class="empty-display"><h1>School Display</h1><p>${invalid?'API access lost. Ask the administrator to reopen the display.':'Connecting to the local school timetable...'}</p></section>`;statusNode.textContent='';measure();return;}
  const s=data.settings,lang=s.language;document.documentElement.lang=lang==='ar'?'ar':'en';document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.body.classList.toggle('compact',s.size==='compact');
  const now=new Date(Date.now()+offset),state=scheduleState(data.schedule,s,now),current=state.current,next=state.next,key=`${state.clock.date}:${current?.id||state.phase}`;
  const currentName=current?(lang==='ar'?current.subjectAr||current.subjectEn:current.subjectEn||current.subjectAr):'';
@@ -22,8 +47,15 @@ function render(){if(!data){node.innerHTML=`<section class="empty-display"><h1>S
  const icon=current?.type==='break'?'☕':current?'▤':state.phase==='finished'?'✓':state.phase==='holiday'?'☀':'◷';
  const clock=new Intl.DateTimeFormat(lang==='ar'?'ar-QA':'en-GB',{timeZone:s.timezone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(now);
  const announcement=lang==='ar'?s.announcementAr:lang==='both'?[s.announcementEn,s.announcementAr].filter(Boolean).join(' · '):s.announcementEn;
- node.innerHTML=`<section class="ribbon ${current?.type||''} ${s.paused?'paused':''}"><div class="school-mark"><img src="/icon.svg" alt=""><div><strong>${text(s,'schoolEn','schoolAr')}</strong><small>${clock} · ${e(label('School time'))}</small></div></div><div class="current"><span class="phase-icon" aria-hidden="true">${icon}</span><div class="activity"><h1>${heading?e(label(heading)):text(current,'subjectEn','subjectAr')}</h1><p>${!data.configured?e(label('Open the local control panel to set up your school.')):current&&!s.paused?text(current,'teacherEn','teacherAr')+(current.room?' · '+e(current.room):''):e(announcement)}</p></div></div><div class="countdown"><small>${e(label(current?'Remaining':'Starts in'))}</small><strong>${s.paused||!data.publishedAt||state.remaining===0?'—':duration(state.remaining)}</strong></div><div class="next"><small>${e(label('Next up'))}</small><strong>${next?text(next,'subjectEn','subjectAr'):`${e(label('No next activity'))}`}</strong>${next?`<time>${next.start}</time>`:''}</div></section><div class="display-status ${!online?'offline':''}"><span></span>${e(label(invalid?'API access lost. Ask the administrator to reopen the display.':online?'Live':'Offline · using saved timetable'))} · ${e(label('Last sync'))} ${lastSync?new Date(lastSync).toLocaleTimeString(lang==='ar'?'ar':'en-GB'): '—'}<span class="announcement">${e(announcement)}</span></div>`;
+ panel.classList.add('ribbon');panel.classList.remove('is-empty');panel.classList.toggle('break',current?.type==='break');panel.classList.toggle('lesson',current?.type==='lesson');panel.classList.toggle('paused',s.paused);
+ panel.innerHTML=`<div class="school-mark"><img src="/icon.svg" alt=""><div><strong>${text(s,'schoolEn','schoolAr')}</strong><small><time class="live-clock">${clock}</time> &middot; ${e(label('School time'))}</small><span class="publication">${e(label(data.publishedAt?'Published':'Not published yet'))}${data.publishedAt?' &middot; #'+data.revision:''}</span></div></div><div class="current"><span class="phase-icon" aria-hidden="true">${icon}</span><div class="activity"><h1>${heading?e(label(heading)):text(current,'subjectEn','subjectAr')}</h1><p>${!data.configured?e(label('Open the local control panel to set up your school.')):current&&!s.paused?text(current,'teacherEn','teacherAr')+(current.room?'<span class="room">'+e(current.room)+'</span>':''):e(announcement)}</p></div><div class="countdown"><small>${e(label(current?'Remaining':'Starts in'))}</small><strong>${s.paused||!data.publishedAt||state.remaining===0?'&mdash;':duration(state.remaining)}</strong></div></div><div class="next"><small>${e(label('Next up'))}</small><strong>${next?text(next,'subjectEn','subjectAr'):e(label('No next activity'))}</strong>${next?`<div><time>${next.start}</time></div>`:''}</div>`;
+ statusNode.classList.toggle('offline',!online);
+ statusNode.innerHTML=`<span class="network-state"><span class="network-dot"></span>${e(label(invalid?'API access lost. Ask the administrator to reopen the display.':online?'Live':'Offline · using saved timetable'))}</span><span class="last-sync">${e(label('Last sync'))} ${lastSync?new Date(lastSync).toLocaleTimeString(lang==='ar'?'ar':'en-GB'):'&mdash;'}</span><span class="announcement">${e(announcement)}</span>`;
+ measure();
 }
 let fetching=false;
-async function sync(){if(fetching)return;fetching=true;try{const begin=Date.now(),res=await fetch('/api/display?token='+encodeURIComponent(token),{signal:AbortSignal.timeout(5000)});if(res.status===403){invalid=true;data=null;localStorage.removeItem(cache);render();return;}if(!res.ok)throw Error();const result=await res.json();offset=result.serverTime-(begin+Date.now())/2;data=result;online=true;invalid=false;lastSync=Date.now();if(lastRevision!==null&&lastRevision!==result.revision){lastKey=null;notify('revision:'+result.revision,'Schedule updated');}lastRevision=result.revision;try{localStorage.setItem(cache,JSON.stringify({data,offset,lastSync}));}catch{}render();}catch{online=false;render();}finally{fetching=false;}}
-render();sync();setInterval(render,1000);setInterval(sync,3000);window.addEventListener('online',sync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync();});
+async function sync(){if(fetching||disposed)return;fetching=true;try{const begin=Date.now(),res=await fetch('/api/display?token='+encodeURIComponent(token),{signal:AbortSignal.timeout(5000)});if(res.status===403){invalid=true;data=null;localStorage.removeItem(cache);render();return;}if(!res.ok)throw Error();const result=await res.json();offset=result.serverTime-(begin+Date.now())/2;data=result;online=true;invalid=false;lastSync=Date.now();if(lastRevision!==null&&lastRevision!==result.revision){lastKey=null;notify('revision:'+result.revision,'Schedule updated');}lastRevision=result.revision;try{localStorage.setItem(cache,JSON.stringify({data,offset,lastSync}));}catch{}render();}catch{online=false;render();}finally{fetching=false;}}
+render();sync();const renderInterval=setInterval(render,1000),syncInterval=setInterval(sync,3000);
+const visible=()=>{if(!document.hidden)sync();};window.addEventListener('online',sync);document.addEventListener('visibilitychange',visible);
+window.addEventListener('pageshow',event=>{if(event.persisted)sync();});
+window.addEventListener('pagehide',event=>{if(event.persisted){leave();return;}disposed=true;clearTimeout(hoverTimer);clearInterval(renderInterval);clearInterval(syncInterval);cancelAnimationFrame(measureFrame);resizeObserver.disconnect();unsubscribePointer?.();panel.removeEventListener('pointerenter',enter);panel.removeEventListener('pointerleave',leave);panel.removeEventListener('pointercancel',leave);hoverMedia.removeEventListener('change',leave);window.removeEventListener('blur',leave);window.removeEventListener('resize',measure);window.removeEventListener('online',sync);document.removeEventListener('visibilitychange',visible);});
