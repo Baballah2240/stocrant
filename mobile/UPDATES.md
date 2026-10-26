@@ -410,3 +410,5 @@ Keep mobile changes here in the same commit as their corresponding website chang
 The APK installed locally is a USB development build. Production distribution needs a deployed HTTPS API and a stable private release-signing key. GitHub CI debug APKs are test artifacts and may use a different signing key from the installed app.
 
 - HR dashboard: compact company scope, quick actions, clearer employee table with result counts and resettable filters. Desktop sidebar keeps module icons when collapsed, with accessible hover labels. Shared mobile layout supports Arabic and scrollable employee records.
+
+- Hide desktop and tablet sidebar scrollbar tracks while preserving navigation scrolling; prevent sideways scrolling in the desktop icon rail.
