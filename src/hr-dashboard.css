@@ -1,0 +1,47 @@
+﻿.hr-dashboard { gap: 22px; }
+.hr-dashboard .hr-hero { padding: 24px; border: 1px solid var(--ios-separator); border-radius: 20px; background: linear-gradient(115deg, var(--stocrant-green-soft), var(--ios-cell) 75%); align-items: center; }
+.hr-dashboard .hr-hero h1 { font-size: clamp(28px, 3vw, 38px); letter-spacing: -.035em; }
+.hr-company-scope { display: grid; grid-template-columns: 1fr minmax(200px, 320px); gap: 16px; align-items: center; }
+.hr-company-scope h2, .hr-company-scope p { margin: 0; }
+.hr-company-scope .form-field { margin: 0; }
+.hr-company-scope details { grid-column: 1 / -1; border-top: 1px solid var(--ios-separator); padding-top: 12px; }
+.hr-company-scope summary { cursor: pointer; color: var(--stocrant-green-strong); font-weight: 600; }
+.hr-company-scope .detail-grid { margin-top: 16px; }
+.hr-quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.hr-quick-actions a { display: grid; gap: 7px; padding: 18px; border: 1px solid var(--ios-separator); border-radius: 14px; color: var(--ios-label); background: var(--ios-cell); }
+.hr-quick-actions a:hover, .hr-quick-actions a:focus-visible { border-color: var(--color-primary); background: var(--stocrant-green-soft); }
+.hr-quick-actions span { font-size: 12px; color: var(--ios-label-2); line-height: 1.5; }
+.hr-directory-results { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 8px 20px; color: var(--ios-label-2); font-size: 12px; }
+.hr-directory .table-wrap { max-height: 650px; overflow: auto; isolation: isolate; }
+.hr-directory .hr-directory-table { min-width: 1050px; margin: 0; }
+.hr-directory-table th { position: sticky; top: 0; z-index: 1; background: var(--ios-cell); white-space: nowrap; border-bottom: 1px solid var(--ios-separator); }
+.hr-directory-table td { padding-block: 16px; vertical-align: middle; }
+.hr-directory-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--ios-bg) 45%, transparent); }
+.hr-directory-table tbody tr:hover, .hr-directory-table tbody tr:focus-within { background: var(--stocrant-green-soft); }
+.hr-directory-person { min-width: 220px; max-width: 300px; }
+.hr-directory-person small { max-width: 220px; }
+.hr-job-cell { display: grid; gap: 4px; min-width: 130px; }
+.hr-job-cell strong { font-size: 13px; font-weight: 600; }
+.hr-job-cell small { color: var(--ios-label-2); }
+.hr-account-status { font-size: 12px; color: var(--ios-label-2); white-space: nowrap; }
+.hr-directory-actions { min-width: 180px; }
+.hr-directory-toolbar .hr-directory-search { flex-basis: 260px; align-self: end; }
+html[dir="rtl"] .hr-directory-search svg { left: auto; right: 12px; }
+html[dir="rtl"] .hr-directory-search input { padding-left: 12px; padding-right: 38px; }
+@media (max-width: 700px) {
+  .hr-dashboard .hr-hero { padding: 18px; gap: 16px; }
+  .hr-company-scope { grid-template-columns: minmax(0, 1fr); }
+  .hr-quick-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .hr-quick-actions a { padding: 12px; overflow-wrap: anywhere; }
+  .hr-directory-toolbar .hr-directory-search { flex: initial; min-width: 0; }
+  .hr-directory-results { padding-inline: 14px; }
+  .hr-directory .hr-pagination { flex-wrap: wrap; gap: 10px; }
+}
+.ios-app .hr-directory { padding: 0; }
+.ios-app .hr-directory .hr-directory-search input { padding-inline-start: 38px; }
+.ios-app .hr-directory .hr-sort { background: transparent; border: 0; box-shadow: none; padding: 4px 0; color: inherit; min-height: 32px; }
+@media (max-width: 700px) {
+  .ios-app .hr-dashboard .hr-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .ios-app .hr-dashboard .hr-metric-card { padding: 15px; min-height: 120px; }
+  .ios-app .hr-dashboard .hr-metric-card strong { font-size: 28px; }
+}

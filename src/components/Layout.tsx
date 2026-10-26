@@ -53,7 +53,7 @@ function NavButton({ item, onNavigate }: { item: NavEntry; onNavigate?: () => vo
     : item.to === "/admin" ? pathname.startsWith("/admin") || pathname === "/access"
     : undefined;
   return (
-    <NavLink to={item.to === "/" && !isNativeApp() ? "/workspace" : item.to} end={item.end ?? item.to === "/hr"} className={({ isActive }) => `nav-item${(sectionActive ?? isActive) ? " active" : ""}`} aria-current={sectionActive ? "page" : undefined} aria-label={t(item.label)} onClick={onNavigate}>
+    <NavLink to={item.to === "/" && !isNativeApp() ? "/workspace" : item.to} end={item.end ?? item.to === "/hr"} className={({ isActive }) => `nav-item${(sectionActive ?? isActive) ? " active" : ""}`} aria-current={sectionActive ? "page" : undefined} title={t(item.label)} aria-label={t(item.label)} onClick={onNavigate}>
       {item.icon && <MobileIcon name={item.icon} />}<span className="nav-label">{t(item.label)}</span>
     </NavLink>
   );
@@ -94,7 +94,7 @@ export default function Layout() {
   const canSeeSection = (section?: string) => !section || mainAdmin || Boolean(user?.permissions.includes("*") || user?.permissions.includes(`${section}.*`) || user?.permissions.includes(`${section}.view`));
   const visibleNavItems = navItems.filter(item => canSeeSection(item.section) && (item.to !== "/shops" || canSeeSection("operations")));
   const closeSidebarAfterNavigation = () => {
-    if (!mobile) setSidebarCollapsed(true);
+    // Keep the chosen navigation width when moving between sections.
   };
 
   return (
@@ -149,7 +149,7 @@ export default function Layout() {
 
       {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to={isNativeApp() ? "/" : "/workspace"} end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
       <div className="app">
-        <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} aria-hidden={sidebarCollapsed} inert={sidebarCollapsed}>
+        <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} >
           <nav className="nav" aria-label={t("Main navigation")}>
             {[
               { label: "Workspace", paths: ["/", "/organizations", "/locations"] },

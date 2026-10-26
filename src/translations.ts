@@ -23,6 +23,8 @@ export type Language = "en" | "ar";
 export type TranslationValues = Readonly<Record<string, string | number>>;
 
 const existingArabic: Readonly<Record<string, string>> = {
+  "Payslips": "\u0642\u0633\u0627\u0626\u0645 \u0627\u0644\u0631\u0648\u0627\u062a\u0628",
+  "Showing {count} of {total} employees": "\u0639\u0631\u0636 {count} \u0645\u0646 {total} \u0645\u0648\u0638\u0641",
   "File is too large to save on this device.": "حجم الملف أكبر من الحد المسموح لحفظه على هذا الجهاز.",
   "A file save is already in progress.": "هناك عملية حفظ ملف قيد التنفيذ بالفعل.",
   "Could not read the downloaded file.": "تعذّرت قراءة الملف الذي تم تنزيله.",

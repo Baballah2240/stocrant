@@ -27,6 +27,7 @@ import "./notification-scroll.css";
 import "./notification-panel.css";
 import "./choice-picker.css";
 import "./sidebar-workspace.css";
+import "./hr-dashboard.css";
 import "./enterprise.css";
 import "../public-website/src/brand-theme.css";
 import "./auth-connected.css";

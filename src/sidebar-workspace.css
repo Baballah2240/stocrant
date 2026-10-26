@@ -130,4 +130,25 @@
   .ios-app:not(.mobile-layout) .sidebar {
     transition: none;
   }
+}/* Compact navigation keeps every permitted module reachable. */
+@media (min-width: 861px) {
+  .ios-app.sidebar-collapsed:not(.mobile-layout) .sidebar {
+    width: 76px; flex-basis: 76px; padding-inline: 10px; border-inline-end-width: 1px;
+    opacity: 1; pointer-events: auto; transform: none;
+  }
+  html[dir="rtl"] .ios-app.sidebar-collapsed:not(.mobile-layout) .sidebar { transform: none; }
+  .ios-app.sidebar-collapsed .sidebar .workspace-nav-heading { font-size: 0; height: 1px; margin: 12px 6px; background: var(--ios-separator); }
+  .ios-app.sidebar-collapsed .sidebar .nav-item { justify-content: center; padding: 12px; min-height: 44px; }
+  .ios-app.sidebar-collapsed .sidebar .nav-label,
+  .ios-app.sidebar-collapsed .dashboard-sidebar-profile > span:not(:first-child) { display: none; }
+  .ios-app.sidebar-collapsed .dashboard-sidebar-profile { justify-content: center; padding: 8px 0; }
+  .ios-app .sidebar .nav-item .mobile-icon { display: block; width: 21px; height: 21px; flex: 0 0 21px; }
+  .ios-app .sidebar .nav-item { transition: background 160ms ease, color 160ms ease; border-radius: 10px; }
+  .ios-app .sidebar .nav-item:hover { background: var(--stocrant-green-soft); color: var(--stocrant-green-strong); }
+  .ios-app .sidebar .nav-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+}
+@media (min-width: 701px) and (max-width: 860px) {
+  .ios-app.sidebar-collapsed:not(.mobile-layout) .sidebar { max-height: 100px; padding-block: 8px; border-block-width: 1px; opacity: 1; pointer-events: auto; }
+  .ios-app.sidebar-collapsed .sidebar .nav-label { display: none; }
+  .ios-app.sidebar-collapsed .sidebar .nav-item { min-width: 44px; justify-content: center; }
 }
