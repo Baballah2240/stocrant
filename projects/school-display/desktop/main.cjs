@@ -70,6 +70,11 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    assert.equal(await overlay.webContents.executeJavaScript("document.querySelector('.ribbon').classList.contains('is-hovered')"),true);
    overlay.webContents.send('school:pointer',false);
    const waitFor=async predicate=>{for(let i=0;i<120;i++){if(predicate())return;await new Promise(r=>setTimeout(r,100));}throw Error('Native presentation transition timed out: '+JSON.stringify({expanded,centered,clockOnly,bounds:overlay.getBounds(),contentHeight,panelBounds}));};
+   Object.assign(service.store.get().settings,{panelWidth:420,textScale:140,horizontal:'right',edgeMargin:80,position:'bottom'});service.store.save();applyBounds(service.store.get().settings);
+   await overlay.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let attempts=0;const timer=setInterval(()=>{if(document.body.style.getPropertyValue('--panel-width')==='420px'&&document.body.dataset.align==='right'){clearInterval(timer);resolve();}else if(++attempts>60){clearInterval(timer);reject(Error('Panel adjustment did not arrive'));}},100);})`);
+   await new Promise(r=>setTimeout(r,200));const adjustedWindow=overlay.getBounds(),adjustedPanel=panelBounds,adjustedArea=screen.getPrimaryDisplay().workArea;
+   assert.ok(Math.abs(adjustedPanel.width-420)<2);assert.ok(Math.abs(adjustedArea.x+adjustedArea.width-adjustedWindow.x-adjustedPanel.x-adjustedPanel.width-80)<3);
+   Object.assign(service.store.get().settings,{panelWidth:680,textScale:100,horizontal:'center',edgeMargin:12,position:'top'});service.store.save();applyBounds(service.store.get().settings);
    const {schoolClock}=await import('../shared/schedule.mjs');const day=schoolClock(new Date(),service.store.get().settings.timezone).day;
    service.store.get().published=[{id:'native-break',day,type:'break',start:'00:00',end:'23:59',subjectEn:'Break',subjectAr:'',teacherEn:'',teacherAr:'',room:''}];service.store.get().settings.fullscreenBreaks=true;service.store.save();
    await waitFor(()=>centered);const eventBounds=overlay.getBounds(),workArea=screen.getPrimaryDisplay().workArea;assert.ok(Math.abs(eventBounds.y+eventBounds.height/2-workArea.y-workArea.height/2)<2);await waitFor(()=>expanded);assert.deepEqual(overlay.getBounds(),screen.getPrimaryDisplay().bounds);
@@ -80,7 +85,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    const result={packaged:app.isPackaged,alwaysOnTop:overlay.isAlwaysOnTop(),focusable:overlay.isFocusable(),normalCloseBlocked:!overlay.isDestroyed(),unauthenticatedExitBlocked:true,incorrectPasswordBlocked:true,published:true,bounds:overlay.getBounds(),url:service.origin,version:process.versions.electron,userData:app.getPath('userData')};
    result.fullScreenAndCompactRestoreVerified=true;result.idleClockVerified=true;result.nativeCenterPopupVerified=true;result.fullscreenExitButtonVerified=true;
    result.adminControlsAboveFullScreenVerified=true;
-   result.nativeHoverDelayVerified=true;result.panelBounds=panelBounds;
+   result.nativeHoverDelayVerified=true;result.nativePanelAdjustmentVerified=true;result.panelBounds=panelBounds;
    assert.equal(result.alwaysOnTop,true);assert.equal(result.focusable,false);
    assert.equal((await post('exit',{password})).status,200);result.authorizedExitAccepted=true;
    if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify(result,null,2));return;
@@ -102,7 +107,7 @@ function showLocalControl(){
 function applyBounds(settings){
  if(!overlay)return;
  const monitor=screen.getAllDisplays().find(m=>String(m.id)===settings.monitor)||screen.getPrimaryDisplay();
- overlay.setBounds(overlayBounds(monitor,{expanded,centered,clockOnly,contentHeight,position:settings.position}));
+ overlay.setBounds(overlayBounds(monitor,{expanded,centered,clockOnly,contentHeight,position:settings.position,horizontal:settings.horizontal,edgeMargin:settings.edgeMargin}));
  // Photo mode accepts mouse/touch for its Exit button. Teaching and clock modes stay click-through.
  overlay.setIgnoreMouseEvents(!expanded,{forward:true});
  if(settings.paused)overlay.hide();else{overlay.showInactive();if(controlWindow&&!controlWindow.isDestroyed()&&controlWindow.isVisible())controlWindow.moveTop();}

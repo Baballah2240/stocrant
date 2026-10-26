@@ -4,11 +4,12 @@ export function schoolClock(now, timezone) {
 }
 export const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3,5));
 export function validateSchedule(input) {
-  if (!Array.isArray(input) || input.length>300) throw new Error('Invalid timetable.');
+  if (!Array.isArray(input) || input.length>3000) throw new Error('Invalid timetable.');
   const ids=new Set();
   for (const row of input) {
     if (!row || typeof row.id!=='string' || row.id.length>80 || ids.has(row.id)) throw new Error('Each timetable entry needs a unique ID.');
     ids.add(row.id);
+    if(row.classId!==undefined&&(typeof row.classId!=='string'||!/^[\w-]{1,80}$/.test(row.classId)))throw Error('Choose a valid class group.');
     if (!Number.isInteger(row.day) || row.day<0 || row.day>6 || !['lesson','break','event'].includes(row.type)) throw new Error('Choose a valid day and activity.');
     if (![row.start,row.end].every(t=>typeof t==='string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)) || minutes(row.end)<=minutes(row.start)) throw new Error('End time must be after start time on the same day.');
     for(const key of ['subjectEn','subjectAr','teacherEn','teacherAr','room']) if(typeof row[key]!=='string' || row[key].length>120) throw new Error('Keep timetable text within 120 characters.');
@@ -16,15 +17,15 @@ export function validateSchedule(input) {
     if (row.type==='lesson' && !row.teacherEn.trim() && !row.teacherAr.trim()) throw new Error('Add the lesson teacher.');
   }
   for(let day=0;day<7;day++) {
-    const list=input.filter(r=>r.day===day).sort((a,b)=>a.start.localeCompare(b.start));
-    for(let i=1;i<list.length;i++) if(list[i].start<list[i-1].end) throw new Error('Timetable entries cannot overlap on the same day.');
+    const list=input.filter(r=>r.day===day).sort((a,b)=>(a.classId||'default').localeCompare(b.classId||'default')||a.start.localeCompare(b.start));
+    for(let i=1;i<list.length;i++) if((list[i].classId||'default')===(list[i-1].classId||'default')&&list[i].start<list[i-1].end) throw new Error('Timetable entries cannot overlap on the same day.');
   }
-  return input.map(({id,day,type,start,end,subjectEn,subjectAr,teacherEn,teacherAr,room})=>({id,day,type,start,end,subjectEn:subjectEn.trim(),subjectAr:subjectAr.trim(),teacherEn:teacherEn.trim(),teacherAr:teacherAr.trim(),room:room.trim()}));
+  return input.map(({id,classId='default',day,type,start,end,subjectEn,subjectAr,teacherEn,teacherAr,room})=>({id,classId,day,type,start,end,subjectEn:subjectEn.trim(),subjectAr:subjectAr.trim(),teacherEn:teacherEn.trim(),teacherAr:teacherAr.trim(),room:room.trim()}));
 }
 export function scheduleState(schedule,settings,now=new Date()) {
   const clock=schoolClock(now,settings.timezone);
   if(settings.holidays.includes(clock.date)) return {phase:'holiday',current:null,next:null,remaining:0,clock};
-  const list=schedule.filter(r=>r.day===clock.day).sort((a,b)=>a.start.localeCompare(b.start));
+  const list=schedule.filter(r=>r.day===clock.day&&(r.classId||'default')===(settings.classId||'default')).sort((a,b)=>a.start.localeCompare(b.start));
   const current=list.find(r=>minutes(r.start)*60<=clock.seconds && clock.seconds<minutes(r.end)*60) || null;
   const next=list.find(r=>minutes(r.start)*60>clock.seconds) || null;
   const phase=current?current.type:!list.length?'no-school':clock.seconds<minutes(list[0].start)*60?'before-school':next?'gap':'finished';

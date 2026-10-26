@@ -4,7 +4,7 @@ An independent Windows classroom overlay with a local bilingual web control pane
 
 ## Use the Windows application
 
-1. Open `releases/School-Display-Setup-1.2.0-x64.exe` to install, or run the portable executable.
+1. Open `releases/School-Display-Setup-1.3.0-x64.exe` to install, or run the portable executable.
 2. School Display opens the control panel at **http://127.0.0.1:4318/control** and places its read-only overlay above ordinary desktop windows.
 3. Create the first administrator account. Choose a password of at least 12 characters and keep it safely. There is no default account or password. Under **Administrator → School administrators**, add separate administrator logins or disable additional accounts. These users have full school control. You cannot disable yourself or the original administrator.
 4. Open **Display & school** to enter the school name, timezone and display language. Choose Arabic, English or bilingual. The control panel language is independent.
@@ -16,11 +16,24 @@ The smaller neutral glass overlay is non-focusable and click-through during less
 
 Closing a normal window does not close the overlay. This application is not an operating-system lockdown: Task Manager, OS administrators, shutdown, secure desktops and some exclusive fullscreen applications can override it. Test actual teaching applications on classroom hardware. If a teacher switches HDMI input to a separate laptop, install/run the app on that laptop to display above its output.
 
+## Adjust the floating panel
+
+In **Display & school → Overlay appearance**, set **Panel width** (420–1200 px), **Text size** (80–140%), **Horizontal alignment** (left/center/right), **Position** (top/bottom), and **Screen edge distance** (12–120 px). Height fits the content automatically. The live panel preview shows width, text size and alignment changes before saving; **Save settings** applies them to the actual display within about three seconds. The preview does not change the running classroom display. Narrow screens automatically constrain the width and stack content. The idle clock stays small, and activity alerts still appear in the center for five seconds before returning to the saved position. Teachers do not need to drag or unlock the overlay.
+
+## Class groups and additional lessons
+
+1. Open **Timetable → Add class group** and enter its English and/or Arabic name, such as Grade 6A. Existing timetables remain in **Main class** when updating from an older version; use **Edit class group** to rename it.
+2. Choose the group in **Class group**, choose a weekday, then select **Add lesson** for another period. Its time initially follows that day's last activity. Enter the subject, teacher, start/end times and optional room; use **Add activity** for breaks or events.
+3. **Save draft**, then **Publish timetable**. Each group has its own weekly schedule; different groups may have lessons at the same time. Activities within the same group cannot overlap. Switching groups is blocked until unsaved timetable changes are saved.
+4. In **Display & school → Display class**, select a published group and save. Its class name, current lesson, teacher and next activity appear on the monitor. Changing the selected group does not erase other timetables. Draft class names and schedules become visible only after publishing.
+
+Up to 50 groups and 3,000 weekly activities are supported, sharing the school's timezone, holidays and announcements. **Load sample** replaces only the currently selected group's draft. Backups include class definitions, all group timetables and panel adjustments. One Windows instance still displays one selected class on one selected monitor; simultaneous independent room displays and remote control are separate features.
+
 ## Full-screen breaks and photos
 
 In **Display & school → Full-screen school moments**, choose whether breaks fill the selected monitor. This is enabled by default. Use **Exit full screen** to return to the small panel for the remainder of that break. It does not close the application, change the timetable, or require a control-panel login. The exit remains effective through background synchronization; the next activity resets it. An active lesson always uses the compact panel, including the last lesson of the day. When a break finishes, the panel returns automatically and a short back-to-class notification appears with its image. End of day now shows only the clock, including for existing installations that previously used end-of-day photos.
 
-Upload your own **PNG, JPEG or WebP photos up to 2 MB** for the break and the back-to-class notification, or restore the defaults. Select **Save settings** to apply them. Uploaded images stay in the local app data folder and are included in exported backups; only a signed-in administrator or the current display link can access them. Keep backups under 6 MB. Default photos are generated fictional students; provenance and prompts are in [assets/IMAGES.md](assets/IMAGES.md).
+Upload your own **PNG, JPEG or WebP photos up to 2 MB** for the break and the back-to-class notification, or restore the defaults. Select **Save settings** to apply them. Uploaded images stay in the local app data folder and are included in exported backups; only a signed-in administrator or the current display link can access them. Keep backups under 16 MB. Default photos are generated fictional students; provenance and prompts are in [assets/IMAGES.md](assets/IMAGES.md).
 
 **Press Ctrl+Alt+Shift+S** to open the local administrator panel above the full-screen photo. This only opens the login/control window; changing settings or closing the overlay still requires administrator authentication.
 
@@ -54,6 +67,7 @@ npm.cmd test
 npm.cmd run test:browser   # Requires installed Chrome
 npm.cmd run test:glass     # Compact glass layout and hover checks
 npm.cmd run test:moments   # Break/photo/full-screen transition checks
+npm.cmd run test:adjustments # Panel controls and separate class timetables
 npm.cmd run dist:win       # Installer + portable app
 ```
 
@@ -68,4 +82,4 @@ For offline operation after installation, no development tools are needed. Depen
 - `tests/`: schedule boundary tests, security/persistence checks and browser workflow verification.
 - `releases/`: generated Windows packages, excluded from source control.
 
-The first release manages one timetable for a selected monitor on one computer. Separate room timetables, remote management, date-specific replacement schedules, importing spreadsheets, custom school logo uploads and managed-device policies are future extensions. Holidays, weekly schedules, editable announcements and bilingual displays are included now.
+The application manages multiple class timetables and displays one selected class on a selected monitor on one computer. Simultaneous independent room displays, remote management, date-specific replacement schedules, importing spreadsheets, custom school logo uploads and managed-device policies are future extensions. Holidays, weekly schedules, editable announcements and bilingual displays are included now.
