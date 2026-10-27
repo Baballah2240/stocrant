@@ -3,6 +3,21 @@ export function schoolClock(now, timezone) {
   return {date:`${parts.year}-${parts.month}-${parts.day}`, day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday), seconds:Number(parts.hour)*3600+Number(parts.minute)*60+Number(parts.second)};
 }
 export const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3,5));
+export function teacherConflicts(rows){
+ const conflicts=[],name=value=>String(value||'').normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
+ const lessons=rows.filter(row=>row.type==='lesson').sort((a,b)=>a.day-b.day||a.start.localeCompare(b.start));
+ for(let i=0;i<lessons.length;i++)for(let j=i+1;j<lessons.length;j++){
+  const a=lessons[i],b=lessons[j];if(b.day!==a.day)break;if(b.start>=a.end)break;
+  if((a.classId||'default')===(b.classId||'default')||b.end<=a.start)continue;
+  const names=[name(a.teacherEn),name(a.teacherAr)].filter(Boolean);
+  if([name(b.teacherEn),name(b.teacherAr)].some(n=>n&&names.includes(n)))conflicts.push({first:a.id,second:b.id,teacher:a.teacherEn||a.teacherAr,day:a.day,start:b.start,classIds:[a.classId||'default',b.classId||'default']});
+ }
+ return conflicts;
+}
+export function effectiveRows(schedule,specialDays,date,day){
+ const overrides=(specialDays||[]).filter(row=>row.date===date),ids=new Set(overrides.map(row=>row.classId));
+ return schedule.filter(row=>row.day===day&&!ids.has(row.classId||'default')).concat(overrides.flatMap(row=>row.mode==='cancel'?[]:row.schedule.map(entry=>({...entry,day,classId:row.classId}))));
+}
 export function validateSchedule(input) {
   if (!Array.isArray(input) || input.length>3000) throw new Error('Invalid timetable.');
   const ids=new Set();
@@ -25,7 +40,7 @@ export function validateSchedule(input) {
 export function scheduleState(schedule,settings,now=new Date()) {
   const clock=schoolClock(now,settings.timezone);
   if(settings.holidays.includes(clock.date)) return {phase:'holiday',current:null,next:null,remaining:0,clock};
-  const list=schedule.filter(r=>r.day===clock.day&&(r.classId||'default')===(settings.classId||'default')).sort((a,b)=>a.start.localeCompare(b.start));
+  const list=effectiveRows(schedule,settings.specialDays,clock.date,clock.day).filter(r=>(r.classId||'default')===(settings.classId||'default')).sort((a,b)=>a.start.localeCompare(b.start));
   const current=list.find(r=>minutes(r.start)*60<=clock.seconds && clock.seconds<minutes(r.end)*60) || null;
   const next=list.find(r=>minutes(r.start)*60>clock.seconds) || null;
   const phase=current?current.type:!list.length?'no-school':clock.seconds<minutes(list[0].start)*60?'before-school':next?'gap':'finished';

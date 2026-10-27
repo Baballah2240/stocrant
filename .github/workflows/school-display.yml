@@ -1,0 +1,57 @@
+name: School Display Windows
+on:
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: Require the configured Windows publisher certificate
+        type: boolean
+        default: false
+  push:
+    paths:
+      - 'projects/school-display/**'
+      - '.github/workflows/school-display.yml'
+  pull_request:
+    paths:
+      - 'projects/school-display/**'
+      - '.github/workflows/school-display.yml'
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: projects/school-display
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: projects/school-display/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:workspace
+      - name: Build local unsigned artifacts
+        if: ${{ !inputs.signed }}
+        run: npm run dist:win
+      - name: Build signed production artifacts
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.signed }}
+        env:
+          WIN_CSC_LINK: ${{ secrets.SCHOOL_WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.SCHOOL_WIN_CSC_KEY_PASSWORD }}
+        run: npm run dist:win:signed
+      - name: Generate checksums
+        env:
+          SCHOOL_SIGNED_BUILD: ${{ inputs.signed && 'true' || 'false' }}
+        run: node build/manifest.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: school-display-windows-${{ github.sha }}
+          path: |
+            projects/school-display/releases/School-Display-Setup-*.exe
+            projects/school-display/releases/School-Display-Portable-*.exe
+            projects/school-display/releases/build-manifest.json
+            projects/school-display/releases/SHA256SUMS.txt
+          if-no-files-found: error

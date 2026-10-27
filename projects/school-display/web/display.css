@@ -135,3 +135,6 @@
 .display-page .idle-clock{font-size:calc(21px * var(--text-scale,1))}
 @container(max-width:560px){.display-page .ribbon{grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:10px}.display-page .next{grid-column:1/-1;border-inline-start:0;border-top:1px solid #ffffff21;padding:8px 0 0;display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 12px}.display-page .next small,.display-page .next time{margin:0}}
 @container(max-width:380px){.display-page .ribbon{grid-template-columns:minmax(0,1fr)}.display-page .current{border-inline-start:0;border-top:1px solid #ffffff21;padding:10px 0 0}.display-page .next{grid-column:auto}}
+
+/* Optional tinted glass never changes readable foreground colors. */
+.display-page .ribbon{background:linear-gradient(#10151f99,#10151f99),rgba(var(--panel-rgb,28,29,33),var(--panel-opacity,.72))}

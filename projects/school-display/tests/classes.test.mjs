@@ -45,7 +45,7 @@ test('classes publish safely, select one monitor timetable, preserve other group
   const group=(await request('classes',{nameEn:'Grade 6A',nameAr:''})).data.group;
   const initial=(await request('state')).data;
   assert.equal((await request('settings',{...initial.settings,classId:group.id},'PUT')).status,400,'Unpublished groups cannot silently replace the monitor timetable.');
-  const lesson={...initial.draft[0],id:'art',classId:group.id,subjectEn:'Art',teacherEn:'New Teacher'};
+  const lesson={...initial.draft[0],id:'art',classId:group.id,subjectEn:'Art',teacherEn:'New Teacher',teacherAr:''};
   assert.equal((await request('draft',{schedule:[...initial.draft,{...lesson,classId:'missing'}]},'PUT')).status,400);
   assert.equal((await request('draft',{schedule:[...initial.draft,lesson]},'PUT')).status,200);
   await request('publish',{});
@@ -58,7 +58,7 @@ test('classes publish safely, select one monitor timetable, preserve other group
   await request('publish',{});assert.equal((await request(display)).data.classInfo.nameEn,'Renamed 6A');
   // Replacing one class with a sample must retain all other class schedules.
   await request('sample',{classId:group.id});assert.equal(app.store.get().draft.filter(row=>(row.classId||'default')==='default').length,25);
-  assert.equal(app.store.get().draft.filter(row=>row.classId===group.id).length,25);await request('publish',{});
+  assert.equal(app.store.get().draft.filter(row=>row.classId===group.id).length,25);app.store.get().draft=app.store.get().draft.map(row=>row.classId===group.id&&row.type==='lesson'?{...row,teacherEn:row.teacherEn+' Second',teacherAr:''}:row);app.store.save();assert.equal((await request('publish',{})).status,200);
   const backup=(await request('backup')).data,revision=app.store.get().revision;
   assert.equal((await request('restore',{password,backup:{...backup,draft:[{...lesson,classId:'unknown'}]}})).status,400);assert.equal(app.store.get().revision,revision);
   assert.equal((await request('restore',{password,backup})).status,200);assert.equal(app.store.get().classes.length,2);assert.equal((await request(display)).data.schedule.length,25);

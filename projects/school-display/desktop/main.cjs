@@ -1,25 +1,31 @@
 const {app,BrowserWindow,Tray,Menu,shell,screen,nativeImage,ipcMain,dialog,powerMonitor,globalShortcut}=require('electron');
 const path=require('node:path');
+const {createScreens}=require('./screens.cjs');
+const {verifyInstaller}=require('./update.cjs');
+const {spawn}=require('node:child_process');
 const {overlayBounds}=require('./bounds.cjs');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const {randomBytes}=require('node:crypto');
-let service,overlay,tray,quitting=false,displayToken,alertAt=0,pointerPoll,panelBounds=null,contentHeight=240,pointerInside=null,expanded=false,centered=false,clockOnly=false,controlWindow=null;
+let service,overlay,tray,quitting=false,displayToken,alertAt=0,pointerPoll,panelBounds=null,contentHeight=240,pointerInside=null,expanded=false,centered=false,clockOnly=false,controlWindow=null,screens=null;
 const smoke=process.argv.includes('--smoke-test');
 if(smoke&&process.env.SCHOOL_DATA_DIR)app.setPath('userData',process.env.SCHOOL_DATA_DIR);
 if(!app.requestSingleInstanceLock())app.quit();else{
  app.on('second-instance',()=>openControl());
  app.on('window-all-closed',()=>{});
- app.on('will-quit',()=>{clearInterval(pointerPoll);globalShortcut.unregisterAll();});
+ app.on('will-quit',()=>{clearInterval(pointerPoll);globalShortcut.unregisterAll();screens?.close();});
  app.on('before-quit',event=>{if(!quitting){event.preventDefault();openControl();}});
  app.whenReady().then(async()=>{
   app.setAppUserModelId('online.schooldisplay.desktop');
   const {startServer}=await import('../server/server.mjs');
   const desktop={
+   verifyInstaller,
+   installUpdate:async file=>{const child=spawn(file,[],{detached:true,stdio:'ignore',windowsHide:false});await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();setTimeout(()=>desktop.exit(),250);},
+   applyDevices:async (devices,settings=service.store.get().settings)=>{await screens?.sync(devices,settings);applyBounds(settings,devices);},
    monitors:()=>screen.getAllDisplays().map((m,i)=>({id:String(m.id),label:`${m.label||'Monitor '+(i+1)} · ${m.size.width}×${m.size.height}`})),
-   apply:async settings=>{if(!smoke&&app.isPackaged)app.setLoginItemSettings({openAtLogin:settings.autostart,path:app.getPath('exe'),args:['--background']});applyBounds(settings);},
+   apply:async settings=>{if(!smoke&&app.isPackaged)app.setLoginItemSettings({openAtLogin:settings.autostart,path:app.getPath('exe'),args:['--background']});applyBounds(settings);await screens?.sync(service.store.get().devices,settings);},
    reload:async token=>{displayToken=token;await overlay.loadURL(displayUrl());},
-   exit:()=>{quitting=true;service.close().finally(()=>app.quit());}
+   exit:()=>{quitting=true;screens?.close();service.close().finally(()=>app.quit());}
   };
   if(smoke&&!process.env.SCHOOL_DATA_DIR)throw Error('Set an isolated SCHOOL_DATA_DIR for smoke testing.');
   service=await startServer({directory:smoke?process.env.SCHOOL_DATA_DIR:app.getPath('userData'),port:smoke?0:4318,desktop});displayToken=service.store.get().displayToken;
@@ -27,7 +33,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   overlay.setAlwaysOnTop(true,'screen-saver');overlay.setIgnoreMouseEvents(true,{forward:true});overlay.setMenu(null);
   overlay.on('close',event=>{if(!quitting){event.preventDefault();openControl();}});
   overlay.webContents.setWindowOpenHandler(()=>({action:'deny'}));overlay.webContents.on('will-navigate',(event,url)=>{if(url!==displayUrl())event.preventDefault();});overlay.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
-  ipcMain.on('school:alert',event=>{if(event.sender===overlay.webContents&&Date.now()-alertAt>3000){alertAt=Date.now();shell.beep();}});
+  ipcMain.on('school:alert',(event,style)=>{if(event.sender===overlay.webContents&&overlay.isVisible()&&Date.now()-alertAt>3000){alertAt=Date.now();shell.beep();if(style==='double')setTimeout(()=>{if(!quitting)shell.beep();},220);}});
   // Observe the OS cursor without making the overlay intercept teachers' clicks.
   ipcMain.on('school:layout',(event,bounds)=>{
    if(event.sender!==overlay.webContents||!bounds||!['x','y','width','height','contentHeight'].every(key=>Number.isFinite(bounds[key])&&bounds[key]>=0&&bounds[key]<=10000))return;
@@ -37,6 +43,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    if(height!==contentHeight||nextExpanded!==expanded||centered!==(bounds.centered===true)||clockOnly!==(bounds.clockOnly===true)){contentHeight=height;expanded=nextExpanded;centered=bounds.centered===true;clockOnly=bounds.clockOnly===true;applyBounds(service.store.get().settings);}
   });
   await overlay.loadURL(displayUrl());applyBounds(service.store.get().settings);
+  screens=createScreens({origin:service.origin,openControl});await screens.sync(service.store.get().devices,service.store.get().settings);applyBounds(service.store.get().settings);
   pointerPoll=setInterval(()=>{
    if(overlay.isDestroyed())return;
    const cursor=screen.getCursorScreenPoint(),windowBounds=overlay.getBounds(),p=panelBounds;
@@ -45,7 +52,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   },50);pointerPoll.unref();
   const image=nativeImage.createFromPath(path.join(__dirname,'../assets/icon.png'));tray=new Tray(image.resize({width:20,height:20}));tray.setToolTip('School Display · جدول المدرسة');tray.setContextMenu(Menu.buildFromTemplate([{label:'Open control panel · لوحة التحكم',click:openControl},{label:'Open timetable · عرض الجدول',click:()=>shell.openExternal(service.origin+'/display?token='+displayToken)},{type:'separator'},{label:'Close app (administrator) · إغلاق التطبيق',click:openControl}]));tray.on('double-click',openControl);
   globalShortcut.register('Control+Alt+Shift+S',()=>{if(service)showLocalControl();});
-  screen.on('display-added',()=>applyBounds(service.store.get().settings));screen.on('display-metrics-changed',()=>applyBounds(service.store.get().settings));screen.on('display-removed',()=>applyBounds(service.store.get().settings));powerMonitor.on('resume',()=>overlay.webContents.reload());
+  const refreshDisplays=()=>{applyBounds(service.store.get().settings);screens.sync(service.store.get().devices,service.store.get().settings).catch(()=>{});};screen.on('display-added',refreshDisplays);screen.on('display-metrics-changed',refreshDisplays);screen.on('display-removed',refreshDisplays);powerMonitor.on('resume',()=>overlay.webContents.reload());
   if(smoke){
    const progress=stage=>{if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify({stage}));};progress('started');
    assert.equal(service.store.get().admin,null,'Smoke tests require a fresh isolated database.');
@@ -72,7 +79,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    const waitFor=async predicate=>{for(let i=0;i<120;i++){if(predicate())return;await new Promise(r=>setTimeout(r,100));}throw Error('Native presentation transition timed out: '+JSON.stringify({expanded,centered,clockOnly,bounds:overlay.getBounds(),contentHeight,panelBounds}));};
    Object.assign(service.store.get().settings,{panelWidth:420,textScale:140,horizontal:'right',edgeMargin:80,position:'bottom'});service.store.save();applyBounds(service.store.get().settings);
    await overlay.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let attempts=0;const timer=setInterval(()=>{if(document.body.style.getPropertyValue('--panel-width')==='420px'&&document.body.dataset.align==='right'){clearInterval(timer);resolve();}else if(++attempts>60){clearInterval(timer);reject(Error('Panel adjustment did not arrive'));}},100);})`);
-   await new Promise(r=>setTimeout(r,200));const adjustedWindow=overlay.getBounds(),adjustedPanel=panelBounds,adjustedArea=screen.getPrimaryDisplay().workArea;
+   overlay.webContents.send('school:pointer',false);await new Promise(r=>setTimeout(r,300));await overlay.webContents.executeJavaScript("window.dispatchEvent(new Event('resize'))");await waitFor(()=>Math.abs(panelBounds.width-420)<2);const adjustedWindow=overlay.getBounds(),adjustedPanel=panelBounds,adjustedArea=screen.getPrimaryDisplay().workArea;
    assert.ok(Math.abs(adjustedPanel.width-420)<2);assert.ok(Math.abs(adjustedArea.x+adjustedArea.width-adjustedWindow.x-adjustedPanel.x-adjustedPanel.width-80)<3);
    Object.assign(service.store.get().settings,{panelWidth:680,textScale:100,horizontal:'center',edgeMargin:12,position:'top'});service.store.save();applyBounds(service.store.get().settings);
    const {schoolClock}=await import('../shared/schedule.mjs');const day=schoolClock(new Date(),service.store.get().settings.timezone).day;
@@ -87,11 +94,15 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    result.adminControlsAboveFullScreenVerified=true;
    result.nativeHoverDelayVerified=true;result.nativePanelAdjustmentVerified=true;result.panelBounds=panelBounds;
    assert.equal(result.alwaysOnTop,true);assert.equal(result.focusable,false);
+   const added=await post('devices',{name:'Native classroom',classId:'default',monitor:String(screen.getPrimaryDisplay().id),enabled:true});assert.equal(added.status,200);const addedDevice=(await added.json()).device;
+   await waitFor(()=>screens.count()===1&&!overlay.isVisible());
+   let screenOnline=false;for(let attempt=0;attempt<90;attempt++){const state=await fetch(service.origin+'/api/state',{headers:{Cookie:cookie}}).then(r=>r.json());if(state.devices.find(d=>d.id===addedDevice.id)?.status==='online'){screenOnline=true;break;}await new Promise(r=>setTimeout(r,100));}assert.ok(screenOnline,'Assigned native screen must report its published revision');
+   const disabled=await fetch(service.origin+'/api/devices',{method:'PUT',headers:{Origin:service.origin,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify({...addedDevice,enabled:false})});assert.equal(disabled.status,200);await waitFor(()=>screens.count()===0&&overlay.isVisible());result.classroomScreenAssignmentVerified=true;
    assert.equal((await post('exit',{password})).status,200);result.authorizedExitAccepted=true;
    if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify(result,null,2));return;
   }
   if(!process.argv.includes('--background'))openControl();
- }).catch(error=>{quitting=true;if(smoke){if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify({error:error.stack},null,2));overlay?.destroy();controlWindow?.destroy();app.exit(1);return;}dialog.showErrorBox('School Display',error.code==='EADDRINUSE'?'Port 4318 is already in use. Close the local preview or the other School Display instance, then reopen the app.':error.message);app.exit(1);});
+ }).catch(error=>{quitting=true;if(smoke){if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify({error:error.stack},null,2));screens?.close();overlay?.destroy();controlWindow?.destroy();app.exit(1);return;}dialog.showErrorBox('School Display',error.code==='EADDRINUSE'?'Port 4318 is already in use. Close the local preview or the other School Display instance, then reopen the app.':error.message);app.exit(1);});
 }
 function displayUrl(){return service.origin+'/display?overlay=1&token='+displayToken;}
 function openControl(){if(service&&!smoke){if(expanded)showLocalControl();else shell.openExternal(service.origin+'/control');}}
@@ -100,15 +111,15 @@ function showLocalControl(){
  const area=screen.getPrimaryDisplay().workArea;
  controlWindow=new BrowserWindow({width:Math.min(1180,area.width-40),height:Math.min(850,area.height-40),alwaysOnTop:true,show:!smoke,title:'School Display · Administrator',webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true}});
  controlWindow.setAlwaysOnTop(true,'screen-saver');controlWindow.setMenu(null);
- controlWindow.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+ controlWindow.webContents.setWindowOpenHandler(({url})=>{try{const target=new URL(url);if(target.origin===service.origin&&target.pathname==='/display')shell.openExternal(url);}catch{}return {action:'deny'};});
  controlWindow.webContents.on('will-navigate',(event,url)=>{if(url!==service.origin+'/control'&&url!==service.origin+'/')event.preventDefault();});
  controlWindow.on('closed',()=>{controlWindow=null;});controlWindow.loadURL(service.origin+'/control').catch(error=>{if(!smoke&&controlWindow&&!controlWindow.isDestroyed()&&error.code!=='ERR_ABORTED'&&error.errno!==-3)dialog.showErrorBox('School Display',error.message);});return controlWindow;
 }
-function applyBounds(settings){
+function applyBounds(settings,devices=service?.store.get().devices||[]){
  if(!overlay)return;
  const monitor=screen.getAllDisplays().find(m=>String(m.id)===settings.monitor)||screen.getPrimaryDisplay();
  overlay.setBounds(overlayBounds(monitor,{expanded,centered,clockOnly,contentHeight,position:settings.position,horizontal:settings.horizontal,edgeMargin:settings.edgeMargin}));
  // Photo mode accepts mouse/touch for its Exit button. Teaching and clock modes stay click-through.
  overlay.setIgnoreMouseEvents(!expanded,{forward:true});
- if(settings.paused)overlay.hide();else{overlay.showInactive();if(controlWindow&&!controlWindow.isDestroyed()&&controlWindow.isVisible())controlWindow.moveTop();}
+ if(settings.paused||devices.some(d=>d.enabled&&d.monitor===String(monitor.id)&&d.monitor!=='browser'))overlay.hide();else{overlay.showInactive();if(controlWindow&&!controlWindow.isDestroyed()&&controlWindow.isVisible())controlWindow.moveTop();}
 }

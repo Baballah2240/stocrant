@@ -4,3 +4,11 @@ runtime/
 .qa/
 *.log
 .env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite.tmp
+*.pfx
+*.p12
+*.pem
+*.key
