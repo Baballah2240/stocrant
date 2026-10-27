@@ -33,6 +33,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run test:workspace
+      - run: npm run test:remote
       - name: Build local unsigned artifacts
         if: ${{ !inputs.signed }}
         run: npm run dist:win

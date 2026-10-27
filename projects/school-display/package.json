@@ -1,7 +1,7 @@
 {
   "name": "school-display",
   "productName": "School Display",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Bilingual school timetable and Windows classroom overlay",
   "author": "School Display",
@@ -19,7 +19,8 @@
     "check": "npm test",
     "test:adjustments": "node tests/adjustments.mjs",
     "dist:win:signed": "electron-builder --config build/signed.cjs --win nsis portable --x64",
-    "test:workspace": "node tests/workspace.mjs"
+    "test:workspace": "node tests/workspace.mjs",
+    "test:remote": "node tests/remote-browser.mjs"
   },
   "dependencies": {
     "sql.js": "1.15.2"

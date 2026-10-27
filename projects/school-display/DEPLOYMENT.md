@@ -5,7 +5,7 @@ The default Windows application and web server bind only to `127.0.0.1`. No scho
 ## Local upgrade
 
 1. Export a business-data backup and close School Display through **Administrator → Protected controls**. For complete account recovery, also copy the app data folder while the app is closed.
-2. Run `School-Display-Setup-2.0.0-x64.exe` using the same Windows account and installation location. Existing school data migrates automatically. An installer build is not an installation.
+2. Run `School-Display-Setup-2.1.0-x64.exe` using the same Windows account and installation location. Existing school data migrates automatically. An installer build is not an installation.
 3. Verify your classes, special days, teacher assignments and connected monitors before publishing. Existing additional users keep administrator access until you change their role.
 
 Use **Classrooms & screens** for multiple monitors on this Windows computer. Browser links work on the same computer by default. Native always-on-top behavior is provided by the Windows app, not a browser running on another computer.
@@ -67,7 +67,7 @@ The HTTPS origin determines the port. Keep the process running using your school
 
 Open the HTTPS control URL from other authorized computers and register browser screens. Screen links are bearer credentials and should be shared only with the intended display. Disabling/renewing a screen or renewing all display access revokes its links. Teacher view links are bound to current role, assigned class, active account and password hash. An offline display retains its last published cache until it reconnects, so revocation cannot erase an already offline device's local copy.
 
-This service supports remote browser displays after deployment. Distributed always-on-top Windows agents and an operating-system kiosk lockdown are not part of this release. Monitor hotplug, projector modes, touch input and school-specific teaching applications must still be verified on classroom hardware.
+This service supports remote browser displays after deployment. For distributed always-on-top Windows screens, use the remote connection controls described in [HOSTING.md](HOSTING.md). Operating-system kiosk lockdown is not part of this release. Monitor hotplug, projector modes, touch input and school-specific teaching applications must still be verified on classroom hardware.
 
 ## Recovery and retention
 

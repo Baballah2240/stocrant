@@ -12,3 +12,5 @@ runtime/
 *.p12
 *.pem
 *.key
+remote-screen.json
+remote-screen.json.tmp

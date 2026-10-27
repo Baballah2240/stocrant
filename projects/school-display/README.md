@@ -2,9 +2,13 @@
 
 An independent Windows classroom overlay with a local bilingual web control panel. No cloud account, internet connection, OpenAI API or subscription is required at runtime.
 
+## Central hosting and remote screens
+
+Version 2.1 adds an optional HTTPS school server connection to the Windows overlay, with offline snapshots and images. See [HOSTING.md](HOSTING.md) for the independent Render service, `schools.mohbaba.online` DNS setup and connecting classroom computers. The normal local mode remains available. One hosted instance serves one school; unrelated schools require separate services until multi-school tenancy is implemented. Hosting and DNS still require activation and live verification.
+
 ## Use the Windows application
 
-1. Open `releases/School-Display-Setup-2.0.0-x64.exe` to install, or run the portable executable.
+1. Open `releases/School-Display-Setup-2.1.0-x64.exe` to install, or run the portable executable.
 2. School Display opens the control panel at **http://127.0.0.1:4318/control** and places its read-only overlay above ordinary desktop windows.
 3. Create the first administrator account. Choose a password of at least 12 characters and keep it safely. There is no default account or password. Under **Administrator → School users**, add administrators, timetable coordinators or teachers, assign teacher classes, edit access and disable accounts. The original administrator retains full access and cannot be disabled. Coordinators edit schedules; only administrators publish, change settings, manage screens and restore backups. Teachers see only their assigned published classes.
 4. Open **Display & school** to enter the school name, timezone and display language. Choose Arabic, English or bilingual. The control panel language is independent.

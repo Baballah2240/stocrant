@@ -7,6 +7,7 @@ const {overlayBounds}=require('./bounds.cjs');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const {randomBytes}=require('node:crypto');
+let remoteSettings=null;
 let service,overlay,tray,quitting=false,displayToken,alertAt=0,pointerPoll,panelBounds=null,contentHeight=240,pointerInside=null,expanded=false,centered=false,clockOnly=false,controlWindow=null,screens=null;
 const smoke=process.argv.includes('--smoke-test');
 if(smoke&&process.env.SCHOOL_DATA_DIR)app.setPath('userData',process.env.SCHOOL_DATA_DIR);
@@ -20,15 +21,16 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   const {startServer}=await import('../server/server.mjs');
   const desktop={
    verifyInstaller,
+   applyRemote:async (settings,connected)=>{remoteSettings=settings;if(!overlay)return;await screens?.sync(connected?[]:service.store.get().devices,settings||service.store.get().settings);applyBounds(effectiveSettings(),connected?[]:service.store.get().devices);},
    installUpdate:async file=>{const child=spawn(file,[],{detached:true,stdio:'ignore',windowsHide:false});await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();setTimeout(()=>desktop.exit(),250);},
-   applyDevices:async (devices,settings=service.store.get().settings)=>{await screens?.sync(devices,settings);applyBounds(settings,devices);},
+   applyDevices:async (devices,settings=service.store.get().settings)=>{await screens?.sync(service?.remote?.status().configured?[]:devices,effectiveSettings(settings));applyBounds(settings,devices);},
    monitors:()=>screen.getAllDisplays().map((m,i)=>({id:String(m.id),label:`${m.label||'Monitor '+(i+1)} · ${m.size.width}×${m.size.height}`})),
-   apply:async settings=>{if(!smoke&&app.isPackaged)app.setLoginItemSettings({openAtLogin:settings.autostart,path:app.getPath('exe'),args:['--background']});applyBounds(settings);await screens?.sync(service.store.get().devices,settings);},
+   apply:async settings=>{if(!smoke&&app.isPackaged)app.setLoginItemSettings({openAtLogin:settings.autostart,path:app.getPath('exe'),args:['--background']});applyBounds(settings);await screens?.sync(localDevices(),effectiveSettings(settings));},
    reload:async token=>{displayToken=token;await overlay.loadURL(displayUrl());},
    exit:()=>{quitting=true;screens?.close();service.close().finally(()=>app.quit());}
   };
   if(smoke&&!process.env.SCHOOL_DATA_DIR)throw Error('Set an isolated SCHOOL_DATA_DIR for smoke testing.');
-  service=await startServer({directory:smoke?process.env.SCHOOL_DATA_DIR:app.getPath('userData'),port:smoke?0:4318,desktop});displayToken=service.store.get().displayToken;
+  service=await startServer({directory:smoke?process.env.SCHOOL_DATA_DIR:app.getPath('userData'),port:smoke?0:4318,desktop,remoteOptions:smoke?{allowLoopback:true}:{}});displayToken=service.store.get().displayToken;remoteSettings=service.remote?.snapshot()?.settings||null;
   overlay=new BrowserWindow({width:1200,height:240,frame:false,transparent:true,alwaysOnTop:true,skipTaskbar:true,focusable:false,resizable:false,movable:false,hasShadow:false,show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
   overlay.setAlwaysOnTop(true,'screen-saver');overlay.setIgnoreMouseEvents(true,{forward:true});overlay.setMenu(null);
   overlay.on('close',event=>{if(!quitting){event.preventDefault();openControl();}});
@@ -43,7 +45,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    if(height!==contentHeight||nextExpanded!==expanded||centered!==(bounds.centered===true)||clockOnly!==(bounds.clockOnly===true)){contentHeight=height;expanded=nextExpanded;centered=bounds.centered===true;clockOnly=bounds.clockOnly===true;applyBounds(service.store.get().settings);}
   });
   await overlay.loadURL(displayUrl());applyBounds(service.store.get().settings);
-  screens=createScreens({origin:service.origin,openControl});await screens.sync(service.store.get().devices,service.store.get().settings);applyBounds(service.store.get().settings);
+  screens=createScreens({origin:service.origin,openControl});await screens.sync(localDevices(),effectiveSettings());applyBounds(service.store.get().settings);
   pointerPoll=setInterval(()=>{
    if(overlay.isDestroyed())return;
    const cursor=screen.getCursorScreenPoint(),windowBounds=overlay.getBounds(),p=panelBounds;
@@ -52,7 +54,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   },50);pointerPoll.unref();
   const image=nativeImage.createFromPath(path.join(__dirname,'../assets/icon.png'));tray=new Tray(image.resize({width:20,height:20}));tray.setToolTip('School Display · جدول المدرسة');tray.setContextMenu(Menu.buildFromTemplate([{label:'Open control panel · لوحة التحكم',click:openControl},{label:'Open timetable · عرض الجدول',click:()=>shell.openExternal(service.origin+'/display?token='+displayToken)},{type:'separator'},{label:'Close app (administrator) · إغلاق التطبيق',click:openControl}]));tray.on('double-click',openControl);
   globalShortcut.register('Control+Alt+Shift+S',()=>{if(service)showLocalControl();});
-  const refreshDisplays=()=>{applyBounds(service.store.get().settings);screens.sync(service.store.get().devices,service.store.get().settings).catch(()=>{});};screen.on('display-added',refreshDisplays);screen.on('display-metrics-changed',refreshDisplays);screen.on('display-removed',refreshDisplays);powerMonitor.on('resume',()=>overlay.webContents.reload());
+  const refreshDisplays=()=>{applyBounds(service.store.get().settings);screens.sync(localDevices(),effectiveSettings()).catch(()=>{});};screen.on('display-added',refreshDisplays);screen.on('display-metrics-changed',refreshDisplays);screen.on('display-removed',refreshDisplays);powerMonitor.on('resume',()=>overlay.webContents.reload());
   if(smoke){
    const progress=stage=>{if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify({stage}));};progress('started');
    assert.equal(service.store.get().admin,null,'Smoke tests require a fresh isolated database.');
@@ -98,9 +100,20 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    await waitFor(()=>screens.count()===1&&!overlay.isVisible());
    let screenOnline=false;for(let attempt=0;attempt<90;attempt++){const state=await fetch(service.origin+'/api/state',{headers:{Cookie:cookie}}).then(r=>r.json());if(state.devices.find(d=>d.id===addedDevice.id)?.status==='online'){screenOnline=true;break;}await new Promise(r=>setTimeout(r,100));}assert.ok(screenOnline,'Assigned native screen must report its published revision');
    const disabled=await fetch(service.origin+'/api/devices',{method:'PUT',headers:{Origin:service.origin,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify({...addedDevice,enabled:false})});assert.equal(disabled.status,200);await waitFor(()=>screens.count()===0&&overlay.isVisible());result.classroomScreenAssignmentVerified=true;
+   const central=await startServer({directory:path.join(process.env.SCHOOL_DATA_DIR,'central-smoke'),port:0,updateEnv:{}});
+   try{
+    Object.assign(central.store.get(),{admin:{...service.store.get().admin},publishedAt:new Date().toISOString(),revision:1,published:[{id:'remote-native',classId:'default',day,type:'lesson',start:'00:00',end:'23:59',subjectEn:'Remote classroom lesson',subjectAr:'',teacherEn:'Remote teacher',teacherAr:'',room:''}]});
+    Object.assign(central.store.get().settings,{timezone:service.store.get().settings.timezone,schoolEn:'Remote native school',panelWidth:500,fullscreenBreaks:false});central.store.save();
+    assert.equal((await post('remote',{url:central.origin+'/display?token='+central.store.get().displayToken,password})).status,200);
+    await overlay.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let attempts=0;const timer=setInterval(()=>{if(document.querySelector('.activity h1')?.textContent.includes('Remote classroom lesson')){clearInterval(timer);resolve();}else if(++attempts>90){clearInterval(timer);reject(Error('Remote native timetable did not arrive'));}},100);})`);
+    await new Promise(r=>setTimeout(r,5500));await waitFor(()=>!centered&&!clockOnly&&Math.abs(panelBounds.width-500)<3);
+    assert.equal(overlay.isAlwaysOnTop(),true);result.remoteNativeSynchronizationVerified=true;
+    assert.equal((await post('remote',{disconnect:true,password})).status,200);assert.equal(service.remote.status().configured,false);
+   }finally{await central.close();}
    assert.equal((await post('exit',{password})).status,200);result.authorizedExitAccepted=true;
    if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify(result,null,2));return;
   }
+  void service.remote?.sync();
   if(!process.argv.includes('--background'))openControl();
  }).catch(error=>{quitting=true;if(smoke){if(process.env.SCHOOL_SMOKE_OUTPUT)fs.writeFileSync(process.env.SCHOOL_SMOKE_OUTPUT,JSON.stringify({error:error.stack},null,2));screens?.close();overlay?.destroy();controlWindow?.destroy();app.exit(1);return;}dialog.showErrorBox('School Display',error.code==='EADDRINUSE'?'Port 4318 is already in use. Close the local preview or the other School Display instance, then reopen the app.':error.message);app.exit(1);});
 }
@@ -115,7 +128,10 @@ function showLocalControl(){
  controlWindow.webContents.on('will-navigate',(event,url)=>{if(url!==service.origin+'/control'&&url!==service.origin+'/')event.preventDefault();});
  controlWindow.on('closed',()=>{controlWindow=null;});controlWindow.loadURL(service.origin+'/control').catch(error=>{if(!smoke&&controlWindow&&!controlWindow.isDestroyed()&&error.code!=='ERR_ABORTED'&&error.errno!==-3)dialog.showErrorBox('School Display',error.message);});return controlWindow;
 }
-function applyBounds(settings,devices=service?.store.get().devices||[]){
+function effectiveSettings(local=service?.store.get().settings){return remoteSettings?{...remoteSettings,monitor:local.monitor,autostart:local.autostart}:local;}
+function localDevices(){return service?.remote?.status().configured?[]:service.store.get().devices;}
+function applyBounds(settings,devices=localDevices()){
+ settings=effectiveSettings(settings);if(service?.remote?.status().configured)devices=[];
  if(!overlay)return;
  const monitor=screen.getAllDisplays().find(m=>String(m.id)===settings.monitor)||screen.getPrimaryDisplay();
  overlay.setBounds(overlayBounds(monitor,{expanded,centered,clockOnly,contentHeight,position:settings.position,horizontal:settings.horizontal,edgeMargin:settings.edgeMargin}));
