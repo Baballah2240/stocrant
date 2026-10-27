@@ -4,10 +4,10 @@
 @page{size:Letter;margin:0}*{box-sizing:border-box}body{margin:0;background:#e9eef4;color:#172536;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .page{width:8.5in;height:11in;padding:37px 52px 35px;background:#fff;position:relative;page-break-after:always;overflow:hidden}.page:last-child{page-break-after:auto}.page:before{content:"";position:absolute;inset:0 0 auto;height:9px;background:#173449}
 .brand{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:1.2px;color:#176653;margin-bottom:18px}.brand span:last-child{color:#53677a;letter-spacing:0;font-weight:400}
-h1{font-size:35px;line-height:1.2;color:#000;margin:0 0 8px;letter-spacing:-.6px}h2{font-size:17px;color:#000;line-height:1.4;margin:0 0 9px}.subtitle{font-size:17px;color:#445a6d;margin:0 0 17px;line-height:1.5}.intro{font-size:14px;line-height:1.65;margin:0 0 14px;max-width:680px}
+h1{font-size:35px;line-height:1.2;color:#000;margin:0 0 8px;letter-spacing:-.6px}h2{font-size:17px;color:#000;line-height:1.4;margin:0 0 9px}.subtitle{font-size:17px;color:#445a6d;margin:0 0 17px;line-height:1.5}.intro{font-size:14px;line-height:1.65;margin:0 0 20px;max-width:680px}
 .example{padding:15px 0 14px;border-top:1px solid #dae3e9;border-bottom:1px solid #dae3e9;margin:0 0 15px}.example-label{font-size:10px;color:#657789;margin-bottom:9px}.timeline{display:grid;grid-template-columns:1.5fr .85fr 1.1fr;gap:14px;align-items:center}.time-item{font-size:12px;line-height:1.5}.time-item strong{display:block;color:#153d51;font-size:14px}.time-item small{font-size:11px;color:#53677a}.current{border-inline-start:3px solid #21866a;padding-inline-start:12px}.current b{display:inline-block;margin-top:3px;color:#176653;font-size:12px}
-.features{display:grid;grid-template-columns:1fr 1fr;column-gap:28px;row-gap:9px;margin-bottom:15px}.feature strong{display:block;font-size:13px;color:#172536;margin-bottom:3px}.feature p{margin:0;font-size:12px;line-height:1.6;color:#425568}
-.workflow{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:0 0 13px}.step .number{display:block;font-size:12px;font-weight:700;color:#176653;margin-bottom:4px}.step strong{font-size:12px}.step p{font-size:11.5px;line-height:1.55;margin:4px 0 0;color:#425568}.roles{font-size:12px;line-height:1.65;margin:0 0 12px;color:#425568}.roles b{color:#172536}
+.features{display:grid;grid-template-columns:1fr 1fr;column-gap:28px;row-gap:12px;margin-bottom:19px}.feature strong{display:block;font-size:13px;color:#172536;margin-bottom:3px}.feature p{margin:0;font-size:12px;line-height:1.6;color:#425568}
+.workflow{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:0 0 14px}.step .number{display:block;font-size:12px;font-weight:700;color:#176653;margin-bottom:4px}.step strong{font-size:12px}.step p{font-size:11.5px;line-height:1.55;margin:4px 0 0;color:#425568}.roles{font-size:12px;line-height:1.65;margin:0 0 12px;color:#425568}.roles b{color:#172536}
 .deployment{font-size:11.5px;line-height:1.65;margin:0 0 12px;color:#425568}.pilot{font-size:12px;line-height:1.65;margin:0;color:#172536}.footer{position:absolute;bottom:25px;inset-inline:52px;display:flex;justify-content:space-between;border-top:1px solid #dae3e9;padding-top:10px;font-size:10px;color:#657789}
 [lang=ar]{font-family:"Segoe UI",Tahoma,Arial,sans-serif}[lang=ar] h1{font-size:35px;letter-spacing:0}[lang=ar] .brand{letter-spacing:0}[lang=ar] .intro{font-size:14.5px;line-height:1.8}[lang=ar] .feature p{font-size:12.5px;line-height:1.7}[lang=ar] .feature strong{font-size:13.5px}[lang=ar] .step p{font-size:12px;line-height:1.7}[lang=ar] .roles,[lang=ar] .deployment,[lang=ar] .pilot{line-height:1.8}
 @media screen{.page{margin:24px auto;box-shadow:0 10px 40px #142a3920}}@media print{body{background:white}}
@@ -38,9 +38,9 @@ h1{font-size:35px;line-height:1.2;color:#000;margin:0 0 8px;letter-spacing:-.6px
   <div class="step"><span class="number">04</span><strong>متابعة وتحديث</strong><p>عرض الأنشطة تلقائياً وتحديث المحتوى المنشور.</p></div>
  </div>
  <p class="roles"><b>من يتحكم بالنظام</b> المسؤول يدير الحسابات والإعدادات والنشر. المنسق يعد الجداول. المعلم يطلع على الفصول المسندة إليه. إغلاق تطبيق ويندوز محمي بكلمة مرور المسؤول المحلي.</p>
- <h2>التشغيل والتجربة المدرسية</h2>
- <p class="deployment">يعمل التطبيق على ويندوز 10 أو 11 بنظام 64 بت، مع شاشة أو بروجكتور يتعرف عليه ويندوز. مزامنة الأجهزة عن بعد مطورة، لكن استضافة <bdi>schools.mohbaba.online</bdi> لم تفعل بعد. حالياً تخدم كل استضافة مدرسة واحدة. النسخة الحالية غير موقعة وتحتاج اعتماد تقنية المعلومات أو توقيعاً موثوقاً قبل التوزيع. اللوحة ليست قفلاً لنظام التشغيل، وقد تغطيها بعض تطبيقات ملء الشاشة الحصري.</p>
- <p class="pilot"><b>الخطوة المقترحة</b> تجربة النظام في فصل واحد، والتحقق من الشاشة والتنبيهات والجدول والصلاحيات، ثم الاتفاق على نطاق التوسع والدعم.</p>
+ <h2>تطبيق النظام في مدرستك</h2>
+ <p class="deployment">يعمل النظام على أجهزة ويندوز 10 أو 11 بنظام 64 بت، مع الشاشات وأجهزة العرض التي يتعرف عليها ويندوز. يتم تنسيق التثبيت وإعداد الفصول والحسابات مع فريق تقنية المعلومات بالمدرسة، والتحقق من توافق برامج التدريس والشاشات قبل التوسع في الاستخدام.</p>
+ <p class="pilot"><b>التجربة الأولية</b> البدء بفصل واحد وفق الجدول الفعلي للمدرسة، وتدريب المسؤول على الإعداد والنشر. بعد مراجعة العرض والتنبيهات والصلاحيات، يتم تحديد نطاق التوسع واحتياجات الدعم.</p>
  <div class="footer"><span>العربية · عرض تعريفي للمنتج</span><span>27 أكتوبر 2026 · 1 / 2</span></div>
 </article>
 <article class="page" lang="en" dir="ltr">
@@ -69,9 +69,9 @@ h1{font-size:35px;line-height:1.2;color:#000;margin:0 0 8px;letter-spacing:-.6px
   <div class="step"><span class="number">04</span><strong>Monitor and update</strong><p>Display activities automatically and distribute published changes.</p></div>
  </div>
  <p class="roles"><b>Who controls the system</b> Administrators manage accounts, settings and publishing. Coordinators prepare timetables. Teachers view assigned classes. Closing the Windows app requires the local administrator password.</p>
- <h2>Deployment and school pilot</h2>
- <p class="deployment">Runs on Windows 10 or 11, 64-bit, with a monitor or projector recognized by Windows. Remote synchronization is implemented; hosting at schools.mohbaba.online has not been activated. Each hosted service currently serves one school. The current build is unsigned and needs school IT approval or trusted signing before distribution. The panel is not an operating-system lockdown and some exclusive fullscreen applications can cover it.</p>
- <p class="pilot"><b>Recommended next step</b> Pilot one classroom, verify its display, alerts, timetable and permissions, then agree the rollout scope and support arrangements.</p>
+ <h2>Implementation at your school</h2>
+ <p class="deployment">The system runs on Windows 10 or 11, 64-bit, with monitors and projectors recognized by Windows. Installation, class setup and user access are coordinated with the school IT team. Compatibility with classroom displays and teaching applications is verified before a wider rollout.</p>
+ <p class="pilot"><b>Initial pilot</b> Start with one classroom using the school’s actual timetable and train the administrator to prepare and publish changes. Review the display, alerts and permissions, then agree the rollout scope and support requirements.</p>
  <div class="footer"><span>English · Product presentation</span><span>27 October 2026 · 2 / 2</span></div>
 </article>
 </body></html>
