@@ -79,6 +79,13 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    assert.equal(await overlay.webContents.executeJavaScript("document.querySelector('.ribbon').classList.contains('is-hovered')"),true);
    overlay.webContents.send('school:pointer',false);
    const waitFor=async predicate=>{for(let i=0;i<120;i++){if(predicate())return;await new Promise(r=>setTimeout(r,100));}throw Error('Native presentation transition timed out: '+JSON.stringify({expanded,centered,clockOnly,bounds:overlay.getBounds(),contentHeight,panelBounds}));};
+   service.store.get().settings.hideBar=true;service.store.save();
+   await waitFor(()=>panelBounds?.width===0);assert.equal(overlay.isVisible(),true,'Background mode must keep the native alert window running.');
+   assert.equal(await overlay.webContents.executeJavaScript("getComputedStyle(document.querySelector('.panel-shell')).visibility"),'hidden');
+   service.store.get().published[0].id='native-background-transition';service.store.save();
+   await overlay.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let attempts=0;const timer=setInterval(()=>{if(document.querySelector('#alert.show')){clearInterval(timer);resolve();}else if(++attempts>90){clearInterval(timer);reject(Error('Background notification did not arrive'));}},100);})`);
+   assert.equal(centered,false,'A hidden panel must not center its transparent window.');
+   service.store.get().settings.hideBar=false;service.store.save();await waitFor(()=>panelBounds.width>400&&!centered);
    Object.assign(service.store.get().settings,{panelWidth:420,textScale:140,horizontal:'right',edgeMargin:80,position:'bottom'});service.store.save();applyBounds(service.store.get().settings);
    await overlay.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let attempts=0;const timer=setInterval(()=>{if(document.body.style.getPropertyValue('--panel-width')==='420px'&&document.body.dataset.align==='right'){clearInterval(timer);resolve();}else if(++attempts>60){clearInterval(timer);reject(Error('Panel adjustment did not arrive'));}},100);})`);
    overlay.webContents.send('school:pointer',false);await new Promise(r=>setTimeout(r,300));await overlay.webContents.executeJavaScript("window.dispatchEvent(new Event('resize'))");await waitFor(()=>Math.abs(panelBounds.width-420)<2);const adjustedWindow=overlay.getBounds(),adjustedPanel=panelBounds,adjustedArea=screen.getPrimaryDisplay().workArea;
@@ -95,6 +102,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
    result.fullScreenAndCompactRestoreVerified=true;result.idleClockVerified=true;result.nativeCenterPopupVerified=true;result.fullscreenExitButtonVerified=true;
    result.adminControlsAboveFullScreenVerified=true;
    result.nativeHoverDelayVerified=true;result.nativePanelAdjustmentVerified=true;result.panelBounds=panelBounds;
+   result.backgroundModeVerified=true;
    assert.equal(result.alwaysOnTop,true);assert.equal(result.focusable,false);
    const added=await post('devices',{name:'Native classroom',classId:'default',monitor:String(screen.getPrimaryDisplay().id),enabled:true});assert.equal(added.status,200);const addedDevice=(await added.json()).device;
    await waitFor(()=>screens.count()===1&&!overlay.isVisible());

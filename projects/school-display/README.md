@@ -8,7 +8,7 @@ Version 2.1 adds an optional HTTPS school server connection to the Windows overl
 
 ## Use the Windows application
 
-1. Open `releases/School-Display-Setup-2.1.0-x64.exe` to install, or run the portable executable.
+1. Open `releases/School-Display-Setup-2.1.1-x64.exe` to install, or run the portable executable.
 2. School Display opens the control panel at **http://127.0.0.1:4318/control** and places its read-only overlay above ordinary desktop windows.
 3. Create the first administrator account. Choose a password of at least 12 characters and keep it safely. There is no default account or password. Under **Administrator → School users**, add administrators, timetable coordinators or teachers, assign teacher classes, edit access and disable accounts. The original administrator retains full access and cannot be disabled. Coordinators edit schedules; only administrators publish, change settings, manage screens and restore backups. Teachers see only their assigned published classes.
 4. Open **Display & school** to enter the school name, timezone and display language. Choose Arabic, English or bilingual. The control panel language is independent.
@@ -21,6 +21,8 @@ The smaller neutral glass overlay is non-focusable and click-through during less
 Closing a normal window does not close the overlay. This application is not an operating-system lockdown: Task Manager, OS administrators, shutdown, secure desktops and some exclusive fullscreen applications can override it. Test actual teaching applications on classroom hardware. If a teacher switches HDMI input to a separate laptop, install/run the app on that laptop to display above its output.
 
 ## Adjust the floating panel
+
+**Hide the bar while continuing in the background:** open **Display & school → Overlay appearance**, enable **Hide floating bar**, then save. The floating bar and idle clock disappear; timetable synchronization, lesson notifications, optional sounds and configured break screens continue. Turn the option off in the same settings to show the bar again. The adjustment preview remains visible while you edit. This setting is separate from **Pause the overlay**, which also stops lesson alerts. The Windows tray and **Ctrl+Alt+Shift+S** still open administrator controls.
 
 **Version 2.0** adds an iOS-inspired glass workspace, rounded navigation and cards, light/dark/system appearance, custom accent colors, optional tinted panels and school logo uploads. Open **Display & school → Theme & identity** to customize it. The panel stays neutral by default. Popup and notification duration are configurable from 3–15 seconds; sound supports a single or double system bell. Browser sound permissions can limit audio; native Windows displays use the system bell.
 

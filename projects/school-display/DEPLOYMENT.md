@@ -5,7 +5,7 @@ The default Windows application and web server bind only to `127.0.0.1`. No scho
 ## Local upgrade
 
 1. Export a business-data backup and close School Display through **Administrator → Protected controls**. For complete account recovery, also copy the app data folder while the app is closed.
-2. Run `School-Display-Setup-2.1.0-x64.exe` using the same Windows account and installation location. Existing school data migrates automatically. An installer build is not an installation.
+2. Run `School-Display-Setup-2.1.1-x64.exe` using the same Windows account and installation location. Existing school data migrates automatically. An installer build is not an installation.
 3. Verify your classes, special days, teacher assignments and connected monitors before publishing. Existing additional users keep administrator access until you change their role.
 
 Use **Classrooms & screens** for multiple monitors on this Windows computer. Browser links work on the same computer by default. Native always-on-top behavior is provided by the Windows app, not a browser running on another computer.

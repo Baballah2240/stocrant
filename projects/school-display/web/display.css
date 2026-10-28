@@ -138,3 +138,6 @@
 
 /* Optional tinted glass never changes readable foreground colors. */
 .display-page .ribbon{background:linear-gradient(#10151f99,#10151f99),rgba(var(--panel-rgb,28,29,33),var(--panel-opacity,.72))}
+/* Keep the renderer and its measured alert space active while hiding the bar. */
+.display-page.bar-hidden .panel-shell{visibility:hidden;pointer-events:none}
+.display-page.bar-hidden.clock-only #alert.show{display:flex}
