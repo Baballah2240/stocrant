@@ -35,7 +35,7 @@ Broad customer distribution still requires publisher signing, acceptance on the 
 | Presentation PDF | Four pages rendered and visually reviewed; Arabic and English text, page numbers and spacing checked |
 | Patch hygiene | `git diff --check` passed; no runtime data, credentials or Windows executables added to source control |
 
-Native checks covered click-through/focus behavior, always-on-top, the 500 ms hover delay, adjusted bounds, background mode, full-screen exit and compact return, idle clock, administrator controls above a full-screen view, classroom screen assignment, remote synchronization, lesson countdown/clock/finish flow and password-authorized exit. Evidence and screenshots remain in the ignored `.qa/` directory, including `release-2.3.0-native.json`.
+Native checks covered click-through/focus behavior, always-on-top, the 500 ms hover delay, adjusted bounds, background mode, full-screen exit and compact return, idle clock, administrator controls above a full-screen view, classroom screen assignment, remote synchronization, lesson countdown/clock/finish flow and password-authorized exit. Current native results and selected screenshots were preserved in the project checkpoint ZIP under `archive-info/evidence` before the disposable `.qa/` directory was cleaned. See [Archive and restore](ARCHIVE-AND-RESTORE.md).
 
 ## Remaining release requirements
 

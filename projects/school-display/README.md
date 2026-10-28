@@ -2,6 +2,10 @@
 
 An independent Windows classroom overlay with a local bilingual web control panel. No cloud account, internet connection, OpenAI API or subscription is required at runtime.
 
+## Archived project checkpoint
+
+The complete school-project source, current 2.3.0 Windows packages, manager presentation and restoration instructions are preserved in `archives/Qatar-School-Time-Table-2.3.0-2026-10-28.zip`. Its adjacent SHA-256 file verifies the archive, and the internal manifest records each archived file's checksum. Archives and generated installers stay outside Git. See [Archive and restore](docs/ARCHIVE-AND-RESTORE.md) to resume development or run the packaged app. Old installers, unpacked build output and temporary QA files can be regenerated and have been cleaned; current installers and installed development dependencies are retained.
+
 ## Version 2.3: guided tour and release review
 
 Select **Quick tour / جولة سريعة** in the control-panel header after signing in. The tour explains the sections available to your role, supports keyboard navigation and Escape, and offers an explicit **Open this section** button. It never edits or publishes data. Save your work before opening another section; unsaved settings and photo changes are protected when changing sections, switching language or leaving the page.

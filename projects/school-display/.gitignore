@@ -1,5 +1,6 @@
 node_modules/
 releases/
+archives/
 runtime/
 .qa/
 *.log
