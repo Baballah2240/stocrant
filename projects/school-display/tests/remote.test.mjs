@@ -6,10 +6,22 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomBytes} from 'node:crypto';
 import {startServer} from '../server/server.mjs';
-import {displayLink} from '../server/remote.mjs';
+import {createRemote,displayLink} from '../server/remote.mjs';
 import {networkOptions} from '../server/network.mjs';
 
 const directory=()=>mkdtempSync(join(tmpdir(),'school-remote-'));
+test('unchanged remote polls keep fresh status without rewriting the cache or reconfiguring screens',async()=>{
+ const dir=directory();let applies=0,time=1,school='First school',cancelled=false,denied=false;
+ const remote=createRemote({directory:dir,images:{},validate:value=>value,interval:3600000,onChange:async()=>{applies++;},fetcher:async()=>denied?new Response(new ReadableStream({cancel(){cancelled=true;}}),{status:403}):Response.json({configured:true,revision:1,serverTime:time++,settings:{schoolEn:school},schedule:[]})});
+ try{
+  await remote.connect('https://school.example/display?token='+'a'.repeat(64));
+  const file=join(dir,'remote-screen.json'),initial=readFileSync(file,'utf8');
+  await remote.sync();await remote.sync();assert.equal(applies,1);assert.equal(readFileSync(file,'utf8'),initial);assert.equal(remote.status().online,true);
+  school='Updated without publication';await remote.sync();assert.equal(applies,2);assert.notEqual(readFileSync(file,'utf8'),initial);assert.equal(remote.snapshot().settings.schoolEn,school);
+  denied=true;await remote.sync();assert.equal(cancelled,true);assert.equal(remote.status().revoked,true);assert.equal(remote.snapshot(),null);assert.equal(applies,3);
+  await remote.sync();assert.equal(applies,3,'Repeated revocation must not repeatedly reconfigure screens');
+ }finally{remote.close();}
+});
 async function account(app){
  const password=randomBytes(24).toString('hex');let cookie='';
  const req=async(path,body,method='POST',session=cookie)=>{

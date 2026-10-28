@@ -1,4 +1,6 @@
 export const arabic={
+ 'Quick tour':'جولة سريعة',
+ 'Save your changes before navigating.':'احفظ تغييراتك قبل الانتقال إلى قسم آخر.',
  'Activity popups return to their saved position after the chosen duration. When the day ends, only the clock remains.':'تعود نوافذ الفترات إلى موضعها المحفوظ بعد المدة المختارة. بعد انتهاء اليوم تبقى الساعة فقط.',
  'Reusable timing profile':'نموذج توقيت قابل لإعادة الاستخدام','Ramadan / exam timing range':'فترة توقيت رمضان أو الاختبارات',
  'Keep each class subjects and teachers, but shorten periods for a date range. Weekly timetables stay unchanged. Existing special days on matching dates will be replaced after confirmation.':'احتفظ بمواد كل فصل ومعلميه مع تقصير الفترات ضمن نطاق زمني. تبقى الجداول الأسبوعية كما هي. تستبدل الأيام الخاصة المطابقة بعد التأكيد.',

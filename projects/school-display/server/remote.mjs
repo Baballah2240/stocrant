@@ -9,12 +9,14 @@ export function displayLink(value,{allowLoopback=false}={}){
  return {origin:url.origin,token:url.searchParams.get('token')};
 }
 async function bounded(response,max){
- if(!response.ok)throw Object.assign(Error('The school server is unavailable.'),{status:response.status});
+ if(!response.ok){await response.body?.cancel().catch(()=>{});throw Object.assign(Error('The school server is unavailable.'),{status:response.status});}
  let size=0;const chunks=[];for await(const chunk of response.body){size+=chunk.length;if(size>max)throw Error('School response too large.');chunks.push(chunk);}return Buffer.concat(chunks);
 }
 export function createRemote({directory,images,validate,onChange=async()=>{},fetcher=fetch,allowLoopback=false,interval=5000}){
- const file=join(directory,'remote-screen.json');let config=null,cached=null,lastSync=null,online=false,revoked=false,busy=false,closed=false,generation=0;
- const save=()=>{writeFileSync(file+'.tmp',JSON.stringify({config,cached,lastSync}),{mode:0o600});renameSync(file+'.tmp',file);};
+ const file=join(directory,'remote-screen.json');let config=null,cached=null,lastSync=null,online=false,revoked=false,busy=false,closed=false,generation=0,lastSavedSync=0,applied=false;
+ const save=()=>{writeFileSync(file+'.tmp',JSON.stringify({config,cached,lastSync}),{mode:0o600});renameSync(file+'.tmp',file);lastSavedSync=lastSync||0;};
+ // Server time changes on every poll. Only content changes need native reconfiguration.
+ const content=value=>JSON.stringify(value?{...value,serverTime:0}:null);
  try{if(existsSync(file)){const saved=JSON.parse(readFileSync(file,'utf8'));config=displayLink(saved.config.origin+'/display?token='+saved.config.token,{allowLoopback});cached=saved.cached?validate(saved.cached):null;lastSync=saved.lastSync;}}catch{throw Error('The remote screen configuration is damaged. Restore it or remove remote-screen.json while the app is closed.');}
  function status(){return {configured:Boolean(config),origin:config?.origin||null,online,revoked,lastSync,revision:cached?.revision??null};}
  async function download(connection){
@@ -31,17 +33,17 @@ export function createRemote({directory,images,validate,onChange=async()=>{},fet
  }
  async function sync(){
   if(!config||busy||closed)return;busy=true;const at=generation,current=config;
-  try{const next=await download(current);if(closed||at!==generation)return;cached=next;lastSync=Date.now();online=true;revoked=false;save();await onChange(cached);}
-  catch(error){if(at!==generation||closed)return;online=false;if([401,403].includes(error.status)){revoked=true;cached=null;save();await onChange(null);}}
+  try{const next=await download(current);if(closed||at!==generation)return;const changed=content(next)!==content(cached);cached=next;lastSync=Date.now();online=true;revoked=false;if(changed||lastSync-lastSavedSync>=60000)save();if(changed||!applied){await onChange(cached);applied=true;}}
+  catch(error){if(at!==generation||closed)return;online=false;if([401,403].includes(error.status)&&!revoked){revoked=true;cached=null;save();applied=false;await onChange(null);}}
   finally{busy=false;}
  }
- const timer=setInterval(()=>{void sync();},interval);timer.unref();
+ const timer=setInterval(()=>{void sync().catch(()=>{online=false;});},interval);timer.unref();
  return {
   status,sync,
   // Use current local wall time during an outage; a stale server timestamp would freeze the timetable.
   snapshot:()=>cached?{...structuredClone(cached),serverTime:Date.now(),remote:{...status()}}:null,
-  connect:async value=>{if(busy)throw Error('Synchronization is busy. Try again shortly.');busy=true;const at=generation;try{const connection=displayLink(value,{allowLoopback}),next=await download(connection);if(closed||at!==generation)throw Error('Connection cancelled.');generation++;config=connection;cached=next;lastSync=Date.now();online=true;revoked=false;save();await onChange(cached);return status();}finally{busy=false;}},
-  disconnect:async()=>{generation++;config=null;cached=null;lastSync=null;online=false;revoked=false;if(existsSync(file))unlinkSync(file);await onChange(null);return status();},
+  connect:async value=>{if(busy)throw Error('Synchronization is busy. Try again shortly.');busy=true;const at=generation;try{const connection=displayLink(value,{allowLoopback}),next=await download(connection);if(closed||at!==generation)throw Error('Connection cancelled.');generation++;config=connection;cached=next;lastSync=Date.now();online=true;revoked=false;save();await onChange(cached);applied=true;return status();}finally{busy=false;}},
+  disconnect:async()=>{generation++;config=null;cached=null;lastSync=null;online=false;revoked=false;applied=false;if(existsSync(file))unlinkSync(file);await onChange(null);return status();},
   close:()=>{closed=true;generation++;clearInterval(timer);}
  };
 }

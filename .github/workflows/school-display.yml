@@ -32,10 +32,15 @@ jobs:
           cache-dependency-path: projects/school-display/package-lock.json
       - run: npm ci
       - run: npm test
+      - run: npm run test:browser
+      - run: npm run test:glass
+      - run: npm run test:moments
+      - run: npm run test:adjustments
       - run: npm run test:workspace
       - run: npm run test:remote
       - run: npm run test:background
       - run: npm run test:lessons
+      - run: npm run test:tour
       - name: Build local unsigned artifacts
         if: ${{ !inputs.signed }}
         run: npm run dist:win

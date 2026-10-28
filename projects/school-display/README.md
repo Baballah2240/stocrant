@@ -2,6 +2,14 @@
 
 An independent Windows classroom overlay with a local bilingual web control panel. No cloud account, internet connection, OpenAI API or subscription is required at runtime.
 
+## Version 2.3: guided tour and release review
+
+Select **Quick tour / جولة سريعة** in the control-panel header after signing in. The tour explains the sections available to your role, supports keyboard navigation and Escape, and offers an explicit **Open this section** button. It never edits or publishes data. Save your work before opening another section; unsaved settings and photo changes are protected when changing sections, switching language or leaving the page.
+
+The dashboard now follows published special days and holidays when showing today's activities. Remote screens avoid rewriting unchanged snapshots every five seconds and release unsuccessful HTTP responses. All school-image controls use the same upload validation and reset logic.
+
+See [the bilingual quick start](docs/QUICK-START-AR-EN.md), [manager presentation](output/pdf/Qatar-School-Time-Table-Presentation-AR-EN.pdf) and [release review](docs/RELEASE-REVIEW-2.3.0.md). The local build is for a supervised school pilot; public distribution still needs publisher signing and classroom acceptance checks. Public hosting remains inactive.
+
 ## Lesson presentation in version 2.2
 
 The application is now **Qatar School Time Table**. Its internal app ID and existing `%APPDATA%/School Display` data folder remain unchanged so accounts, schedules and private screen connections are preserved. Close the old application through administrator controls before installing the update; a build does not install it.
@@ -18,15 +26,15 @@ Version 2.1 adds an optional HTTPS school server connection to the Windows overl
 
 ## Use the Windows application
 
-1. Open `releases/Qatar-School-Time-Table-Setup-2.2.0-x64.exe` to install, or run the portable executable.
-2. School Display opens the control panel at **http://127.0.0.1:4318/control** and places its read-only overlay above ordinary desktop windows.
+1. Open `releases/Qatar-School-Time-Table-Setup-2.3.0-x64.exe` to install, or run the portable executable.
+2. Qatar School Time Table opens the control panel at **http://127.0.0.1:4318/control** and places its read-only overlay above ordinary desktop windows.
 3. Create the first administrator account. Choose a password of at least 12 characters and keep it safely. There is no default account or password. Under **Administrator → School users**, add administrators, timetable coordinators or teachers, assign teacher classes, edit access and disable accounts. The original administrator retains full access and cannot be disabled. Coordinators edit schedules; only administrators publish, change settings, manage screens and restore backups. Teachers see only their assigned published classes.
 4. Open **Display & school** to enter the school name, timezone and display language. Choose Arabic, English or bilingual. The control panel language is independent.
 5. Open **Timetable**. The initial draft contains a Sunday–Thursday sample; edit its teachers, subjects, rooms, lessons and breaks for your school. Save the draft, then publish.
 6. Changes reach the overlay within about three seconds. Holidays override the weekly timetable.
 7. The tray icon opens the control panel. **Administrator → Protected controls** requires your password to close the Windows application, pause via settings, or renew display access.
 
-The smaller neutral glass overlay is non-focusable and click-through during lessons, events and clock-only mode, so teachers can work in the application behind it. At the start of each lesson, break or event, it moves to the center for five seconds, then returns to its selected position or break photo mode. When no current or upcoming activity remains, it shrinks to a 120-pixel clock pill. A current final lesson/event stays visible. Settings allow top/bottom placement, compact/standard size, target monitor, pre-lesson notice and optional sound. Windows startup is opt-in. Pausing hides the native overlay; the web preview remains available.
+The neutral glass overlay is non-focusable and click-through in compact and clock modes, so teachers can work behind it. Lessons use a small clock by default, with configurable full-screen start/finish moments. The optional detailed panel centers for the configured popup duration at an activity change, then returns to its saved position. When no current or upcoming activity remains, it shrinks to a 120-pixel clock pill. A current final lesson/event is not treated as an empty day. Windows startup is opt-in. Pausing hides the native overlay; the web preview remains available.
 
 Closing a normal window does not close the overlay. This application is not an operating-system lockdown: Task Manager, OS administrators, shutdown, secure desktops and some exclusive fullscreen applications can override it. Test actual teaching applications on classroom hardware. If a teacher switches HDMI input to a separate laptop, install/run the app on that laptop to display above its output.
 
@@ -63,9 +71,9 @@ The local release is unsigned. Signed production builds and trusted update insta
 
 ## Full-screen breaks and photos
 
-In **Display & school → Full-screen school moments**, choose whether breaks fill the selected monitor. This is enabled by default. Use **Exit full screen** to return to the small panel for the remainder of that break. It does not close the application, change the timetable, or require a control-panel login. The exit remains effective through background synchronization; the next activity resets it. An active lesson always uses the compact panel, including the last lesson of the day. When a break finishes, the panel returns automatically and a short back-to-class notification appears with its image. End of day now shows only the clock, including for existing installations that previously used end-of-day photos.
+In **Display & school → Full-screen school moments**, choose whether breaks fill the selected monitor. This is enabled by default. Use **Exit full screen** to return to the small panel for the remainder of that break. It does not close the application, change the timetable, or require a control-panel login. The exit remains effective through background synchronization; the next activity resets it. An active lesson uses the small clock by default, with optional start/finish screens; disabling **Clock only during lessons** restores the detailed panel. When a break finishes, the compact display returns automatically and a short back-to-class notification appears with its image. End of day shows only the clock.
 
-Upload your own **PNG, JPEG or WebP photos up to 2 MB** for the break and the back-to-class notification, or restore the defaults. Select **Save settings** to apply them. Uploaded images stay in the local app data folder and are included in exported backups; only a signed-in account or valid display link can access them. Default photos are generated fictional students; provenance and prompts are in [assets/IMAGES.md](assets/IMAGES.md).
+Upload your own **PNG, JPEG or WebP photos up to 2 MB** for the break and the back-to-class notification, or restore the defaults. Select **Save settings** to apply them. Uploaded images stay in the local app data folder and are included in exported backups. Administrators and coordinators can access planning photos; teachers and display links are limited to their assigned published classes and school-wide images. Default photos are generated fictional students; provenance and prompts are in [assets/IMAGES.md](assets/IMAGES.md).
 
 **Press Ctrl+Alt+Shift+S** to open the local administrator panel above the full-screen photo. This only opens the login/control window; changing settings or closing the overlay still requires administrator authentication.
 
@@ -81,7 +89,7 @@ The app uses Windows display coordinates to handle resolution, DPI scaling, port
 
 The default service listens only on `127.0.0.1`, on port 4318. The control panel is available on the same computer, not other devices on the school network. Run one instance; close a development web server before opening the desktop application.
 
-Installed/portable app data is in `%APPDATA%/School Display/school.sqlite` (the precise folder follows the Electron app name). The development web-only server stores its separate database in `runtime/`. Existing accounts and schedules migrate automatically. Credentials are scrypt hashes. Sessions expire after eight hours, when the same user signs in again, changes their password, or is disabled. Different administrators can stay signed in independently. Display links have a random, revocable token and can read only published schedules. Do not share backups or display links publicly.
+Installed/portable app data stays in `%APPDATA%/School Display/school.sqlite` for compatibility after the rename. The development web-only server stores its separate database in `runtime/`. Existing accounts and schedules migrate automatically. Credentials are scrypt hashes. Sessions expire after eight hours, when the same user signs in again, changes their password, or is disabled. Different administrators can stay signed in independently. Display links have a random, revocable token and can read only published schedules. Do not share backups or display links publicly.
 
 **Administrator → Backup & recovery** exports/restores schedule and display settings. Backups never contain passwords or display tokens. Also back up the complete SQLite file while the application is closed if you need administrator account recovery. There is no email password reset in this local-only version. Do not delete the database to reset a password: that also discards the local schedules. Restore your complete database backup or ask your system administrator to assist with recovery.
 
@@ -101,6 +109,7 @@ npm.cmd run test:glass     # Compact glass layout and hover checks
 npm.cmd run test:moments   # Break/photo/full-screen transition checks
 npm.cmd run test:adjustments # Panel controls and separate class timetables
 npm.cmd run test:workspace # Themes, roles, screens and special-day workflows
+npm.cmd run test:tour      # Bilingual guided tour, role access and unsaved work
 npm.cmd run dist:win       # Installer + portable app
 ```
 
@@ -115,4 +124,4 @@ For offline operation after installation, no development tools are needed. Depen
 - `tests/`: schedule boundary tests, security/persistence checks and browser workflow verification.
 - `releases/`: generated Windows packages, excluded from source control.
 
-Independent displays on connected Windows monitors, browser display links, teacher substitutions, date-specific schedules, targeted announcements, logos, roles, theme colors and recovery are included. Secure school-network hosting is prepared and stays disabled until configured. A distributed native Windows agent, spreadsheet imports and operating-system lockdown remain separate extensions. The glass design takes inspiration from [Apple's Liquid Glass principles](https://developer.apple.com/documentation/technologyoverviews/liquid-glass); this is a Windows/web application, not a native iOS app.
+Independent displays on connected Windows monitors, browser display links, teacher substitutions, date-specific schedules, targeted announcements, logos, roles, theme colors and recovery are included. Remote Windows synchronization and HTTPS school-server hosting are prepared; live hosting stays inactive until configured and verified. Spreadsheet imports and operating-system lockdown remain separate extensions. The glass design takes inspiration from [Apple's Liquid Glass principles](https://developer.apple.com/documentation/technologyoverviews/liquid-glass); this is a Windows/web application, not a native iOS app.
