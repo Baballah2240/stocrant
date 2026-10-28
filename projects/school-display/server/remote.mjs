@@ -1,3 +1,4 @@
+import {imageRefs} from '../shared/media.mjs';
 import {existsSync,readFileSync,writeFileSync,renameSync,unlinkSync} from 'node:fs';
 import {join} from 'node:path';
 
@@ -19,7 +20,7 @@ export function createRemote({directory,images,validate,onChange=async()=>{},fet
  async function download(connection){
   const response=await fetcher(connection.origin+'/api/display?token='+connection.token+'&revision='+(cached?.revision||0),{redirect:'error',signal:AbortSignal.timeout(10000)});
   const next=validate(JSON.parse((await bounded(response,8*1024*1024)).toString()));
-  for(const ref of new Set([next.settings.breakImage,next.settings.returnImage,next.settings.logoImage])){
+  for(const ref of imageRefs(next.settings,next.schedule,next.settings.specialDays)){
    if(!ref.startsWith('/api/images/'))continue;
    try{images.read(ref);continue;}catch{}
    const bytes=await bounded(await fetcher(connection.origin+ref+'?token='+connection.token,{redirect:'error',signal:AbortSignal.timeout(10000)}),2*1024*1024);

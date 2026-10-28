@@ -1,10 +1,10 @@
-import {mkdirSync,readFileSync,writeFileSync,renameSync,existsSync} from 'node:fs';
+import {mkdirSync,readFileSync,writeFileSync,renameSync,existsSync,statSync} from 'node:fs';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
-export const defaultPhotos=['/icon.svg','/images/student-break.png','/images/student-return.png'];
+import {defaultPhotos,validPhotoPath,imageRefs} from '../shared/media.mjs';
+export {defaultPhotos,validPhotoPath};
 const custom=/^\/api\/images\/([a-f0-9]{64}\.(png|jpg|webp))$/;
 const fail=message=>{throw Object.assign(new Error(message),{status:400});};
-export const validPhotoPath=value=>typeof value==='string'&&(defaultPhotos.includes(value)||custom.test(value));
 export function createImages(directory){
  const root=join(directory,'images');mkdirSync(root,{recursive:true});
  function decode(data){
@@ -18,11 +18,11 @@ export function createImages(directory){
  }
  function save(decoded){const file=join(root,decoded.id);if(!existsSync(file)){writeFileSync(file+'.tmp',decoded.bytes,{mode:0o600});renameSync(file+'.tmp',file);}return '/api/images/'+decoded.id;}
  function read(path){const match=custom.exec(path);if(!match||!existsSync(join(root,match[1])))throw Object.assign(new Error('Image not found.'),{status:404});return {bytes:readFileSync(join(root,match[1])),type:'image/'+(match[2]==='jpg'?'jpeg':match[2])};}
- const refs=settings=>[...new Set([settings.breakImage,settings.returnImage,settings.logoImage||'/icon.svg'].filter(path=>!defaultPhotos.includes(path)))];
- function check(settings,available=new Set()){for(const ref of refs(settings))if(!validPhotoPath(ref)||(!available.has(ref)&&!existsSync(join(root,custom.exec(ref)[1]))))fail('Upload the selected image before saving settings.');}
+ const refs=imageRefs;
+ function check(settings,available=new Set(),rows=[],specials=[]){const paths=refs(settings,rows,specials);if(paths.length>64)fail('Use up to 64 different photos across your schedules.');for(const ref of paths)if(!validPhotoPath(ref)||(!available.has(ref)&&!existsSync(join(root,custom.exec(ref)[1]))))fail('Upload the selected image before saving settings.');const bytes=paths.reduce((sum,ref)=>sum+(available.get?.(ref)??(existsSync(join(root,custom.exec(ref)[1]))?statSync(join(root,custom.exec(ref)[1])).size:0)),0);if(bytes>64*1024*1024)fail('Photos must total at most 64 MB.');}
  return {
   upload:data=>save(decode(data)),read,check,
-  export:settings=>Object.fromEntries(refs(settings).map(ref=>{const image=read(ref);return [ref,`data:${image.type};base64,${image.bytes.toString('base64')}`];})),
-  prepareRestore:(images={},settings)=>{if(!images||typeof images!=='object'||Array.isArray(images)||Object.keys(images).length>3)fail('Choose a School Display backup.');const decoded=Object.entries(images).map(([ref,value])=>{const image=decode(value);if(ref!=='/api/images/'+image.id)fail('Choose a School Display backup.');return image;});check(settings,new Set(decoded.map(image=>'/api/images/'+image.id)));return ()=>decoded.forEach(save);}
+  export:(settings,rows=[],specials=[])=>Object.fromEntries(refs(settings,rows,specials).map(ref=>{const image=read(ref);return [ref,`data:${image.type};base64,${image.bytes.toString('base64')}`];})),
+  prepareRestore:(images={},settings,rows=[],specials=[])=>{if(!images||typeof images!=='object'||Array.isArray(images)||Object.keys(images).length>64)fail('Choose a School Display backup.');const decoded=Object.entries(images).map(([ref,value])=>{const image=decode(value);if(ref!=='/api/images/'+image.id)fail('Choose a School Display backup.');return image;});if(decoded.reduce((sum,image)=>sum+image.bytes.length,0)>64*1024*1024)fail('Backup photos must total at most 64 MB.');check(settings,new Map(decoded.map(image=>['/api/images/'+image.id,image.bytes.length])),rows,specials);return ()=>decoded.forEach(save);}
  };
 }

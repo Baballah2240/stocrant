@@ -40,7 +40,7 @@ Publish your classes and timetable. In **Classrooms & screens**, add a screen us
 
 ## 5. Connect the Windows app
 
-Install version 2.1.0 or later. Close the previous version through its administrator controls before updating. The installer is unsigned until a signing certificate is configured: school IT must approve deployment; do not bypass Windows Application Control.
+Install Qatar School Time Table version 2.2.0 or later. Close the previous version through its administrator controls before updating. The installer is unsigned until a signing certificate is configured: school IT must approve deployment; do not bypass Windows Application Control.
 
 In the Windows app's local control panel, open **System & recovery → Connect this Windows display**, paste the copied HTTPS screen link and enter the **local** administrator password. Press **Connect & synchronize**. Published lessons, special days, announcements, themes and uploaded images synchronize every five seconds. The display checks the local service every few seconds, so allow roughly ten seconds after publishing. Windows monitor placement/autostart and protected exit remain local. Remote mode shows one assigned class on the primary configured overlay; it suspends additional local timetable windows. Use separate Windows installations for different remote classrooms. To return to the old local timetable, use **Disconnect & use local timetable** with the local administrator password.
 

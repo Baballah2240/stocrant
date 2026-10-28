@@ -1,10 +1,10 @@
 {
   "name": "school-display",
-  "productName": "School Display",
-  "version": "2.1.1",
+  "productName": "Qatar School Time Table",
+  "version": "2.2.0",
   "private": true,
   "description": "Bilingual school timetable and Windows classroom overlay",
-  "author": "School Display",
+  "author": "Qatar School Time Table",
   "license": "UNLICENSED",
   "type": "module",
   "main": "desktop/main.cjs",
@@ -21,7 +21,8 @@
     "dist:win:signed": "electron-builder --config build/signed.cjs --win nsis portable --x64",
     "test:workspace": "node tests/workspace.mjs",
     "test:remote": "node tests/remote-browser.mjs",
-    "test:background": "node tests/background.mjs"
+    "test:background": "node tests/background.mjs",
+    "test:lessons": "node tests/lesson-screens.mjs"
   },
   "dependencies": {
     "sql.js": "1.15.2"
@@ -32,7 +33,7 @@
   },
   "build": {
     "appId": "online.schooldisplay.desktop",
-    "productName": "School Display",
+    "productName": "Qatar School Time Table",
     "directories": {
       "output": "releases"
     },
@@ -60,7 +61,7 @@
       "signExecutable": false
     },
     "nsis": {
-      "artifactName": "School-Display-Setup-${version}-${arch}.${ext}",
+      "artifactName": "Qatar-School-Time-Table-Setup-${version}-${arch}.${ext}",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
@@ -68,7 +69,7 @@
       "deleteAppDataOnUninstall": false
     },
     "portable": {
-      "artifactName": "School-Display-Portable-${version}-${arch}.${ext}"
+      "artifactName": "Qatar-School-Time-Table-Portable-${version}-${arch}.${ext}"
     }
   }
 }

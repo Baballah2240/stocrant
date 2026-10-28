@@ -141,3 +141,18 @@
 /* Keep the renderer and its measured alert space active while hiding the bar. */
 .display-page.bar-hidden .panel-shell{visibility:hidden;pointer-events:none}
 .display-page.bar-hidden.clock-only #alert.show{display:flex}
+/* The native lesson window remains wide and click-through while the pill docks. */
+.display-page.lesson-clock #display{max-width:none;width:100%;display:flex;justify-content:center}
+.display-page.lesson-clock .panel-shell{width:120px;flex:0 0 120px;transform:translateX(0);transition:transform 8s ease-in-out}
+.display-page.lesson-clock.lesson-docked[data-dock-side=right] .panel-shell{transform:translateX(calc((100vw - 144px)/2 - var(--panel-margin,12px)))}
+.display-page.lesson-clock.lesson-docked[data-dock-side=left] .panel-shell{transform:translateX(calc((144px - 100vw)/2 + var(--panel-margin,12px)))}
+.display-page.lesson-clock #alert.show{display:flex}
+.display-page .cinema-teacher{font-size:clamp(20px,2.5vw,32px);line-height:1.5;color:#e8f3ed;margin:8px 0 18px}
+.display-page .cinema-photo img[src^="/icon.svg"]{object-fit:contain;padding:12%}
+.display-page.lesson-screen #display{display:none}
+.display-page.lesson-screen .cinema{grid-row:2}
+.display-page .cinema-next[hidden]{display:none}
+.display-page:dir(rtl) .cinema-countdown>strong{text-align:right}
+.display-page .cinema-subject{font-size:clamp(20px,2.5vw,30px);line-height:1.5;color:#e1eee6;margin:8px 0}
+.display-page.lesson-screen .cinema-photo img{object-fit:contain;background:#102430}
+@media(prefers-reduced-motion:reduce){.display-page.lesson-clock .panel-shell{transition:none}}

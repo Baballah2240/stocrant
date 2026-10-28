@@ -7,6 +7,8 @@ import {startServer} from '../server/server.mjs';
 import {browserQa} from './browser-helper.mjs';
 const directory=mkdtempSync(join(tmpdir(),'school-background-')),app=await startServer({directory,port:0}),shots=resolve('.qa/background');mkdirSync(shots,{recursive:true});let browser;
 try{
+ // Keep exercising the optional detailed-panel layout alongside the new lesson clock suite.
+ Object.assign(app.store.get().settings,{lessonClock:false,lessonLeadSeconds:0,lessonStartSeconds:0,lessonFinishSeconds:0});app.store.save();
  const password=randomBytes(24).toString('hex');let cookie='';
  const req=async(path,body,method='POST',session=cookie)=>{const response=await fetch(app.origin+'/api/'+path,{method,headers:{Origin:app.origin,'Content-Type':'application/json',Cookie:session},body:JSON.stringify(body)});return {status:response.status,response,data:await response.json()};};
  await req('setup',{name:'Owner',email:'background@school.test',password});cookie=(await req('login',{email:'background@school.test',password})).response.headers.get('set-cookie').split(';')[0];

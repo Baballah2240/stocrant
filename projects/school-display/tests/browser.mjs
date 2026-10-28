@@ -6,6 +6,8 @@ import {startServer} from '../server/server.mjs';
 import {browserQa} from './browser-helper.mjs';
 const directory=mkdtempSync(join(tmpdir(),'school-display-browser-')),app=await startServer({directory,port:0}),shots=resolve('.qa');mkdirSync(shots,{recursive:true});let browser;
 try{
+ // Keep exercising the optional detailed-panel layout alongside the new lesson clock suite.
+ Object.assign(app.store.get().settings,{lessonClock:false,lessonLeadSeconds:0,lessonStartSeconds:0,lessonFinishSeconds:0});app.store.save();
  browser=await browserQa(directory);const {send,evaluate,until}=browser;await send('Page.enable');
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1050,deviceScaleFactor:1,mobile:false});
  const errors=[];await send('Runtime.enable');

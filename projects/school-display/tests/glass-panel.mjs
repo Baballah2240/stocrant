@@ -7,6 +7,8 @@ import {startServer} from '../server/server.mjs';
 import {browserQa} from './browser-helper.mjs';
 const directory=mkdtempSync(join(tmpdir(),'school-glass-')),app=await startServer({directory,port:0}),shots=resolve('.qa/glass');mkdirSync(shots,{recursive:true});let browser;
 try{
+ // Keep exercising the optional detailed-panel layout alongside the new lesson clock suite.
+ Object.assign(app.store.get().settings,{lessonClock:false,lessonLeadSeconds:0,lessonStartSeconds:0,lessonFinishSeconds:0});app.store.save();
  const password=randomBytes(24).toString('hex');
  async function post(path,body,cookie=''){const response=await fetch(app.origin+'/api/'+path,{method:'POST',headers:{Origin:app.origin,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body)});assert.ok(response.ok,await response.clone().text());return response;}
  await post('setup',{name:'School Admin',email:'glass@school.test',password});const login=await post('login',{email:'glass@school.test',password});const cookie=login.headers.get('set-cookie').split(';')[0];await post('publish',{},cookie);

@@ -1,6 +1,16 @@
-# School Display · جدول المدرسة
+# Qatar School Time Table
 
 An independent Windows classroom overlay with a local bilingual web control panel. No cloud account, internet connection, OpenAI API or subscription is required at runtime.
+
+## Lesson presentation in version 2.2
+
+The application is now **Qatar School Time Table**. Its internal app ID and existing `%APPDATA%/School Display` data folder remain unchanged so accounts, schedules and private screen connections are preserved. Close the old application through administrator controls before installing the update; a build does not install it.
+
+During lessons, only the school clock appears and moves gently toward the configured left or right edge over eight seconds. Reduced-motion settings use an immediate move. Under **Display & school > Lesson screens and photos**, choose the countdown lead (0-120 seconds, default 10), the start-photo duration when lead is 0 (0-60 seconds), and the lesson-finished screen duration (0-60 seconds). Zero duration disables that screen. Turning off **Clock only during lessons** restores the detailed panel.
+
+Use **Edit activity** to upload a **Teacher photo** and an **Activity photo**. The teacher image is used for the lesson-start countdown; the activity image is used for that activity's finish or break/event screen. Global fallback photos are available for lesson start, lesson finish and events, alongside the existing break and back-to-class images. No teacher photo is fabricated: without an upload the school icon is used. Images must be PNG/JPEG/WebP up to 2 MB each; referenced photos are limited to 64 unique images totaling 64 MB. Photos are included in business backups and remote snapshots, and each screen can access only photos from its assigned published class plus school-wide images.
+
+Finish screens precede the next lesson's zero-lead start photo. Countdowns use school time, not accumulated interval ticks; missed lessons after a long sleep are not replayed. Full-screen views have an Exit button. The hide-bar option still leaves timed screens and notifications running.
 
 ## Central hosting and remote screens
 
@@ -8,7 +18,7 @@ Version 2.1 adds an optional HTTPS school server connection to the Windows overl
 
 ## Use the Windows application
 
-1. Open `releases/School-Display-Setup-2.1.1-x64.exe` to install, or run the portable executable.
+1. Open `releases/Qatar-School-Time-Table-Setup-2.2.0-x64.exe` to install, or run the portable executable.
 2. School Display opens the control panel at **http://127.0.0.1:4318/control** and places its read-only overlay above ordinary desktop windows.
 3. Create the first administrator account. Choose a password of at least 12 characters and keep it safely. There is no default account or password. Under **Administrator → School users**, add administrators, timetable coordinators or teachers, assign teacher classes, edit access and disable accounts. The original administrator retains full access and cannot be disabled. Coordinators edit schedules; only administrators publish, change settings, manage screens and restore backups. Teachers see only their assigned published classes.
 4. Open **Display & school** to enter the school name, timezone and display language. Choose Arabic, English or bilingual. The control panel language is independent.

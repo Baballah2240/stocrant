@@ -7,6 +7,8 @@ import {startServer} from '../server/server.mjs';
 import {browserQa} from './browser-helper.mjs';
 const directory=mkdtempSync(join(tmpdir(),'school-moments-')),app=await startServer({directory,port:0}),shots=resolve('.qa/moments');mkdirSync(shots,{recursive:true});let browser;
 try{
+ // Keep exercising the optional detailed-panel layout alongside the new lesson clock suite.
+ Object.assign(app.store.get().settings,{lessonClock:false,lessonLeadSeconds:0,lessonStartSeconds:0,lessonFinishSeconds:0});app.store.save();
  const password=randomBytes(24).toString('hex');async function post(path,body,cookie=''){const res=await fetch(app.origin+'/api/'+path,{method:'POST',headers:{Origin:app.origin,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body)});assert.ok(res.ok,await res.clone().text());return res;}
  await post('setup',{name:'School Administrator',email:'moments@school.test',password});const login=await post('login',{email:'moments@school.test',password});const cookie=login.headers.get('set-cookie').split(';')[0];await post('publish',{},cookie);Object.assign(app.store.get().settings,{schoolEn:'Al Noor International School',schoolAr:'مدرسة النور الدولية'});app.store.save();
  browser=await browserQa(directory);const {send,evaluate,until}=browser;await send('Page.enable');await send('Network.enable');await send('Network.setCookie',{name:'school_session',value:cookie.split('=')[1],url:app.origin,path:'/'});await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});

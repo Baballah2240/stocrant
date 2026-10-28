@@ -1,3 +1,4 @@
+import {validPhotoPath} from './media.mjs';
 export function schoolClock(now, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {timeZone: timezone, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23', weekday:'short'}).formatToParts(now).map(p=>[p.type,p.value]));
   return {date:`${parts.year}-${parts.month}-${parts.day}`, day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday), seconds:Number(parts.hour)*3600+Number(parts.minute)*60+Number(parts.second)};
@@ -24,6 +25,7 @@ export function validateSchedule(input) {
   for (const row of input) {
     if (!row || typeof row.id!=='string' || row.id.length>80 || ids.has(row.id)) throw new Error('Each timetable entry needs a unique ID.');
     ids.add(row.id);
+    for(const key of ['teacherImage','actionImage'])if(row[key]!==undefined&&row[key]!==''&&!validPhotoPath(row[key]))throw Error('Choose an uploaded activity photo.');
     if(row.classId!==undefined&&(typeof row.classId!=='string'||!/^[\w-]{1,80}$/.test(row.classId)))throw Error('Choose a valid class group.');
     if (!Number.isInteger(row.day) || row.day<0 || row.day>6 || !['lesson','break','event'].includes(row.type)) throw new Error('Choose a valid day and activity.');
     if (![row.start,row.end].every(t=>typeof t==='string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)) || minutes(row.end)<=minutes(row.start)) throw new Error('End time must be after start time on the same day.');
@@ -35,7 +37,7 @@ export function validateSchedule(input) {
     const list=input.filter(r=>r.day===day).sort((a,b)=>(a.classId||'default').localeCompare(b.classId||'default')||a.start.localeCompare(b.start));
     for(let i=1;i<list.length;i++) if((list[i].classId||'default')===(list[i-1].classId||'default')&&list[i].start<list[i-1].end) throw new Error('Timetable entries cannot overlap on the same day.');
   }
-  return input.map(({id,classId='default',day,type,start,end,subjectEn,subjectAr,teacherEn,teacherAr,room})=>({id,classId,day,type,start,end,subjectEn:subjectEn.trim(),subjectAr:subjectAr.trim(),teacherEn:teacherEn.trim(),teacherAr:teacherAr.trim(),room:room.trim()}));
+  return input.map(({id,classId='default',day,type,start,end,subjectEn,subjectAr,teacherEn,teacherAr,room,teacherImage='',actionImage=''})=>({id,classId,day,type,start,end,subjectEn:subjectEn.trim(),subjectAr:subjectAr.trim(),teacherEn:teacherEn.trim(),teacherAr:teacherAr.trim(),room:room.trim(),teacherImage,actionImage}));
 }
 export function scheduleState(schedule,settings,now=new Date()) {
   const clock=schoolClock(now,settings.timezone);

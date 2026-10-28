@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:workspace
       - run: npm run test:remote
       - run: npm run test:background
+      - run: npm run test:lessons
       - name: Build local unsigned artifacts
         if: ${{ !inputs.signed }}
         run: npm run dist:win
@@ -52,8 +53,8 @@ jobs:
         with:
           name: school-display-windows-${{ github.sha }}
           path: |
-            projects/school-display/releases/School-Display-Setup-*.exe
-            projects/school-display/releases/School-Display-Portable-*.exe
+            projects/school-display/releases/Qatar-School-Time-Table-Setup-*.exe
+            projects/school-display/releases/Qatar-School-Time-Table-Portable-*.exe
             projects/school-display/releases/build-manifest.json
             projects/school-display/releases/SHA256SUMS.txt
           if-no-files-found: error

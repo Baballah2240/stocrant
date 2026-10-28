@@ -8,6 +8,8 @@ import {browserQa} from './browser-helper.mjs';
 const directory=mkdtempSync(join(tmpdir(),'school-workspace-')),app=await startServer({directory,port:0,updateEnv:{}}),shots=resolve('.qa/workspace');mkdirSync(shots,{recursive:true});let browser,cookie='';const password=randomBytes(24).toString('hex');
 async function request(path,body,method='POST'){const r=await fetch(app.origin+'/api/'+path,{method:body===undefined?'GET':method,headers:{Origin:app.origin,Cookie:cookie,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});assert.ok(r.ok,await r.clone().text());return {data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
 try{
+ // Keep exercising the optional detailed-panel layout alongside the new lesson clock suite.
+ Object.assign(app.store.get().settings,{lessonClock:false,lessonLeadSeconds:0,lessonStartSeconds:0,lessonFinishSeconds:0});app.store.save();
  await request('setup',{name:'School Administrator',email:'workspace@school.test',password});cookie=(await request('login',{email:'workspace@school.test',password})).cookie;
  const group=(await request('classes',{nameEn:'Grade 6A',nameAr:'الصف السادس أ'})).data.group,lesson={...app.store.get().draft[0],id:'art',classId:group.id,teacherEn:'Art teacher',teacherAr:'معلم الفنون',subjectEn:'Art',subjectAr:'الفنون'};
  await request('draft',{schedule:[...app.store.get().draft,lesson]},'PUT');await request('publish',{});
