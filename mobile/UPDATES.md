@@ -1,5 +1,16 @@
 # Mobile update history
 
+## 2026-10-30 - Mobile workspace layout refresh
+
+- Add a compact, sticky mobile header with the current section; remove the unnecessary Back control on Home. Keep account navigation, profile, language, appearance and notifications accessible.
+- Present authorized workspace services as a two-column grid in More, with a compact account card. Add a Finance shortcut to the Super Admin's bottom navigation; preserve the employee's personal tabs, permission-based Work tab and existing permission checks.
+- Use consistent page spacing, safe-area clearance, wrapping actions and touch targets. Contain organization table headings within their scroller so they do not expand the phone viewport.
+- Present HR employees as labelled phone cards while retaining sorting, search, profile links and permitted actions. Desktop employee tables retain their table layout.
+- Add isolated browser verification for English/Arabic, light/dark, 360/390/700-pixel screens, simulated native tablet layout, drawer focus/Escape/navigation, employee form/profile and restricted employee navigation.
+- Verification: the complete check command passed 276 tests plus type checks, builds, storage and production smoke checks. The mobile matrix covers 96 layouts and interaction regressions; desktop employee tables retain their original layout.
+- Built Android 1.0.2 (version code 2). Its signature is valid and matches the previous local testing APK; all 67 bundled web assets match the new frontend build. No Android device was connected for installation or hardware testing.
+- Android update uses bundled assets, the existing HTTPS server default and debug signing. Build/save verification and the exact source commit/checksum are recorded separately in ignored `mobile/releases/latest.json`; installation is not automatic.
+
 ## 2026-10-26 - Approved employee contract PDFs
 
 - Add HR contract management covering every assigned employee, private PDF uploads/replacements and versioned HR Manager drafts. Require Company Manager approval for each published revision; other roles cannot author contracts.

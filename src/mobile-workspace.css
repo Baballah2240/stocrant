@@ -1,0 +1,90 @@
+/* Shared browser/native mobile layout. Desktop remains controlled by its workspace styles. */
+@media screen {
+  .ios-app.mobile-layout {
+    --mobile-content-width: 1120px;
+    --mobile-nav-height: 76px;
+    min-height: 100dvh;
+  }
+  .ios-app.mobile-layout .main { padding: 0; min-width: 0; }
+  .ios-app.mobile-layout .page {
+    width: 100%; max-width: var(--mobile-content-width); min-width: 0;
+    margin-inline: auto; padding: 20px 16px calc(var(--mobile-nav-height) + 24px + env(safe-area-inset-bottom)); gap: 18px;
+  }
+  .ios-app.mobile-layout .page > *, .ios-app.mobile-layout .card > *,
+  .ios-app.mobile-layout :is(.org-workspace-grid,.org-detail,.org-detail-toolbar,.finance-connected) { min-width: 0; }
+  .ios-app.mobile-layout .page .page { padding: 0; }
+  .ios-app.mobile-layout :is(.page-head,.page-header,.org-page-heading,.hr-hero) { align-items: stretch; flex-direction: column; gap: 14px; }
+  .ios-app.mobile-layout h1, .ios-app.mobile-layout .hr-hero h1 { font-size: clamp(24px,6vw,30px); line-height: 1.3; letter-spacing: -.025em; margin-block: 0 6px; }
+  .ios-app.mobile-layout h2 { font-size: 18px; line-height: 1.4; }
+  .ios-app.mobile-layout .page .hint { line-height: 1.65; overflow-wrap: anywhere; }
+  .ios-app.mobile-layout :is(.card,.entity-card,.workspace-toolbar) { border-radius: 18px; }
+  .ios-app.mobile-layout :is(.page-head,.page-header,.hr-hero) > .inline-actions { display: flex; flex-wrap: wrap; width: 100%; gap: 8px; }
+  .ios-app.mobile-layout :is(.page-head,.page-header,.hr-hero) > .inline-actions > :is(button,a) { flex: 1 1 130px; justify-content: center; text-align: center; }
+  .ios-app.mobile-layout .topbar {
+    position: sticky; top: 0; z-index: 60; gap: 8px;
+    min-height: 68px; padding: calc(8px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));
+  }
+  .mobile-header-title { display: grid; gap: 2px; flex: 1; min-width: 0; line-height: 1.3; }
+  .mobile-header-title > span { font-size: 9px; font-weight: 750; letter-spacing: .14em; color: var(--brand-link); }
+  .mobile-header-title > strong { font-size: 13px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ios-app.mobile-layout .topbar :is(.mobile-header-control,.notification-trigger) { width: 44px; height: 44px; min-height: 44px; flex-shrink: 0; padding: 10px; border-radius: 14px; }
+  .ios-app.mobile-layout .topbar .mobile-header-back { min-width: 0; font-size: 13px; padding-inline: 0; }
+  .ios-app.mobile-layout .mobile-bottom-nav { min-height: var(--mobile-nav-height); gap: 4px; padding: 6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); }
+  .ios-app.mobile-layout .mobile-bottom-nav a { min-height: 56px; padding: 6px 2px; border-radius: 14px; font-size: 11px; line-height: 1.4; text-align: center; }
+  .ios-app.mobile-layout .mobile-bottom-nav a.active { background: var(--brand-green-soft); color: var(--brand-link); }
+  .ios-app.mobile-layout :is(.table-wrap,.org-table-wrap) { position: relative; max-width: 100%; overscroll-behavior-x: contain; }
+  .ios-app.mobile-layout .org-detail-toolbar > .choice-select { max-width: 100%; }
+  .ios-app.mobile-layout .finance-tabs { width: 100%; min-width: 0; padding: 4px; gap: 5px; }
+  .ios-app.mobile-layout .finance-tabs button { min-height: 44px; padding: 10px 14px; }
+  .ios-app.mobile-layout .finance-shortcuts { gap: 8px; }
+  .ios-app.mobile-layout .finance-shortcuts button { min-height: 64px; border-radius: 14px; }
+  .ios-app.mobile-layout .mobile-drawer-content { padding-inline: 16px; }
+  .ios-app.mobile-layout .mobile-account-drawer { overscroll-behavior: contain; }
+  .ios-app.mobile-layout .mobile-drawer-workspace-nav { display: grid; gap: 4px; }
+  .ios-app.mobile-layout .mobile-drawer-workspace-nav .nav-item { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 12px; border-radius: 12px; }
+  .ios-app.mobile-layout .mobile-drawer-workspace-nav .nav-item.active { color: var(--brand-link); background: var(--brand-green-soft); }
+  .ios-app.mobile-layout .mobile-drawer-workspace-nav .mobile-icon { width: 21px; height: 21px; flex-shrink: 0; }
+  .mobile-more-page .mobile-services-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .mobile-more-page .mobile-service-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-height: 126px; padding: 16px; border: 1px solid var(--ios-separator); border-radius: 18px; color: var(--ios-label); background: var(--ios-cell); }
+  .mobile-service-tile .mobile-service-icon { margin: 0; width: 40px; height: 40px; border-radius: 12px; }
+  .mobile-service-tile strong { font-size: 14px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+  .mobile-service-tile:focus-visible { outline: 2px solid var(--brand-link); outline-offset: 3px; }
+  .mobile-more-page .mobile-more-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .mobile-more-heading .hint { margin: 0; }
+  .mobile-account-avatar { width: 48px; height: 48px; display: grid; place-items: center; flex-shrink: 0; overflow: hidden; border-radius: 16px; background: var(--brand-green-soft); color: var(--brand-link); font-weight: 700; }
+  .mobile-account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .mobile-more-heading > div { min-width: 0; }
+  .mobile-more-page .mobile-account-links { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 14px; }
+  .mobile-account-links a { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px; border-radius: 12px; background: var(--ios-fill); font-size: 12px; color: var(--ios-label); }
+  .mobile-account-links .mobile-icon { width: 20px; height: 20px; flex-shrink: 0; }
+  .mobile-more-section > h2 { margin: 0 0 12px; }
+  .mobile-more-page .mobile-more-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .mobile-more-footer a { min-height: 44px; display: inline-flex; align-items: center; font-size: 13px; }
+  .ios-app.mobile-layout .mobile-more-footer button { display: flex; gap: 8px; align-items: center; }
+  .mobile-more-footer .mobile-icon { width: 20px; height: 20px; }
+  /* Keep the sortable employee headings and all record actions; use labelled cards on phones. */
+  .ios-app.mobile-layout .hr-directory .table-wrap { max-height: none; overflow: visible; border: 0; }
+  .ios-app.mobile-layout .hr-directory-table, .ios-app.mobile-layout .hr-directory-table :is(thead,tbody) { display: block; width: 100%; min-width: 0; }
+  .ios-app.mobile-layout .hr-directory-table thead tr { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+  .ios-app.mobile-layout .hr-directory-table th { position: static; border: 0; padding: 0; }
+  .ios-app.mobile-layout .hr-directory-table th:not([aria-sort]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ios-app.mobile-layout .hr-directory-table th .hr-sort { min-height: 44px; padding: 8px 10px; border: 1px solid var(--ios-separator); border-radius: 10px; font-size: 12px; }
+  .ios-app.mobile-layout .hr-directory-table th[aria-sort]:not([aria-sort="none"]) .hr-sort { background: var(--brand-green-soft); color: var(--brand-link); }
+  .ios-app.mobile-layout .hr-directory-table tbody tr { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 0 12px 12px; padding: 16px; border: 1px solid var(--ios-separator); border-radius: 16px; background: var(--ios-cell); }
+  .ios-app.mobile-layout .hr-directory-table td { min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; font-size: 12px; }
+  .ios-app.mobile-layout .hr-directory-table td::before { content: attr(data-label); display: block; margin-bottom: 5px; color: var(--ios-label-2); font-size: 10px; }
+  .ios-app.mobile-layout .hr-directory-table td:nth-child(2) { grid-column: 1/-1; grid-row: 1; }
+  .ios-app.mobile-layout .hr-directory-table td:is(:nth-child(2),:last-child)::before { display: none; }
+  .ios-app.mobile-layout .hr-directory-table td:last-child { grid-column: 1/-1; padding-top: 12px; border-top: 1px solid var(--ios-separator); }
+  .ios-app.mobile-layout .hr-directory-person { min-width: 0; max-width: 100%; padding: 0; text-align: start; }
+  .ios-app.mobile-layout .hr-directory-person > span:last-child { min-width: 0; }
+  .ios-app.mobile-layout .hr-directory-person small { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
+  .ios-app.mobile-layout .hr-job-cell, .ios-app.mobile-layout .hr-directory-actions { min-width: 0; }
+  .ios-app.mobile-layout .hr-directory-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ios-app.mobile-layout .hr-directory-actions :is(a,button) { min-height: 44px; padding: 10px 12px; }
+  html[dir="rtl"] .mobile-header-title > span { letter-spacing: 0; }
+}
+@media screen and (min-width: 800px) {
+  .ios-app.mobile-layout .mobile-services-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .ios-app.mobile-layout .page { padding-inline: 24px; }
+}

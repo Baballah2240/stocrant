@@ -99,14 +99,14 @@ export default function EmployeeDirectory({ employees, departments, canCreate, c
         <th scope="col"><span className="visually-hidden">{t("Actions")}</span></th>
       </tr></thead>
       <tbody>{rows.map((item) => <tr key={item.id}>
-        <td>{readable(item.employeeCode, String(item.id))}</td>
-        <td><button type="button" className="hr-directory-person" onClick={() => navigate(`/hr/employees/${item.id}`)}><span className="hr-avatar" aria-hidden="true">{initials(item.name)}</span><span><strong>{readable(item.name, "Unnamed employee")}</strong><small>{readable(item.email, "No email on file")}</small></span></button></td>
-        <td><div className="hr-job-cell"><strong>{readable(item.department)}</strong><small>{readable(item.jobTitle)}</small></div></td>
-        <td>{readable(item.location, "—")}</td>
-        <td dir="ltr">{readable(item.phone, "—")}</td>
-        <td><StatusPill status={item.status} /></td><td><span className="hr-account-status">{accounts[item.id] ? t(accounts[item.id]) : t("Not recorded")}</span></td>
-        <td>{formatFieldValue(item.hireDate)}</td>
-        <td><span className="hr-directory-actions">{canEdit && <EmployeeCommunicationLink employeeId={item.id} />}<button type="button" onClick={() => navigate(`/hr/employees/${item.id}`)}>{t("View")}</button>{canEdit ? <button type="button" onClick={() => navigate(`/hr/employees/${item.id}/edit`)}>{t("Edit")}</button> : null}{canDelete ? <button type="button" className="danger" disabled={deleting} onClick={() => onDelete(item.id)}>{t("Delete")}</button> : null}</span></td>
+        <td data-label={t("Employee ID")}>{readable(item.employeeCode, String(item.id))}</td>
+        <td data-label={t("Employee")}><button type="button" className="hr-directory-person" onClick={() => navigate(`/hr/employees/${item.id}`)}><span className="hr-avatar" aria-hidden="true">{initials(item.name)}</span><span><strong>{readable(item.name, "Unnamed employee")}</strong><small>{readable(item.email, "No email on file")}</small></span></button></td>
+        <td data-label={t("Department")}><div className="hr-job-cell"><strong>{readable(item.department)}</strong><small>{readable(item.jobTitle)}</small></div></td>
+        <td data-label={t("Work location")}>{readable(item.location, "—")}</td>
+        <td data-label={t("Phone")}><bdi dir="ltr">{readable(item.phone, "—")}</bdi></td>
+        <td data-label={t("Status")}><StatusPill status={item.status} /></td><td data-label={t("Account status")}><span className="hr-account-status">{accounts[item.id] ? t(accounts[item.id]) : t("Not recorded")}</span></td>
+        <td data-label={t("Join date")}>{formatFieldValue(item.hireDate)}</td>
+        <td data-label={t("Actions")}><span className="hr-directory-actions">{canEdit && <EmployeeCommunicationLink employeeId={item.id} />}<button type="button" onClick={() => navigate(`/hr/employees/${item.id}`)}>{t("View")}</button>{canEdit ? <button type="button" onClick={() => navigate(`/hr/employees/${item.id}/edit`)}>{t("Edit")}</button> : null}{canDelete ? <button type="button" className="danger" disabled={deleting} onClick={() => onDelete(item.id)}>{t("Delete")}</button> : null}</span></td>
       </tr>)}</tbody>
     </table></div> : <div className="hr-empty-state"><p>{t("No employees match these filters.")}</p></div> : <div className="hr-empty-state"><p>{t("No employees yet.")}</p>{canCreate ? <NavLink to="/hr/employees/new">{t("Add the first employee")}</NavLink> : null}</div>}
     {sorted.length > 0 ? <div className="hr-pagination"><span>{t("Page")} {currentPage} / {pages} · {sorted.length} {t("employees")}</span><div className="inline-actions"><button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>{t("Previous")}</button><button type="button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>{t("Next")}</button></div></div> : null}

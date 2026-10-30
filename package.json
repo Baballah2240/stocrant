@@ -55,6 +55,7 @@
     "test:administration": "npm run build:full && node scripts/verify-administration.mjs",
     "test:work-activity": "npm run build:full && node scripts/verify-work-activity.mjs",
     "test:mobile-attendance": "npm run build:full && node scripts/verify-mobile-attendance.mjs",
+    "test:mobile-layout": "npm run build:full && node scripts/verify-mobile-layout.mjs",
     "test:financial-money": "node --test scripts/test-financial-money.mjs",
     "test:operations": "npm run build:full && node scripts/verify-operations.mjs",
     "build:website": "npm --prefix public-website run build",
