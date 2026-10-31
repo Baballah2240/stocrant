@@ -1,5 +1,13 @@
 # Mobile update history
 
+## 2026-10-31 - Android 1.0.3 update
+
+- Package the latest AER workspace, sign-in and responsive layout changes in the Android app. Native startup opens sign-in or the workspace instead of the old climate landing page.
+- Build version 1.0.3 (version code 3) with bundled assets and the default HTTPS API at `https://www.mohbaba.online`. Cleartext and mixed-content connections remain disabled.
+- Verify the APK signature and confirm it matches the previous local 1.0.2 testing APK. All 67 bundled web files match the new frontend build by SHA-256.
+- Save the APK and checksum/build manifest under ignored `mobile/releases/`. Preserve the prior 1.0.2 APK separately. This is a debug-signed testing package; no device was connected for installation or hardware verification.
+- This package updates the native interface independently of the live website deployment. GitHub/hosting publication is recorded separately.
+
 ## 2026-10-31 - AER workspace and Stocrant landing refresh
 
 - Apply the AER light neumorphism palette to the shared business workspace: softly raised panels, recessed fields and tabs, blue actions, refined navigation and readable tables. Retain saved dark appearance, Arabic support, responsive layouts and native safe areas.
