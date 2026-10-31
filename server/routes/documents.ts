@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { authenticatedUser } from "../auth.js";
+import { publicErrorMessage } from "../public-error.js";
 import { can, isWithinScope } from "../permissions.js";
 import { getStore, saveStore, transaction } from "../storage.js";
 import { audit } from "../workspace.js";
@@ -12,7 +13,7 @@ const router = Router();
 function mutationResponse(req: Request, result: DocumentMutation) { return { ...result, ...(result.item ? { item: safeDocument(req.auth!, result.item) } : {}) }; }
 function failure(res: Response, error: unknown) {
   if (typeof (error as { code?: string })?.code === "string" && /^(EACCES|EPERM|ENOSPC|EIO|ENOENT|EROFS)$/.test((error as { code: string }).code)) return res.status(503).json({ error: "Document storage is temporarily unavailable. Contact the Main Admin." });
-  return res.status((error as { statusCode?: number })?.statusCode || 400).json({ error: error instanceof Error ? error.message : "Document operation failed." });
+  return res.status((error as { statusCode?: number })?.statusCode || 400).json({ error: publicErrorMessage(error, "Document operation failed.") });
 }
 router.get("/config", (req, res) => {
   if (!can(req.auth, "hr", "view")) return res.status(403).json({ error: "You do not have permission to view documents." });

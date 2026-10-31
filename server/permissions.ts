@@ -148,7 +148,9 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
   const employeeRecord = employees.find(employee => employee.id === row.id);
   if (employeeRecord) return employeeRecord.id === user.employeeId || employeeRecord.accountId === user.id;
   const stable = [row.email, row.createdBy, row.createdById, row.assignee, row.employee].filter((value): value is string => typeof value === "string");
-  if (stable.some(value => identities.has(value) || value === user.email)) return true;
+  // Account emails are self-editable, so only the HR-managed linked record's email proves identity.
+  const linkedEmail = String(employees.find(employee => employee.id === user.employeeId)?.email ?? "").toLowerCase();
+  if (stable.some(value => identities.has(value) || (linkedEmail && value.toLowerCase() === linkedEmail))) return true;
   // Legacy display-name assignments remain readable only through an unambiguous,
   // linked employee identity. Changing an account's display name grants no access.
   const names = [row.assignee, row.employee].filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
@@ -160,13 +162,15 @@ export function isWithinScope(user: AuthenticatedUser, row: Record<string, unkno
 
 export function redactRecord(collection: string, row: Record<string, unknown>, user: AuthenticatedUser): Record<string, unknown> {
   const result = { ...row };
-  if (collection === "employees" && !canViewPersonalData(user) && row.id !== user.employeeId) {
+  // A pending record has no id and an unlinked account has no employeeId; neither is "own".
+  const ownEmployee = Boolean(user.employeeId) && row.id === user.employeeId;
+  if (collection === "employees" && !canViewPersonalData(user) && !ownEmployee) {
     delete result.email;
     delete result.phone;
     delete result.address;
     delete result.birthday;
   }
-  if (collection === "employees" && !canViewSalaryData(user) && row.id !== user.employeeId) delete result.salary;
+  if (collection === "employees" && !canViewSalaryData(user) && !ownEmployee) delete result.salary;
   if (collection === "employeeHistory" && row.event === "salary-change" && !canViewSalaryData(user)) {
     for (const key of ["details","salary","amount","before","after"]) delete result[key];
   }

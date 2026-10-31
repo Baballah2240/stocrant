@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-10-31 - Account identity and sign-in security
+
+- Server update shared by website and app: employee records now follow an account's linked employee, never a matching email or name. Existing accounts are linked once at startup; an account that changed its own email to one on an employee record stays unlinked for an administrator to review.
+- A profile email already on another employee record is rejected, a linked employee's email now changes with their profile, and self-registration no longer creates an account for an employee's address.
+- Simultaneous sign-in attempts now count toward the limit, and pending approvals hide salary and personal details from approvers without that access. Shared source update only; no new APK was built or installed.
+- Verification: the complete project check passed 264 server tests plus script tests, type checks, builds and production smoke checks. Browser layout checks were not rerun.
+
 ## 2026-10-31 - Android 1.0.3 update
 
 - Package the latest AER workspace, sign-in and responsive layout changes in the Android app. Native startup opens sign-in or the workspace instead of the old climate landing page.

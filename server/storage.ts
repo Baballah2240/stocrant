@@ -3,7 +3,8 @@ import { assertFinanceIntegrity } from "./finance-integrity.js";
 import { migrateFinance } from "./finance-migration.js";
 import { migratePayroll } from "./payroll-migration.js";
 import { migrateEmployeeIdentities, assertEmployeeIdentities } from "./employee-identity.js";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
+import { migrateAccountEmployeeLinks } from "./account-link-migration.js";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -33,6 +34,14 @@ export interface StoreData {
 
 const STORE_FILE = join(DATA_DIR, "stocrant.json");
 const MIGRATION_BACKUP_FILE = join(DATA_DIR, "stocrant.pre-v2-backup.json");
+
+/** Keeps the newest daily snapshots so backups cannot fill the data disk. */
+function pruneDailyBackups(backupDir: string) {
+  const keep = Number(process.env.STOCRANT_BACKUP_DAYS);
+  const limit = Number.isInteger(keep) && keep > 0 ? keep : 30;
+  const daily = readdirSync(backupDir).filter(name => /^stocrant-\d{4}-\d{2}-\d{2}\.json$/.test(name)).sort();
+  for (const name of daily.slice(0, Math.max(0, daily.length - limit))) rmSync(join(backupDir, name), { force: true });
+}
 
 /** Default demo data so STOCRANT is usable out of the box. */
 export const SEED_DATA: StoreData = {
@@ -354,7 +363,8 @@ function read(): StoreData {
     const payrollChanged = migratePayroll(parsed);
     const financeChanged = migrateFinance(parsed);
     const operationsChanged = migrateOperations(parsed);
-    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged || payrollChanged || financeChanged || operationsChanged) {
+    const accountLinksChanged = migrateAccountEmployeeLinks(parsed);
+    if (hierarchyChanged || workspaceChanged || organizationsChanged || documentsChanged || identitiesChanged || payrollChanged || financeChanged || operationsChanged || accountLinksChanged) {
       // Capture the on-disk original before its first v2 migration. The backup
       // stays beside the JSON store and is ignored by Git with the data folder.
       if (!existsSync(MIGRATION_BACKUP_FILE)) copyFileSync(STORE_FILE, MIGRATION_BACKUP_FILE);
@@ -364,6 +374,7 @@ function read(): StoreData {
       if (payrollChanged && !existsSync(join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-payroll-v6-backup.json"));
       if (financeChanged && !existsSync(join(DATA_DIR, "stocrant.pre-finance-v7-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-finance-v7-backup.json"));
       if (operationsChanged && !existsSync(join(DATA_DIR, "stocrant.pre-operations-v8-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-operations-v8-backup.json"));
+      if (accountLinksChanged && !existsSync(join(DATA_DIR, "stocrant.pre-account-links-v9-backup.json"))) copyFileSync(STORE_FILE, join(DATA_DIR, "stocrant.pre-account-links-v9-backup.json"));
       write(parsed);
     }
     return parsed;
@@ -382,7 +393,10 @@ function write(data: StoreData) {
     const backupDir = join(DATA_DIR, "backups");
     mkdirSync(backupDir, { recursive: true });
     const dailyBackup = join(backupDir, `stocrant-${new Date().toISOString().slice(0, 10)}.json`);
-    if (!existsSync(dailyBackup)) copyFileSync(STORE_FILE, dailyBackup);
+    if (!existsSync(dailyBackup)) {
+      copyFileSync(STORE_FILE, dailyBackup);
+      pruneDailyBackups(backupDir);
+    }
   }
   const tmp = `${STORE_FILE}.tmp`;
   writeFileSync(tmp, JSON.stringify(data, null, 2), { encoding: "utf8", flush: true });

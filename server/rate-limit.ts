@@ -27,10 +27,18 @@ export function recordFailure(key: string): void {
 }
 
 /** Seconds until the key may try again; 0 when not blocked. */
-export function blockedFor(key: string): number {
+export function blockedFor(key: string, limit = MAX_FAILURES): number {
   const list = prune(failures.get(key) ?? [], Date.now());
-  if (list.length < MAX_FAILURES) return 0;
-  return Math.max(1, Math.ceil((list[0] + WINDOW_MS - Date.now()) / 1000));
+  if (list.length < limit) return 0;
+  return Math.max(1, Math.ceil((list[list.length - limit] + WINDOW_MS - Date.now()) / 1000));
+}
+
+/** Gives back one reserved attempt after it succeeds, keeping earlier failures. */
+export function releaseAttempt(key: string): void {
+  const list = failures.get(key);
+  if (!list?.length) return;
+  list.pop();
+  if (!list.length) failures.delete(key);
 }
 
 export function clearFailures(key: string): void {

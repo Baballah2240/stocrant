@@ -109,7 +109,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 export function publicUser(account: AccountRow): AuthenticatedUser {
   const role = (getCollection("accessRoles") as Array<Record<string, unknown>>).find((candidate) => candidate.id === account.roleId);
-  const employee = (getCollection("employees") as Record<string, unknown>[]).find((employee) => employee.id === account.employeeId || String(employee.email ?? "").toLowerCase() === account.email.toLowerCase());
+  const employee = (getCollection("employees") as Record<string, unknown>[]).find((employee) => employee.id === account.employeeId);
   const assigned = Array.isArray(account.organizationIds) ? account.organizationIds : employee?.organizationId ? [employee.organizationId] : [];
   const validCompanies = new Set((getCollection("companies") as Record<string, unknown>[]).map(company => company.id));
   const delegated = ["role-organization-admin", "role-company-manager", "role-shop-manager"].includes(account.roleId);

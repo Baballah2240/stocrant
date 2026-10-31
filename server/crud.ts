@@ -1,4 +1,5 @@
 import { payrollList } from "./payroll.js";
+import { publicErrorMessage } from "./public-error.js";
 import { Router } from "express";
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
@@ -19,7 +20,7 @@ export function buildSchema(fields: FieldSpec[], existing: Record<string, unknow
       case "number":
       case "currency":
       case "percent": {
-        let num = z.coerce.number({ invalid_type_error: "Enter a valid number." }).finite("Enter a valid number.");
+        let num = z.coerce.number({ error: "Enter a valid number." });
         if (field.min !== undefined) num = num.min(field.min, "The value is below the allowed minimum.");
         if (field.max !== undefined) num = num.max(field.max, "The value is above the allowed maximum.");
         base = field.required ? z.preprocess(value => value == null || typeof value === "boolean" || (typeof value === "string" && !value.trim()) ? undefined : value, num) : num;
@@ -30,7 +31,7 @@ export function buildSchema(fields: FieldSpec[], existing: Record<string, unknow
         break;
       case "select":
         base = field.options?.length
-          ? z.enum(field.options as [string, ...string[]], { errorMap: () => ({ message: "Choose a valid option." }) })
+          ? z.enum(field.options as [string, ...string[]], { error: "Choose a valid option." })
           : field.required ? z.string().trim().min(1, "This field is required.") : z.string();
         if (!field.required) base = base.optional().or(z.literal(""));
         // Retain an unchanged historical enum during unrelated edits.
@@ -78,7 +79,7 @@ function sendError(res: Response, err: unknown) {
   if ((err as Error)?.name === "ValidationError") {
     return res.status(400).json({ error: "Review the highlighted fields.", fieldErrors: (err as Error & { fieldErrors?: Record<string, string> }).fieldErrors });
   }
-  const message = err instanceof Error ? err.message : "Request failed";
+  const message = publicErrorMessage(err, "Request failed");
   return res.status(status ?? (/permission|scope/i.test(message) ? 403 : /not found/i.test(message) ? 404 : 400)).json({ error: message });
 }
 

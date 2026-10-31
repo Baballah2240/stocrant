@@ -248,7 +248,7 @@ function employeeById(employeeId?: string) {
 
 export function employeeForUser(user: AuthenticatedUser) {
   const employee = user.employeeId ? employeeById(user.employeeId) : undefined;
-  return employee ?? rows("employees").find((candidate) => text(candidate.email).toLowerCase() === user.email.toLowerCase());
+  return employee;
 }
 
 function companyForEmployee(employee: Row) {
@@ -441,7 +441,7 @@ function notifyRole(companyId: string, roleId: string, message: string, target: 
 }
 
 function notifyEmployee(employee: Row, message: string, target: string) {
-  const account = rows("accessUsers").find((candidate) => candidate.employeeId === employee.id || text(candidate.email).toLowerCase() === text(employee.email).toLowerCase());
+  const account = rows("accessUsers").find((candidate) => candidate.employeeId === employee.id);
   if (account?.id) createNotification({ userId: account.id, user: String(account.name ?? employee.name), type: "message", severity: "info", message, target });
 }
 
@@ -454,7 +454,7 @@ export function attendanceClockEmployee(user: AuthenticatedUser, accountOnly = f
 }
 export function ownAttendanceRows(user: AuthenticatedUser, employee: Row) {
   const uniqueName = rows("employees").filter(row => row.organizationId === employee.organizationId && row.name === employee.name).length === 1;
-  return (rows("attendance") as AttendanceRow[]).filter(row => row.organizationId === employee.organizationId && (employee.accountOnly ? row.accountId === user.id && (!row.employeeId || row.employeeId === user.id) : row.employeeId === employee.id || !row.employeeId && (row.accountId === user.id || !row.accountId && (row.email === user.email || uniqueName && row.employee === employee.name))) && isWithinScope(user, row));
+  return (rows("attendance") as AttendanceRow[]).filter(row => row.organizationId === employee.organizationId && (employee.accountOnly ? row.accountId === user.id && (!row.employeeId || row.employeeId === user.id) : row.employeeId === employee.id || !row.employeeId && (row.accountId === user.id || !row.accountId && (Boolean(employee.email) && row.email === employee.email || uniqueName && row.employee === employee.name))) && isWithinScope(user, row));
 }
 function editableClockRecord(record?: AttendanceRow) {
   if (record && !["Draft", "Rejected", "Returned for Correction"].includes(record.approvalStatus || "Draft")) failure("This attendance record is under review or finalized. Ask HR for a correction.", 409);

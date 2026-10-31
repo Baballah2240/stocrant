@@ -20,6 +20,7 @@ import { createNotification, listNotifications } from "../notifications.js";
 import { approveRequest, audit, canReadApproval, financeSummary, inventorySummary, mutateCollection, type Row } from "../workspace.js";
 import { canReadDocument, safeDocument } from "../documents.js";
 import {canApproveContract} from "../employment-contracts.js";
+import { publicErrorMessage } from "../public-error.js";
 
 const router = Router();
 router.use("/analytics", analyticsRouter);
@@ -27,7 +28,7 @@ router.use("/administration", administrationRouter);
 router.use("/dashboard-activity", dashboardActivityRouter);
 
 function sendError(res: import("express").Response, error: unknown) {
-  const message = error instanceof Error ? error.message : "Request failed.";
+  const message = publicErrorMessage(error, "Request failed.");
   const status = (error as { statusCode?: number })?.statusCode ?? (message.includes("permission") ? 403 : message.includes("not found") ? 404 : 400);
   return res.status(status).json({ error: message });
 }
@@ -41,12 +42,22 @@ function scoped(req: import("express").Request, list: Row[], collection: string)
   return list.filter((row) => isWithinScope(req.auth!, row)).map((row) => redactRecord(collection, row, req.auth!));
 }
 
+/** Zod 4 applies defaults inside .partial(); a patch must only change the fields it sent. */
+function patchOf<T extends z.ZodObject>(schema: T, body: unknown) {
+  const parsed = schema.partial().safeParse(body);
+  if (!parsed.success) return parsed;
+  const sent = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  return { ...parsed, data: Object.fromEntries(Object.entries(parsed.data as Record<string, unknown>).filter(([key]) => Object.hasOwn(sent, key))) as Partial<z.output<T>> };
+}
+
 function normalized(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
 function matchesUser(row: Row, user: NonNullable<import("express").Request["auth"]>) {
-  const identities = new Set([user.id, user.employeeId, user.email, user.name].map(normalized).filter(Boolean));
+  // Account names and emails are self-editable; only the HR-managed linked record proves identity.
+  const linked = rows("employees").find((item) => item.id === user.employeeId);
+  const identities = new Set([user.id, user.employeeId, linked?.email, linked?.name].map(normalized).filter(Boolean));
   return [row.id, row.employeeId, row.assigneeId, row.assignee, row.employee, row.email, row.assignedTo, row.createdById,...(Array.isArray(row.assigneeIds)?row.assigneeIds:[])]
     .map(normalized)
     .some((value) => identities.has(value));
@@ -67,12 +78,7 @@ function attendanceSessions(row?: Row): AttendanceSession[] {
 }
 
 function employeeFor(user: NonNullable<import("express").Request["auth"]>) {
-  const employees = rows("employees");
-  if (user.employeeId) {
-    const linkedEmployee = employees.find((item) => item.id === user.employeeId);
-    if (linkedEmployee) return linkedEmployee;
-  }
-  return employees.find((item) => normalized(item.email) === normalized(user.email));
+  return user.employeeId ? rows("employees").find((item) => item.id === user.employeeId) : undefined;
 }
 
 function isCompanyPolicy(row: Row, user: NonNullable<import("express").Request["auth"]>) {
@@ -326,7 +332,7 @@ router.get("/hr/overview", requirePermission("hr", "view"), (req, res) => {
 router.get("/work", requirePermission("operations", "view"), (req, res) => {
   const view = String(req.query.view ?? "all");
   let items = scoped(req, rows("workItems"), "workItems");
-  if (view === "mine") items = items.filter((item) => item.assigneeId === req.auth!.employeeId || Array.isArray(item.assigneeIds) && item.assigneeIds.includes(req.auth!.employeeId) || item.assignee === req.auth!.name || item.assignee === req.auth!.email);
+  if (view === "mine") items = items.filter((item) => item.assigneeId === req.auth!.employeeId || Array.isArray(item.assigneeIds) && item.assigneeIds.includes(req.auth!.employeeId) || matchesUser({ id: "", assignee: item.assignee }, req.auth!));
   if (view === "upcoming") items = items.filter((item) => Boolean(item.dueDate) && String(item.dueDate) >= taskToday(item) && !["Completed", "Cancelled"].includes(String(item.status)));
   if (view === "overdue") items = items.filter((item) => taskOverdue(item));
   res.json({ companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), items: items.sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate))), activity: scoped(req, rows("workActivity"), "workActivity").filter(event=>rows("workItems").some(task=>task.id===event.workItemId&&isWithinScope(req.auth!,task))) });
@@ -351,7 +357,7 @@ router.post("/work", requirePermission("operations", "create"), (req, res) => {
 router.patch("/work/:id", requirePermission("operations", "edit"), (req, res) => {
   const existing = rows("workItems").find((item) => item.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Work item not found." });
-  const parsed = workSchema.partial().safeParse(req.body);
+  const parsed = patchOf(workSchema, req.body);
   if (!parsed.success) return res.status(400).json({ error: "Enter valid work details, status, progress, and date." });
   try {
     const result = mutateCollection(req.auth!, "workItems", "edit", parsed.data, existing.id);
@@ -501,7 +507,7 @@ router.post("/customer-service/appointments", requirePermission("customerService
 router.patch("/customer-service/appointments/:id", requirePermission("customerService", "edit"), (req, res) => {
   const existing = rows("customerAppointments").find(row => row.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Appointment not found." });
-  const parsed = appointmentSchema.partial().safeParse(req.body);
+  const parsed = patchOf(appointmentSchema, req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(issue => issue.message).join("; ") });
   try { res.json(mutateCollection(req.auth!, "customerAppointments", "edit", parsed.data, existing.id)); } catch (error) { sendError(res, error); }
 });
@@ -558,7 +564,7 @@ router.patch("/access/approval-rules/:id", requirePermission("access", "edit"), 
   if (!isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin has permission to change global approval rules." });
   const rule = rows("approvalRules").find((item) => item.id === req.params.id);
   if (!rule) return res.status(404).json({ error: "Approval rule not found." });
-  const parsed=approvalRuleSchema.partial().safeParse(req.body);
+  const parsed=patchOf(approvalRuleSchema,req.body);
   if(!parsed.success||!Object.keys(parsed.data).length)return res.status(400).json({error:"Choose a section, action and valid active status."});
   const next={...rule,...parsed.data};
   if(rows("approvalRules").some(item=>item.id!==rule.id&&item.section===next.section&&item.action===next.action))return res.status(409).json({error:"An approval rule already exists for this section and action."});
@@ -570,6 +576,7 @@ router.post("/access/users", requirePermission("access", "create"), async (req, 
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   if (parsed.data.roleId === "role-main-manager" && !isMainManager(req.auth)) return res.status(403).json({ error: "Only the Main Admin can create another Main Admin account." });
   if (rows("accessUsers").some((user) => String(user.email).toLowerCase() === parsed.data.email.toLowerCase())) return res.status(409).json({ error: "An account with that email already exists." });
+  if (rows("employees").some(row => row.id !== parsed.data.employeeId && normalized(row.email) === normalized(parsed.data.email))) return res.status(409).json({ error: "This email belongs to an employee. Select that employee to link the account." });
   if (!rows("accessRoles").some((role) => role.id === parsed.data.roleId)) return res.status(400).json({ error: "Choose a valid role." });
   if (parsed.data.employeeId) { const employee = rows("employees").find((row) => row.id === parsed.data.employeeId); if (!employee) return res.status(400).json({ error: "Choose an existing employee." }); const company = employee.organizationId ?? employee.companyId; if (company && parsed.data.organizationIds.length && !parsed.data.organizationIds.includes(String(company))) return res.status(400).json({ error: "Choose an employee from the assigned company." }); if (company && parsed.data.roleId !== "role-organization-admin") parsed.data.organizationIds = [String(company)]; }
   try { validateAccountAssignment(req.auth!, { ...parsed.data, status: "active" }); } catch (error) { return sendError(res, error); }
@@ -676,7 +683,12 @@ router.delete("/access/users/:id", requirePermission("access", "delete"), (req, 
   res.json({ ok: true });
 });
 
-router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)).map(row=>({...row,canSelfApprove:row.requestedBy===req.auth!.id&&isMainManager(req.auth),canDecide:(row.collection!=="employmentContracts"||canApproveContract(req.auth!,row))&&can(req.auth,"approvals","approve")&&(row.requestedBy!==req.auth!.id||isMainManager(req.auth))})) }));
+/** Approval access does not imply salary or personal-data access to the pending record. */
+function safeApproval<T extends Row>(row: T, user: NonNullable<import("express").Request["auth"]>): T {
+  if (!row.payload || typeof row.payload !== "object") return row;
+  return { ...row, payload: redactRecord(String(row.collection), row.payload as Record<string, unknown>, user) };
+}
+router.get("/approvals", requirePermission("approvals", "view"), (req, res) => res.json({ items: rows("approvalRequests").filter(row => canReadApproval(req.auth!, row)).map(row=>({...safeApproval(row,req.auth!),canSelfApprove:row.requestedBy===req.auth!.id&&isMainManager(req.auth),canDecide:(row.collection!=="employmentContracts"||canApproveContract(req.auth!,row))&&can(req.auth,"approvals","approve")&&(row.requestedBy!==req.auth!.id||isMainManager(req.auth))})) }));
 router.post("/approvals/:id/changes",requirePermission("approvals","approve"),(req,res)=>{
  const parsed=z.object({note:z.string().trim().min(8).max(2000)}).strict().safeParse(req.body);if(!parsed.success)return res.status(400).json({error:"Explain the required changes in at least 8 characters."});
  const row=rows("approvalRequests").find(row=>row.id===req.params.id&&canReadApproval(req.auth!,row));if(!row)return res.status(404).json({error:"Approval request not found."});
@@ -687,7 +699,7 @@ router.post("/approvals/:id/changes",requirePermission("approvals","approve"),(r
 router.post("/approvals/:id", requirePermission("approvals", "approve"), (req, res) => {
   const parsed = z.object({ decision: z.enum(["approve", "reject"]), note: z.string().max(2000).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Choose approve or reject." });
-  try { res.json({ item: approveRequest(req.auth!, req.params.id as string, parsed.data.decision === "approve", parsed.data.note) }); } catch (error) { sendError(res, error); }
+  try { res.json({ item: safeApproval(approveRequest(req.auth!, req.params.id as string, parsed.data.decision === "approve", parsed.data.note), req.auth!) }); } catch (error) { sendError(res, error); }
 });
 
 router.get("/audit", requirePermission("audit", "view"), (req, res) => res.json({ items: rows("auditLog").filter(entry => isMainManager(req.auth) || isWithinScope(req.auth!, entry)).sort((a, b) => String(b.occurredAt).localeCompare(String(a.occurredAt))) }));

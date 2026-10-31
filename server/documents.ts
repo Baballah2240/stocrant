@@ -51,8 +51,7 @@ export function canReadDocument(user: AuthenticatedUser, row: Record<string, unk
   if (row.lifecycle === "archived") return false;
   if (row.category === "company") return row.visibility === "company";
   if (row.visibility !== "employee" || !row.employeeId) return false;
-  const employee = documentRows("employees").find(employee => employee.id === row.employeeId);
-  return Boolean(employee && (employee.id === user.employeeId || (typeof employee.email === "string" && employee.email.toLowerCase() === user.email.toLowerCase())));
+  return Boolean(user.employeeId && row.employeeId === user.employeeId && documentRows("employees").some(employee => employee.id === user.employeeId));
 }
 export function safeDocument(user: AuthenticatedUser, row: DocRow): DocRow {
   const file = documentRows("documentFiles").find(file => file.id === row.fileId);

@@ -5,12 +5,14 @@ import { z } from "zod";
 import { accountScopeActive, clearSession, createSession, hashPassword, loginTimingPad, matchesSetupKey, publicUser, requireAuth, setupKeyConfigured, verifyPassword } from "../auth.js";
 import { isWithinScope } from "../permissions.js";
 import { createNotification } from "../notifications.js";
-import { blockedFor, clearFailures, recordFailure } from "../rate-limit.js";
+import { blockedFor, clearFailures, recordFailure, releaseAttempt } from "../rate-limit.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "../storage.js";
 import { tokenDigest, employmentInactive } from "../employee-accounts.js";
 import { audit } from "../workspace.js";
 
 const router = Router();
+// Failures now persist across successful sign-ins, so a shared office network gets more room than one account.
+const IP_LOGIN_LIMIT = 30;
 router.post("/activate-employee", async (req, res) => {
   const key = `employee-activation:${req.ip ?? "unknown"}`;
   if (blockedFor(key)) return res.status(429).json({ error: "Too many attempts. Try again later." });
@@ -80,7 +82,11 @@ router.post("/setup", async (req, res) => {
   if (accounts().length > 0) return res.status(409).json({ error: "A Main Admin has already been configured." });
   const parsed = credentialsSchema.extend({ name: z.string().trim().min(2).max(120), setupKey: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
+  const key = `setup:${req.ip ?? "unknown"}`;
+  if (blockedFor(key)) return res.status(429).json({ error: "Too many setup attempts. Try again in a few minutes." });
+  recordFailure(key);
   if (!matchesSetupKey(parsed.data.setupKey)) return res.status(403).json({ error: "The setup key is invalid." });
+  clearFailures(key);
   const account: Account = {
     id: nextCollectionId("accessUsers"),
     name: parsed.data.name,
@@ -107,6 +113,10 @@ router.post("/setup", async (req, res) => {
 
 function accountByEmail(email: string): Account | undefined {
   return accounts().find((candidate) => candidate.email.toLowerCase() === email.toLowerCase());
+}
+
+function employeeEmailOwner(email: string, exceptId?: unknown) {
+  return (getCollection("employees") as Record<string, unknown>[]).find((employee) => employee.id !== exceptId && String(employee.email ?? "").toLowerCase() === email.toLowerCase());
 }
 
 router.post("/forgot-password", (req, res) => {
@@ -137,9 +147,11 @@ router.post("/register", async (req, res) => {
   const managers = accounts().filter(account => account.status === "active" && account.roleId === "role-main-manager");
   if (!managers.length) return res.status(409).json({ error: "The workspace must be set up by its Main Admin first." });
   const message = "Your request has been received. Sign in to check your approval status and messages.";
-  if (accountByEmail(parsed.data.email)) return res.json({ ok: true, message });
+  // An HR-held address must reach its employee through an invitation, never self-registration.
+  const emailTaken = () => Boolean(accountByEmail(parsed.data.email)) || employeeEmailOwner(parsed.data.email) !== undefined;
+  if (emailTaken()) return res.json({ ok: true, message });
   const passwordHash = await hashPassword(parsed.data.password);
-  if (accountByEmail(parsed.data.email)) return res.json({ ok: true, message });
+  if (emailTaken()) return res.json({ ok: true, message });
   const account: Account = { id: nextCollectionId("accessUsers"), username: generateUsername(accounts(), parsed.data.name), name: parsed.data.name, email: parsed.data.email.toLowerCase(), passwordHash, roleId: "role-employee", status: "pending", permissions: [], ownRecordsOnly: true, organizationIds: [], locationIds: [], dataClassification: "company", createdAt: new Date().toISOString() };
   const data = getStore(); data.collections.accessUsers = [...accounts(), account]; saveStore(data);
   for (const manager of managers) createNotification({ userId: manager.id, user: manager.name, type: "registration_request", severity: "info", message: `${account.name} (${account.email}) requested an account.`, target: account.id });
@@ -164,26 +176,29 @@ router.post("/login", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   const email = parsed.data.email.toLowerCase();
   // Brute-force protection: per-IP and per-account failure windows.
+  const account = accountByEmail(email) || accounts().find(row => String(row.username || "").toLowerCase() === email);
   const ipKey = `ip:${req.ip ?? "unknown"}`;
-  const accountKey = `acct:${email}`;
-  const wait = Math.max(blockedFor(ipKey), blockedFor(accountKey));
+  // Email and username share one counter so alternating them earns no extra guesses.
+  const accountKey = `acct:${account?.id ?? email}`;
+  const wait = Math.max(blockedFor(ipKey, IP_LOGIN_LIMIT), blockedFor(accountKey));
   if (wait > 0) {
     res.setHeader("Retry-After", String(wait));
     return res.status(429).json({ error: "Too many sign-in attempts. Try again in a few minutes." });
   }
-  const account = accountByEmail(email) || accounts().find(row => String(row.username || "").toLowerCase() === email);
+  // Reserve the attempt before hashing yields, so simultaneous guesses all count.
+  recordFailure(ipKey);
+  recordFailure(accountKey);
   // Always run one scrypt verification (against a pad hash when the account is
   // unknown) so response timing does not reveal whether the email exists.
   const stored = account?.passwordHash ?? (await loginTimingPad());
   const passwordOk = await verifyPassword(parsed.data.password, stored);
   const currentAccount = account && accounts().find(current => current.id === account.id);
   if (!currentAccount || currentAccount.passwordHash !== stored || !["active", "pending", "rejected"].includes(currentAccount.status) || !accountScopeActive(currentAccount) || !passwordOk) {
-    recordFailure(ipKey);
-    recordFailure(accountKey);
     recordDeniedLoginAttempt(email);
     return res.status(401).json({ error: "Email or password is incorrect." });
   }
-  clearFailures(ipKey);
+  // Only this attempt is returned: a valid account must not wipe an IP's failures.
+  releaseAttempt(ipKey);
   clearFailures(accountKey);
   try{
     const sessionToken = createSession(res, currentAccount,req,parsed.data.closeOtherSessions);
@@ -207,13 +222,16 @@ router.patch("/profile", requireAuth, async (req, res) => {
   if (!existing) return res.status(404).json({ error: "Account not found." });
   const email = parsed.data.email.toLowerCase();
   if (email !== existing.email && !await verifyPassword(parsed.data.currentPassword ?? "", existing.passwordHash)) return res.status(400).json({ error: "Enter your current password to change your email." });
-  if (accounts().some((account) => account.id !== existing.id && account.email.toLowerCase() === email)) return res.status(409).json({ error: "That email is already in use." });
+  if (accounts().some((account) => account.id !== existing.id && account.email.toLowerCase() === email) || employeeEmailOwner(email, existing.employeeId)) return res.status(409).json({ error: "That email is already in use." });
   const { currentPassword: _password, ...details } = parsed.data;
   const current = accounts().find(account => account.id === existing.id);
   if (!current || current.passwordHash !== existing.passwordHash || current.status !== existing.status) return res.status(409).json({ error: "Your account changed. Sign in again before updating your profile." });
   const updated = { ...current, ...details, email, updatedAt: new Date().toISOString() };
   const data = getStore();
   data.collections.accessUsers = accounts().map((account) => account.id === existing.id ? updated : account);
+  // Keep the linked employee in step so the old address cannot be claimed by someone else.
+  const linkedEmployee = (getCollection("employees") as Record<string, unknown>[]).find((employee) => employee.id === existing.employeeId);
+  if (linkedEmployee && linkedEmployee.email) linkedEmployee.email = email;
   data.collections.auditLog = [...(getCollection("auditLog") as Record<string, unknown>[]), { id: nextCollectionId("auditLog"), action: "profile.updated", actorId: existing.id, actorName: updated.name, occurredAt: updated.updatedAt, changedFields: ["name", "email", "phone", "avatar", "bio"].filter((key) => existing[key] !== updated[key as keyof typeof updated]) }];
   saveStore(data);
   res.json({ user: publicUser(updated) });
@@ -224,8 +242,9 @@ router.post("/password", requireAuth, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Enter your current password and a new password of at least 12 characters." });
   const key = `password:${req.auth!.id}`;
   if (blockedFor(key)) return res.status(429).json({ error: "Too many attempts. Try again in a few minutes." });
+  recordFailure(key);
   const existing = accounts().find((account) => account.id === req.auth!.id);
-  if (!existing || !await verifyPassword(parsed.data.currentPassword, existing.passwordHash)) { recordFailure(key); return res.status(400).json({ error: "Your current password is incorrect." }); }
+  if (!existing || !await verifyPassword(parsed.data.currentPassword, existing.passwordHash)) return res.status(400).json({ error: "Your current password is incorrect." });
   if (existing.mustChangePassword && parsed.data.newPassword === parsed.data.currentPassword) return res.status(400).json({ error: "Choose a new password that is different from the temporary password." });
   clearFailures(key);
   const passwordHash = await hashPassword(parsed.data.newPassword);
