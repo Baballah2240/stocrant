@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./LandingPage.css";
 
 const SVG = {
@@ -160,10 +160,12 @@ const pricing = [
 ];
 export default function LandingPage() {
   const [scrollY, setScrollY] = useState(0);
-  const handleScroll = () => setScrollY(window.scrollY);
-  if (typeof window !== "undefined") {
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", handleScroll, { passive: true });
-  }
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <main className="aer-surface" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -180,6 +182,7 @@ export default function LandingPage() {
           </div>
           <div className="aer-nav-actions">
             <a href="#pricing" className="aer-btn aer-btn-outline">Pricing</a>
+            <a href="/login" className="aer-btn aer-btn-outline" style={{ marginRight: 8 }}>Sign in</a>
             <a href="#contact" className="aer-btn aer-btn-primary">Get Started</a>
           </div>
         </div>

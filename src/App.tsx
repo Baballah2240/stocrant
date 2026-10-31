@@ -48,7 +48,7 @@ const router = createBrowserRouter([
   { path: "/welcome", element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace /> },
   {
     path: "/login",
-    element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace />,
+    element: <AuthPage />,
   },
   {
     path: "/register",
