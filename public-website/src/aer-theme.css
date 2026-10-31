@@ -52,7 +52,8 @@ html[data-theme="dark"] .stocrant-site {
 }
 
 html:has(.stocrant-site) { scroll-snap-type: none; scrollbar-color: #8a99a5 transparent; }
-.stocrant-site .constellation-background { opacity: .13; filter: grayscale(.8); }
+.stocrant-site .constellation-background { opacity: .82; filter: none; }
+html[data-theme="dark"] .stocrant-site .constellation-background { opacity: .72; }
 .stocrant-site :is(h1, h2, h3) { color: var(--ink); }
 .stocrant-site :is(h1, h2) { font-weight: 650; }
 .stocrant-site .site-kicker { color: var(--link); font-weight: 700; }
@@ -120,6 +121,9 @@ html:has(.stocrant-site) { scroll-snap-type: none; scrollbar-color: #8a99a5 tran
 .stocrant-site .stage-heading > p:last-child { font-size: 14px; }
 .stocrant-site .explorer-hero .map-node,
 html[data-theme="dark"] .stocrant-site .explorer-hero .map-node {
+  width: 144px;
+  min-height: 110px;
+  padding: 14px;
   background: linear-gradient(140deg, color-mix(in srgb, var(--hi) 13%, var(--bg)), var(--bg));
   border: 1px solid var(--aer-edge);
   border-radius: 22px;
@@ -128,7 +132,7 @@ html[data-theme="dark"] .stocrant-site .explorer-hero .map-node {
   -webkit-backdrop-filter: none;
   animation: none;
 }
-.stocrant-site .explorer-hero .map-node.map-service { border-color: color-mix(in srgb, var(--aer-accent) 40%, var(--aer-edge)); }
+.stocrant-site .explorer-hero .map-node.map-service { width: 158px; border-color: color-mix(in srgb, var(--aer-accent) 40%, var(--aer-edge)); }
 .stocrant-site .explorer-hero .map-node.is-selected,
 html[data-theme="dark"] .stocrant-site .explorer-hero .map-node.is-selected {
   border-color: var(--link);
@@ -144,6 +148,8 @@ html[data-theme="dark"] .stocrant-site .explorer-hero .map-node.is-selected {
   box-shadow: var(--aer-recessed);
   border-radius: 13px;
 }
+.stocrant-site .explorer-hero .node-symbol { width: 34px; height: 34px; }
+.stocrant-site .explorer-hero .node-symbol svg { width: 20px; height: 20px; }
 .stocrant-site .explorer-hero .map-node strong { font-size: 14px; }
 .stocrant-site .explorer-hero .map-node small { font-size: 11px; color: var(--muted); }
 .stocrant-site .explorer-hero .map-center > span {
@@ -242,11 +248,22 @@ html[data-theme="dark"] .stocrant-site .inquiry-fields :is(input, textarea, sele
 .stocrant-site .cost-notes[open] summary::before { content: "\2212"; }
 .stocrant-site .focus-card,
 html[data-theme="dark"] .stocrant-site .focus-card {
+  width: min(380px, calc(100vw - 32px));
+  padding: 24px;
   background: var(--bg);
   border: 1px solid var(--aer-edge);
   box-shadow: 0 24px 70px #172f4938, inset 1px 1px 0 var(--aer-edge);
   border-radius: 24px;
 }
+.stocrant-site .focus-card-top { margin-bottom: 18px; }
+.stocrant-site .focus-card-top .section-symbol { width: 44px; height: 44px; }
+.stocrant-site .focus-card h2 { font-size: 26px; line-height: 1.3; margin-bottom: 12px; }
+.stocrant-site .focus-card p.focus-description { font-size: 13px; line-height: 1.75; }
+.stocrant-site .focus-capabilities { margin-top: 18px; }
+.stocrant-site .focus-feature-list li { padding: 8px 10px; }
+.stocrant-site .focus-actions { margin: 18px 0 8px; gap: 8px; }
+.stocrant-site .preview-shade { background: color-mix(in srgb, var(--canvas) 24%, transparent); backdrop-filter: blur(1.5px); }
+.stocrant-site .focus-dialog::backdrop { background: #172d431f; backdrop-filter: blur(1.5px); }
 .stocrant-site .focus-card .focus-eyebrow { color: var(--link); }
 .stocrant-site .focus-feature-list li > span { color: var(--link); background: var(--blue); }
 .stocrant-site .site-footer { border-top-color: var(--line); padding-block: 42px; }
@@ -276,8 +293,8 @@ html[data-theme="dark"] .stocrant-site .focus-card {
   .stocrant-site .site-language { padding-inline: 10px; }
   .stocrant-site .explorer-hero { padding: 28px 20px; }
   .stocrant-site .explorer-hero .section-map { gap: 18px; }
-  .stocrant-site .explorer-hero .map-node { padding: 18px 15px; border-radius: 18px; min-height: 142px; }
-  .stocrant-site .explorer-hero .map-node.map-service { min-height: 104px; }
+  .stocrant-site .explorer-hero .map-node { width: 100%; padding: 13px 12px; border-radius: 18px; min-height: 112px; }
+  .stocrant-site .explorer-hero .map-node.map-service { width: 100%; min-height: 96px; }
   .stocrant-site .explorer-hero .map-node small { font-size: 10px; }
   .stocrant-site .map-footer { padding-inline: 0; }
   .stocrant-site .home-introduction { padding-block: 56px; }
