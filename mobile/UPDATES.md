@@ -1,5 +1,16 @@
 # Mobile update history
 
+## 2026-10-31 - AER climate dial landing page
+
+- Add shared public landing page (AER — climate dial) with neumorphism design system.
+- Sections: sticky navbar, hero with animated dial visual, features, testimonials, pricing tiers, final CTA, and full footer with legal/SEO links.
+- Design tokens: --aer-bg #E8EEF2, --aer-shade #c3ccd4, --aer-hi #ffffff, --aer-led #7db86a, --aer-ink #4a5a66; secondary #4db8e8 / #4a5a66 / #8a99a5.
+- All interactive elements use cursor-pointer, transition-all hover states, and active pressed states.
+- Fully responsive: vertical stack on mobile, 3-column grid on tablet/desktop.
+- Inline SVG icons only (no emojis). SEO, viewport, and Open Graph meta tags in index.html.
+- Public route at "/" and "/aer"; served before the auth wall so unauthenticated visitors see the landing page.
+- Source-only update: no native APK built or installed for this change.
+
 ## 2026-10-30 - Mobile workspace layout refresh
 
 - Add a compact, sticky mobile header with the current section; remove the unnecessary Back control on Home. Keep account navigation, profile, language, appearance and notifications accessible.

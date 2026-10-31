@@ -6,6 +6,7 @@ const EmployeeInbox = lazy(() => import("./components/EmployeeInbox"));
 import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
 import { lazy } from "react";
 import { PageError } from "./components/ErrorBoundary";
+import LandingPage from "./components/LandingPage";
 import Layout from "./components/Layout";
 const StoreList = lazy(() => import("./components/StoreList"));
 const ZoneList = lazy(() => import("./components/ZoneList"));
@@ -53,6 +54,8 @@ const router = createBrowserRouter([
     path: "/register",
     element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace />,
   },
+  { path: "/", element: <LandingPage /> },
+  { path: "/aer", element: <Navigate to="/" replace /> },
   {
     element: <Layout />,
     errorElement: <PageError />,
@@ -117,7 +120,7 @@ export default function App() {
   const { t } = useLanguage();
 
   if (loading) return <main className="auth-page"><p className="hint">{t("Loading secure workspace…")}</p></main>;
-  if (!user) return <AuthPage />;
+  if (!user) return <LandingPage />;
   if (user.mustChangePassword) return <ForcedPasswordChange />;
   if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;
   if (user.roleId !== "role-main-manager" && !(user.roleId === "role-organization-admin" && user.tenantOrganizationIds?.length === 1) && user.organizationIds.length !== 1) return <RegistrationStatus />;
