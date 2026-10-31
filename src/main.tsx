@@ -32,6 +32,7 @@ import "./enterprise.css";
 import "../public-website/src/brand-theme.css";
 import "./auth-connected.css";
 import "./mobile-workspace.css";
+import "./aer-workspace.css";
 
 // Native builds have no hover pointer and need safe-area padding; the CSS
 // keys off this attribute so the browser layout stays untouched.

@@ -11,4 +11,5 @@ import "./atmosphere.css";
 import "./brand-theme.css";
 import "./chapters.css";
 import "./arabic.css";
+import "./aer-theme.css";
 createRoot(document.getElementById("root")!).render(<StrictMode><ThemeProvider><PublicLanguageProvider><PublicWebsite /></PublicLanguageProvider></ThemeProvider></StrictMode>);

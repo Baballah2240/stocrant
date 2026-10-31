@@ -1,0 +1,175 @@
+/* AER surfaces for the working application. Keep layout, permission and mobile
+   behavior in their existing modules; use specificity to survive lazy CSS. */
+:root:not([data-theme]), :root[data-theme="light"] {
+  --bg: #e8eef2;
+  --shade: #c3ccd4;
+  --hi: #fff;
+  --led: #7db86a;
+  --ink: #4a5a66;
+  --aer-accent: #4db8e8;
+  --aer-link: #246887;
+  --aer-muted: #596c79;
+  --aer-line: #cbd5dd;
+  --aer-field: #e4ebf0;
+  --aer-raised: 7px 7px 18px #c3ccd4a6, -7px -7px 18px #ffffffd9;
+  --aer-small: 3px 3px 8px #c3ccd4a6, -3px -3px 8px #ffffffd9;
+  --aer-inset: inset 3px 3px 7px #c3ccd4b3, inset -3px -3px 7px #ffffffbf;
+  --ios-bg: var(--bg); --ios-cell: var(--bg); --ios-fill: var(--aer-field); --ios-field: var(--aer-field);
+  --ios-label: var(--ink); --ios-label-2: var(--aer-muted); --ios-separator: var(--aer-line);
+  --color-background: var(--bg); --color-surface: var(--bg); --color-neutral: var(--ink);
+  --color-neutral-muted: var(--aer-muted); --color-neutral-soft: var(--aer-field); --color-border: var(--aer-line);
+  --color-primary: var(--aer-link); --color-primary-soft: #d4e7f0;
+  --brand-link: var(--aer-link); --brand-blue: #c5e7f5; --brand-blue-soft: #dcebf2;
+  --brand-green-soft: #deeadf; --brand-ink: #234453;
+  --stocrant-green: #3c6740; --stocrant-green-strong: #355d39; --stocrant-green-soft: #deeadf; --stocrant-green-line: #bfd1bf;
+  --stocrant-canvas: var(--bg); --glass-surface: var(--bg); --glass-border: var(--aer-line);
+  --glass-shadow: var(--aer-raised);
+}
+:root[data-theme="dark"] {
+  --bg: #202c36; --shade: #14202a; --hi: #32424f; --led: #9cc88e; --ink: #edf3f7;
+  --aer-accent: #7bcbef; --aer-link: #a2d9f1; --aer-muted: #b7c6d1;
+  --aer-line: #42525f; --aer-field: #1e2933;
+  --aer-raised: 7px 7px 18px #111a22a6, -7px -7px 18px #35455366;
+  --aer-small: 3px 3px 8px #111a22b3, -3px -3px 8px #35455380;
+  --aer-inset: inset 3px 3px 7px #111a22b3, inset -3px -3px 7px #35455366;
+  --ios-bg: var(--bg); --ios-cell: var(--bg); --ios-fill: var(--aer-field); --ios-field: var(--aer-field);
+  --ios-label: var(--ink); --ios-label-2: var(--aer-muted); --ios-separator: var(--aer-line);
+  --color-background: var(--bg); --color-surface: var(--bg); --color-neutral: var(--ink);
+  --color-neutral-muted: var(--aer-muted); --color-neutral-soft: var(--aer-field); --color-border: var(--aer-line);
+  --color-primary: var(--aer-link); --color-primary-soft: #2c4758;
+  --brand-link: var(--aer-link); --brand-blue: #30556b; --brand-blue-soft: #2b414f; --brand-ink: #e5f4fb;
+  --brand-green-soft: #2c4137; --stocrant-green: #b3d7a8; --stocrant-green-strong: #b3d7a8;
+  --stocrant-green-soft: #2c4137; --stocrant-green-line: #526e52;
+  --stocrant-canvas: var(--bg); --glass-surface: var(--bg); --glass-border: var(--aer-line); --glass-shadow: var(--aer-raised);
+}
+
+html body { background: var(--bg); color: var(--ink); }
+.ios-app.aer-workspace, html[data-theme] .ios-app.aer-workspace {
+  --ios-bg: var(--bg); --ios-cell: var(--bg); --ios-fill: var(--aer-field); --ios-field: var(--aer-field);
+  --ios-label: var(--ink); --ios-label-2: var(--aer-muted); --ios-separator: var(--aer-line);
+  --color-background: var(--bg); --color-surface: var(--bg); --color-neutral: var(--ink);
+  --color-neutral-muted: var(--aer-muted); --color-neutral-soft: var(--aer-field); --color-border: var(--aer-line);
+  --color-primary: var(--aer-link); --brand-link: var(--aer-link);
+  --dashboard-canvas: var(--bg); --dashboard-card: var(--bg); --dashboard-border: var(--aer-line);
+  --dashboard-ink: var(--ink); --dashboard-muted: var(--aer-muted); --dashboard-accent: var(--aer-link);
+  background: var(--bg); color: var(--ink);
+}
+.ios-app.aer-workspace :is(.main, .sidebar, .topbar) { background: var(--bg); color: var(--ink); }
+.ios-app.aer-workspace .topbar { border-bottom: 1px solid color-mix(in srgb, var(--hi) 60%, var(--aer-line)); box-shadow: 0 4px 14px #364b5a08; backdrop-filter: none; }
+.ios-app.aer-workspace .sidebar { border-inline-end: 1px solid var(--aer-line); box-shadow: 5px 0 18px #364b5a06; }
+.ios-app.aer-workspace .brand-name { color: var(--ink); letter-spacing: .065em; font-weight: 750; font-size: 15px; }
+.ios-app.aer-workspace .workspace-label { color: var(--aer-muted); }
+.ios-app.aer-workspace .brand-logo rect { fill: var(--bg); stroke: var(--aer-line); }
+.ios-app.aer-workspace .brand-logo path { stroke: var(--aer-link); }
+.ios-app.aer-workspace .brand-logo { filter: drop-shadow(2px 2px 3px var(--shade)); }
+.ios-app.aer-workspace .nav-item { color: var(--aer-muted); border: 1px solid transparent; border-radius: 13px; min-height: 44px; }
+html[data-theme] .ios-app.aer-workspace .sidebar .nav-item.active,
+.ios-app.aer-workspace :is(.nav-item.active, .mobile-bottom-nav a.active) {
+  color: var(--aer-link); background: var(--bg); border-color: color-mix(in srgb, var(--aer-line) 75%, transparent);
+  box-shadow: var(--aer-inset); font-weight: 700;
+}
+.ios-app.aer-workspace .nav-item.active::before { display: none; }
+.ios-app.aer-workspace .nav-item:hover:not(.active) { background: color-mix(in srgb, var(--hi) 22%, var(--bg)); color: var(--aer-link); }
+html[data-theme] .ios-app.aer-workspace .dashboard-sidebar-profile { background: var(--bg); color: var(--ink); border: 1px solid var(--aer-line); box-shadow: var(--aer-small); }
+html[data-theme] .ios-app.aer-workspace .dashboard-sidebar-profile small { color: var(--aer-muted); }
+.ios-app.aer-workspace :is(.header-avatar, .profile-avatar, .dashboard-sidebar-avatar) { background: linear-gradient(140deg, var(--bg), var(--brand-blue-soft)); color: var(--aer-link); box-shadow: var(--aer-small); border-radius: 50%; }
+
+.ios-app.aer-workspace :is(.card, .hr-metric-card, .hr-panel, .company-info-card, .org-summary-card, .mobile-service-card) {
+  background: var(--bg); color: var(--ink); border: 1px solid color-mix(in srgb, var(--hi) 50%, var(--aer-line));
+  border-radius: 20px; box-shadow: var(--aer-raised); backdrop-filter: none;
+}
+.ios-app.aer-workspace :is(.metric-card, .personal-summary-card, .hr-metric-card) { min-width: 0; }
+.ios-app.aer-workspace :is(.metric-card, .personal-summary-card, .hr-metric-card) strong { color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.ios-app.aer-workspace :is(.card .card, .card .hr-panel) { box-shadow: none; border-color: var(--aer-line); }
+.ios-app.aer-workspace .personal-hero { padding: 22px 24px; border: 1px solid var(--aer-line); border-radius: 22px; background: linear-gradient(110deg, var(--bg), var(--brand-blue-soft)); box-shadow: var(--aer-small); }
+.ios-app.aer-workspace :is(h1, h2, h3) { color: var(--ink); }
+.ios-app.aer-workspace :is(.hint, .eyebrow, .cell-sub, .entity-sub) { color: var(--aer-muted); }
+.ios-app.aer-workspace .eyebrow { letter-spacing: .09em; }
+.ios-app.aer-workspace :is(.dashboard-grid, .personal-summary-grid, .hr-metric-grid, .personal-dashboard-grid) { gap: 20px; }
+.ios-app.aer-workspace .dashboard-section { padding: 22px; }
+.ios-app.aer-workspace .dashboard-widget-content:has(> .card) { border-radius: 20px; box-shadow: var(--aer-raised); }
+.ios-app.aer-workspace .dashboard-widget-content > .card { box-shadow: none; }
+
+.ios-app.aer-workspace :is(button, .primary-link, .secondary-link, .workspace-website-link, .appearance-selector),
+.auth-experience.auth-connected :is(button, .auth-website-link, .appearance-selector) {
+  border-radius: 12px; border: 1px solid var(--aer-line); background: var(--bg); color: var(--ink);
+  box-shadow: var(--aer-small); cursor: pointer;
+  transition: background 200ms ease, color 200ms ease, box-shadow 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+.ios-app.aer-workspace button { min-height: 40px; }
+html[data-theme] .ios-app.aer-workspace button:where(:not(.primary):not(.danger):not(.notification-trigger):not(.profile-avatar)) { background: var(--bg); color: var(--ink); border-color: var(--aer-line); }
+html[data-theme] .ios-app.aer-workspace :is(button.primary, .primary-link),
+html[data-theme] .auth-experience.auth-connected .auth-card button.primary {
+  background: linear-gradient(130deg, #b6e1f1, #4db8e8); border-color: #69b4d6; color: #234453; box-shadow: var(--aer-small); font-weight: 750;
+}
+.ios-app.aer-workspace button.danger { background: var(--color-danger-soft); color: var(--color-danger); border-color: var(--color-danger); }
+.ios-app.aer-workspace :is(button, a)[aria-disabled="true"], .ios-app.aer-workspace button:disabled { cursor: not-allowed; box-shadow: none; opacity: .55; transform: none; }
+.ios-app.aer-workspace button:active:not(:disabled), .auth-experience.auth-connected button:active:not(:disabled) { box-shadow: var(--aer-inset); }
+.ios-app.aer-workspace :is(.tab-list, .workspace-tabs) { background: var(--aer-field); border: 1px solid var(--aer-line); border-radius: 15px; box-shadow: var(--aer-inset); padding: 6px; gap: 6px; }
+html[data-theme] .ios-app.aer-workspace :is(.tab-list, .workspace-tabs) button { background: transparent; border: 1px solid transparent; box-shadow: none; color: var(--aer-muted); }
+html[data-theme] .ios-app.aer-workspace :is(.tab-list, .workspace-tabs) button:is(.active, [aria-selected="true"], [aria-pressed="true"]) { background: var(--bg); border-color: var(--aer-line); box-shadow: var(--aer-small); color: var(--aer-link); }
+.ios-app.aer-workspace .appearance-selector select { box-shadow: none; cursor: pointer; }
+.ios-app.aer-workspace :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea),
+.auth-experience.auth-connected :is(input:not([type="checkbox"]):not([type="radio"]), textarea) {
+  background: var(--aer-field); color: var(--ink); border: 1px solid var(--aer-line); border-radius: 11px; box-shadow: var(--aer-inset);
+}
+.ios-app.aer-workspace :is(input, select, textarea)::placeholder { color: var(--aer-muted); opacity: 1; }
+.ios-app.aer-workspace :is(input, select, textarea):focus { border-color: var(--aer-link); }
+.ios-app.aer-workspace input:is([type="checkbox"], [type="radio"]) { accent-color: var(--aer-link); cursor: pointer; }
+.ios-app.aer-workspace :is(a, button, input, select, textarea, summary):focus-visible,
+.auth-experience.auth-connected :focus-visible { outline: 3px solid var(--aer-link); outline-offset: 3px; }
+.ios-app.aer-workspace a { transition: color 200ms ease, background 200ms ease, box-shadow 200ms ease; }
+.ios-app.aer-workspace :is(a, summary, select, [role="button"]) { cursor: pointer; }
+
+.ios-app.aer-workspace .table-wrap { border: 1px solid var(--aer-line); border-radius: 17px; box-shadow: var(--aer-inset); background: var(--bg); }
+.ios-app.aer-workspace .table { background: transparent; color: var(--ink); }
+.ios-app.aer-workspace .table th { background: var(--aer-field); color: var(--aer-muted); border-color: var(--aer-line); }
+.ios-app.aer-workspace .table td { border-color: var(--aer-line); }
+.ios-app.aer-workspace .table tbody tr:hover { background: color-mix(in srgb, var(--hi) 20%, var(--bg)); }
+.ios-app.aer-workspace .table :is(button, .secondary-link) { box-shadow: none; }
+.ios-app.aer-workspace :is(.badge, .pill) { box-shadow: none; }
+.ios-app.aer-workspace :is(.mobile-bottom-nav, .mobile-account-drawer, .mobile-drawer-content, .notification-panel, .profile-dialog),
+html[data-theme] :is(.profile-dialog, .modal, .choice-popover) { background: var(--bg); color: var(--ink); border-color: var(--aer-line); }
+.ios-app.aer-workspace .mobile-bottom-nav { box-shadow: 0 -5px 18px #364b5a12; }
+.ios-app.aer-workspace .mobile-bottom-nav a { border-radius: 14px; }
+.ios-app.aer-workspace .mobile-header-control { border-radius: 50%; }
+.ios-app.aer-workspace .mobile-service-icon { background: var(--bg); color: var(--aer-link); box-shadow: var(--aer-inset); border-radius: 15px; }
+
+/* Sign-in is part of the same product, without altering its account workflow. */
+html[data-theme] .auth-experience.auth-connected {
+  --ink: inherit;
+  --canvas: var(--bg); --surface: var(--bg); --soft: var(--aer-field); --muted: var(--aer-muted);
+  --line: var(--aer-line); --link: var(--aer-link); --blue: var(--brand-blue-soft);
+  --action: var(--aer-link); --action-text: var(--ink);
+  background: var(--bg); color: var(--ink);
+}
+.auth-experience.auth-connected > .constellation-background { display: none; }
+.auth-experience.auth-connected .auth-card { background: var(--bg); border: 1px solid var(--aer-line); box-shadow: var(--aer-raised); border-radius: 28px; }
+.auth-experience.auth-connected .auth-welcome h2 { color: var(--ink); }
+.auth-experience.auth-connected .auth-entry-tabs { box-shadow: var(--aer-inset); border-radius: 14px; background: var(--aer-field); }
+.auth-experience.auth-connected .auth-entry-tabs button { box-shadow: none; border-color: transparent; background: transparent; }
+.auth-experience.auth-connected .auth-entry-tabs button[aria-pressed="true"] { box-shadow: var(--aer-small); background: var(--bg); color: var(--aer-link); }
+
+@media (hover: hover) and (pointer: fine) {
+  .ios-app.aer-workspace :is(button, .primary-link, .secondary-link):hover:not(:disabled),
+  .auth-experience.auth-connected button:hover:not(:disabled) { filter: brightness(1.025); border-color: var(--aer-link); }
+  html[data-theme] .ios-app.aer-workspace :is(button.primary, .primary-link):hover:not(:disabled),
+  html[data-theme] .auth-experience.auth-connected .auth-card button.primary:hover:not(:disabled) { background: linear-gradient(130deg, #c9eaf5, #67c3eb); color: #234453; transform: translateY(-1px); }
+}
+@media screen and (max-width: 800px) {
+  .ios-app.aer-workspace :is(.card, .hr-panel, .company-info-card, .org-summary-card) { border-radius: 17px; box-shadow: 4px 4px 11px color-mix(in srgb, var(--shade) 65%, transparent), -4px -4px 11px color-mix(in srgb, var(--hi) 70%, transparent); }
+  .ios-app.aer-workspace :is(.dashboard-grid, .personal-summary-grid, .hr-metric-grid, .personal-dashboard-grid) { gap: 14px; }
+  .ios-app.aer-workspace .personal-hero { padding: 18px; }
+  .ios-app.aer-workspace :is(button, .primary-link, .secondary-link, input, select) { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ios-app.aer-workspace *, .ios-app.aer-workspace *::before, .ios-app.aer-workspace *::after,
+  .auth-experience.auth-connected * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (forced-colors: active) {
+  .ios-app.aer-workspace :is(.card, button, input, select, textarea, .nav-item.active) { border: 1px solid CanvasText; box-shadow: none; }
+}
+@media print {
+  html body, .ios-app.aer-workspace, .ios-app.aer-workspace :is(.main, .card, .table, .table th, .table td) { background: white !important; color: black !important; box-shadow: none !important; filter: none !important; }
+  .ios-app.aer-workspace .table-wrap { box-shadow: none; border-color: #aaa; }
+}

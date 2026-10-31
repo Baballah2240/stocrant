@@ -1,0 +1,308 @@
+/* AER: one soft, tactile surface across the existing public-site workflows. */
+.stocrant-site {
+  --bg: #e8eef2;
+  --shade: #c3ccd4;
+  --hi: #ffffff;
+  --led: #7db86a;
+  --ink: #4a5a66;
+  --aer-accent: #4db8e8;
+  --aer-muted: #5e6f7c;
+  --aer-link: #17688d;
+  --aer-edge: #ffffffb8;
+  --aer-raised: 8px 8px 19px #c3ccd49c, -8px -8px 19px #ffffffd9;
+  --aer-small: 4px 4px 9px #c3ccd49c, -4px -4px 9px #ffffffdf;
+  --aer-recessed: inset 4px 4px 9px #c3ccd47d, inset -4px -4px 9px #ffffffd9;
+  --canvas: var(--bg);
+  --surface: var(--bg);
+  --soft: #dfe8ee;
+  --muted: var(--aer-muted);
+  --line: #bcc9d3;
+  --blue: #d3e8f2;
+  --mint: #dce9e4;
+  --link: var(--aer-link);
+  --action: #4a5a66;
+  --action-text: #ffffff;
+  --shadow: #3d506214;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .stocrant-site {
+  --bg: #1c2833;
+  --shade: #111a23;
+  --hi: #34424f;
+  --ink: #e7eff5;
+  --aer-muted: #b3c1cc;
+  --aer-link: #88d6f6;
+  --aer-edge: #ffffff12;
+  --aer-raised: 8px 8px 19px #101820b3, -8px -8px 19px #33424e80;
+  --aer-small: 4px 4px 9px #111a23b3, -4px -4px 9px #33424e8c;
+  --aer-recessed: inset 4px 4px 9px #111a23a6, inset -4px -4px 9px #34424f66;
+  --canvas: var(--bg);
+  --surface: var(--bg);
+  --soft: #243541;
+  --muted: var(--aer-muted);
+  --line: #485a68;
+  --blue: #284958;
+  --mint: #2b443d;
+  --link: var(--aer-link);
+  --action: #b6e4f7;
+  --action-text: #20333e;
+  --shadow: #00000038;
+}
+
+html:has(.stocrant-site) { scroll-snap-type: none; scrollbar-color: #8a99a5 transparent; }
+.stocrant-site .constellation-background { opacity: .13; filter: grayscale(.8); }
+.stocrant-site :is(h1, h2, h3) { color: var(--ink); }
+.stocrant-site :is(h1, h2) { font-weight: 650; }
+.stocrant-site .site-kicker { color: var(--link); font-weight: 700; }
+.stocrant-site .kicker-dot { background: var(--led); box-shadow: 0 0 0 4px #7db86a14; }
+.stocrant-site :is(a, button, summary, select) { cursor: pointer; }
+.stocrant-site :is(a, button, input, textarea, select, summary):focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 4px;
+}
+.stocrant-site :is(button, input, textarea, select) { accent-color: var(--link); }
+.stocrant-site button:disabled { cursor: not-allowed; }
+
+.stocrant-site .site-nav {
+  min-height: 92px;
+  padding-block: 18px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  border-bottom-color: var(--aer-edge);
+  box-shadow: 0 7px 20px var(--shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.stocrant-site .site-brand { letter-spacing: .11em; }
+.stocrant-site .site-brand > span {
+  width: 42px;
+  height: 42px;
+  color: var(--ink);
+  border: 1px solid var(--aer-edge);
+  background: linear-gradient(145deg, var(--hi), var(--bg));
+  box-shadow: var(--aer-small);
+  border-radius: 14px;
+}
+.stocrant-site :is(.site-theme, .site-language, .workspace-entry) {
+  min-height: 44px;
+  border: 1px solid var(--aer-edge);
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--aer-small);
+  border-radius: 13px;
+}
+.stocrant-site .site-theme { width: 44px; height: 44px; }
+.stocrant-site .site-nav nav a { min-height: 44px; }
+.stocrant-site .workspace-entry { padding-inline: 20px; }
+.stocrant-site .site-button,
+.stocrant-site .focus-actions > .site-button {
+  min-height: 48px;
+  border: 1px solid var(--aer-edge);
+  border-radius: 14px;
+  box-shadow: var(--aer-small);
+  font-weight: 650;
+}
+.stocrant-site :is(.site-button.primary, .site-button.dark, .focus-actions > .site-button) {
+  background: linear-gradient(135deg, var(--action), color-mix(in srgb, var(--action) 87%, var(--aer-accent)));
+  color: var(--action-text);
+  border-color: transparent;
+}
+.stocrant-site .site-button.secondary { color: var(--ink); background: var(--bg); }
+.stocrant-site :is(.hero-links > a, .focus-actions > a, .back-to-map, .site-footer a, .scroll-cue) { min-height: 44px; }
+.stocrant-site :is(.site-footer a, .back-to-map) { display: inline-flex; align-items: center; }
+.stocrant-site .site-button:hover { filter: brightness(1.04); box-shadow: var(--aer-raised); }
+.stocrant-site :is(.site-language, .site-theme, .workspace-entry):hover { color: var(--link); box-shadow: var(--aer-recessed); }
+.stocrant-site .icon-button { min-width: 44px; min-height: 44px; color: var(--ink); }
+
+.stocrant-site .explorer-hero { padding-top: 36px; }
+.stocrant-site .stage-heading h1 { font-size: clamp(32px, 3.1vw, 46px); }
+.stocrant-site .stage-heading > p:last-child { font-size: 14px; }
+.stocrant-site .explorer-hero .map-node,
+html[data-theme="dark"] .stocrant-site .explorer-hero .map-node {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--hi) 13%, var(--bg)), var(--bg));
+  border: 1px solid var(--aer-edge);
+  border-radius: 22px;
+  box-shadow: var(--aer-raised);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+}
+.stocrant-site .explorer-hero .map-node.map-service { border-color: color-mix(in srgb, var(--aer-accent) 40%, var(--aer-edge)); }
+.stocrant-site .explorer-hero .map-node.is-selected,
+html[data-theme="dark"] .stocrant-site .explorer-hero .map-node.is-selected {
+  border-color: var(--link);
+  background: var(--bg);
+  box-shadow: var(--aer-recessed);
+  scale: 1.015;
+}
+.stocrant-site .explorer-hero .node-symbol,
+.stocrant-site .focus-card-top .section-symbol {
+  background: var(--bg);
+  color: var(--link);
+  border: 1px solid var(--aer-edge);
+  box-shadow: var(--aer-recessed);
+  border-radius: 13px;
+}
+.stocrant-site .explorer-hero .map-node strong { font-size: 14px; }
+.stocrant-site .explorer-hero .map-node small { font-size: 11px; color: var(--muted); }
+.stocrant-site .explorer-hero .map-center > span {
+  position: relative;
+  width: 106px;
+  height: 106px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--hi), var(--bg) 72%);
+  color: var(--ink);
+  border: 10px solid var(--bg);
+  box-shadow: var(--aer-raised), inset 3px 3px 8px color-mix(in srgb, var(--shade) 60%, transparent), inset -3px -3px 8px var(--hi);
+}
+.stocrant-site .explorer-hero .map-center > span::before {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  border-radius: inherit;
+  background: conic-gradient(from 210deg, var(--aer-accent) 0 25%, transparent 25% 35%, var(--shade) 35% 65%, transparent 65% 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  pointer-events: none;
+}
+.stocrant-site .explorer-hero .map-center > strong { margin-top: 19px; letter-spacing: .15em; }
+.stocrant-site .map-connections path { stroke: var(--shade); opacity: .8; animation: none; }
+.stocrant-site .map-orbit { border-color: var(--shade); animation: none; }
+.stocrant-site .scroll-cue span { background: var(--bg); box-shadow: var(--aer-small); border-color: var(--aer-edge); }
+
+.stocrant-site :is(.home-introduction, .shop-service-feature, .home-how, .service-hero, .service-inclusions, .service-preparation, .start-point-section) { min-block-size: auto !important; }
+.stocrant-site .home-introduction { padding-block: 86px; border-top-color: var(--aer-edge); }
+.stocrant-site .home-introduction .explorer-intro > p:not(.site-kicker) { max-width: none; }
+.stocrant-site .shop-service-feature {
+  margin-block: 24px 80px;
+  padding: 58px;
+  background: var(--bg);
+  border: 1px solid var(--aer-edge);
+  border-radius: 26px;
+  box-shadow: var(--aer-raised);
+}
+.stocrant-site :is(.inclusion-grid article, .module-detail-grid article, .home-how li, .home-how li:first-child, .service-preparation li, .service-preparation li:first-child, .inquiry-form, .inquiry-success, .shop-preview, .module-connect) {
+  background: var(--bg);
+  border: 1px solid var(--aer-edge);
+  border-radius: 20px;
+  box-shadow: var(--aer-raised);
+}
+.stocrant-site :is(.inclusion-grid, .module-detail-grid) { gap: 24px; }
+.stocrant-site .inclusion-grid article { padding: 28px; }
+.stocrant-site :is(.inclusion-grid .section-symbol, .module-page > .section-symbol, .home-how li > span, .service-preparation li > span, .success-symbol) {
+  background: var(--bg);
+  color: var(--link);
+  box-shadow: var(--aer-recessed);
+  border: 1px solid var(--aer-edge);
+}
+.stocrant-site .shop-preview { overflow: hidden; }
+.stocrant-site .shop-preview-browser { background: transparent; border-bottom-color: var(--line); }
+.stocrant-site :is(.shop-preview-hero, .product-shape, .request-selection, .inquiry-reference) {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--aer-edge);
+  box-shadow: var(--aer-recessed);
+  border-radius: 12px;
+}
+.stocrant-site .product-shape svg { stroke: var(--link); }
+.stocrant-site .start-point-section .plan-grid article {
+  border: 1px solid var(--aer-edge);
+  background: var(--bg);
+  border-radius: 16px;
+  box-shadow: var(--aer-small);
+}
+.stocrant-site .start-point-section .plan-grid .plan-featured { border-color: color-mix(in srgb, var(--aer-accent) 60%, var(--line)); }
+.stocrant-site .start-point-section .plan-grid .is-chosen {
+  border-color: var(--link);
+  box-shadow: var(--aer-recessed);
+}
+.stocrant-site .plan-choice { text-align: start; min-height: 92px; }
+.stocrant-site .plan-choice:hover { background: color-mix(in srgb, var(--blue) 32%, var(--bg)); }
+.stocrant-site :is(.help-choose, .focus-feature-list li) {
+  background: var(--bg);
+  border: 1px solid var(--aer-edge);
+  box-shadow: var(--aer-small);
+  text-align: start;
+}
+.stocrant-site .help-choose[aria-pressed="true"] { color: var(--link); border-color: var(--link); box-shadow: var(--aer-recessed); }
+.stocrant-site .inquiry-fields :is(input, textarea, select),
+html[data-theme="dark"] .stocrant-site .inquiry-fields :is(input, textarea, select) {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--aer-recessed);
+  border-radius: 12px;
+  padding: 13px 14px;
+}
+.stocrant-site .inquiry-consent { min-height: 44px; align-items: center; }
+.stocrant-site .cost-notes summary { display: flex; align-items: center; min-height: 44px; }
+.stocrant-site .cost-notes summary::before { content: "+"; color: var(--link); font-size: 20px; margin-inline-end: 12px; }
+.stocrant-site .cost-notes[open] summary::before { content: "\2212"; }
+.stocrant-site .focus-card,
+html[data-theme="dark"] .stocrant-site .focus-card {
+  background: var(--bg);
+  border: 1px solid var(--aer-edge);
+  box-shadow: 0 24px 70px #172f4938, inset 1px 1px 0 var(--aer-edge);
+  border-radius: 24px;
+}
+.stocrant-site .focus-card .focus-eyebrow { color: var(--link); }
+.stocrant-site .focus-feature-list li > span { color: var(--link); background: var(--blue); }
+.stocrant-site .site-footer { border-top-color: var(--line); padding-block: 42px; }
+.stocrant-site .site-footer > div:nth-child(2) { gap: 20px; align-items: center; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .stocrant-site :is(a, button, input, textarea, select, summary) { transition: color 200ms ease, background 200ms ease, border-color 200ms ease, box-shadow 200ms ease, filter 200ms ease, transform 200ms ease; }
+  .stocrant-site .site-button:hover { transform: translateY(-2px); }
+  .stocrant-site .site-button:active { transform: translateY(0); }
+}
+@media (max-width: 1050px) {
+  .stocrant-site .site-nav { padding-inline: 24px; gap: 22px; }
+  .stocrant-site .site-nav nav { gap: 18px; }
+  .stocrant-site .site-nav-actions { gap: 10px; }
+  .stocrant-site .explorer-hero .map-center > span { width: 86px; height: 86px; }
+  .stocrant-site .explorer-hero .map-center { padding-block: 18px 30px; }
+  .stocrant-site .shop-service-feature { padding: 38px; }
+}
+@media (max-width: 700px) {
+  .stocrant-site .site-nav { padding: 14px 20px; gap: 12px; }
+  .stocrant-site .site-brand { font-size: 11px; letter-spacing: .08em; gap: 8px; }
+  .stocrant-site .site-brand > span { width: 36px; height: 36px; border-radius: 12px; }
+  .stocrant-site .site-nav nav { gap: 22px; padding-top: 8px; }
+  .stocrant-site .site-nav nav a { font-size: 12px; }
+  .stocrant-site .site-nav-actions { gap: 7px; }
+  .stocrant-site .workspace-entry { padding-inline: 12px; gap: 9px; }
+  .stocrant-site .site-language { padding-inline: 10px; }
+  .stocrant-site .explorer-hero { padding: 28px 20px; }
+  .stocrant-site .explorer-hero .section-map { gap: 18px; }
+  .stocrant-site .explorer-hero .map-node { padding: 18px 15px; border-radius: 18px; min-height: 142px; }
+  .stocrant-site .explorer-hero .map-node.map-service { min-height: 104px; }
+  .stocrant-site .explorer-hero .map-node small { font-size: 10px; }
+  .stocrant-site .map-footer { padding-inline: 0; }
+  .stocrant-site .home-introduction { padding-block: 56px; }
+  .stocrant-site .shop-service-feature { width: calc(100% - 40px); margin: 20px 20px 56px; padding: 28px 24px; border-radius: 22px; }
+  .stocrant-site :is(.inclusion-grid, .module-detail-grid) { gap: 20px; }
+  .stocrant-site .inclusion-grid article { padding: 24px; }
+  .stocrant-site .site-footer > div:nth-child(2) { gap: 10px 20px; }
+}
+@media (max-width: 420px) {
+  .stocrant-site .site-nav { gap: 10px; }
+  .stocrant-site .site-nav-actions { margin-inline-start: auto; gap: 6px; }
+  .stocrant-site .site-language { padding-inline: 8px; font-size: 11px; }
+  .stocrant-site .workspace-entry { padding-inline: 10px; gap: 6px; }
+  .stocrant-site .site-brand { font-size: 10px; }
+  .stocrant-site .site-brand > span { width: 32px; height: 32px; font-size: 20px; }
+  .stocrant-site .site-theme { width: 44px; }
+  .stocrant-site .site-nav nav { gap: 18px; }
+  .stocrant-site .site-nav nav a { font-size: 11px; }
+  .stocrant-site .inclusion-grid { grid-template-columns: 1fr; }
+  .stocrant-site .shop-service-feature { padding-inline: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.stocrant-site) { scroll-behavior: auto; }
+  .stocrant-site *, .stocrant-site *::before, .stocrant-site *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (forced-colors: active) {
+  .stocrant-site :is(button, input, textarea, select, .site-button, .workspace-entry, .map-node, .inclusion-grid article) { border: 1px solid ButtonText; box-shadow: none; }
+}

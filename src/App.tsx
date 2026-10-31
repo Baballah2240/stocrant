@@ -48,19 +48,18 @@ const router = createBrowserRouter([
   { path: "/welcome", element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace /> },
   {
     path: "/login",
-    element: <AuthPage />,
+    element: <Navigate to="/workspace" replace />,
   },
   {
     path: "/register",
     element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace />,
   },
-  { path: "/", element: <LandingPage /> },
-  { path: "/aer", element: <Navigate to="/" replace /> },
+  { path: "/", element: <Navigate to="/workspace" replace /> },
+  { path: "/aer", element: isNativeApp() ? <Navigate to="/workspace" replace /> : <LandingPage /> },
   {
     element: <Layout />,
     errorElement: <PageError />,
     children: [
-      { index: true, element: <ResponsiveHome /> },
       { path: "workspace", element: <ResponsiveHome /> },
 
       // ── Company locations ──
@@ -120,7 +119,10 @@ export default function App() {
   const { t } = useLanguage();
 
   if (loading) return <main className="auth-page"><p className="hint">{t("Loading secure workspace…")}</p></main>;
-  if (!user) return <LandingPage />;
+  if (!user) {
+    const publicLanding = !isNativeApp() && ["/", "/aer"].includes(window.location.pathname);
+    return publicLanding ? <LandingPage /> : <AuthPage />;
+  }
   if (user.mustChangePassword) return <ForcedPasswordChange />;
   if (user.accountStatus && user.accountStatus !== "active") return <RegistrationStatus />;
   if (user.roleId !== "role-main-manager" && !(user.roleId === "role-organization-admin" && user.tenantOrganizationIds?.length === 1) && user.organizationIds.length !== 1) return <RegistrationStatus />;

@@ -1,369 +1,97 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import "./LandingPage.css";
 
-const SVG = {
-  logo: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 6v6l4 2" />
-    </svg>
-  ),
-  clock: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  ),
-  users: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  ),
-  shield: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  ),
-  testimonials: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 21v-2a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  ),
-  check: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  ),
-  star: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  ),
-  facebook: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-    </svg>
-  ),
-  twitter: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M23 3a10 10 0 0 1-3.14 1.53 4 4 0 0 0-7.86 3v1A10 10 0 0 0 3 4.63a4 4 0 0 0 2.74 7.82A4 4 0 0 1 1.5 6.63a5 5 0 0 0 9.17 10.85A10 10 0 0 1 22 12z" />
-    </svg>
-  ),
-  instagram: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="17.5" x2="17.51" y2="17.5" />
-    </svg>
-  ),
-  linkedin: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-      <rect x="2" y="9" width="4" height="12" />
-      <circle cx="4" cy="4" r="2" />
-    </svg>
-  ),
-  mail: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-      <polyline points="22,6 12,13 2,6" />
-    </svg>
-  ),
-  phone: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.8 19.8 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-    </svg>
-  ),
-  globe: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  ),
-};
+type IconName = "arrow" | "chart" | "people" | "shop" | "check" | "grid" | "menu" | "close" | "layers" | "mail" | "linkedin" | "facebook" | "x";
 
-const navLinks = [
-  { href: "#features", label: "Features" },
-  { href: "#testimonials", label: "Testimonials" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#about", label: "About" },
+function Icon({ name, className = "" }: { name: IconName; className?: string }) {
+  const paths: Record<IconName, ReactNode> = {
+    arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+    chart: <><path d="M4 4v16h16M8 15l4-5 4 2 4-7" /><path d="M16 5h4v4" /></>,
+    people: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M21 20v-2a6 6 0 0 0-3-5.2" /></>,
+    shop: <><path d="M4 10v10h16V10M3 4h18l1 6a3 3 0 0 1-5 2 3 3 0 0 1-5 0 3 3 0 0 1-5 0 3 3 0 0 1-5-2l1-6Z" /><path d="M9 20v-5h6v5" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
+    grid: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
+    menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+    close: <path d="m6 6 12 12M18 6 6 18" />,
+    layers: <><path d="m12 3 10 5-10 5L2 8l10-5ZM2 12l10 5 10-5M2 16l10 5 10-5" /></>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="3" /><path d="m3 6 9 7 9-7" /></>,
+    linkedin: <><path d="M5 10v10M5 5v.01M10 20V10h4v2a4 4 0 0 1 7 3v5M14 20v-5" /><circle cx="5" cy="5" r="1" /></>,
+    facebook: <path d="M14 21v-8h3l.5-4H14V7c0-1 .5-2 2-2h2V2h-3a5 5 0 0 0-5 5v2H7v4h3v8" />,
+    x: <><path d="m4 3 12 18h4L8 3H4ZM4 21l6.5-7.5M14 10.5 20 3" /></>,
+  };
+  return <svg className={`aer-icon ${className}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{paths[name]}</svg>;
+}
+
+const navigation = [["#aer-features", "The workspace"], ["#aer-workflows", "Why Stocrant"], ["#aer-pricing", "Plans"]];
+const workspaces: { id: string; label: string; icon: IconName; headline: string; subline: string; detail: string }[] = [
+  { id: "finance", label: "Finance", icon: "chart", headline: "A clearer", subline: "financial picture.", detail: "Sales, purchases and money movements." },
+  { id: "people", label: "People", icon: "people", headline: "Your people.", subline: "All together.", detail: "Employee records, contracts and payroll." },
+  { id: "shops", label: "Shops", icon: "shop", headline: "From your shop", subline: "to their door.", detail: "Products, orders and customer support." },
+];
+const features: { icon: IconName; number: string; title: string; text: string; tags: string[] }[] = [
+  { icon: "chart", number: "01", title: "Follow the money.", text: "Keep sales, purchases, banking and payroll within reach. See the records behind your financial picture.", tags: ["Finance", "Sales & purchases", "Payroll"] },
+  { icon: "people", number: "02", title: "Make room for people.", text: "Bring employee profiles, HR documents and everyday work together, with access shaped around each person's role.", tags: ["Human resources", "Teams", "Permissions"] },
+  { icon: "shop", number: "03", title: "Keep business moving.", text: "Connect your shop, stock and orders to the team handling them. Give customer questions a place to be answered.", tags: ["Shops & orders", "Inventory", "Customer service"] },
+];
+const examples = [
+  { icon: "chart" as const, role: "For the finance team", quote: "Show me the transaction behind the number, so I can understand what happened.", note: "One place to follow the details." },
+  { icon: "people" as const, role: "For the company manager", quote: "Give each person the tools they need, with the right company records in view.", note: "Clear responsibilities. Considered access." },
+  { icon: "shop" as const, role: "For the shop team", quote: "Help us follow an order from the customer's request to the final handover.", note: "A workflow the whole team can follow." },
+];
+const plans = [
+  { name: "Essentials", eyebrow: "A focused start", text: "A considered setup for your core day-to-day work.", items: ["An agreed set of workspaces", "Staff and role configuration", "Your company structure", "Setup requirements reviewed"], featured: false },
+  { name: "Connected", eyebrow: "Bring it together", text: "Plan the connections between your people, money and operations.", items: ["A connected workflow review", "Finance, HR and operations scope", "Shop and inventory requirements", "A tailored implementation plan"], featured: true },
+  { name: "Organization", eyebrow: "Room to grow", text: "Discuss a setup shaped around a broader organization.", items: ["Multiple-company requirements", "Role and access planning", "Deployment requirements reviewed", "A specification agreed with you"], featured: false },
 ];
 
-const features = [
-  {
-    title: "Real-time climate dial",
-    body: "Monitor ambient conditions with a responsive neumorphic interface that reacts to every input.",
-    icon: SVG.clock,
-  },
-  {
-    title: "Precision controls",
-    body: "Fine-tune temperature and airflow with soft, tactile feedback designed for all-day use.",
-    icon: SVG.users,
-  },
-  {
-    title: "Secure cloud sync",
-    body: "Your climate profile stays encrypted and synchronized across every device you own.",
-    icon: SVG.shield,
-  },
-];
-const testimonials = [
-  {
-    name: "Elena Rivers",
-    role: "Product Designer",
-    text: "The climate dial transforms how I manage my workspace. Beautiful, calm, and effortless.",
-    stars: 5,
-  },
-  {
-    name: "Marcus Tan",
-    role: "Architect",
-    text: "Neumorphism done right — soft shadows, buttery transitions, and a UI that feels alive.",
-    stars: 5,
-  },
-  {
-    name: "Sophie Chen",
-    role: "Engineer",
-    text: "I never thought a climate control interface could be this enjoyable to use every day.",
-    stars: 4,
-  },
-];
+function Brand({ footer = false }: { footer?: boolean }) {
+  return <a href="#aer-top" className="aer-brand" aria-label="Stocrant home"><span className="aer-brand-mark" aria-hidden="true"><span /><span /><span /></span><span>stocrant<span className="aer-brand-dot">.</span>{footer && <small>Business, in balance.</small>}</span></a>;
+}
 
-const pricing = [
-  {
-    name: "Starter",
-    price: "$0",
-    period: "/mo",
-    desc: "Perfect for personal use.",
-    featured: false,
-    items: ["Climate dial access", "Basic presets", "Cloud sync", "Community support"],
-  },
-  {
-    name: "Professional",
-    price: "$14",
-    period: "/mo",
-    desc: "For growing teams.",
-    featured: true,
-    items: ["Unlimited dials", "Advanced presets", "Priority sync", "24/7 support", "Team workspaces"],
-  },
-  {
-    name: "Enterprise",
-    price: "$49",
-    period: "/mo",
-    desc: "For large organisations.",
-    featured: false,
-    items: ["Unlimited everything", "Custom branding", "SSO & audit logs", "Dedicated success manager", "SLA guarantee"],
-  },
-];
 export default function LandingPage() {
-  const [scrollY, setScrollY] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedWorkspace, setSelectedWorkspace] = useState(0);
+  const terms = useRef<HTMLDialogElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const selected = workspaces[selectedWorkspace];
+  const inquiryUrl = "/services/shop-websites#inquire";
+  const shareUrl = encodeURIComponent("https://www.mohbaba.online/");
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    if (!menuOpen) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMenuOpen(false); menuButton.current?.focus(); }
+    };
+    document.addEventListener("keydown", dismiss);
+    return () => document.removeEventListener("keydown", dismiss);
+  }, [menuOpen]);
 
-  return (
-    <main className="aer-surface" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <nav className="aer-navbar">
-        <div className="aer-container">
-          <a href="/" className="aer-logo" aria-label="AER home">
-            <div className="aer-logo-mark">{SVG.logo}</div>
-            <span className="aer-logo-text">AER<span> Climate Dial</span></span>
-          </a>
-          <div className="aer-nav-links">
-            {navLinks.map((n) => (
-              <a key={n.href} href={n.href} className="aer-nav-link">{n.label}</a>
-            ))}
-          </div>
-          <div className="aer-nav-actions">
-            <a href="#pricing" className="aer-btn aer-btn-outline">Pricing</a>
-            <a href="/login" className="aer-btn aer-btn-outline" style={{ marginRight: 8 }}>Sign in</a>
-            <a href="#contact" className="aer-btn aer-btn-primary">Get Started</a>
-          </div>
-        </div>
-      </nav>
-      <section className="aer-hero" id="hero">
-        <div className="aer-container">
-          <div className="aer-hero-content">
-            <div className="aer-hero-kicker">{SVG.clock} Climate control, reimagined</div>
-            <h1 className="aer-h1">Breathe easier with <span style={{ color: "var(--aer-secondary-1)" }}>AER.</span></h1>
-            <p className="aer-lead">
-              A neumorphic climate dial that blends soft light, gentle shadows, and precision
-              controls into a single, calm interface for your environment.
-            </p>
-            <div className="aer-hero-buttons">
-              <a href="#features" className="aer-btn aer-btn-primary">{SVG.users} Explore Features</a>
-              <a href="#testimonials" className="aer-btn aer-btn-outline">{SVG.testimonials} See Testimonials</a>
-            </div>
-          </div>
-          <div className="aer-dial-wrap">
-            <div className="aer-dial-glow" />
-            <div className="aer-dial-ring" />
-            <div className="aer-dial">
-              <div className="aer-dial-face" />
-              <div className="aer-dial-center" />
-              <div className="aer-dial-needle" />
-            </div>
-          </div>
+  return <div className="aer-landing" id="aer-top" lang="en" dir="ltr">
+    <a className="aer-skip-link" href="#aer-main">Skip to content</a>
+    <header className="aer-header"><div className="aer-container aer-navbar"><Brand /><button ref={menuButton} type="button" className="aer-menu-toggle" aria-expanded={menuOpen} aria-controls="aer-navigation" aria-label={menuOpen ? "Close navigation" : "Open navigation"} onClick={() => setMenuOpen(!menuOpen)}><Icon name={menuOpen ? "close" : "menu"} /></button><nav id="aer-navigation" className={`aer-navigation${menuOpen ? " is-open" : ""}`} aria-label="Main navigation">{navigation.map(([href, text]) => <a key={href} href={href} onClick={() => setMenuOpen(false)}>{text}</a>)}<a href="/workspace" className="aer-nav-cta">Open workspace <Icon name="arrow" /></a></nav></div></header>
+
+    <main id="aer-main">
+      <section className="aer-hero aer-container" aria-labelledby="aer-hero-title">
+        <div className="aer-hero-copy"><p className="aer-eyebrow"><span className="aer-led" /> A LITTLE MORE CONNECTED</p><h1 id="aer-hero-title">Your business.<br />In a better<br /><span>state of flow.</span></h1><p className="aer-lead">People, money and everyday work. Bring the moving parts of your business into one calm, connected workspace.</p><div className="aer-actions"><a className="aer-button aer-button-primary" href="/workspace">Open your workspace <Icon name="arrow" /></a><a className="aer-button aer-button-soft" href="#aer-features">Take a closer look <Icon name="grid" /></a></div><div className="aer-hero-note"><span className="aer-note-line" /><span>Less switching.<br /><strong>More perspective.</strong></span></div></div>
+        <div className="aer-visual" aria-label="Interactive preview of Stocrant workspaces">
+          <div className="aer-visual-caption"><span>THE CONNECTED WORKSPACE</span><span>0{selectedWorkspace + 1} / 03</span></div>
+          <div className="aer-dial-stage"><div className="aer-dial-orbit" aria-hidden="true" /><div className="aer-dial-shell"><div className="aer-dial-ticks" aria-hidden="true" /><div className="aer-dial-track" aria-hidden="true" /><div className="aer-dial-face"><div className="aer-dial-symbol"><Icon name={selected.icon} /></div><p className="aer-dial-kicker">{selected.label.toUpperCase()}</p><div className="aer-dial-heading" aria-live="polite" aria-atomic="true"><strong>{selected.headline}<br />{selected.subline}</strong></div><span className="aer-dial-status"><span className="aer-led" /> Part of the bigger picture</span></div></div><div className="aer-floating-tag aer-floating-tag-top" aria-hidden="true"><span className="aer-tag-icon"><Icon name="layers" /></span><span>ONE WORKSPACE<strong>Many possibilities</strong></span></div><div className="aer-floating-tag aer-floating-tag-bottom" aria-hidden="true"><span className="aer-check-circle"><Icon name="check" /></span><span>CONNECTED BY DESIGN<strong>Everything has its place</strong></span></div></div>
+          <div className="aer-dial-controls" role="group" aria-label="Preview a workspace">{workspaces.map((workspace, index) => <button key={workspace.id} type="button" data-workspace={workspace.id} aria-pressed={index === selectedWorkspace} onClick={() => setSelectedWorkspace(index)}><Icon name={workspace.icon} /><span>{workspace.label}</span></button>)}</div><p className="aer-preview-caption">{selected.detail} <span>Product illustration.</span></p>
         </div>
       </section>
-      <section className="aer-features" id="features">
-        <div className="aer-container aer-text-center">
-          <h2 className="aer-h2">Designed for calm control</h2>
-          <p className="aer-p" style={{ maxWidth: "600px", margin: "0 auto 48px" }}>
-            Every interaction is shaped by neumorphism — soft depth, tactile response, and
-            gradients that follow the light.
-          </p>
-          <div className="aer-feature-grid">
-            {features.map((f, i) => (
-              <article key={i} className="aer-card aer-feature-card">
-                <div className="aer-feature-icon">{f.icon}</div>
-                <h3>{f.title}</h3>
-                <p>{f.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section className="aer-testimonials" id="testimonials">
-        <div className="aer-container aer-text-center">
-          <h2 className="aer-h2">What creators say</h2>
-          <p className="aer-p" style={{ maxWidth: "600px", margin: "0 auto 40px" }}>
-            Join designers, engineers, and teams who shape their environment with AER.
-          </p>
-          <div className="aer-testimonial-grid">
-            {testimonials.map((t, i) => (
-              <article key={i} className="aer-card aer-testimonial-card">
-                <div className="aer-stars">
-                  {[...Array(t.stars)].map((_, s) => (
-                    <SVG.star key={s} />
-                  ))}
-                </div>
-                <p>{t.text}</p>
-                <div className="aer-testimonial-author">
-                  <div className="aer-author-avatar">{SVG.users}</div>
-                  <div className="aer-author-info">
-                    <h4>{t.name}</h4>
-                    <span>{t.role}</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section className="aer-pricing" id="pricing">
-        <div className="aer-container aer-text-center">
-          <h2 className="aer-h2">Simple, transparent pricing</h2>
-          <p className="aer-p" style={{ maxWidth: "600px", margin: "0 auto 40px" }}>
-            Choose the tier that fits your climate. Upgrade or cancel anytime.
-          </p>
-          <div className="aer-pricing-grid">
-            {pricing.map((plan, i) => (
-              <article key={i} className={`aer-card aer-pricing-card${plan.featured ? " highlight" : ""}`}>
-                {plan.featured && <div className="aer-badge">Most popular</div>}
-                <h3>{plan.name}</h3>
-                <div className="aer-price">{plan.price}<span>{plan.period}</span></div>
-                <p>{plan.desc}</p>
-                <ul className="aer-feature-list">
-                  {plan.items.map((item, j) => (
-                    <li key={j}>
-                      {SVG.check} {item}
-                    </li>
-                  ))}
-                </ul>
-                <a href="#contact" className="aer-btn aer-btn-primary" style={{ width: "100%" }}>
-                  Get started
-                </a>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section className="aer-cta" id="contact">
-        <div className="aer-container aer-text-center">
-          <div className="aer-cta-content">
-            <h2 className="aer-h2">Ready to shape your climate?</h2>
-            <p className="aer-p">
-              Join thousands of teams already breathing easier with AER.
-            </p>
-            <div className="aer-cta-buttons">
-              <a href="#" className="aer-btn aer-btn-primary">{SVG.phone} Contact Sales</a>
-              <a href="#" className="aer-btn aer-btn-outline">{SVG.mail} hello@aer.climate</a>
-            </div>
-          </div>
-        </div>
-      </section>
-      <footer className="aer-footer">
-        <div className="aer-container">
-          <div className="aer-footer-brand">
-            <a href="/" className="aer-logo" aria-label="AER home">
-              <div className="aer-logo-mark">{SVG.logo}</div>
-              <span className="aer-logo-text">AER<span> Climate Dial</span></span>
-            </a>
-            <p>
-              A neumorphic climate dial for calm, precise environmental control. Designed in the
-              2020s digital era, built for light-mode clarity.
-            </p>
-            <div className="aer-socials">
-              <a href="#" className="aer-social" aria-label="Facebook">{SVG.facebook}</a>
-              <a href="#" className="aer-social" aria-label="Twitter">{SVG.twitter}</a>
-              <a href="#" className="aer-social" aria-label="Instagram">{SVG.instagram}</a>
-              <a href="#" className="aer-social" aria-label="LinkedIn">{SVG.linkedin}</a>
-            </div>
-          </div>
-          <div className="aer-footer-col">
-            <h4>Product</h4>
-            <ul>
-              <li><a href="#features">Features</a></li>
-              <li><a href="#pricing">Pricing</a></li>
-              <li><a href="#testimonials">Testimonials</a></li>
-              <li><a href="#about">About</a></li>
-            </ul>
-          </div>
-          <div className="aer-footer-col">
-            <h4>Legal</h4>
-            <ul>
-              <li><a href="/privacy">Privacy Policy</a></li>
-              <li><a href="/terms">Terms of Use</a></li>
-              <li><a href="/cookies">Cookie Policy</a></li>
-              <li><a href="/legal">Legal Notice</a></li>
-            </ul>
-          </div>
-          <div className="aer-footer-col">
-            <h4>Contact</h4>
-            <ul>
-              <li><a href="mailto:hello@aer.climate">{SVG.mail} hello@aer.climate</a></li>
-              <li><a href="tel:+15550100">{SVG.phone} +1 (555) 0100</a></li>
-              <li><a href="/support">{SVG.globe} Support Center</a></li>
-              <li><a href="/careers">{SVG.users} Careers</a></li>
-            </ul>
-          </div>
-          <div className="aer-footer-col">
-            <h4>SEO & Resources</h4>
-            <ul>
-              <li><a href="/sitemap">Sitemap</a></li>
-              <li><a href="/rss">RSS Feed</a></li>
-              <li><a href="/press">Press Kit</a></li>
-              <li><a href="/api">API Docs</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="aer-footer-bottom">
-          <p className="aer-copy">© 2026 AER Climate Dial. All rights reserved.</p>
-          <div className="aer-footer-seo">
-            <a href="/privacy">Privacy Policy</a>
-            <a href="/terms">Terms of Use</a>
-            <a href="/contact">Contact</a>
-            <a href="/sitemap">Sitemap</a>
-          </div>
-        </div>
-      </footer>
+      <div className="aer-connection-strip aer-container" aria-label="Connected business areas"><span>GOOD THINGS WORK TOGETHER</span><div>{["Finance", "People", "Operations", "Shops", "Inventory"].map(item => <span key={item}>{item}</span>)}</div></div>
+
+      <section className="aer-section aer-container" id="aer-features" aria-labelledby="aer-features-title"><div className="aer-section-heading"><div><p className="aer-eyebrow">MADE FOR YOUR EVERYDAY</p><h2 id="aer-features-title">A place for every part.<br /><span>A view of the whole.</span></h2></div><p>Start with the work in front of you. Keep the connections that matter close by.</p></div><div className="aer-three-columns">{features.map(feature => <article className="aer-feature-card" key={feature.number}><div className="aer-card-top"><span className="aer-feature-icon"><Icon name={feature.icon} /></span><span>{feature.number}</span></div><h3>{feature.title}</h3><p>{feature.text}</p><div className="aer-feature-tags">{feature.tags.map(tag => <span key={tag}>{tag}</span>)}</div></article>)}</div><a className="aer-text-link" href="/explore/finance">Explore the finance workspace <Icon name="arrow" /></a></section>
+
+      <section className="aer-workflow-section" id="aer-workflows" aria-labelledby="aer-workflows-title"><div className="aer-container"><div className="aer-section-heading"><div><p className="aer-eyebrow">BUILT AROUND REAL WORK</p><h2 id="aer-workflows-title">Different roles.<br /><span>A shared direction.</span></h2></div><p>Three examples of the everyday questions a connected workspace helps your team work through.</p></div><div className="aer-three-columns">{examples.map(example => <figure className="aer-quote-card" key={example.role}><div className="aer-quote-top"><Icon name={example.icon} /><span>ILLUSTRATIVE FEEDBACK</span></div><blockquote>{example.quote}</blockquote><figcaption><strong>{example.role}</strong><span>{example.note}</span></figcaption></figure>)}</div><p className="aer-disclosure">These are example use cases, not customer testimonials or endorsements.</p></div></section>
+
+      <section className="aer-section aer-container" id="aer-pricing" aria-labelledby="aer-pricing-title"><div className="aer-section-heading aer-heading-centered"><div><p className="aer-eyebrow">FIND YOUR STARTING POINT</p><h2 id="aer-pricing-title">Your setup.<br /><span>At your scale.</span></h2></div><p>Every business works a little differently. Choose a direction, then agree the scope and price with us.</p></div><div className="aer-three-columns aer-plan-grid">{plans.map(plan => <article className={`aer-plan-card${plan.featured ? " is-featured" : ""}`} key={plan.name}>{plan.featured && <span className="aer-plan-badge"><span className="aer-led" /> THE CONNECTED CHOICE</span>}<p className="aer-plan-eyebrow">{plan.eyebrow}</p><h3>{plan.name}</h3><p>{plan.text}</p><div className="aer-plan-price">Let's talk<span>Personal quote · agreed scope</span></div><ul>{plan.items.map(item => <li key={item}><Icon name="check" />{item}</li>)}</ul><a className={`aer-button ${plan.featured ? "aer-button-primary" : "aer-button-soft"}`} href={inquiryUrl}>Discuss this setup <Icon name="arrow" /></a></article>)}</div><p className="aer-disclosure">Plans describe starting points for a conversation. Availability, deployment and support are confirmed in your agreed specification.</p></section>
+
+      <section className="aer-contact aer-container" id="aer-contact" aria-labelledby="aer-contact-title"><div className="aer-contact-panel"><span className="aer-contact-orbit" aria-hidden="true" /><div><p className="aer-eyebrow"><span className="aer-led" /> A CLEARER NEXT CHAPTER</p><h2 id="aer-contact-title">Give your business<br />a little more <span>flow.</span></h2><p>Explore your workspace, or start a conversation about your shop and the connections you need.</p><div className="aer-actions"><a className="aer-button aer-button-primary" href={inquiryUrl}>Let's talk about your setup <Icon name="arrow" /></a><a className="aer-text-link" href="/workspace">Already part of Stocrant? Sign in <Icon name="arrow" /></a></div></div><div className="aer-contact-emblem" aria-hidden="true"><Icon name="layers" /></div></div></section>
     </main>
-  );
+
+    <footer className="aer-footer"><div className="aer-container"><div className="aer-footer-top"><div className="aer-footer-brand"><Brand footer /><p>A considered space for your people, your work and everything that connects them.</p><div className="aer-socials"><a href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`} target="_blank" rel="noopener noreferrer" aria-label="Share Stocrant on LinkedIn (opens a new tab)"><Icon name="linkedin" /></a><a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener noreferrer" aria-label="Share Stocrant on Facebook (opens a new tab)"><Icon name="facebook" /></a><a href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${encodeURIComponent("Business, in balance. Explore Stocrant.")}`} target="_blank" rel="noopener noreferrer" aria-label="Share Stocrant on X (opens a new tab)"><Icon name="x" /></a></div><small>Share a little perspective.</small></div><nav className="aer-footer-column" aria-label="Product"><h3>The workspace</h3><a href="/explore/finance">Finance</a><a href="/explore/people">People & HR</a><a href="/services/shop-websites">Shops & orders</a><a href="/explore/inventory">Inventory</a></nav><nav className="aer-footer-column" aria-label="Resources"><h3>A closer look</h3><a href="#aer-features">Features</a><a href="#aer-pricing">Plans & pricing</a><a href="/services/shop-websites">Shop websites</a><a href="/sitemap.xml">Sitemap</a></nav><nav className="aer-footer-column" aria-label="Contact and legal"><h3>Here to help</h3><a href={inquiryUrl}>Contact the team <Icon name="mail" /></a><a href="/workspace">Workspace sign in</a><a href="/privacy">Privacy policy</a><button type="button" aria-controls="aer-terms-dialog" onClick={() => terms.current?.showModal()}>Terms of use</button></nav></div><div className="aer-footer-bottom"><p>© 2026 Stocrant. All rights reserved.</p><span><span className="aer-led" /> A little more clarity. A lot more possibility.</span><a href="#aer-top">Back to top <Icon name="arrow" /></a></div></div></footer>
+    <dialog className="aer-terms-dialog" id="aer-terms-dialog" ref={terms} aria-labelledby="aer-terms-title" onClick={event => { if (event.target === event.currentTarget) terms.current?.close(); }}><div><div className="aer-dialog-heading"><p className="aer-eyebrow">STOCRANT</p><button type="button" className="aer-icon-button" aria-label="Close terms of use" onClick={() => terms.current?.close()}><Icon name="close" /></button></div><h2 id="aer-terms-title">Terms of use</h2><p>Browsing this website does not create an account, place an order or authorize payment.</p><p>Workspace tools require an authorized account. Use only the company records and functions permitted by your role. Keep your sign-in details private and provide accurate information when contacting the team.</p><p>Product examples are illustrative. Pricing, deployment, service scope and support are agreed separately with your organization before a service is supplied.</p><p>For a question about your account or an agreed service, contact the team or your organization administrator. See our <a href="/privacy">privacy information</a> for details about inquiry data.</p><button type="button" className="aer-button aer-button-primary" onClick={() => terms.current?.close()}>Close and continue <Icon name="check" /></button></div></dialog>
+  </div>;
 }

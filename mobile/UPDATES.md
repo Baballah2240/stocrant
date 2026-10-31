@@ -1,5 +1,13 @@
 # Mobile update history
 
+## 2026-10-31 - AER workspace and Stocrant landing refresh
+
+- Apply the AER light neumorphism palette to the shared business workspace: softly raised panels, recessed fields and tabs, blue actions, refined navigation and readable tables. Retain saved dark appearance, Arabic support, responsive layouts and native safe areas.
+- Replace the climate-product landing content with Stocrant features, an interactive workflow dial, clearly illustrative feedback, quote-based plan options, contact links and working legal/share controls. Refresh the separate public website to match.
+- Restore sign-in and protected-route entry for guests; native app startup enters authentication or the workspace, while the full marketing page remains available on the web at `/aer`.
+- Include keyboard focus, reduced-motion and forced-color support. Shared source update only; no new APK was built or installed.
+- Verification: the complete project check passed 276 tests, type checks, builds and production smoke checks. Browser checks covered 96 mobile layouts, 80 workspace layouts, five landing/public widths, real inquiry delivery, sign-in/native entry, retained styles after navigation and primary-button contrast.
+
 ## 2026-10-31 - AER climate dial landing page
 
 - Add shared public landing page (AER — climate dial) with neumorphism design system.
