@@ -1,7 +1,7 @@
 {
   "name": "school-display",
   "productName": "Qatar School Time Table",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "description": "Bilingual school timetable and Windows classroom overlay",
   "author": "Qatar School Time Table",
@@ -23,7 +23,10 @@
     "test:remote": "node tests/remote-browser.mjs",
     "test:background": "node tests/background.mjs",
     "test:lessons": "node tests/lesson-screens.mjs",
-    "test:tour": "node tests/tour.mjs"
+    "test:tour": "node tests/tour.mjs",
+    "mobile:sync": "npm --prefix mobile run sync",
+    "mobile:apk": "npm --prefix mobile run apk",
+    "test:teacher": "node tests/teacher-app.mjs"
   },
   "dependencies": {
     "sql.js": "1.15.2"

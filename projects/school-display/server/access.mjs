@@ -7,6 +7,7 @@ export const canAccess=(user,path)=>isAdmin(user)||selfPaths.has(path)||canEdit(
 export function assignments(body,classes){
  const role=body.role||'admin',classIds=body.classIds||[];
  if(!roles.includes(role)||!Array.isArray(classIds)||classIds.some(id=>!classes.some(c=>c.id===id))||role==='teacher'&&!classIds.length)throw Object.assign(Error('Choose a role and assign at least one class to a teacher.'),{status:400});
- return {role,classIds:role==='teacher'?[...new Set(classIds)]:[]};
+ const teacherName=body.teacherName||String(body.name||'');if(typeof teacherName!=='string'||teacherName.length>120)throw Object.assign(Error('Keep timetable text within 120 characters.'),{status:400});
+ return {role,classIds:role==='teacher'?[...new Set(classIds)]:[],teacherName:teacherName.trim()};
 }
 export function requireAdmin(user){if(!isAdmin(user))throw Object.assign(Error('Administrator access is required.'),{status:403});}

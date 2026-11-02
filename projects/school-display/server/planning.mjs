@@ -1,13 +1,10 @@
-import {validateSchedule,teacherConflicts,effectiveRows} from '../shared/schedule.mjs';
+import {roomConflicts,daySchedule} from '../shared/teachers.mjs';
+import {validateSchedule,teacherConflicts,effectiveRows,schoolInstant} from '../shared/schedule.mjs';
 const fail=message=>{throw Object.assign(new Error(message),{status:400});};
 export const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
 export function previewTime(date,time,timezone){
  if(!validDate(date)||typeof time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))fail('Choose a valid preview date and time.');
- const target=Date.parse(date+'T'+time+':00Z');let guess=target;
- const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
- const localValue=instant=>{const p=Object.fromEntries(formatter.formatToParts(new Date(instant)).map(part=>[part.type,part.value]));return Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}Z`);};
- for(let i=0;i<4;i++){const delta=target-localValue(guess);if(!delta)return guess;guess+=delta;}
- fail('This local time does not exist in the school timezone.');
+ const instant=schoolInstant(date,time,timezone);if(instant===null)fail('This local time does not exist in the school timezone.');return instant;
 }
 export function validateSpecialDays(input,classes){
  if(!Array.isArray(input)||input.length>2000)fail('Use up to 2000 special days.');
@@ -32,6 +29,7 @@ export function publicationIssues(schedule,specialDays,holidays=[]){
  }
  return issues;
 }
+export const roomWarnings=(schedule,specialDays,holidays=[])=>[...roomConflicts(schedule).map(issue=>({...issue,date:null})),...[...new Set(specialDays.map(row=>row.date))].filter(date=>!holidays.includes(date)).flatMap(date=>roomConflicts(daySchedule(schedule,specialDays,date)).map(issue=>({...issue,date})))];
 export function validateAnnouncement(body,classes){
  if(!body||!Array.isArray(body.classIds)||!body.classIds.length||body.classIds.some(id=>!classes.some(c=>c.id===id)))fail('Choose announcement classes.');
  if(['textEn','textAr'].some(k=>typeof body[k]!=='string'||body[k].length>500)||!body.textEn.trim()&&!body.textAr.trim())fail('Enter an announcement in Arabic or English.');

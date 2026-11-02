@@ -8,4 +8,5 @@
 - No fixed passwords or committed runtime databases, session tokens, installers or credentials.
 - Electron renderers must be sandboxed with Node integration disabled and context isolation enabled.
 - Run npm test and the browser verification for affected behavior. Package Windows releases when requested.
+- The teacher app shares `web/teacher*` and `shared/` with `/teacher`. Its API is read-only bearer-token access under `/api/mobile/`. Never add cookies or write access to it, and never allow cleartext HTTP in the Android build.
 - Always distinguish building an installer from installing it or verifying fullscreen behavior on classroom hardware.

@@ -1,7 +1,8 @@
 import {createServer} from 'node:http';
 import {createServer as createSecureServer} from 'node:https';
 import {createHmac} from 'node:crypto';
-import {previewTime,validateSpecialDays,publicationIssues,validateAnnouncement} from './planning.mjs';
+import {previewTime,validateSpecialDays,publicationIssues,roomWarnings,validateAnnouncement} from './planning.mjs';
+import {mobileOrigins,issueToken,tokenUser,revokeToken,revokeUserTokens,teacherPayload} from './mobile.mjs';
 import {isAdmin,canAccess,assignments} from './access.mjs';
 import {createRecovery} from './recovery.mjs';
 import {restoreDevices} from './devices.mjs';
@@ -65,12 +66,18 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
       if(req.headers.host!==new URL(origin).host)fail('Invalid host.',403);
       if(trustedProxy&&req.headers['x-forwarded-proto']!=='https')fail('HTTPS is required.',403);
       const url=new URL(req.url,origin),path=url.pathname;
+      const mobile=path.startsWith('/api/mobile/');
+      if(mobile&&req.headers.origin){
+        if(req.headers.origin!==origin&&!mobileOrigins.has(req.headers.origin))fail('This app is not allowed to connect.',403);
+        res.setHeader('Vary','Origin');res.setHeader('Access-Control-Allow-Origin',req.headers.origin);res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');res.setHeader('Access-Control-Allow-Methods','GET, POST');res.setHeader('Access-Control-Max-Age','600');
+      }
+      if(mobile&&req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
       if(!['GET','POST','PUT'].includes(req.method))fail('Method not allowed.',405);
       let body={};
       if(req.method!=='GET') {
-        if(req.headers.origin!==origin)fail('Open the local control panel to make changes.',403);
+        if(!mobile&&req.headers.origin!==origin)fail('Open the local control panel to make changes.',403);
         // Authorize uploads before buffering large bodies, then recheck the session below.
-        if(path.startsWith('/api/')&&!['/api/setup','/api/login'].includes(path)){
+        if(path.startsWith('/api/')&&!mobile&&!['/api/setup','/api/login'].includes(path)){
           const headerToken=(req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('school_session='))?.slice(15),entry=sessions.get(headerToken),current=store.get();
           const actor=entry&&[current.admin,...current.users].find(u=>u&&u.id===entry.userId&&u.active!==false);
           if(!actor||entry.expires<=Date.now())fail('Sign in to the control panel.',401);
@@ -85,8 +92,15 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
       const users=[state.admin,...state.users].filter(Boolean);
       const user=session&&users.find(u=>u.id===session.userId&&u.active!==false);
       const authenticated=Boolean(user&&session.expires>Date.now());
-      const publicUser=u=>({id:u.id,name:u.name,email:u.email,active:u.active!==false,owner:u===state.admin,role:u.role,classIds:u.classIds});
+      const publicUser=u=>({id:u.id,name:u.name,email:u.email,active:u.active!==false,owner:u===state.admin,role:u.role,classIds:u.classIds,teacherName:u.teacherName||''});
       if(session&&!authenticated)sessions.delete(token);
+      if(mobile){
+        if(path==='/api/mobile/login'&&req.method==='POST'){throttle('login-all',300);if(typeof body.email!=='string'||body.email.length>180)fail('Email or password is incorrect.',401);const email=body.email.trim().toLowerCase();throttle('login:'+email);const account=users.find(u=>u.active!==false&&u.email===email);if(!account||!verify(body.password,account))fail('Email or password is incorrect.',401);const issued=issueToken(state,account);audit('Teacher app signed in: '+account.email);store.save();return reply(issued);}
+        const mobileUser=tokenUser(state,users,req.headers.authorization);if(!mobileUser)fail('Sign in to the teacher app.',401);
+        if(path==='/api/mobile/timetable'&&req.method==='GET')return reply(teacherPayload(state,mobileUser));
+        if(path==='/api/mobile/logout'&&req.method==='POST'){revokeToken(state,req.headers.authorization);store.save();return reply({ok:true});}
+        fail('Not found.',404);
+      }
 
       if(path.startsWith('/api/images/')&&req.method==='GET'){
         if(!authenticated&&!displayAccess(url.searchParams.get('token')))fail('Invalid display access.',403);
@@ -149,7 +163,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/users'&&req.method==='PUT'){
           const target=state.users.find(u=>u.id===body.id);if(!target||target===user)fail('The original administrator and your own account cannot be disabled.');
           if(typeof body.active!=='boolean')fail('Choose an account status.');if(body.role)Object.assign(target,assignments(body,state.classes));target.active=body.active;
-          for(const [key,value] of sessions)if(value.userId===target.id)sessions.delete(key);
+          for(const [key,value] of sessions)if(value.userId===target.id)sessions.delete(key);revokeUserTokens(state,target.id);
           audit((target.active?'Administrator enabled: ':'Administrator disabled: ')+target.email);store.save();return reply({ok:true});
         }
         if(path==='/api/images'&&req.method==='POST'){const image=images.upload(body.data);audit('Display image uploaded');store.save();return reply({image});}
@@ -157,7 +171,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/state'&&req.method==='GET'){
           const visible=c=>user.role!=='teacher'||user.classIds.includes(c.id),classes=(user.role==='teacher'?state.publishedClasses:state.classes).filter(visible),ids=new Set(classes.map(c=>c.id)),rowVisible=row=>ids.has(row.classId||'default');
           const settings={...state.settings,specialDays:state.publishedSpecialDays.filter(rowVisible)};if(!ids.has(settings.classId))settings.classId=classes[0]?.id||'default';
-          return reply({settings,draft:(user.role==='teacher'?state.published:state.draft).filter(rowVisible),published:state.published.filter(rowVisible),classes,publishedClasses:state.publishedClasses.filter(visible),specialDays:(user.role==='teacher'?state.publishedSpecialDays:state.specialDays).filter(rowVisible),publishedSpecialDays:state.publishedSpecialDays.filter(rowVisible),issues:(user.role==='teacher'?[]:publicationIssues(state.draft,state.specialDays,state.settings.holidays)).filter(issue=>issue.classIds.every(id=>ids.has(id))),revision:state.revision,publishedAt:state.publishedAt,audit:isAdmin(user)?state.audit:[],devices:isAdmin(user)?deviceStates():[],recovery:isAdmin(user)?{...recovery.status(),databaseRecovered:store.recovered}:null,updates:isAdmin(user)?updates.status():null,version,remote:isAdmin(user)?remote?.status()||null:null,displayUrl:'/display?token='+(isAdmin(user)?state.displayToken:classToken(settings.classId,user)),monitors:isAdmin(user)?desktop?.monitors()||[]:[],desktop:Boolean(desktop),network:{secure:Boolean(tls||trustedProxy),local:!publicOrigin&&host==='127.0.0.1'},admin:publicUser(user)});
+          return reply({settings,draft:(user.role==='teacher'?state.published:state.draft).filter(rowVisible),published:state.published.filter(rowVisible),classes,publishedClasses:state.publishedClasses.filter(visible),specialDays:(user.role==='teacher'?state.publishedSpecialDays:state.specialDays).filter(rowVisible),publishedSpecialDays:state.publishedSpecialDays.filter(rowVisible),issues:(user.role==='teacher'?[]:publicationIssues(state.draft,state.specialDays,state.settings.holidays)).filter(issue=>issue.classIds.every(id=>ids.has(id))),warnings:user.role==='teacher'?[]:roomWarnings(state.draft,state.specialDays,state.settings.holidays),revision:state.revision,publishedAt:state.publishedAt,audit:isAdmin(user)?state.audit:[],devices:isAdmin(user)?deviceStates():[],recovery:isAdmin(user)?{...recovery.status(),databaseRecovered:store.recovered}:null,updates:isAdmin(user)?updates.status():null,version,remote:isAdmin(user)?remote?.status()||null:null,displayUrl:'/display?token='+(isAdmin(user)?state.displayToken:classToken(settings.classId,user)),monitors:isAdmin(user)?desktop?.monitors()||[]:[],desktop:Boolean(desktop),network:{secure:Boolean(tls||trustedProxy),local:!publicOrigin&&host==='127.0.0.1'},admin:publicUser(user)});
         }
         if(path==='/api/draft'&&req.method==='PUT'){const draft=validateClassSchedule(body.schedule,state.classes,validateSchedule);images.check(state.settings,new Set(),[...draft,...state.published],[...state.specialDays,...state.publishedSpecialDays]);state.draft=draft;audit('Draft timetable saved');store.save();return reply({ok:true});}
         if(path==='/api/sample'&&req.method==='POST'){const classId=body.classId||'default';if(!state.classes.some(row=>row.id===classId))fail('Choose an existing class group.');state.draft=state.draft.filter(row=>(row.classId||'default')!==classId).concat(sampleSchedule().map(row=>({...row,classId,id:classId+':'+row.id})));audit('Sample timetable loaded into draft');store.save();return reply({ok:true});}
@@ -165,12 +179,12 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/settings'&&req.method==='PUT'){const settings=validateSettings(body);if(!state.publishedClasses.some(row=>row.id===settings.classId))fail('Publish this class group before selecting it for the monitor.');images.check(settings,new Set(),[...state.draft,...state.published],[...state.specialDays,...state.publishedSpecialDays]);await desktop?.apply(settings);state.settings=settings;audit('Display settings updated');store.save();return reply({ok:true});}
         if(path==='/api/backup'&&req.method==='GET')return reply(snapshot());
         if(path==='/api/restore'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);const b=body.backup;if(b?.format!=='school-display-1')fail('Choose a School Display backup.');const classes=validateClasses(b.classes||defaultClasses()),publishedClasses=validateClasses(b.publishedClasses||b.classes||defaultClasses()),draft=validateClassSchedule(b.draft,classes,validateSchedule),published=validateClassSchedule(b.published,publishedClasses,validateSchedule),settings=validateSettings(b.settings);if(publishedClasses.some(row=>!classes.some(group=>group.id===row.id)))fail('Published class groups must also exist in the draft.');if(!publishedClasses.some(row=>row.id===settings.classId))fail('The selected class group is missing from this backup.');const specialDays=validateSpecialDays(b.specialDays||[],classes),publishedSpecialDays=validateSpecialDays(b.publishedSpecialDays||[],publishedClasses);if(publicationIssues(published,publishedSpecialDays,settings.holidays).length)fail('Resolve teacher double bookings before restoring.');const devices=b.devices===undefined?state.devices:restoreDevices(b.devices,publishedClasses,state.devices);if(devices.some(d=>!publishedClasses.some(c=>c.id===d.classId)))fail('Reassign existing screens before restoring a backup without their classes.');const saveImages=images.prepareRestore(b.images,settings,[...draft,...published],[...specialDays,...publishedSpecialDays]);recovery.save('before-restore');await desktop?.apply(settings);await desktop?.applyDevices?.(devices,settings);saveImages();Object.assign(state,{draft,published,classes,publishedClasses,specialDays,publishedSpecialDays,devices,announcements:[],settings,revision:state.revision+1,publishedAt:new Date().toISOString()});audit('Backup restored');store.save();return reply({ok:true});}
-        if(path==='/api/account'&&req.method==='PUT'){throttle('sensitive');if(!verify(body.currentPassword,user))fail('Current password is incorrect.',403);const updated=credentials(body);if(users.some(u=>u!==user&&u.email===updated.email))fail('This email already has an account.',409);Object.assign(user,updated);for(const [key,value] of sessions)if(value.userId===user.id)sessions.delete(key);audit('Administrator account updated');store.save();return reply({ok:true});}
+        if(path==='/api/account'&&req.method==='PUT'){throttle('sensitive');if(!verify(body.currentPassword,user))fail('Current password is incorrect.',403);const updated=credentials(body);if(users.some(u=>u!==user&&u.email===updated.email))fail('This email already has an account.',409);Object.assign(user,updated);for(const [key,value] of sessions)if(value.userId===user.id)sessions.delete(key);revokeUserTokens(state,user.id);audit('Administrator account updated');store.save();return reply({ok:true});}
         if(path==='/api/rotate-display'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);state.displayToken=randomBytes(32).toString('hex');audit('Display access renewed');store.save();for(const device of state.devices)device.token=randomBytes(32).toString('hex');store.save();await desktop?.applyDevices?.(state.devices);await desktop?.reload(state.displayToken);return reply({ok:true});}
         if(path==='/api/exit'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);if(!desktop)fail('The desktop app is not running.',409);audit('Desktop exit authorized');store.save();reply({ok:true});setTimeout(()=>desktop.exit(),250);return;}
         fail('Not found.',404);
       }
-      const files={'/':'web/index.html','/control':'web/index.html','/display':'web/display.html','/app.js':'web/app.js','/tour.js':'web/tour.js','/tour.css':'web/tour.css','/display.js':'web/display.js','/i18n.js':'web/i18n.js','/styles.css':'web/styles.css','/display.css':'web/display.css','/schedule.mjs':'shared/schedule.mjs','/media.mjs':'shared/media.mjs','/lesson-flow.mjs':'shared/lesson-flow.mjs','/lesson-options.js':'web/lesson-options.js','/lesson-screen.js':'web/lesson-screen.js','/theme.js':'web/theme.js','/workspace.js':'web/workspace.js','/ios.css':'web/ios.css','/remote.js':'web/remote.js','/icon.svg':'assets/icon.svg','/images/student-break.png':'assets/student-break.png','/images/student-return.png':'assets/student-return.png'};
+      const files={'/':'web/index.html','/control':'web/index.html','/display':'web/display.html','/app.js':'web/app.js','/tour.js':'web/tour.js','/tour.css':'web/tour.css','/display.js':'web/display.js','/i18n.js':'web/i18n.js','/styles.css':'web/styles.css','/display.css':'web/display.css','/teacher':'web/teacher.html','/teacher.js':'web/teacher.js','/teacher.css':'web/teacher.css','/teacher-i18n.js':'web/teacher-i18n.js','/teacher-plan.mjs':'shared/teacher-plan.mjs','/teachers.mjs':'shared/teachers.mjs','/schedule.mjs':'shared/schedule.mjs','/media.mjs':'shared/media.mjs','/lesson-flow.mjs':'shared/lesson-flow.mjs','/lesson-options.js':'web/lesson-options.js','/lesson-screen.js':'web/lesson-screen.js','/theme.js':'web/theme.js','/workspace.js':'web/workspace.js','/ios.css':'web/ios.css','/remote.js':'web/remote.js','/icon.svg':'assets/icon.svg','/images/student-break.png':'assets/student-break.png','/images/student-return.png':'assets/student-return.png'};
       if(req.method!=='GET'||!files[path])fail('Not found.',404);
       const data=await readFile(join(root,files[path]));res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'})[extname(files[path])]);res.end(data);
     }catch(error){reply({error:error.status?error.message:error.message?.includes('overlap')||error.message?.includes('time')||error.message?.includes('teacher')||error.message?.includes('timetable')||error.message?.includes('class')?error.message:'Could not complete the request.'},error.status||400);}

@@ -1,0 +1,15 @@
+{
+  "appId": "online.schooldisplay.teacher",
+  "appName": "School Teacher",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "adjustMarginsForEdgeToEdge": "auto",
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

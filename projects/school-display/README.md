@@ -6,6 +6,24 @@ An independent Windows classroom overlay with a local bilingual web control pane
 
 The complete school-project source, current 2.3.0 Windows packages, manager presentation and restoration instructions are preserved in `archives/Qatar-School-Time-Table-2.3.0-2026-10-28.zip`. Its adjacent SHA-256 file verifies the archive, and the internal manifest records each archived file's checksum. Archives and generated installers stay outside Git. See [Archive and restore](docs/ARCHIVE-AND-RESTORE.md) to resume development or run the packaged app. Old installers, unpacked build output and temporary QA files can be regenerated and have been cleaned; current installers and installed development dependencies are retained.
 
+## Version 2.4: live timetable and teacher app
+
+**Control panel.** The overview has a live board showing what every class is doing now, with time left and what comes next. **Week board** is now a time grid: drag a lesson to a day and time and it snaps to five minutes, with a line marking the current time. Use **Show** to see one teacher's week across all classes. Teacher double bookings still block publishing. Lessons from different classes in the same room are highlighted and listed as warnings, but do not block publishing.
+
+**Cover an absent teacher** under **Special days**: choose the teacher and date to see their lessons and who is free at each time, with the teachers who have the fewest lessons that day first. Saving creates a dated special day, leaves the weekly timetable unchanged and stays a draft until published.
+
+**Teacher app.** Android app source is in `mobile/`, and the same pages open in a phone browser at `/teacher`. Teachers sign in with their School users account and see their current lesson with a countdown, today's lessons, a seven-day view, their assigned class timetables, cover changes and announcements. The last timetable stays available offline. The Android app can also remind them 5, 10 or 15 minutes before a lesson.
+
+Phones cannot reach the default `127.0.0.1` service, so the teacher app needs the HTTPS hosting in [HOSTING.md](HOSTING.md) to be active. For each teacher, set **Name on the timetable** under **School users** to match the name on their lessons. App access is read-only and lasts 90 days. It ends when the teacher signs out, changes their account, or an administrator edits or disables the account. This also applies to existing accounts.
+
+```powershell
+npm.cmd --prefix mobile ci
+npm.cmd run mobile:apk     # Requires JDK 21 and the Android SDK; builds a debug APK
+npm.cmd run test:teacher   # Teacher app and cover planner browser checks
+```
+
+Debug APKs are for testing. Sharing the app widely needs a release signing key. An iPhone build needs a Mac, so iPhones use `/teacher` in the browser for now.
+
 ## Version 2.3: guided tour and release review
 
 Select **Quick tour / جولة سريعة** in the control-panel header after signing in. The tour explains the sections available to your role, supports keyboard navigation and Escape, and offers an explicit **Open this section** button. It never edits or publishes data. Save your work before opening another section; unsaved settings and photo changes are protected when changing sections, switching language or leaving the page.

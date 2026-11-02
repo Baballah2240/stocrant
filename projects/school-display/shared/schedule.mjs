@@ -3,9 +3,17 @@ export function schoolClock(now, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {timeZone: timezone, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23', weekday:'short'}).formatToParts(now).map(p=>[p.type,p.value]));
   return {date:`${parts.year}-${parts.month}-${parts.day}`, day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday), seconds:Number(parts.hour)*3600+Number(parts.minute)*60+Number(parts.second)};
 }
+export const teacherKey=value=>String(value||'').normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
+export function schoolInstant(date,time,timezone){
+ const target=Date.parse(date+'T'+time+':00Z');let guess=target;
+ const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+ const localValue=instant=>{const p=Object.fromEntries(formatter.formatToParts(new Date(instant)).map(part=>[part.type,part.value]));return Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}Z`);};
+ for(let i=0;i<4;i++){const delta=target-localValue(guess);if(!delta)return guess;guess+=delta;}
+ return null;
+}
 export const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3,5));
 export function teacherConflicts(rows){
- const conflicts=[],name=value=>String(value||'').normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
+ const conflicts=[],name=teacherKey;
  const lessons=rows.filter(row=>row.type==='lesson').sort((a,b)=>a.day-b.day||a.start.localeCompare(b.start));
  for(let i=0;i<lessons.length;i++)for(let j=i+1;j<lessons.length;j++){
   const a=lessons[i],b=lessons[j];if(b.day!==a.day)break;if(b.start>=a.end)break;
@@ -29,6 +37,7 @@ export function validateSchedule(input) {
     if(row.classId!==undefined&&(typeof row.classId!=='string'||!/^[\w-]{1,80}$/.test(row.classId)))throw Error('Choose a valid class group.');
     if (!Number.isInteger(row.day) || row.day<0 || row.day>6 || !['lesson','break','event'].includes(row.type)) throw new Error('Choose a valid day and activity.');
     if (![row.start,row.end].every(t=>typeof t==='string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)) || minutes(row.end)<=minutes(row.start)) throw new Error('End time must be after start time on the same day.');
+    if(row.substituteFor!==undefined&&(typeof row.substituteFor!=='string'||row.substituteFor.length>120))throw new Error('Keep timetable text within 120 characters.');
     for(const key of ['subjectEn','subjectAr','teacherEn','teacherAr','room']) if(typeof row[key]!=='string' || row[key].length>120) throw new Error('Keep timetable text within 120 characters.');
     if (!row.subjectEn.trim() && !row.subjectAr.trim()) throw new Error('Add an activity name in Arabic or English.');
     if (row.type==='lesson' && !row.teacherEn.trim() && !row.teacherAr.trim()) throw new Error('Add the lesson teacher.');
@@ -37,7 +46,7 @@ export function validateSchedule(input) {
     const list=input.filter(r=>r.day===day).sort((a,b)=>(a.classId||'default').localeCompare(b.classId||'default')||a.start.localeCompare(b.start));
     for(let i=1;i<list.length;i++) if((list[i].classId||'default')===(list[i-1].classId||'default')&&list[i].start<list[i-1].end) throw new Error('Timetable entries cannot overlap on the same day.');
   }
-  return input.map(({id,classId='default',day,type,start,end,subjectEn,subjectAr,teacherEn,teacherAr,room,teacherImage='',actionImage=''})=>({id,classId,day,type,start,end,subjectEn:subjectEn.trim(),subjectAr:subjectAr.trim(),teacherEn:teacherEn.trim(),teacherAr:teacherAr.trim(),room:room.trim(),teacherImage,actionImage}));
+  return input.map(({id,classId='default',day,type,start,end,subjectEn,subjectAr,teacherEn,teacherAr,room,teacherImage='',actionImage='',substituteFor=''})=>({id,classId,day,type,start,end,subjectEn:subjectEn.trim(),subjectAr:subjectAr.trim(),teacherEn:teacherEn.trim(),teacherAr:teacherAr.trim(),room:room.trim(),teacherImage,actionImage,substituteFor:substituteFor.trim()}));
 }
 export function scheduleState(schedule,settings,now=new Date()) {
   const clock=schoolClock(now,settings.timezone);
