@@ -42,6 +42,7 @@ jobs:
       - run: npm run test:lessons
       - run: npm run test:tour
       - run: npm run test:teacher
+      - run: npm run test:parent
       - name: Build local unsigned artifacts
         if: ${{ !inputs.signed }}
         run: npm run dist:win

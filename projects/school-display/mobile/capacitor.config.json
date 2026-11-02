@@ -1,6 +1,6 @@
 {
   "appId": "online.schooldisplay.teacher",
-  "appName": "School Teacher",
+  "appName": "School Time Table",
   "webDir": "www",
   "server": {
     "androidScheme": "https",

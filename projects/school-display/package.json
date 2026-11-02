@@ -24,6 +24,7 @@
     "test:background": "node tests/background.mjs",
     "test:lessons": "node tests/lesson-screens.mjs",
     "test:tour": "node tests/tour.mjs",
+    "test:parent": "node tests/parent-app.mjs",
     "mobile:sync": "npm --prefix mobile run sync",
     "mobile:apk": "npm --prefix mobile run apk",
     "test:teacher": "node tests/teacher-app.mjs"

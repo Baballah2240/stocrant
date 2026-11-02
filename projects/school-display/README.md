@@ -18,6 +18,10 @@ Phones cannot reach the default `127.0.0.1` service, so the teacher app needs th
 
 **Teacher messages.** Administrators and coordinators can message one teacher or all teachers under **Special days → Message teachers**. Messages appear in the app's **Messages** tab with an unread badge and are kept for 30 days. The app checks when it opens, when it returns to the screen, and every minute while open. It does not use push notifications, so a closed app shows a message only when next opened. Read status stays on the phone, so staff do not see who has read a message.
 
+**Parents.** Under **Students & parents**, add students singly or paste a list, then choose **Invite parent** to create a one-time code. Parents choose **I have an invitation code** in the app to create their account, and can add other children later in **Settings**. They see each child's timetable, attendance, homework and exams, changes, announcements and messages, and can request an absence. Teachers mark daily attendance, post homework and exams, and answer absence requests in the **Class** tab. Parents sign in only through the app, and only see their own children.
+
+The Android app connects to the address set by `schoolServer` in `mobile/package.json` (or `SCHOOL_APP_SERVER` at build time), so users never type one.
+
 ```powershell
 npm.cmd --prefix mobile ci
 npm.cmd run mobile:apk     # Requires JDK 21 and the Android SDK; builds a debug APK

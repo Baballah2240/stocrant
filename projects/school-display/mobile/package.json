@@ -2,6 +2,7 @@
   "name": "qatar-school-teacher-app",
   "version": "1.0.0",
   "private": true,
+  "schoolServer": "https://schools.mohbaba.online",
   "description": "Android shell for the Qatar School Time Table teacher app",
   "type": "module",
   "scripts": {

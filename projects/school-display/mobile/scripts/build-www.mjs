@@ -10,8 +10,10 @@ for(const name of ['schedule.mjs','media.mjs','teacher-plan.mjs'])copy('shared/'
 copy('assets/icon.svg','icon.svg');
 copyFileSync(join(mobile,'node_modules/@capacitor/core/dist/capacitor.js'),join(www,'capacitor-core.js'));
 copyFileSync(join(mobile,'node_modules/@capacitor/local-notifications/dist/plugin.js'),join(www,'local-notifications.js'));
+const {schoolServer}=JSON.parse(readFileSync(join(mobile,'package.json'),'utf8')),address=new URL(process.env.SCHOOL_APP_SERVER||schoolServer);if(address.protocol!=='https:')throw Error('The school server must use HTTPS.');
+writeFileSync(join(www,'app-config.js'),`window.SCHOOL_APP_SERVER=${JSON.stringify(address.origin)};\n`);
 const page=readFileSync(join(project,'web/teacher.html'),'utf8');
-const head=`<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https:; base-uri 'none'; form-action 'none'; object-src 'none'"><script src="capacitor-core.js"></script><script src="local-notifications.js"></script>`;
+const head=`<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ${address.origin}; base-uri 'none'; form-action 'none'; object-src 'none'"><script src="app-config.js"></script><script src="capacitor-core.js"></script><script src="local-notifications.js"></script>`;
 const marker='<script type="module"';if(!page.includes(marker))throw Error('The teacher page layout changed.');
 writeFileSync(join(www,'index.html'),page.replace(marker,head+marker));
 console.log('Teacher app files copied to mobile/www.');
