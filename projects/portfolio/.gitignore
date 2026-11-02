@@ -1,0 +1,9 @@
+node_modules/
+.qa/
+outputs/
+*.zip
+.openai/*.local.json
+.sites-checkout/
+.sites-checkout-*/
+!dist/
+!dist/**
