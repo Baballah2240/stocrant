@@ -17,7 +17,7 @@ export async function openStore(directory) {
   }else{db=new SQL.Database();db.run('CREATE TABLE state (id INTEGER PRIMARY KEY CHECK(id=1), value TEXT NOT NULL)');result=[];}
   let state=result.length?JSON.parse(result[0].values[0][0]):{admin:null,displayToken:randomBytes(32).toString('hex'),settings:defaultSettings(),draft:sampleSchedule(),published:[],revision:0,publishedAt:null,audit:[]};
   state.settings={...defaultSettings(),...state.settings};
-  state.users ??= [];state.specialDays ??= [];state.publishedSpecialDays ??= [];state.devices ??= [];state.announcements ??= [];state.mobileTokens ??= [];
+  state.users ??= [];state.specialDays ??= [];state.publishedSpecialDays ??= [];state.devices ??= [];state.announcements ??= [];state.mobileTokens ??= [];state.teacherMessages ??= [];
   for(const user of [state.admin,...state.users].filter(Boolean)){user.role ??= 'admin';user.classIds ??= [];}
   state.classes ??= defaultClasses();state.publishedClasses ??= structuredClone(state.classes);
   if(state.admin){state.admin.id ??= randomBytes(16).toString('hex');state.admin.active=true;}

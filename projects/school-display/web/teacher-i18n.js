@@ -4,7 +4,7 @@ const arabic={
  'Enter the full https:// address of your school.':'أدخل عنوان المدرسة الكامل الذي يبدأ بـ https://.',
  'Could not reach the school. Check the address and your connection.':'تعذر الوصول إلى المدرسة. تحقق من العنوان والاتصال.',
  'Email or password is incorrect.':'البريد الإلكتروني أو كلمة المرور غير صحيحة.','Too many attempts. Try again in 15 minutes.':'محاولات كثيرة. حاول مرة أخرى بعد 15 دقيقة.',
- 'Show':'عرض','Today':'اليوم','Week':'الأسبوع','Settings':'الإعدادات','Teaching now':'تدرّس الآن','Next lesson':'الحصة التالية','left':'متبقية','starts in':'تبدأ بعد',
+ 'Show':'عرض','Messages':'الرسائل','No messages yet.':'لا توجد رسائل بعد.','New message from school':'رسالة جديدة من المدرسة','Today':'اليوم','Week':'الأسبوع','Settings':'الإعدادات','Teaching now':'تدرّس الآن','Next lesson':'الحصة التالية','left':'متبقية','starts in':'تبدأ بعد',
  'No more lessons today':'لا توجد حصص أخرى اليوم','No lessons today':'لا توجد حصص اليوم','School holiday':'إجازة مدرسية','Your next lesson':'حصتك القادمة','Your lessons today':'حصصك اليوم',
  'No lessons are scheduled.':'لا توجد حصص مجدولة.','Announcements':'الإعلانات','Timetable change today':'تغيير في جدول اليوم','Timetable change':'تغيير في الجدول','Cover for':'بدلاً من','Covered by':'يغطيها','Lesson covered':'حصة مغطاة',
  'My lessons':'حصصي','Lesson':'حصة','Break':'فسحة','Event':'نشاط','No school':'لا توجد دراسة','Free':'فراغ','min':'د','h':'س',

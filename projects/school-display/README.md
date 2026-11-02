@@ -16,6 +16,8 @@ The complete school-project source, current 2.3.0 Windows packages, manager pres
 
 Phones cannot reach the default `127.0.0.1` service, so the teacher app needs the HTTPS hosting in [HOSTING.md](HOSTING.md) to be active. For each teacher, set **Name on the timetable** under **School users** to match the name on their lessons. App access is read-only and lasts 90 days. It ends when the teacher signs out, changes their account, or an administrator edits or disables the account. This also applies to existing accounts.
 
+**Teacher messages.** Administrators and coordinators can message one teacher or all teachers under **Special days → Message teachers**. Messages appear in the app's **Messages** tab with an unread badge and are kept for 30 days. The app checks when it opens, when it returns to the screen, and every minute while open. It does not use push notifications, so a closed app shows a message only when next opened. Read status stays on the phone, so staff do not see who has read a message.
+
 ```powershell
 npm.cmd --prefix mobile ci
 npm.cmd run mobile:apk     # Requires JDK 21 and the Android SDK; builds a debug APK

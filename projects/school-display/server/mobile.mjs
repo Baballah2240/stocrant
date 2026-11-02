@@ -16,6 +16,15 @@ export function tokenUser(state,users,header,now=Date.now()){
 }
 export const revokeToken=(state,header)=>{const value=bearer(header);state.mobileTokens=state.mobileTokens.filter(row=>row.hash!==value);};
 export const revokeUserTokens=(state,userId)=>{state.mobileTokens=state.mobileTokens.filter(row=>row.userId!==userId);};
+const messageLife=30*86400000;
+export function sendTeacherMessage(state,sender,body,now=Date.now()){
+ const text=typeof body.text==='string'?body.text.trim():'',teachers=state.users.filter(user=>user.role==='teacher'&&user.active!==false),targets=body.userId==='all'?teachers:teachers.filter(user=>user.id===body.userId);
+ if(!text||text.length>500)throw Object.assign(Error('Write a message of up to 500 characters.'),{status:400});
+ if(!targets.length)throw Object.assign(Error('Choose a teacher.'),{status:400});
+ const at=new Date(now).toISOString(),rows=targets.map(user=>({id:randomBytes(16).toString('hex'),userId:user.id,text,fromName:sender.name,at}));
+ state.teacherMessages=state.teacherMessages.filter(row=>now-Date.parse(row.at)<messageLife).concat(rows).slice(-2000);
+ return rows.length;
+}
 // Only the administrator-set timetable name reaches other classes. A self-edited
 // account name can match lessons only inside classes already assigned to that person.
 export function teacherPayload(state,user,now=Date.now()){
@@ -28,5 +37,5 @@ export function teacherPayload(state,user,now=Date.now()){
  const flagged=state.publishedSpecialDays.map(item=>({...item,schedule:item.schedule.map(row=>flag(row,item.classId))}));
  const classIds=new Set([...assigned,...schedule.map(row=>row.classId),...flagged.filter(item=>item.schedule.some(row=>row.mine||row.coveredBy)).map(item=>item.classId)]);
  const {settings}=state;
- return {format:'teacher-1',school:{nameEn:settings.schoolEn,nameAr:settings.schoolAr,timezone:settings.timezone,holidays:settings.holidays,accent:settings.themeAccent,announcementEn:settings.announcementEn,announcementAr:settings.announcementAr},teacher:{name:user.name,email:user.email,timetableName:user.teacherName||''},classes:state.publishedClasses.filter(row=>classIds.has(row.id)).map(({id,nameEn,nameAr})=>({id,nameEn,nameAr})),schedule,specialDays:flagged.filter(item=>classIds.has(item.classId)).map(item=>({...item,schedule:item.schedule.filter(keep)})),announcements:state.announcements.filter(row=>Date.parse(row.expiresAt)>now&&row.classIds.some(id=>classIds.has(id))).map(({id,textEn,textAr,expiresAt})=>({id,textEn,textAr,expiresAt})),revision:state.revision,publishedAt:state.publishedAt,serverTime:now};
+ return {format:'teacher-1',school:{nameEn:settings.schoolEn,nameAr:settings.schoolAr,timezone:settings.timezone,holidays:settings.holidays,accent:settings.themeAccent,announcementEn:settings.announcementEn,announcementAr:settings.announcementAr},teacher:{name:user.name,email:user.email,timetableName:user.teacherName||''},classes:state.publishedClasses.filter(row=>classIds.has(row.id)).map(({id,nameEn,nameAr})=>({id,nameEn,nameAr})),schedule,specialDays:flagged.filter(item=>classIds.has(item.classId)).map(item=>({...item,schedule:item.schedule.filter(keep)})),announcements:state.announcements.filter(row=>Date.parse(row.expiresAt)>now&&row.classIds.some(id=>classIds.has(id))).map(({id,textEn,textAr,expiresAt})=>({id,textEn,textAr,expiresAt})),messages:state.teacherMessages.filter(row=>row.userId===user.id&&now-Date.parse(row.at)<messageLife).slice(-50).map(({id,text,fromName,at})=>({id,text,fromName,at})),revision:state.revision,publishedAt:state.publishedAt,serverTime:now};
 }

@@ -98,6 +98,14 @@ test('teacher app API: read-only token, own lessons, cross-origin rules and revo
 
   // Tokens survive a restart, then end with sign-out or when an administrator edits the account.
   const sara=app.store.get().users.find(row=>row.email==='sara@school.test');
+  // Staff messages reach only the chosen teacher, and teachers cannot send them.
+  assert.equal((await api('teacher-messages',{body:{userId:sara.id,text:'  Please see the office  '},cookie})).data.count,1);
+  const inbox=(await api('mobile/timetable',{bearer:token})).data.messages;assert.equal(inbox.length,1);assert.equal(inbox[0].text,'Please see the office');assert.equal(inbox[0].fromName,'Owner');assert.equal(inbox[0].userId,undefined);
+  assert.equal((await api('mobile/timetable',{bearer:relogged})).data.messages.length,0,'Another teacher cannot read it.');
+  assert.equal((await api('teacher-messages',{body:{userId:'all',text:'Everyone'},cookie})).data.count,2);
+  assert.equal((await api('teacher-messages',{body:{userId:sara.id,text:'   '},cookie})).status,400);assert.equal((await api('teacher-messages',{body:{userId:'unknown',text:'Hello'},cookie})).status,400);assert.equal((await api('teacher-messages',{body:{userId:sara.id,text:'x'.repeat(501)},cookie})).status,400);
+  assert.equal((await api('teacher-messages',{body:{userId:'all',text:'Spoof'},bearer:token})).status,401,'The app token cannot send messages.');
+  const teacherCookie=(await api('login',{body:{email:'sara@school.test',password}})).cookie;assert.equal((await api('teacher-messages',{body:{userId:'all',text:'Spoof'},cookie:teacherCookie})).status,403,'Teachers cannot send messages.');
   const other=(await api('mobile/login',{body:{email:'sara@school.test',password}})).data.token;
   assert.equal((await api('mobile/logout',{body:{},bearer:other})).status,200);assert.equal((await api('mobile/timetable',{bearer:other})).status,401);
   assert.equal((await api('mobile/timetable',{bearer:token})).status,200,'Signing out one phone leaves the other signed in.');
