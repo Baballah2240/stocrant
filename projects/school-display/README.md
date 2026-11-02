@@ -12,7 +12,7 @@ The complete school-project source, current 2.3.0 Windows packages, manager pres
 
 **Cover an absent teacher** under **Special days**: choose the teacher and date to see their lessons and who is free at each time, with the teachers who have the fewest lessons that day first. Saving creates a dated special day, leaves the weekly timetable unchanged and stays a draft until published.
 
-**Teacher app.** Android app source is in `mobile/`, and the same pages open in a phone browser at `/teacher`. Teachers sign in with their School users account and see their current lesson with a countdown, today's lessons, a seven-day view, their assigned class timetables, cover changes and announcements. The last timetable stays available offline. The Android app can also remind them 5, 10 or 15 minutes before a lesson.
+**Faslii (فصلي), the teacher and parent app.** Android app source is in `mobile/`, and the same pages open in a phone browser at `/teacher`. Teachers sign in with their School users account and see their current lesson with a countdown, today's lessons, a seven-day view, their assigned class timetables, cover changes and announcements. The last timetable stays available offline. The Android app can also remind them 5, 10 or 15 minutes before a lesson.
 
 Phones cannot reach the default `127.0.0.1` service, so the teacher app needs the HTTPS hosting in [HOSTING.md](HOSTING.md) to be active. For each teacher, set **Name on the timetable** under **School users** to match the name on their lessons. App access is read-only and lasts 90 days. It ends when the teacher signs out, changes their account, or an administrator edits or disables the account. This also applies to existing accounts.
 

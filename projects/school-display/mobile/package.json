@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "schoolServer": "https://schools.mohbaba.online",
-  "description": "Android shell for the Qatar School Time Table teacher app",
+  "description": "Android shell for Faslii, the teacher and parent app",
   "type": "module",
   "scripts": {
     "sync": "node scripts/build-www.mjs && npx cap sync android",
