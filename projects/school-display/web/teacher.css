@@ -136,3 +136,25 @@ html[dir=rtl] .bubble.mine{border-radius:18px 18px 18px 6px}
 .policy{margin-top:10px}
 @media (prefers-reduced-motion:reduce){.content>*{animation:none}}
 @media (prefers-reduced-transparency:reduce){.top,.tabs{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--surface)}}
+
+/* Faslii phase 2: quick access, requests and resources */
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick button{display:grid;gap:2px;justify-items:start;padding:14px 16px;border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);border:1px solid color-mix(in srgb,var(--hairline) 60%,transparent);text-align:start;color:var(--ink)}
+.quick small{color:var(--muted);font-size:.8rem}
+.list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+.list-head h2{margin:0}
+.tag.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.files{display:flex;flex-wrap:wrap;gap:6px}
+.file-chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--hairline) 45%,transparent);font-size:.82rem;color:var(--ink);max-width:100%;overflow-wrap:anywhere;text-align:start}
+.file-chip small{color:var(--muted)}
+.bubble.mine .file-chip{background:#ffffff26;color:#fff}
+.bubble.mine .file-chip small{color:#ffffffc8}
+.search input{margin-top:6px}
+.resource{display:grid;gap:8px;padding:14px 0}
+.resource+.resource{border-top:1px solid var(--hairline)}
+.resource-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.resource .row-buttons{margin-top:2px}
+.resource .row-buttons .secondary,.resource .row-buttons .ghost{min-height:40px;margin:0;width:100%}
+.resource p.tag{display:block;margin:0;border-radius:10px;padding:6px 10px}
+.star{flex:none;min-width:44px;min-height:44px;font-size:1.35rem;color:var(--muted)}
+.star.on{color:#f5a524}

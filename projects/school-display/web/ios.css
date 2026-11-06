@@ -71,3 +71,14 @@ html[data-theme=dark] ::-webkit-scrollbar{width:10px;height:10px}html[data-theme
 .staff-reply{display:grid;gap:8px;margin-top:8px}
 .policy-form{display:grid;gap:10px;margin-top:14px}
 #message-report h3{margin:18px 0 8px}
+
+/* Teacher requests and resources (control panel) */
+.request-row{border:1px solid var(--hairline);border-radius:14px;padding:10px 14px;margin-bottom:8px;background:var(--field)}
+.request-row summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;cursor:pointer}
+.request-row summary small{flex-basis:100%;color:var(--muted);font-size:11px}
+.request-row .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.request-files{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.request-files a{font-size:12px;padding:5px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--hairline)}
+.resource-form{display:grid;gap:12px;margin-bottom:16px}
+.status-tag{font-size:10px;padding:3px 8px;border-radius:999px;background:var(--field);border:1px solid var(--hairline)}
+.status-tag.approved,.status-tag.completed{color:#1f8f3a}.status-tag.rejected{color:#c0271c}.status-tag.pending{color:#b45309}

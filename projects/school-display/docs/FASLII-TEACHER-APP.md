@@ -33,6 +33,18 @@ Administrators decide whether urgent alerts sound during quiet hours, and write 
 
 **Permissions.** Every route checks the signed-in user on the server. Teachers can only read, reply to, acknowledge or report on their own messages and notices. Parents cannot use teacher actions. Coordinators can message but cannot change the urgent-alert policy.
 
+## Phase 2 (built)
+
+**Requests.** From **Today → Requests**, teachers send leave, absence, timetable correction, maintenance and technical support requests. Each has a title, dates (required for leave and absence), details and up to 3 attachments. Teachers and managers can comment in the request. Status is **Pending**, **Approved**, **Rejected** or **Completed**, and managers can add feedback. An answered request appears in Notifications and as a phone notification. Requests without attachments go into the offline outbox; requests with attachments need a connection. Managers answer requests in **Special days → Teacher requests**.
+
+**Resources.** From **Today → Resources**, teachers can search, filter by category (policies, teaching documents, forms, shared files), bookmark documents and show bookmarked only. They can open a document or save it for offline use; saved files are kept in the app's storage on the phone. Managers upload documents in **Special days → School resources** and choose a category, who can see each one (all teachers or chosen classes), whether it is important, and whether teachers may download it. Uploading a new file raises the version, replaces the old file and records a "what changed" note. When an important document is revised, teachers see it on Today and in Notifications.
+
+**Attachments.** Allowed types are PDF, PNG, JPEG, WebP, DOCX, XLSX, PPTX and TXT, up to 5 MB each. The server checks the file content, not just its name. Files are stored under random names in `files/` in the data folder and are never served as web pages. Teachers can download only their own request files and resources addressed to them that allow downloads. Managers download through `/api/files/<id>` (sign-in required).
+
+Limitations:
+- On Android, **Open** hands the file to the WebView as a download. Opening it inside another app needs the Capacitor Filesystem plugin, which is not added yet. In the browser (`/teacher`), files download normally.
+- Backups made under **System & recovery** do not include request attachments or resources yet. Copy the `files` folder with the data folder.
+
 ## API
 
 | Route | Who | Purpose |
@@ -47,6 +59,13 @@ Administrators decide whether urgent alerts sound during quiet hours, and write 
 | `POST /api/teacher-messages` | admin, coordinator | `{userId or userIds, subject, text, category, priority, requireAck}` |
 | `POST /api/teacher-messages/reply` | admin, coordinator | `{threadId, text}` |
 | `PUT /api/message-policy` | admin | `{urgentBypassQuiet, noteEn, noteAr}` |
+| `POST /api/mobile/requests` | teacher | `{type, title, details, from, to, attachments:[{name, data}], clientId}` |
+| `POST /api/mobile/requests/comment` | teacher | `{id, text, clientId}` |
+| `GET /api/mobile/files/<id>` | teacher | Download a permitted file (bearer token) |
+| `GET /api/teacher-requests` | admin, coordinator | All requests |
+| `POST /api/teacher-requests/decide` | admin, coordinator | `{id, status, comment}` |
+| `POST /api/teacher-requests/comment` | admin, coordinator | `{id, text}` |
+| `GET` / `POST /api/resources`, `POST /api/resources/remove` | admin, coordinator | Manage the resources library |
 
 ## Not built yet
 
@@ -56,9 +75,8 @@ These need a later phase. Several also need credentials from the school.
 |---|---|---|
 | **Push notifications (Firebase Cloud Messaging)** | Not built. Alerts only appear when the app refreshes. | A Firebase project with an Android app `online.schooldisplay.teacher`. `google-services.json` goes in `mobile/android/app/` (keep it out of Git). A service-account JSON goes on the server as `FCM_SERVICE_ACCOUNT_FILE`. Adds `@capacitor/push-notifications` and device-token registration. |
 | **Email copies (SMTP)** | Not built. | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (for example an app password for a school mailbox). Email verification for each teacher. Copies will say that replies must be sent in Faslii. |
-| Attachments on messages and requests | Not built | Protected file storage with size and type limits |
-| Teacher requests (leave, absence, timetable correction, maintenance, IT) | Not built | — |
-| School resources library | Not built | — |
+| Attachments on messages | Not built (requests and resources have them) | — |
+| Opening files in other Android apps | Not built | `@capacitor/filesystem` plus a share/open step |
 | iPhone app | Not built | A Mac and an Apple developer account. iPhones use `/teacher` in Safari meanwhile. |
 
 The app only works on phones when the school server is reachable over HTTPS (see `HOSTING.md`). The built app connects to `schoolServer` in `mobile/package.json`.
@@ -66,4 +84,6 @@ The app only works on phones when the school server is reachable over HTTPS (see
 ## Tests
 
 - `node --test tests/inbox.test.mjs`: server rules for delivery, read and acknowledgement tracking, idempotent replies, conflict reports, permissions, preferences, the urgent policy and change notices.
+- `node --test tests/requests.test.mjs`: requests, attachments checked by content, file permissions, resource audiences, versions and view-only files.
+- `npm run test:requests`: browser checks for both the teacher app and the control panel, covering requests with attachments, the offline queue, decisions with feedback, resource upload, search, bookmarks, offline copies, revision notices and Arabic layout.
 - `npm run test:inbox`: browser checks at phone width covering tabs, month view, filters, before/after, acknowledgements, conflict report, threads, the offline outbox, preferences, dark theme, Arabic RTL and the manager report.

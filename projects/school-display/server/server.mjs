@@ -4,6 +4,8 @@ import {createHmac} from 'node:crypto';
 import {previewTime,validateSpecialDays,publicationIssues,roomWarnings,validateAnnouncement} from './planning.mjs';
 import {mobileOrigins,issueToken,tokenUser,revokeToken,revokeUserTokens,teacherPayload,parentPayload,sendTeacherMessage} from './mobile.mjs';
 import {isAdmin,canEdit,canAccess,assignments,requireAdmin} from './access.mjs';
+import {createFiles} from './files.mjs';
+import {createRequest,commentRequest,decideRequest,allRequests,saveResource,removeResource,allResources,canReadFile} from './requests.mjs';
 import {ensureInbox,markDelivered,markRead,acknowledge,replyAsTeacher,replyAsStaff,reportConflict,savePreferences,savePolicy,deliveryReport,recordScheduleChanges} from './inbox.mjs';
 import {saveStudent,importStudents,removeStudent,createInvite,findInvite,consumeInvite,markAttendance,addWork,removeWork,requestAbsence,decideAbsence,setParentStatus,staffRecords,backupRecords,restoreRecords} from './records.mjs';
 import {createRecovery} from './recovery.mjs';
@@ -38,7 +40,7 @@ export function validateSettings(input) {
   return Object.fromEntries(Object.keys(defaultSettings()).map(key=>[key,s[key]]));
 }
 export async function startServer({directory,port=4318,desktop=null,host='127.0.0.1',publicOrigin=null,tls=null,trustedProxy=false,setupKey=null,updateEnv=process.env,remoteOptions={}}={}) {
-  const store=await openStore(directory),images=createImages(directory),sessions=new Map(),attempts=new Map();let origin;
+  const store=await openStore(directory),images=createImages(directory),fileStore=createFiles(directory),sessions=new Map(),attempts=new Map();let origin;
   if((host!=='127.0.0.1'||publicOrigin)&&(!(tls||trustedProxy)||!publicOrigin?.startsWith('https://')||new URL(publicOrigin).origin!==publicOrigin))throw Error('Network mode requires TLS and an exact HTTPS public origin.');
   if(trustedProxy&&(tls||typeof setupKey!=='string'||setupKey.length<32))throw Error('Proxy mode requires a private setup key and upstream HTTPS termination.');
   const version=JSON.parse(await readFile(join(root,'package.json'),'utf8')).version;
@@ -86,7 +88,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           if(!canAccess(actor,path))fail('Your role cannot perform this action.',403);
         }
         if(!(req.headers['content-type']||'').startsWith('application/json'))fail('JSON is required.',415);
-        const limit=path==='/api/images'?3*1024*1024:path==='/api/restore'?128*1024*1024:['/api/draft','/api/special-days'].includes(path)?6*1024*1024:256000;
+        const limit=['/api/mobile/requests','/api/mobile/requests/comment','/api/resources','/api/teacher-requests/comment'].includes(path)?22*1024*1024:path==='/api/images'?3*1024*1024:path==='/api/restore'?128*1024*1024:['/api/draft','/api/special-days'].includes(path)?6*1024*1024:256000;
         let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>limit)fail('Request too large.',413);chunks.push(chunk);}try{body=JSON.parse(Buffer.concat(chunks).toString());}catch{fail('Invalid JSON.');}
       }
       const token=(req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('school_session='))?.slice(15);
@@ -112,6 +114,9 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/mobile/ack'&&req.method==='POST'){staffOnly();const item=acknowledge(state,mobileUser,body);store.save();return reply({ackAt:item.ackAt});}
         if(path==='/api/mobile/reply'&&req.method==='POST'){staffOnly();throttle('reply:'+mobileUser.id,120);const row=replyAsTeacher(state,mobileUser,body);store.save();return reply({id:row.id,at:row.at});}
         if(path==='/api/mobile/conflict'&&req.method==='POST'){staffOnly();throttle('reply:'+mobileUser.id,120);const row=reportConflict(state,mobileUser,body);audit('Teacher reported a timetable conflict');store.save();return reply({id:row.id,at:row.at});}
+        if(path==='/api/mobile/requests'&&req.method==='POST'){staffOnly();throttle('request:'+mobileUser.id,60);const row=createRequest(state,fileStore,mobileUser,body);audit('Teacher request submitted');store.save();return reply({id:row.id});}
+        if(path==='/api/mobile/requests/comment'&&req.method==='POST'){staffOnly();throttle('request:'+mobileUser.id,60);commentRequest(state,fileStore,mobileUser,body,false);store.save();return reply({ok:true});}
+        if(path.startsWith('/api/mobile/files/')&&req.method==='GET'){staffOnly();const {meta,bytes}=fileStore.read(state,path.slice(18));if(!canReadFile(state,mobileUser,meta,{staff:false,classIds:teacherClasses()}))fail('File not found.',404);res.setHeader('Content-Type',meta.mime);res.setHeader('Content-Disposition',`attachment; filename*=UTF-8''${encodeURIComponent(meta.name)}`);res.end(bytes);return;}
         if(path==='/api/mobile/preferences'&&req.method==='POST'){staffOnly();const preferences=savePreferences(mobileUser,body);store.save();return reply({preferences});}
         if(path==='/api/mobile/password'&&req.method==='POST'){throttle('sensitive:'+mobileUser.id);if(!verify(body.currentPassword,mobileUser))fail('Current password is incorrect.',403);const updated=credentials({name:mobileUser.name,email:mobileUser.email,password:body.password});Object.assign(mobileUser,updated);for(const [key,value] of sessions)if(value.userId===mobileUser.id)sessions.delete(key);revokeUserTokens(state,mobileUser.id);const renewed=issueToken(state,mobileUser);audit('App password changed');store.save();return reply(renewed);}
         if(path==='/api/mobile/parent/link'&&req.method==='POST'){parentOnly();throttle('invite-all',300);consumeInvite(state,findInvite(state,body.code),mobileUser);audit('Parent added a child with an invitation code');store.save();return reply({ok:true});}
@@ -143,6 +148,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
       }
       if(path.startsWith('/api/')) {
         if(!authenticated)fail('Sign in to the control panel.',401);
+        if(path.startsWith('/api/files/')&&req.method==='GET'){if(!canEdit(user))fail('Your role cannot perform this action.',403);const {meta,bytes}=fileStore.read(state,path.slice(11));res.setHeader('Content-Type',meta.mime);res.setHeader('Content-Disposition',`attachment; filename*=UTF-8''${encodeURIComponent(meta.name)}`);res.end(bytes);return;}
         if(!canAccess(user,path))fail('Your role cannot perform this action.',403);
         if(path==='/api/remote'&&req.method==='GET'){if(!remote)fail('Connect from the Windows app on the classroom computer.',409);return reply(remote.status());}
         if(path==='/api/remote'&&req.method==='POST'){
@@ -164,6 +170,12 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/special-days'&&req.method==='PUT'){const specials=validateSpecialDays(body.specialDays,state.classes);images.check(state.settings,new Set(),[...state.draft,...state.published],[...specials,...state.publishedSpecialDays]);state.specialDays=specials;audit('Special-day draft saved');store.save();return reply({ok:true});}
         if(path==='/api/announcements'&&req.method==='POST'){const notice={...validateAnnouncement(body,state.publishedClasses),id:randomBytes(16).toString('hex')};state.announcements=state.announcements.filter(n=>Date.parse(n.expiresAt)>Date.now()).slice(-49).concat(notice);audit('Class announcement sent');store.save();return reply({ok:true});}
         if(path==='/api/teacher-messages'&&req.method==='GET')return reply(deliveryReport(state));
+        if(path==='/api/teacher-requests'&&req.method==='GET')return reply({requests:allRequests(state)});
+        if(path==='/api/teacher-requests/decide'&&req.method==='POST'){decideRequest(state,user,body);audit('Teacher request answered');store.save();return reply({ok:true});}
+        if(path==='/api/teacher-requests/comment'&&req.method==='POST'){commentRequest(state,fileStore,user,body,true);store.save();return reply({ok:true});}
+        if(path==='/api/resources'&&req.method==='GET')return reply({resources:allResources(state)});
+        if(path==='/api/resources'&&req.method==='POST'){const row=saveResource(state,fileStore,user,body);audit('School resource saved');store.save();return reply({id:row.id});}
+        if(path==='/api/resources/remove'&&req.method==='POST'){removeResource(state,fileStore,body);audit('School resource removed');store.save();return reply({ok:true});}
         if(path==='/api/teacher-messages/reply'&&req.method==='POST'){replyAsStaff(state,user,body);audit('Staff replied to a teacher');store.save();return reply({ok:true});}
         if(path==='/api/message-policy'&&req.method==='PUT'){requireAdmin(user);const policy=savePolicy(state,body);audit('Urgent alert policy updated');store.save();return reply({policy});}
         if(path==='/api/teacher-messages'&&req.method==='POST'){const count=sendTeacherMessage(state,user,body);audit('Teacher message sent');store.save();return reply({count});}
@@ -216,7 +228,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/exit'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);if(!desktop)fail('The desktop app is not running.',409);audit('Desktop exit authorized');store.save();reply({ok:true});setTimeout(()=>desktop.exit(),250);return;}
         fail('Not found.',404);
       }
-      const files={'/':'web/index.html','/control':'web/index.html','/display':'web/display.html','/app.js':'web/app.js','/tour.js':'web/tour.js','/tour.css':'web/tour.css','/display.js':'web/display.js','/message-report.js':'web/message-report.js','/i18n.js':'web/i18n.js','/styles.css':'web/styles.css','/display.css':'web/display.css','/teacher':'web/teacher.html','/teacher.js':'web/teacher.js','/teacher.css':'web/teacher.css','/teacher-i18n.js':'web/teacher-i18n.js','/teacher-plan.mjs':'shared/teacher-plan.mjs','/teachers.mjs':'shared/teachers.mjs','/schedule.mjs':'shared/schedule.mjs','/media.mjs':'shared/media.mjs','/lesson-flow.mjs':'shared/lesson-flow.mjs','/lesson-options.js':'web/lesson-options.js','/lesson-screen.js':'web/lesson-screen.js','/theme.js':'web/theme.js','/workspace.js':'web/workspace.js','/ios.css':'web/ios.css','/remote.js':'web/remote.js','/icon.svg':'assets/icon.svg','/images/student-break.png':'assets/student-break.png','/images/student-return.png':'assets/student-return.png'};
+      const files={'/':'web/index.html','/control':'web/index.html','/display':'web/display.html','/app.js':'web/app.js','/tour.js':'web/tour.js','/tour.css':'web/tour.css','/display.js':'web/display.js','/message-report.js':'web/message-report.js','/staff-tools.js':'web/staff-tools.js','/i18n.js':'web/i18n.js','/styles.css':'web/styles.css','/display.css':'web/display.css','/teacher':'web/teacher.html','/teacher.js':'web/teacher.js','/teacher.css':'web/teacher.css','/teacher-i18n.js':'web/teacher-i18n.js','/teacher-plan.mjs':'shared/teacher-plan.mjs','/teachers.mjs':'shared/teachers.mjs','/schedule.mjs':'shared/schedule.mjs','/media.mjs':'shared/media.mjs','/lesson-flow.mjs':'shared/lesson-flow.mjs','/lesson-options.js':'web/lesson-options.js','/lesson-screen.js':'web/lesson-screen.js','/theme.js':'web/theme.js','/workspace.js':'web/workspace.js','/ios.css':'web/ios.css','/remote.js':'web/remote.js','/icon.svg':'assets/icon.svg','/images/student-break.png':'assets/student-break.png','/images/student-return.png':'assets/student-return.png'};
       if(req.method!=='GET'||!files[path])fail('Not found.',404);
       const data=await readFile(join(root,files[path]));res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'})[extname(files[path])]);res.end(data);
     }catch(error){reply({error:error.status?error.message:error.message?.includes('overlap')||error.message?.includes('time')||error.message?.includes('teacher')||error.message?.includes('timetable')||error.message?.includes('class')?error.message:'Could not complete the request.'},error.status||400);}

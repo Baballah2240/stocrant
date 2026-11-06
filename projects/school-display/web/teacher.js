@@ -64,7 +64,7 @@ async function flush(resync=true){
  if(sent&&resync)await sync();return sent;
 }
 // Sent items disappear once the server copy has arrived.
-function pruneOutbox(){const known=new Set(allMessages().map(row=>row.clientId).filter(Boolean));saveOutbox(outbox().filter(item=>!(item.state==='sent'&&(known.has(item.clientId)||['ack','preferences'].includes(item.path)))));}
+function pruneOutbox(){const known=new Set([...allMessages().map(row=>row.clientId),...(data?.requests||[]).flatMap(row=>[row.clientId,...row.comments.map(item=>item.clientId)])].filter(Boolean));saveOutbox(outbox().filter(item=>!(item.state==='sent'&&(known.has(item.clientId)||['ack','preferences'].includes(item.path)))));}
 const pendingFor=(path,test)=>outbox().filter(item=>item.path===path&&test(item.body));
 const sendState=item=>`<span class="send-state ${item.state}">${t(item.state==='pending'?'Waiting to send':item.state==='failed'?'Not sent':'Sent')}</span>${item.state==='failed'?`<button type="button" class="link" data-retry="${e(item.clientId)}">${t('Try again')}</button>`:''}`;
 
@@ -93,6 +93,8 @@ function alertItems(){
   for(const row of data.absenceRequests||[])if(row.status!=='pending')items.push({id:`r${row.id}${row.status}`,title:t(row.status==='approved'?'Absence approved':'Absence declined'),body:`${studentName(row.studentId)} · ${row.from}`});
  }else{
   for(const row of notices().filter(item=>!item.readAt))items.push({id:'n'+row.ids.join('.'),category:'change',priority:'important',title:t('Timetable change'),body:hide?t('Open Faslii to see the change.'):noticeTitle(row),extra:{tab:'alerts',notice:row.id}});
+  for(const row of data?.requests||[])if(row.status!=='pending')items.push({id:`q${row.id}${row.status}`,category:'message',priority:'normal',title:t('Request answered'),body:hide?t('Open Faslii to see the answer.'):`${row.title}: ${t({approved:'Approved',rejected:'Rejected',completed:'Completed'}[row.status])}`,extra:{tab:'request',request:row.id}});
+  for(const row of resourceUpdates())items.push({id:`d${row.id}v${row.version}`,category:'announcement',priority:'important',title:t('Document updated'),body:row.title,extra:{tab:'resources'}});
   for(const row of data?.absenceRequests||[])items.push({id:'r'+row.id,category:'message',priority:'normal',title:t('New absence request'),body:`${studentName(row.studentId)} · ${row.from}`,extra:{tab:'class'}});
  }
  return items;
@@ -124,7 +126,7 @@ async function scheduleReminders(){
  }catch{toast('Allow notifications in your phone settings to get reminders.',true);}
 }
 // Tapping a phone notification opens the related screen.
-if(native)try{notifications()?.addListener?.('localNotificationActionPerformed',({notification})=>{const x=notification?.extra||{};if(!x.tab)return;tab=x.tab;threadId=x.threadId||threadId;openNotice=x.notice||openNotice;render();});}catch{}
+if(native)try{notifications()?.addListener?.('localNotificationActionPerformed',({notification})=>{const x=notification?.extra||{};if(!x.tab)return;tab=x.tab;threadId=x.threadId||threadId;openNotice=x.notice||openNotice;requestId=x.request||requestId;render();});}catch{}
 
 // ---------- Shared pieces ----------
 const icon=name=>({today:'<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>',alerts:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',messages:'<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 3v-3h0A2.5 2.5 0 0 1 4 14.5z"/>',settings:'<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',week:'<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/>',homework:'<path d="M5 19l1-4L16 5l3 3L9 18z"/>',attendance:'<path d="m5 12 4 4 10-10"/>',class:'<path d="m5 12 4 4 10-10"/>'}[name]||'');
@@ -176,7 +178,7 @@ function pendingChanges(){
 function today(){
  if(isParent())return parentToday();
  const state=teacherNow(data,now()),covered=state.today.rows.filter(row=>row.coveredBy),hasLessons=weekPlan(data,now(),14).some(day=>day.rows.some(row=>row.mine||row.coveredBy));
- return `${views()}${hero(state)}${!hasLessons?`<section class="card notice"><strong>${t('None of your lessons were found.')}</strong><p>${t('Ask your administrator to set your name on the timetable under School users.')}</p></section>`:''}${pendingChanges()}${changesCard(state)}<section class="card"><h2>${t('Your lessons today')}</h2>${[...state.today.rows.filter(row=>row.mine),...covered,...state.today.rows.filter(row=>row.type==='break'&&state.mine.length)].sort((a,b)=>a.start.localeCompare(b.start)).map(row=>lessonRow(row,state,state.clock.date)).join('')}${cancelledRows(state.clock.date)}${!state.mine.length&&!covered.length&&!cancelledRows(state.clock.date)?`<p class="empty">${t('No lessons are scheduled.')}</p>`:''}</section>${noticesCard()}`;
+ return `${views()}${hero(state)}${quickAccess()}${!hasLessons?`<section class="card notice"><strong>${t('None of your lessons were found.')}</strong><p>${t('Ask your administrator to set your name on the timetable under School users.')}</p></section>`:''}${pendingChanges()}${changesCard(state)}<section class="card"><h2>${t('Your lessons today')}</h2>${[...state.today.rows.filter(row=>row.mine),...covered,...state.today.rows.filter(row=>row.type==='break'&&state.mine.length)].sort((a,b)=>a.start.localeCompare(b.start)).map(row=>lessonRow(row,state,state.clock.date)).join('')}${cancelledRows(state.clock.date)}${!state.mine.length&&!covered.length&&!cancelledRows(state.clock.date)?`<p class="empty">${t('No lessons are scheduled.')}</p>`:''}</section>${noticesCard()}`;
 }
 const dateLabel=date=>{const d=new Date(date+'T12:00:00Z');return `${dayName(d.getUTCDay())} · ${date}`;};
 const datesLabel=row=>!row.dates||row.dates.length<2?dateLabel(row.date):`${row.dates[0]} – ${row.dates.at(-1)} · ${row.dates.length} ${t('days')}`;
@@ -204,6 +206,8 @@ function feed(){
  const items=[];
  for(const row of messages())items.push({key:'m'+row.id,kind:'message',category:row.category||'message',priority:row.priority||'normal',title:row.subject||t(categoryTitle[row.category]||'New message from school'),text:row.text,at:row.at,unread:!isRead(row),row});
  for(const row of notices())items.push({key:'n'+row.id,kind:'notice',category:'change',priority:'important',title:noticeTitle(row),text:datesLabel(row),at:row.at,unread:!isRead(row),row});
+ for(const row of data.requests||[])if(row.status!=='pending'&&row.statusAt)items.push({key:'q'+row.id,kind:'request',category:'message',priority:'normal',title:`${t('Request answered')}: ${row.title}`,text:t({approved:'Approved',rejected:'Rejected',completed:'Completed'}[row.status]),at:row.statusAt,unread:!localRead().has('q'+row.id+row.status),row});
+ for(const row of data.resources||[])if(row.important&&row.version>1)items.push({key:'d'+row.id,kind:'resource',category:'announcement',priority:'important',title:`${t('Document updated')}: ${row.title}`,text:row.changeNote||t('A new version is available.'),at:row.updatedAt,unread:!localRead().has('d'+row.id+'v'+row.version),row});
  for(const row of data.announcements||[])items.push({key:'a'+row.id,kind:'announcement',category:'announcement',priority:'normal',title:t('School announcement'),text:pick(row,'text'),at:row.expiresAt,unread:!localRead().has(row.id),row});
  return items.sort((a,b)=>String(b.at).localeCompare(String(a.at)));
 }
@@ -236,6 +240,68 @@ function thread(){
  return `<button type="button" class="back" data-tab="messages">‹ ${t('Messages')}</button><section class="card conversation"><header><h2>${e(head.noticeId?t('Conflict report'):head.subject||head.fromName||t('School'))}</h2>${priorityTag(head.priority)}</header>${rows.map(row=>{const ack=row.direction==='down'&&row.requireAck?(row.ackAt?`<p class="ack-done">✓ ${t('Acknowledged')}</p>`:pendingFor('ack',body=>body.id===row.id)[0]?`<p class="ack-done">✓ ${t('Acknowledged')} · ${sendState(pendingFor('ack',body=>body.id===row.id)[0])}</p>`:`<button type="button" class="primary" data-ack="${e(row.id)}">${t('Acknowledged')}</button>`):'';return `<div class="bubble ${row.direction==='up'?'mine':''}"><p>${e(row.text)}</p><small>${e(row.direction==='up'?t('You'):row.fromName)} · ${e(stamp(row.at))}${row.pending?' · '+sendState(row.pending):''}</small>${ack}</div>`;}).join('')}</section><form id="reply-form" class="card stack" data-thread="${e(head.threadId)}"><label>${t('Reply')}<textarea name="text" rows="3" maxlength="2000" required></textarea></label><button class="primary">${t('Send reply')}</button><p class="muted">${t('Replies go to the school staff in Faslii. They are sent when you are online.')}</p></form>`;
 }
 
+
+// ---------- Teacher: Requests ----------
+let requestId=null,resourceQuery='',resourceCategory='all',bookmarkedOnly=false;
+const requestTypeLabel={leave:'Leave',absence:'Absence',correction:'Timetable correction',maintenance:'Maintenance',technical:'Technical support'};
+const requestStatusTag=status=>`<span class="tag ${status==='approved'||status==='completed'?'ok':status==='rejected'?'danger':'warn'}">${t({pending:'Pending',approved:'Approved',rejected:'Rejected',completed:'Completed'}[status]||status)}</span>`;
+const myRequests=()=>{
+ const list=[...(data.requests||[])];
+ for(const item of outbox().filter(row=>row.path==='requests'&&row.state!=='sent'))if(!list.some(row=>row.clientId===item.clientId))list.push({id:item.clientId,clientId:item.clientId,type:item.body.type,title:item.body.title,details:item.body.details,from:item.body.from,to:item.body.to,status:'pending',comments:[],attachments:[],at:item.at,pending:item});
+ return list.sort((a,b)=>String(b.updatedAt||b.at).localeCompare(String(a.updatedAt||a.at)));
+};
+const sizeText=bytes=>bytes>1048576?(bytes/1048576).toFixed(1)+' MB':Math.max(1,Math.round(bytes/1024))+' KB';
+const fileButton=file=>`<button type="button" class="file-chip" data-file="${e(file.id)}" data-file-name="${e(file.name)}"><span aria-hidden="true">📎</span>${e(file.name)} <small>${e(sizeText(file.size))}</small></button>`;
+const quickAccess=()=>isParent()?'':`<nav class="quick" aria-label="${t('Quick access')}"><button type="button" data-tab="requests"><strong>${t('Requests')}</strong><small>${(data.requests||[]).filter(row=>row.status==='pending').length} ${t('pending')}</small></button><button type="button" data-tab="resources"><strong>${t('Resources')}</strong><small>${resourceUpdates().length?`${resourceUpdates().length} ${t('updated')}`:`${(data.resources||[]).length} ${t('documents')}`}</small></button></nav>`;
+function requestsView(){
+ const list=myRequests();
+ return `<button type="button" class="back" data-tab="today">‹ ${t('Today')}</button><section class="card list"><header class="list-head"><h2>${t('My requests')}</h2><button type="button" class="link" data-tab="request-new">+ ${t('New request')}</button></header>${list.map(row=>`<article class="feed-item"><button type="button" class="feed-open" data-request="${e(row.id)}"><span class="feed-dot" aria-hidden="true"></span><span class="feed-body"><strong>${e(row.title)}</strong><span class="feed-text">${t(requestTypeLabel[row.type]||row.type)}${row.from?` · ${e(row.from)}${row.to&&row.to!==row.from?' – '+e(row.to):''}`:''}</span><small>${e(stamp(row.updatedAt||row.at))}${row.pending?' · '+sendState(row.pending):''}</small></span>${requestStatusTag(row.status)}</button></article>`).join('')||`<p class="empty">${t('You have not sent any requests.')}</p>`}</section>`;
+}
+function requestForm(){
+ const date=todayDate();
+ return `<button type="button" class="back" data-tab="requests">‹ ${t('My requests')}</button><form id="request-form" class="card stack"><h2>${t('New request')}</h2><label>${t('Type')}<select name="type">${Object.entries(requestTypeLabel).map(([key,label])=>`<option value="${key}">${t(label)}</option>`).join('')}</select></label><label>${t('Title')}<input name="title" required maxlength="120"></label><div class="two"><label>${t('From')}<input name="from" type="date" min="${e(date)}"></label><label>${t('To')}<input name="to" type="date" min="${e(date)}"></label></div><p class="muted">${t('Dates are needed for leave and absence.')}</p><label>${t('Details')}<textarea name="details" rows="4" maxlength="2000"></textarea></label><label>${t('Attachments')}<input name="files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.pptx,.txt"></label><p class="muted">${t('Up to 3 files, 5 MB each: PDF, images, Word, Excel, PowerPoint or text. Requests with attachments need a connection.')}</p><button class="primary">${t('Send request')}</button></form>`;
+}
+function requestDetail(){
+ const row=myRequests().find(item=>item.id===requestId);if(!row){tab='requests';return requestsView();}
+ return `<button type="button" class="back" data-tab="requests">‹ ${t('My requests')}</button><section class="card conversation"><header><h2>${e(row.title)}</h2>${requestStatusTag(row.status)}</header><dl class="mini"><dt>${t('Type')}</dt><dd>${t(requestTypeLabel[row.type]||row.type)}</dd>${row.from?`<dt>${t('Dates')}</dt><dd>${e(row.from)}${row.to&&row.to!==row.from?' – '+e(row.to):''}</dd>`:''}<dt>${t('Sent')}</dt><dd>${e(stamp(row.at))}</dd>${row.statusAt?`<dt>${t('Answered')}</dt><dd>${e(stamp(row.statusAt))}${row.statusBy?' · '+e(row.statusBy):''}</dd>`:''}</dl>${row.details?`<p class="pre">${e(row.details)}</p>`:''}${row.attachments.length?`<div class="files">${row.attachments.map(fileButton).join('')}</div>`:''}${row.comments.map(item=>`<div class="bubble ${item.staff?'':'mine'}">${item.status?`<p><b>${t('Status changed to')} ${t({approved:'Approved',rejected:'Rejected',completed:'Completed'}[item.status]||item.status)}</b></p>`:''}${item.text?`<p>${e(item.text)}</p>`:''}${(item.attachments||[]).length?`<div class="files">${item.attachments.map(fileButton).join('')}</div>`:''}<small>${e(item.staff?item.byName:t('You'))} · ${e(stamp(item.at))}</small></div>`).join('')}${pendingFor('requests/comment',body=>body.id===row.id).map(item=>`<div class="bubble mine"><p>${e(item.body.text)}</p><small>${t('You')} · ${sendState(item)}</small></div>`).join('')}</section>${row.pending?'':`<form id="request-comment-form" class="card stack" data-request="${e(row.id)}"><label>${t('Add a comment')}<textarea name="text" rows="2" maxlength="1000" required></textarea></label><button class="secondary">${t('Send comment')}</button></form>`}`;
+}
+const readFile=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve({name:file.name,data:String(reader.result)});reader.onerror=()=>reject(Error('The file could not be read.'));reader.readAsDataURL(file);});
+
+// ---------- Teacher: Resources ----------
+const resourceCategoryLabel={policy:'Policies',teaching:'Teaching documents',form:'Forms',shared:'Shared files'};
+const seenVersions=()=>{try{return JSON.parse(read('teacher-resource-seen'))||{};}catch{return {};}};
+const bookmarks=()=>new Set(idList('teacher-bookmarks'));
+// Important documents revised after the teacher last opened the library.
+const resourceUpdates=()=>{const seen=seenVersions();return (data.resources||[]).filter(row=>row.important&&seen[row.id]!==undefined&&seen[row.id]<row.version||row.important&&row.version>1&&seen[row.id]===undefined&&Date.now()-Date.parse(row.updatedAt)<14*86400000);};
+const markResourcesSeen=()=>write('teacher-resource-seen',JSON.stringify(Object.fromEntries((data.resources||[]).map(row=>[row.id,row.version]))));
+let savedFiles=new Set();
+function resourceList(){
+ const marks=bookmarks(),seen=seenVersions(),query=resourceQuery.trim().toLowerCase();
+ const list=(data.resources||[]).filter(row=>(resourceCategory==='all'||row.category===resourceCategory)&&(!bookmarkedOnly||marks.has(row.id))&&(!query||[row.title,row.description,row.changeNote,row.file?.name].join(' ').toLowerCase().includes(query))).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+ return list.map(row=>{const updated=seen[row.id]!==undefined&&seen[row.id]<row.version;return `<article class="resource"><div class="resource-head"><span class="feed-body"><strong>${e(row.title)}</strong><small>${t(resourceCategoryLabel[row.category]||row.category)} · ${t('Updated')} ${e(stamp(row.updatedAt))}${row.version>1?` · ${t('Version')} ${row.version}`:''}</small></span><button type="button" class="star ${marks.has(row.id)?'on':''}" data-bookmark="${e(row.id)}" aria-pressed="${marks.has(row.id)}" aria-label="${t(marks.has(row.id)?'Remove bookmark':'Bookmark')}">${marks.has(row.id)?'★':'☆'}</button></div>${row.description?`<p class="muted">${e(row.description)}</p>`:''}${updated&&row.changeNote?`<p class="tag warn">${t('What changed')}: ${e(row.changeNote)}</p>`:updated?`<p class="tag warn">${t('Revised since you last looked')}</p>`:''}${row.important?`<span class="tag">${t('Important')}</span>`:''}<div class="row-buttons">${row.file&&row.downloadable?`<button type="button" class="secondary" data-file="${e(row.file.id)}" data-file-name="${e(row.file.name)}">${t('Open')}</button><button type="button" class="ghost" data-save-file="${e(row.file.id)}" ${savedFiles.has(row.file.id)?'disabled':''}>${savedFiles.has(row.file.id)?'✓ '+t('Saved on this phone'):t('Save for offline')}</button>`:`<p class="muted">${t('View-only: ask the school for a copy.')}</p>`}</div></article>`;}).join('')||`<p class="empty">${t('No documents match.')}</p>`;
+}
+function resourcesView(){
+ const chips=[['all','All'],...Object.entries(resourceCategoryLabel)];
+ return `<button type="button" class="back" data-tab="today">‹ ${t('Today')}</button><label class="search">${t('Search documents')}<input id="resource-search" type="search" value="${e(resourceQuery)}" autocomplete="off"></label><nav class="chips" aria-label="${t('Category')}">${chips.map(([key,label])=>`<button type="button" data-res-category="${key}" class="${resourceCategory===key?'selected':''}" aria-pressed="${resourceCategory===key}">${t(label)}</button>`).join('')}</nav><label class="switch"><input type="checkbox" id="bookmarked-only" ${bookmarkedOnly?'checked':''}><span>${t('Bookmarked only')}</span></label><section class="card list" id="resource-list">${resourceList()}</section>`;
+}
+
+// Downloaded files are kept in IndexedDB so they open offline.
+const fileDb=()=>new Promise((resolve,reject)=>{const request=indexedDB.open('faslii-files',1);request.onupgradeneeded=()=>request.result.createObjectStore('files');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+async function cachedFile(id){try{const db=await fileDb();return await new Promise(resolve=>{const get=db.transaction('files').objectStore('files').get(id);get.onsuccess=()=>resolve(get.result||null);get.onerror=()=>resolve(null);});}catch{return null;}}
+async function cacheFile(id,value){try{const db=await fileDb();await new Promise(resolve=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(value,id);tx.oncomplete=resolve;tx.onerror=resolve;});}catch{}}
+async function refreshSaved(){try{const db=await fileDb();savedFiles=await new Promise(resolve=>{const keys=db.transaction('files').objectStore('files').getAllKeys();keys.onsuccess=()=>resolve(new Set(keys.result));keys.onerror=()=>resolve(new Set());});}catch{savedFiles=new Set();}}
+async function fetchFile(id){
+ const cached=await cachedFile(id);if(cached)return cached;
+ const res=await fetch(server+'/api/mobile/files/'+encodeURIComponent(id),{headers:{Authorization:'Bearer '+token}});
+ if(!res.ok)throw Object.assign(Error(res.status===404?'This file is no longer available.':'Could not reach the school. Check your connection.'),{status:res.status});
+ return {blob:await res.blob()};
+}
+async function openFile(id,name){
+ try{const {blob}=await fetchFile(id);const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name||'file';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+ catch(error){toast(error.message||'Could not open the file.',true);}
+}
+async function saveFile(id){try{const {blob}=await fetchFile(id);await cacheFile(id,{blob,at:new Date().toISOString()});savedFiles.add(id);toast('Saved on this phone.');render();}catch(error){toast(error.message||'Could not save the file.',true);}}
+
 // ---------- Profile ----------
 function settings(){
  const lead=read('teacher-reminder')||'0',synced=read('teacher-synced'),parent=isParent(),p=prefs(),theme=read('teacher-theme')||'system',policy=data.policy||{};
@@ -249,14 +315,14 @@ const passwordField=(name,label,auto)=>`<label>${t(label)}<input name="${name}" 
 const login=()=>`<main class="login"><img src="icon.svg" alt="" width="72" height="72"><h1>${t('Faslii')}</h1><p>${t('For teachers and parents')}</p>${authMode==='login'?`<form id="login-form"><label>${t('Email')}<input name="email" type="email" autocomplete="username" required maxlength="180"></label>${passwordField('password','Password','current-password')}<p id="login-error" role="alert"></p><button class="primary">${t('Sign in')}</button></form><button type="button" class="secondary" data-action="join">${t('I have an invitation code')}</button><p class="muted">${t('Teachers get their sign-in from the school. Parents get an invitation code.')}</p>`:`<form id="join-form"><label>${t('Invitation code')}<input name="code" required maxlength="20" autocapitalize="characters" autocomplete="off"></label><label>${t('Your name')}<input name="name" required maxlength="100" autocomplete="name"></label><label>${t('Email')}<input name="email" type="email" autocomplete="username" required maxlength="180"></label>${passwordField('password','Password','new-password')}${passwordField('confirm','Confirm password','new-password')}<p class="muted">${t('At least 12 characters. If you already have an account, use the same email and password to add this child.')}</p><p id="login-error" role="alert"></p><button class="primary">${t('Join')}</button></form><button type="button" class="ghost" data-action="login">${t('Back to sign in')}</button>`}<button type="button" class="ghost" data-action="language">${language==='en'?'العربية':'English'}</button></main>`;
 function tabs(){
  const list=isParent()?[['today','Today'],['week','Week'],['homework','Homework'],['attendance','Attendance'],['messages','Messages']]:[['today','Today'],['alerts','Notifications'],['messages','Messages'],['settings','Profile']];
- const active=key=>key===tab||(key==='today'&&['week','month','class'].includes(tab)&&!isParent())||(key==='messages'&&tab==='thread');
+ const active=key=>key===tab||(key==='today'&&['week','month','class','requests','request-new','request','resources'].includes(tab)&&!isParent())||(key==='messages'&&tab==='thread');
  const badge=key=>{const count=key==='messages'?unread().length:key==='alerts'?unreadNotices().length+messages().filter(row=>!isRead(row)&&row.priority!=='normal').length:0;return count?`<b class="tab-badge">${count}</b>`:'';};
  return `<nav class="tabs" data-count="${list.length}">${list.map(([key,label])=>`<button type="button" data-tab="${key}" class="${active(key)?'active':''}" ${active(key)?'aria-current="page"':''}>${svg(key)}<span>${t(label)}</span>${badge(key)}</button>`).join('')}</nav>`;
 }
 function render(){
  if(!token||!data){root.innerHTML=login();return;}
  const synced=read('teacher-synced'),scroll=window.scrollY;lastKey=viewKey();
- const body=tab==='today'?today():tab==='week'?week():tab==='month'?month():tab==='alerts'?alerts():tab==='messages'?inbox():tab==='thread'?thread():tab==='class'?classTab():tab==='homework'?homework():tab==='attendance'?attendanceTab():settings();
+ const body=tab==='today'?today():tab==='week'?week():tab==='month'?month():tab==='alerts'?alerts():tab==='messages'?inbox():tab==='thread'?thread():tab==='requests'?requestsView():tab==='request-new'?requestForm():tab==='request'?requestDetail():tab==='resources'?resourcesView():tab==='class'?classTab():tab==='homework'?homework():tab==='attendance'?attendanceTab():settings();
  const waiting=outbox().filter(item=>item.state==='pending').length;
  root.innerHTML=`<header class="top"><div><strong>${e(pick(data.school,'name'))}</strong><small data-clock>${clockText(schoolClock(now(),data.school.timezone))}</small>${isParent()?`<button type="button" class="gear ${tab==='settings'?'active':''}" data-tab="settings" aria-label="${t('Settings')}">⚙</button>`:''}</div></header>${online?'':`<div class="offline" role="status"><span class="dot"></span>${t('Offline. Showing the last saved timetable.')}${synced?` ${t('Last updated')}: ${e(new Date(synced).toLocaleString(language==='ar'?'ar-QA':'en-GB'))}`:''}${waiting?` · ${waiting} ${t('waiting to send')}`:''}</div>`}<main class="content" data-view="${e(tab)}">${body}</main>${tabs()}`;
  window.scrollTo(0,scroll);
@@ -267,12 +333,19 @@ function openItem(key){
  const item=feed().find(row=>row.key===key);if(!item)return;
  if(item.kind==='message'){markRead([item.row]);threadId=item.row.threadId;tab='thread';window.scrollTo(0,0);}
  else if(item.kind==='notice'){markRead([item.row]);openNotice=openNotice===item.row.id?null:item.row.id;}
+ else if(item.kind==='request'){const seen=localRead();seen.add('q'+item.row.id+item.row.status);write('teacher-read-messages',JSON.stringify([...seen]));requestId=item.row.id;tab='request';}
+ else if(item.kind==='resource'){const seen=localRead();seen.add('d'+item.row.id+'v'+item.row.version);write('teacher-read-messages',JSON.stringify([...seen]));resourceQuery=item.row.title;tab='resources';refreshSaved().then(()=>render());}
  else{const seen=localRead();seen.add(item.row.id);write('teacher-read-messages',JSON.stringify([...seen]));}
  render();
 }
 root.addEventListener('click',async event=>{
  const node=event.target.closest('button');if(!node)return;
- if(node.dataset.tab){tab=node.dataset.tab;if(tab==='messages')markRead();if(tab!=='alerts')conflictFor=null;window.scrollTo(0,0);render();}
+ if(node.dataset.tab){if(tab==='resources'&&node.dataset.tab!=='resources')markResourcesSeen();tab=node.dataset.tab;if(tab==='resources')refreshSaved().then(()=>{if(tab==='resources')render();});if(tab==='messages')markRead();if(tab!=='alerts')conflictFor=null;window.scrollTo(0,0);render();}
+ if(node.dataset.request){requestId=node.dataset.request;tab='request';window.scrollTo(0,0);render();}
+ if(node.dataset.file)await openFile(node.dataset.file,node.dataset.fileName);
+ if(node.dataset.saveFile)await saveFile(node.dataset.saveFile);
+ if(node.dataset.resCategory){resourceCategory=node.dataset.resCategory;render();}
+ if(node.dataset.bookmark){const marks=bookmarks();marks.has(node.dataset.bookmark)?marks.delete(node.dataset.bookmark):marks.add(node.dataset.bookmark);write('teacher-bookmarks',JSON.stringify([...marks]));render();}
  if(node.dataset.selectDay){selectedDay=Number(node.dataset.selectDay);render();}
  if(node.dataset.weekShift){selectedDay=Math.max(0,Math.min(34,Math.floor(selectedDay/7)*7+Number(node.dataset.weekShift)));render();}
  if(node.dataset.monthDay){selectedDay=Number(node.dataset.monthDay);tab='week';render();}
@@ -293,13 +366,14 @@ root.addEventListener('click',async event=>{
  if(node.dataset.decide)await saveAction(()=>api('absence/decide',{id:node.dataset.decide,status:node.dataset.status}),'Saved.');
  if(node.dataset.removeWork)await saveAction(()=>api('work/remove',{id:node.dataset.removeWork}),'Saved.');
 });
-root.addEventListener('input',event=>{const form=event.target.form;if(form&&!['login-form','join-form'].includes(form.id))form.dataset.dirty='1';});
+root.addEventListener('input',event=>{if(event.target.id==='resource-search'){resourceQuery=event.target.value;const list=root.querySelector('#resource-list');if(list)list.innerHTML=resourceList();return;}const form=event.target.form;if(form&&!['login-form','join-form'].includes(form.id))form.dataset.dirty='1';});
 root.addEventListener('change',async event=>{
  const target=event.target;
  if(target.id==='week-view'){weekView=target.value;render();}
  if(target.id==='class-select'){classId=target.value;marks={};render();}
  if(target.id==='filter-priority'){filter.priority=target.value;render();}
  if(target.id==='filter-unread'){filter.unread=target.checked;render();}
+ if(target.id==='bookmarked-only'){bookmarkedOnly=target.checked;render();}
  if(target.name?.startsWith('mark:')){marks[target.name.slice(5)]=target.value;render();const form=root.querySelector('#attendance-form');if(form)form.dataset.dirty='1';}
  if(target.id==='language'){setLanguage(target.value);render();await scheduleReminders();}
  if(target.id==='theme'){write('teacher-theme',target.value);applyTheme();}
@@ -325,6 +399,18 @@ root.addEventListener('submit',async event=>{
     await enter(issued);
    }catch(failure){token=null;write('teacher-token',null);error.textContent=t(failure.message);}
   }
+  if(form.id==='request-form'){
+   const picked=[...(form.querySelector('[name=files]').files||[])];
+   if(picked.length>3){toast('Attach up to 3 files.',true);return;}
+   if(picked.some(file=>file.size>5*1024*1024)){toast('Each file must be 5 MB or smaller.',true);return;}
+   const body={type:values.type,title:String(values.title||'').trim(),details:String(values.details||'').trim(),from:values.from||'',to:values.to||''};
+   if(['leave','absence'].includes(body.type)&&!body.from){toast('Choose the dates.',true);return;}
+   if(picked.length){
+    try{const attachments=await Promise.all(picked.map(readFile));await api('requests',{...body,attachments,clientId:newKey()});delete form.dataset.dirty;toast('Request sent.');await sync();tab='requests';render();}
+    catch(failure){toast(failure.status?failure.message:'Requests with attachments need a connection. Try again when you are online.',true);}
+   }else{queue('requests',body,'Request');delete form.dataset.dirty;toast(online?'Request sent.':'Saved. It will be sent when you are online.');tab='requests';render();}
+  }
+  if(form.id==='request-comment-form'){const text=String(values.text||'').trim();if(text){queue('requests/comment',{id:form.dataset.request,text},'Comment');delete form.dataset.dirty;render();}}
   if(form.id==='reply-form'){const text=String(values.text||'').trim();if(text){queue('reply',{threadId:form.dataset.thread,text},'Reply');delete form.dataset.dirty;render();}}
   if(form.id==='conflict-form'){const text=String(values.text||'').trim();if(text){queue('conflict',{noticeId:form.dataset.notice,text},'Conflict report');conflictFor=null;delete form.dataset.dirty;toast('Sent to the school.');render();}}
   if(form.id==='attendance-form'){const group=data.classes.find(row=>row.id===classId)||data.classes[0],entries=[...new FormData(form)].filter(([key])=>key.startsWith('mark:')).map(([key,status])=>({studentId:key.slice(5),status}));await saveAction(()=>api('attendance',{classId:group.id,date:todayDate(),entries}),'Attendance saved.');marks={};render();}
