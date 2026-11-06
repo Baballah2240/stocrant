@@ -1,7 +1,7 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
-const assets = {'/':['index.html','text/html; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml']};
+const assets = {'/':['index.html','text/html; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8'],'/glass.css':['glass.css','text/css; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/cards.js':['cards.js','text/javascript; charset=utf-8'],'/contact.js':['contact.js','text/javascript; charset=utf-8'],'/ambient.js':['ambient.js','text/javascript; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml']};
 export function start(port=4330) {
   const server=createServer(async(req,res)=>{
     const item=assets[new URL(req.url,'http://127.0.0.1').pathname];

@@ -1,0 +1,91 @@
+/* Frosted glass skin. Layout, accessibility and card state live in style.css. */
+:root{
+  --bg:#0c1016;--panel:#19263b;--raised:#273951;--line:#c8deff26;
+  --text:#f0f5ff;--muted:#b1bfd2;--accent:#bfead9;--lavender:#c8c0f2;--ink:#183c36;
+  --glass:linear-gradient(135deg,#51688833,#172a434d);
+  --glass-back:linear-gradient(135deg,#344661e6,#192a42e6);
+  --glass-edge:#d8eaff29;--glass-shadow:#0000002e;--glass-reflection:#ffffff17;
+  --glass-input:#0c17245e;--glass-accent:linear-gradient(130deg,#cef5e9ed,#a4dcd5e8);
+}
+:root[data-theme=light]{
+  --bg:#e8eff5;--panel:#f6faff;--raised:#f3f9ff;--line:#738cb52e;
+  --text:#253c50;--muted:#586b83;--accent:#366b61;--lavender:#685c9f;--ink:#f8fffd;
+  --glass:linear-gradient(135deg,#ffffffa8,#f4f9ff70);
+  --glass-back:linear-gradient(135deg,#ffffffed,#eef5ffdf);
+  --glass-edge:#ffffffbd;--glass-shadow:#2b4a7119;--glass-reflection:#ffffffad;
+  --glass-input:#ffffff6b;--glass-accent:linear-gradient(130deg,#3f7b6fef,#366c6cd9);
+}
+.ambient{background:radial-gradient(ellipse at 45% -30%,#505c8933,transparent 70%)}
+.ambient-orb{opacity:.95;filter:blur(48px)}
+.orb-lavender{background:radial-gradient(ellipse,#8b7cd37a,transparent 67%);top:-22vh;left:-24vw}
+.orb-teal{background:radial-gradient(ellipse,#5fa6be68,transparent 66%);right:-25vw;top:8vh}
+.orb-lime{background:radial-gradient(ellipse,#73b49a5c,transparent 65%);bottom:-30vh}
+.ambient-grid{opacity:.4}.ambient-contours{opacity:.09}
+.topbar{border-color:var(--glass-edge)}
+.brand-mark{text-shadow:0 2px 14px #a8d8ff18}.brand-mark>span{color:var(--accent)}
+.navigation{padding:3px;border:1px solid var(--glass-edge);border-radius:12px;background:linear-gradient(135deg,#50668e1c,#ffffff04);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:inset 0 1px 0 var(--glass-reflection),0 4px 18px var(--glass-shadow)}
+.navigation button{padding-block:8px}
+.navigation button:hover,.navigation button[aria-expanded=true]{background:#c6deff12;color:var(--text)}
+.icon-button,.github-link{background:var(--glass);border:1px solid var(--glass-edge);border-radius:10px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 var(--glass-reflection),0 4px 15px var(--glass-shadow)}
+.icon-button:hover,.github-link:hover{background:color-mix(in srgb,var(--raised) 60%,transparent);border-color:color-mix(in srgb,var(--lavender) 50%,transparent)}
+.icon-button:active,.github-link:active{transform:translateY(1px)}
+.motion-toggle[aria-pressed=true]{color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.intro,.flip-face{background:var(--glass);border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 var(--glass-reflection),inset 0 -1px 0 #ffffff04,0 12px 35px var(--glass-shadow);backdrop-filter:blur(20px) saturate(125%);-webkit-backdrop-filter:blur(20px) saturate(125%)}
+.intro:before{content:'';position:absolute;inset:0;width:auto;height:auto;background:linear-gradient(130deg,#ffffff06,transparent 40%);border:0;border-radius:inherit;box-shadow:none;pointer-events:none}
+.flip-face:before{content:'';position:absolute;inset:0;background:linear-gradient(130deg,#ffffff08,transparent 42%);border-radius:inherit;pointer-events:none}
+.flip-back{background:var(--glass-back);border-color:color-mix(in srgb,var(--lavender) 50%,transparent);box-shadow:inset 0 1px 0 var(--glass-reflection),0 18px 45px #00000024}
+.intro h1{text-shadow:0 3px 24px #00000018}
+.intro-signature>span{color:var(--lavender)}
+.intro-bottom{border-color:var(--glass-edge)}
+.round-arrow{background:#d4e8ff0b;border-color:var(--glass-edge);box-shadow:inset 0 1px 0 #ffffff0d}
+.project-card:hover .round-arrow{background:var(--lavender);color:#273347;border-color:var(--lavender)}
+.mini-window{box-shadow:0 15px 32px #00000032;border-color:#ffffff80;background:#e9f0f7ef}
+.window-bar{background:linear-gradient(#f9fcff,#e2ebf5)}
+.ticket{box-shadow:0 15px 32px #00000032;background:linear-gradient(140deg,#eee9f9,#d4cee9)}
+.school-display{box-shadow:0 15px 32px #00000032}
+.primary-button,.contact-card .flip-front{background:var(--glass-accent);border-color:#defff36b;color:#183c36;box-shadow:inset 0 1px 0 #ffffff75,0 8px 25px #77cfb019}
+.primary-button:hover{filter:brightness(1.05);box-shadow:inset 0 1px 0 #ffffff85,0 9px 30px #77cfb028}
+.primary-button:active{transform:translateY(1px)}
+.contact-card .flip-front .info-copy strong{font-weight:600}
+.footer{border-color:var(--glass-edge)}
+dialog{background:linear-gradient(135deg,#263951eb,#16263be8);border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 var(--glass-reflection),0 30px 100px #0000005c;backdrop-filter:blur(32px) saturate(130%);-webkit-backdrop-filter:blur(32px) saturate(130%)}
+dialog::backdrop{background:#06122266;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.dialog-topbar{background:#b8d6ff05;border-color:var(--glass-edge)}
+.dialog-bottom{background:#0c172423;border-color:var(--glass-edge)}
+.dialog-close{padding:5px 8px;border:1px solid var(--glass-edge);background:#d4e8ff08;border-radius:7px}
+.dialog-close:hover{background:#d4e8ff16}
+.detail-stage,.tags span{background:#d4e8ff06;border-color:var(--glass-edge)}
+.detail-note{background:#0c172423;border-color:var(--glass-edge)}
+.contact-method,.project-picker button{background:#d4e8ff08;border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 #ffffff09}
+.contact-method:hover,.project-picker button:hover{background:#d4e8ff12;border-color:color-mix(in srgb,var(--lavender) 55%,transparent)}
+.contact-form input,.contact-form textarea{background:var(--glass-input);border-color:var(--glass-edge);box-shadow:inset 0 1px 3px #00000014}
+.contact-form input:focus,.contact-form textarea:focus{background:color-mix(in srgb,var(--glass-input) 90%,var(--panel));border-color:var(--lavender);outline-color:color-mix(in srgb,var(--lavender) 20%,transparent)}
+.card-preview .ambient,.focus-active .ambient{opacity:.5}
+:root[data-theme=light] .ambient{background:radial-gradient(ellipse at 40% -30%,#d6ddfc,transparent 70%)}
+:root[data-theme=light] .ambient-orb{opacity:.85}
+:root[data-theme=light] .navigation{background:#ffffff42}
+:root[data-theme=light] .navigation button:hover{background:#ffffff77}
+:root[data-theme=light] .flip-face{background:var(--glass);border-color:var(--glass-edge);box-shadow:inset 0 1px 0 #ffffffbd,0 9px 30px var(--glass-shadow)}
+:root[data-theme=light] .flip-back{background:var(--glass-back);border-color:#a59acb5c}
+:root[data-theme=light] .primary-button,:root[data-theme=light] .contact-card .flip-front{background:var(--glass-accent);color:#f8fffd;border-color:#ffffff5c;box-shadow:inset 0 1px 0 #ffffff48,0 8px 20px #3e746126}
+:root[data-theme=light] dialog{background:linear-gradient(135deg,#ffffffed,#edf4ffea);box-shadow:inset 0 1px 0 #fff,0 30px 100px #2b4a7133}
+:root[data-theme=light] dialog::backdrop{background:#283f5b30}
+:root[data-theme=light] .dialog-topbar,:root[data-theme=light] .dialog-bottom{background:#ffffff26}
+:root[data-theme=light] .contact-method,:root[data-theme=light] .project-picker button,:root[data-theme=light] .detail-note{background:#ffffff3d;border-color:#738cb52e}
+:root[data-theme=light] .tags span,:root[data-theme=light] .detail-stage{background:#ffffff40;border-color:#738cb52e}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.intro,.flip-front{background:var(--panel)}.flip-back{background:var(--raised)}dialog{background:var(--panel)}}
+@media(max-width:600px){.navigation{padding:2px;border-radius:10px}.navigation button{padding:5px 7px}.topbar{gap:7px}.icon-button,.github-link{border-radius:8px}.intro,.flip-face{backdrop-filter:blur(12px) saturate(115%);-webkit-backdrop-filter:blur(12px) saturate(115%)}.ambient-orb{filter:blur(30px)}.intro h1{letter-spacing:-.8px}.dialog-close{padding-inline:6px}}
+@media(max-height:550px) and (min-width:601px){.navigation{padding:2px}.navigation button{padding-block:5px}}
+@media(prefers-reduced-motion:reduce){.primary-button:active,.icon-button:active,.github-link:active{transform:none}}
+
+/* A little movement in the page itself; controls settle as soon as you engage. */
+.dashboard{translate:var(--page-x,0px) var(--page-y,0px);animation:page-drift 14s ease-in-out infinite;transition:translate .85s ease-out}
+.project-visual{animation:visual-drift 9s ease-in-out infinite}
+.safeer-card .project-visual{animation-delay:-3s}.school-card .project-visual{animation-delay:-6s}
+@keyframes page-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes visual-drift{0%,100%{translate:0 0}50%{translate:0 -5px}}
+:root[data-motion=off] .dashboard,:root[data-motion=off] .project-visual,.page-hidden .dashboard,.page-hidden .project-visual{animation:none;translate:0 0;transform:none}
+.card-preview .dashboard,.focus-active .dashboard,.dashboard:focus-visible,.dashboard:has(:focus-visible){animation:none;translate:0 0;transform:none;transition:translate .2s ease-out}
+.card-preview .project-visual,.focus-active .project-visual,.dashboard:focus-visible .project-visual,.dashboard:has(:focus-visible) .project-visual{animation-play-state:paused}
+@media(max-width:600px){@keyframes page-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}@keyframes visual-drift{0%,100%{translate:0 0}50%{translate:0 -3px}}}
+@media(prefers-reduced-motion:reduce){.dashboard,.project-visual{animation:none!important;translate:0 0!important;transform:none!important;transition:none!important}}
