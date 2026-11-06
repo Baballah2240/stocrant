@@ -106,7 +106,7 @@ async function announce_(){
  const known=idList('teacher-notified-messages'),fresh=alertItems().filter(row=>!known.includes(row.id));if(!fresh.length)return;markNotified();
  if(tab!=='messages'||fresh.some(row=>!messages().some(item=>item.id===row.id)))toast(fresh[0].title);
  const plugin=notifications();if(!native||!plugin)return;
- const deliver=fresh.filter(row=>isParent()||allowed(row.category,row.priority));
+ const deliver=fresh.filter(row=>!pushedByServer(row.id)&&(isParent()||allowed(row.category,row.priority)));
  if(!deliver.length)return;
  try{const permission=await plugin.requestPermissions();if(permission.display==='granted')await plugin.schedule({notifications:deliver.slice(0,10).map(row=>({id:alertNumber(row.id),title:row.title,body:row.body,extra:row.extra||null,schedule:{at:new Date(Date.now()+1000),allowWhileIdle:true}}))});}catch{}
 }
@@ -127,6 +127,31 @@ async function scheduleReminders(){
 }
 // Tapping a phone notification opens the related screen.
 if(native)try{notifications()?.addListener?.('localNotificationActionPerformed',({notification})=>{const x=notification?.extra||{};if(!x.tab)return;tab=x.tab;threadId=x.threadId||threadId;openNotice=x.notice||openNotice;requestId=x.request||requestId;render();});}catch{}
+
+
+// ---------- Push notifications (Firebase) ----------
+// The server sends pushes for messages, changes, request answers and revised documents.
+// When push works on this phone, those items are not repeated as local notifications.
+const pushPlugin=()=>window.capacitorPushNotifications?.PushNotifications;
+const deviceId=()=>{let value=read('teacher-device');if(!value){value=newKey();write('teacher-device',value);}return value;};
+let pushReady=false;
+async function setupPush(){
+ const plugin=pushPlugin();if(!native||!plugin||!token)return;
+ try{
+  if(!pushReady){
+   pushReady=true;
+   await plugin.addListener('registration',({value})=>{write('teacher-push-token',value);api('push-token',{token:value,deviceId:deviceId(),platform:'android'}).then(result=>write('teacher-push',result.enabled?'on':'off')).catch(()=>{});});
+   await plugin.addListener('registrationError',()=>write('teacher-push','off'));
+   await plugin.addListener('pushNotificationReceived',()=>sync());
+   await plugin.addListener('pushNotificationActionPerformed',({notification})=>{const x=notification?.data||{};if(x.tab){tab=x.tab;threadId=x.threadId||threadId;openNotice=x.notice||openNotice;requestId=x.request||requestId;}sync().then(()=>render());});
+   for(const channel of [{id:'faslii',name:'Faslii',description:'School messages and timetable changes',importance:4,visibility:0},{id:'faslii-urgent',name:'Urgent alerts',description:'Urgent alerts from the school',importance:5,visibility:0}])await plugin.createChannel(channel).catch(()=>{});
+  }
+  let permission=await plugin.checkPermissions();if(permission.receive==='prompt')permission=await plugin.requestPermissions();
+  if(permission.receive!=='granted'){write('teacher-push','off');return;}
+  await plugin.register();
+ }catch{write('teacher-push','off');}
+}
+const pushedByServer=id=>read('teacher-push')==='on'&&(/^[a-f0-9]{32}$/.test(id)||/^[nqd]/.test(id));
 
 // ---------- Shared pieces ----------
 const icon=name=>({today:'<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>',alerts:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',messages:'<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4 3v-3h0A2.5 2.5 0 0 1 4 14.5z"/>',settings:'<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',week:'<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/>',homework:'<path d="M5 19l1-4L16 5l3 3L9 18z"/>',attendance:'<path d="m5 12 4 4 10-10"/>',class:'<path d="m5 12 4 4 10-10"/>'}[name]||'');
@@ -362,7 +387,7 @@ root.addEventListener('click',async event=>{
  if(node.dataset.action==='join'||node.dataset.action==='login'){authMode=node.dataset.action;render();}
  if(node.dataset.action==='language'){setLanguage(language==='en'?'ar':'en');render();}
  if(node.dataset.action==='sync')await sync(true);
- if(node.dataset.action==='logout'){try{await api('logout',{});}catch{}clearAccount();authMode='login';render();}
+ if(node.dataset.action==='logout'){try{await api('logout',{pushToken:read('teacher-push-token')||undefined});await pushPlugin()?.unregister?.();}catch{}write('teacher-push',null);write('teacher-push-token',null);clearAccount();authMode='login';render();}
  if(node.dataset.decide)await saveAction(()=>api('absence/decide',{id:node.dataset.decide,status:node.dataset.status}),'Saved.');
  if(node.dataset.removeWork)await saveAction(()=>api('work/remove',{id:node.dataset.removeWork}),'Saved.');
 });
@@ -386,7 +411,7 @@ root.addEventListener('change',async event=>{
   write('teacher-reminder',value);savePrefs({reminderMinutes:Number(value)});toast('Reminders saved.');
  }
 });
-async function enter(issued){token=issued.token;write('teacher-token',token);applyData(await api('timetable'));markNotified();online=true;tab='today';render();await scheduleReminders();}
+async function enter(issued){token=issued.token;write('teacher-token',token);applyData(await api('timetable'));markNotified();online=true;tab='today';render();await scheduleReminders();setupPush();}
 root.addEventListener('submit',async event=>{
  const form=event.target,values=Object.fromEntries(new FormData(form));event.preventDefault();
  const submit=form.querySelector('button.primary,button.secondary');if(submit)submit.disabled=true;
@@ -432,4 +457,4 @@ window.addEventListener('online',()=>sync());
 window.addEventListener('offline',()=>{online=false;softRender();});
 if(data&&/^#[a-f0-9]{6}$/i.test(data.school.accent))document.documentElement.style.setProperty('--accent',data.school.accent);
 write('teacher-server',null);
-render();sync();
+render();sync();if(token)setupPush();

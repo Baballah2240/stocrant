@@ -30,3 +30,7 @@ services:
         value: "1"
       - key: SCHOOL_SETUP_KEY
         generateValue: true
+      # Firebase push: upload the service-account JSON in Render as a Secret File
+      # named faslii-firebase-admin.json. Render mounts it under /etc/secrets.
+      - key: SCHOOL_FCM_SERVICE_ACCOUNT
+        value: /etc/secrets/faslii-firebase-admin.json

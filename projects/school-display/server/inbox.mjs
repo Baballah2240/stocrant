@@ -38,7 +38,7 @@ export function sendTeacherMessage(state,sender,body,now=Date.now()){
  const subject=typeof body.subject==='string'?body.subject.trim().slice(0,120):'',batchId=id(),at=iso(now);
  const rows=[...targets.values()].map(user=>{const rowId=id();return {id:rowId,threadId:rowId,batchId,userId:user.id,direction:'down',fromId:sender.id,fromName:sender.name,subject,text,category,priority,requireAck:body.requireAck===true,at,deliveredAt:null,readAt:null,ackAt:null};});
  prune(state,now);state.teacherMessages.push(...rows);
- return rows.length;
+ state.lastSentRows=rows;return rows.length;
 }
 
 /** A teacher replies inside one of their own threads. Idempotent by clientId so offline retries never duplicate. */
@@ -181,5 +181,5 @@ export function recordScheduleChanges(before,after,payloadFor,now=Date.now(),day
   rows.push({id:id(),hash,userId:item.user.id,kind:item.kind,date:item.date,before:item.before,after:item.after,at:iso(now),revision:after.revision,deliveredAt:null,readAt:null,ackAt:null,conflict:null});
  }
  prune(after,now);after.scheduleNotices.push(...rows);
- return rows.length;
+ after.lastNoticeRows=rows;return rows.length;
 }

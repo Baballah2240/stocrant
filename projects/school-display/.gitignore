@@ -16,3 +16,6 @@ runtime/
 remote-screen.json
 remote-screen.json.tmp
 mobile/www/
+mobile/android/app/google-services.json
+*firebase-admin*.json
+*adminsdk*.json

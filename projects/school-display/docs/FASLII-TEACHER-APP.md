@@ -45,6 +45,31 @@ Limitations:
 - On Android, **Open** hands the file to the WebView as a download. Opening it inside another app needs the Capacitor Filesystem plugin, which is not added yet. In the browser (`/teacher`), files download normally.
 - Backups made under **System & recovery** do not include request attachments or resources yet. Copy the `files` folder with the data folder.
 
+## Push notifications (built, connected to Firebase project `faslii`)
+
+The server sends Firebase Cloud Messaging (HTTP v1) pushes for:
+- staff messages and replies
+- timetable changes (one push per teacher per publication)
+- answered requests
+- revised important documents
+
+How delivery works:
+- Each item is queued once per teacher.
+- Pushes follow the teacher's notification categories and quiet hours. Held pushes are sent when quiet hours end. Urgent alerts follow the administrator's policy.
+- The lock-screen text is hidden unless the teacher turns that off.
+- Temporary Firebase errors are retried up to 5 times with backoff. Phones whose tokens Firebase no longer recognises are removed.
+- The **Push** column in the delivery report shows `sent`, `held`, `retry`, `failed` or `skipped`.
+- Tapping a push opens the related screen.
+- When push works on a phone, the app stops showing its own local notifications for those items. Lesson reminders stay local.
+
+Setup:
+- **App:** `mobile/android/app/google-services.json`. It is ignored by Git and built into the APK.
+- **Server:** set `SCHOOL_FCM_SERVICE_ACCOUNT` to the path of the service-account JSON. Without it, push stays off and the report says "Not set up".
+  - **This computer:** the key is at `C:\Users\Lenovo\secrets\faslii-firebase-admin.json`, readable only by the Windows user. Set it before starting the server: PowerShell `$env:SCHOOL_FCM_SERVICE_ACCOUNT='C:\Users\Lenovo\secrets\faslii-firebase-admin.json'`.
+  - **Render:** in the service, open **Environment → Secret Files** and add `faslii-firebase-admin.json` with the file's contents. `render.yaml` already points `SCHOOL_FCM_SERVICE_ACCOUNT` at `/etc/secrets/faslii-firebase-admin.json`.
+
+Phones only register for push after signing in to a reachable HTTPS school server, so end-to-end delivery to a real phone starts once `schools.mohbaba.online` is online.
+
 ## API
 
 | Route | Who | Purpose |
@@ -73,7 +98,6 @@ These need a later phase. Several also need credentials from the school.
 
 | Feature | Status | What is needed |
 |---|---|---|
-| **Push notifications (Firebase Cloud Messaging)** | Not built. Alerts only appear when the app refreshes. | A Firebase project with an Android app `online.schooldisplay.teacher`. `google-services.json` goes in `mobile/android/app/` (keep it out of Git). A service-account JSON goes on the server as `FCM_SERVICE_ACCOUNT_FILE`. Adds `@capacitor/push-notifications` and device-token registration. |
 | **Email copies (SMTP)** | Not built. | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (for example an app password for a school mailbox). Email verification for each teacher. Copies will say that replies must be sent in Faslii. |
 | Attachments on messages | Not built (requests and resources have them) | — |
 | Opening files in other Android apps | Not built | `@capacitor/filesystem` plus a share/open step |
