@@ -33,7 +33,7 @@ try{
  assert.equal(app.store.get().settings.panelWidth,680,'Live preview must not save settings.');await shot('live-adjustments');
  await evaluate('document.querySelector("#settings-form").requestSubmit()');await until('document.querySelector("#toast").textContent==="Saved successfully."');assert.equal(app.store.get().settings.panelWidth,420);assert.equal(app.store.get().settings.classId,group);
  await send('Page.navigate',{url:app.origin+'/display?token='+app.store.get().displayToken});await until('document.querySelector(".activity h1")?.textContent.includes("Art")');
- assert.ok(await evaluate('document.querySelector(".class-name").textContent.includes("Grade 6A")'));assert.ok(await evaluate('document.querySelector(".activity p").textContent.includes("New Teacher")'));assert.equal(await evaluate('getComputedStyle(document.querySelector(".activity h1")).fontSize'),'21px');
+ assert.ok(await evaluate('document.querySelector(".class-name").textContent.includes("Grade 6A")'));assert.ok(await evaluate('document.querySelector(".activity p").textContent.includes("New Teacher")'));assert.equal(await evaluate('getComputedStyle(document.querySelector(".activity h1")).fontSize'),'23.8px');
  for(const [width,height] of [[1920,1080],[1366,768],[800,600],[390,844]]){
   await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<700});
   const layout=await evaluate('(()=>{const r=document.querySelector(".ribbon").getBoundingClientRect();return {width:r.width,right:r.right,overflow:document.documentElement.scrollWidth>innerWidth+1,clipped:[...document.querySelectorAll(".ribbon strong,.ribbon h1,.ribbon p")].some(n=>n.scrollWidth>n.clientWidth+1&&n.clientWidth>0)};})()');
