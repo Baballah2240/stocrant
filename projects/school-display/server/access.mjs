@@ -2,7 +2,7 @@ export const roles=['admin','coordinator','teacher'];
 export const isAdmin=user=>user?.role==='admin';
 export const canEdit=user=>isAdmin(user)||user?.role==='coordinator';
 const selfPaths=new Set(['/api/state','/api/logout','/api/account']);
-const editorPaths=new Set(['/api/draft','/api/classes','/api/sample','/api/special-days','/api/preview','/api/images','/api/teacher-messages','/api/students','/api/students/import','/api/students/remove','/api/parent-invites','/api/parents','/api/absence-requests']);
+const editorPaths=new Set(['/api/draft','/api/classes','/api/sample','/api/special-days','/api/preview','/api/images','/api/teacher-messages','/api/teacher-messages/reply','/api/students','/api/students/import','/api/students/remove','/api/parent-invites','/api/parents','/api/absence-requests']);
 export const canAccess=(user,path)=>isAdmin(user)||selfPaths.has(path)||canEdit(user)&&editorPaths.has(path);
 export function assignments(body,classes){
  const role=body.role||'admin',classIds=body.classIds||[];

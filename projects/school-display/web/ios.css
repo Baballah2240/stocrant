@@ -60,3 +60,14 @@ html[data-theme=dark] .auth-story{background:linear-gradient(150deg,rgba(var(--a
 html[data-theme=dark] .theme-swatch{border-color:#141a26}
 html[data-theme=dark] ::-webkit-scrollbar{width:10px;height:10px}html[data-theme=dark] ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:10px;border:2px solid transparent;background-clip:padding-box}html[data-theme=dark] ::-webkit-scrollbar-track{background:transparent}
 @media(prefers-reduced-transparency:reduce){html[data-theme=dark] .sidebar,html[data-theme=dark] .topbar,html[data-theme=dark] .panel,html[data-theme=dark] .metric,html[data-theme=dark] dialog{background:#171c28}}
+/* Faslii delivery report */
+.report-row{border:1px solid var(--hairline);border-radius:14px;padding:10px 14px;margin-bottom:8px;background:var(--field)}
+.report-row summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;cursor:pointer}
+.report-row summary small{flex-basis:100%;color:var(--muted);font-size:11px}
+.report-text{font-size:12px;line-height:1.6;margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.table-scroll{overflow-x:auto}
+.report-thread p{font-size:12px;line-height:1.6;margin:6px 0;padding:8px 10px;border-radius:10px;background:var(--surface);overflow-wrap:anywhere}
+.report-thread p.from-teacher{background:rgba(var(--accent-rgb),.1)}
+.staff-reply{display:grid;gap:8px;margin-top:8px}
+.policy-form{display:grid;gap:10px;margin-top:14px}
+#message-report h3{margin:18px 0 8px}
