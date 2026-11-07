@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFil
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advanceTimer, defaults, duration, insideRoundedRect, timerAction, validateStore, type Store, type Settings, type Mode, type Shortcut, type Snapshot } from "../shared/model.js";
+import { spotlight, resetOverlays } from "./dim.js";
 import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
 import type { ContentPatch, DesktopEvent } from "../shared/bridge.js";
 
@@ -209,6 +210,10 @@ function createWindow() {
     if (ignoring === inside) { ignoring = !inside; window.setIgnoreMouseEvents(ignoring, { forward: true }); }
     if (!inside && mode === "preview" && !pendingCollapse) { pendingCollapse = true; setTimeout(() => { if (pendingCollapse && mode === "preview") setMode("compact"); }, 220); }
     if (inside) pendingCollapse = false;
+    // Spotlight whatever is under the pointer: the island, or a sticky note on the desktop.
+    const hoveredSticky = [...stickies.values()].find(s => { if (s.isDestroyed() || !s.isVisible()) return false; const b = s.getBounds(); return point.x >= b.x && point.x < b.x + b.width && point.y >= b.y && point.y < b.y + b.height; });
+    const lit = store.settings.dimOnHover && modalDepth === 0 && (inside || mode === "expanded" || !!hoveredSticky);
+    spotlight(lit, hoveredSticky ? [hoveredSticky] : [window], store.settings.reducedMotion);
   }, 24);
 }
 if (!app.requestSingleInstanceLock() && !testing) app.quit();
@@ -218,11 +223,11 @@ else {
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }
-    screen.on("display-added", () => { position(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-removed", () => { position(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-metrics-changed", position);
+    screen.on("display-added", () => { resetOverlays(); position(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-removed", () => { resetOverlays(); position(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-metrics-changed", position);
     powerMonitor.on("resume", tick); trayTimer = setInterval(tick, 1000); tick();
     app.on("second-instance", () => { window.setFocusable(true); setMode("expanded"); });
     if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, () => { quitting = true; app.quit(); }));
   }).catch(error => { dialog.showErrorBox("Island Desk could not start", String(error)); app.quit(); });
 }
-app.on("before-quit", () => { quitting = true; clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
+app.on("before-quit", () => { quitting = true; resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
 app.on("window-all-closed", () => { if (quitting) app.quit(); });
