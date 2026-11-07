@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFil
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advanceTimer, defaults, duration, insideRoundedRect, timerAction, validateStore, type Store, type Settings, type Mode, type Shortcut, type Snapshot } from "../shared/model.js";
-import { spotlight, resetOverlays } from "./dim.js";
+import { spotlight, resetOverlays, prepareOverlays } from "./dim.js";
 import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
 import type { ContentPatch, DesktopEvent } from "../shared/bridge.js";
 
@@ -224,7 +224,7 @@ function createWindow() {
 if (!app.requestSingleInstanceLock() && !testing) app.quit();
 else {
   app.whenReady().then(() => {
-    readData(); createWindow(); installIpc(); syncStickies();
+    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500);
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }

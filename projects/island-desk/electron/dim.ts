@@ -1,11 +1,15 @@
-import { BrowserWindow, screen } from "electron";
+import { BrowserWindow, desktopCapturer, screen } from "electron";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
- * Spotlight: one black, click-through, non-focusable window per monitor that fades in behind
- * whatever the user is hovering (the island or a sticky note), dimming everything else.
+ * Focus spotlight: when the island or a sticky note is hovered, each monitor is captured once,
+ * shown blurred in a click-through window behind it, and faded away when the pointer leaves.
+ * Windows has no API for live-blurring other apps, so the background is a still snapshot.
  */
-const LEVEL = 0.5, overlays = new Map<number, BrowserWindow>();
-let current = 0, target = 0, animation: ReturnType<typeof setInterval> | undefined, raised: BrowserWindow | undefined;
+const here = dirname(fileURLToPath(import.meta.url));
+const overlays = new Map<number, BrowserWindow>();
+let on = false, token = 0, raised: BrowserWindow | undefined;
 
 function ensure() {
   const displays = screen.getAllDisplays(), ids = new Set(displays.map(d => d.id));
@@ -13,39 +17,50 @@ function ensure() {
   for (const display of displays) {
     let overlay = overlays.get(display.id);
     if (!overlay || overlay.isDestroyed()) {
-      overlay = new BrowserWindow({ ...display.bounds, frame: false, transparent: false, backgroundColor: "#000000", hasShadow: false, resizable: false, movable: false, focusable: false, skipTaskbar: true, show: false, enableLargerThanScreen: true, title: "", webPreferences: { sandbox: true, contextIsolation: true } });
-      overlay.setIgnoreMouseEvents(true); overlay.setAlwaysOnTop(true, "floating"); overlay.setOpacity(0);
+      overlay = new BrowserWindow({ ...display.bounds, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, movable: false, focusable: false, skipTaskbar: true, show: false, enableLargerThanScreen: true, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+      overlay.setIgnoreMouseEvents(true); overlay.setAlwaysOnTop(true, "floating");
+      overlay.webContents.on("will-navigate", event => event.preventDefault());
+      void overlay.loadFile(join(here, "../../dist/blur.html"));
       overlays.set(display.id, overlay);
     } else overlay.setBounds(display.bounds);
   }
 }
-function apply(opacity: number) {
-  current = opacity;
-  for (const overlay of overlays.values()) {
-    if (overlay.isDestroyed()) continue;
-    if (opacity <= 0.001) { if (overlay.isVisible()) overlay.hide(); continue; }
-    overlay.setOpacity(opacity); if (!overlay.isVisible()) overlay.showInactive();
-  }
+/** Build the overlays ahead of time so the first hover is fast. */
+export function prepareOverlays() { ensure(); }
+
+async function capture() {
+  const displays = screen.getAllDisplays();
+  // Half resolution is plenty for a blurred image and keeps capture quick.
+  const largest = displays.reduce((size, d) => ({ width: Math.max(size.width, Math.round(d.bounds.width * d.scaleFactor / 2)), height: Math.max(size.height, Math.round(d.bounds.height * d.scaleFactor / 2)) }), { width: 0, height: 0 });
+  const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: largest });
+  return new Map(displays.map((d, index) => [d.id, (sources.find(s => s.display_id === String(d.id)) || sources[index])?.thumbnail]));
 }
-/** `raise` holds the windows that must stay above the dim layer. */
-export function spotlight(on: boolean, raise: BrowserWindow[], reducedMotion: boolean) {
-  const next = on ? LEVEL : 0;
+
+export function spotlight(want: boolean, raise: BrowserWindow[], reducedMotion: boolean) {
   const front = raise[0];
-  if (next === target) {
-    // Re-stack only when the spotlight moves to a different window, never on every poll.
+  if (want === on) {
+    // Re-stack only when the spotlight moves to another window, never on every poll.
     if (on && front && front !== raised && !front.isDestroyed()) { front.moveTop(); raised = front; }
     return;
   }
-  target = next;
-  if (on) { ensure(); apply(Math.max(current, 0.01)); if (front && !front.isDestroyed()) { front.moveTop(); raised = front; } }
-  else raised = undefined;
-  if (animation) clearInterval(animation);
-  if (reducedMotion) { apply(target); return; }
-  const start = current, began = Date.now(), ms = on ? 220 : 180;
-  animation = setInterval(() => {
-    const t = Math.min(1, (Date.now() - began) / ms), eased = 1 - (1 - t) ** 3;
-    apply(start + (target - start) * eased);
-    if (t >= 1 && animation) { clearInterval(animation); animation = undefined; }
-  }, 16);
+  on = want; const mine = ++token;
+  if (!want) {
+    raised = undefined;
+    for (const overlay of overlays.values()) if (!overlay.isDestroyed() && overlay.isVisible()) void overlay.webContents.executeJavaScript(`hideBlur(${reducedMotion})`).then(ms => setTimeout(() => { if (token === mine && !overlay.isDestroyed()) overlay.hide(); }, Number(ms) || 0)).catch(() => overlay.hide());
+    return;
+  }
+  ensure();
+  void capture().then(images => {
+    if (token !== mine) return; // the pointer already left
+    for (const [id, overlay] of overlays) {
+      const image = images.get(id); if (!image || image.isEmpty() || overlay.isDestroyed()) continue;
+      const url = "data:image/jpeg;base64," + image.toJPEG(72).toString("base64");
+      void overlay.webContents.executeJavaScript(`showBlur(${JSON.stringify(url)}, ${reducedMotion})`).then(() => {
+        if (token !== mine || overlay.isDestroyed()) return;
+        overlay.showInactive();
+        if (front && !front.isDestroyed()) { front.moveTop(); raised = front; }
+      }).catch(() => undefined);
+    }
+  }).catch(() => undefined);
 }
-export function resetOverlays() { for (const overlay of overlays.values()) if (!overlay.isDestroyed()) overlay.destroy(); overlays.clear(); current = target = 0; raised = undefined; }
+export function resetOverlays() { token++; on = false; raised = undefined; for (const overlay of overlays.values()) if (!overlay.isDestroyed()) overlay.destroy(); overlays.clear(); }
