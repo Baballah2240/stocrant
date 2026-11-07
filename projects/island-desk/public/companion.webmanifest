@@ -1,0 +1,10 @@
+{
+  "name": "Island Desk",
+  "short_name": "Island",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [{ "src": "/companion-icon.png", "sizes": "256x256", "type": "image/png" }]
+}

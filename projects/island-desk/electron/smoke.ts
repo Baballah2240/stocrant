@@ -30,6 +30,17 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.stickyMoveSaved = state().store.notes[0].sticky?.x === 500;
   await window.webContents.executeJavaScript("window.island.stickyClose(\"n1\")"); await wait(400);
   results.stickyDocked = notes().length === 0 && !state().store.notes[0].sticky;
+  // Phone companion: pair, refuse strangers, sync a note from the "phone", serve the page.
+  const info = await window.webContents.executeJavaScript("window.island.settings({ companion: true }).then(() => window.island.companion())") as { url: string; qr: string };
+  const base = info.url.replace(/#.*/, ""), pairing = info.url.split("#")[1] || "";
+  results.companionRunning = !!base && info.qr.startsWith("data:image/png");
+  const local = "http://127.0.0.1:" + new URL(base).port + "/";
+  results.companionRejectsStrangers = (await fetch(local + "api/state")).status === 401;
+  const posted = await fetch(local + "api/action", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + pairing }, body: JSON.stringify({ type: "note-save", note: { title: "From phone", body: "hello" } }) });
+  await wait(400);
+  results.companionSyncsNotes = posted.ok && state().store.notes.some(note => note.title === "From phone");
+  results.companionPage = (await (await fetch(local)).text()).includes("companion");
+  console.log("DISPLAY phone=" + base);
   console.log("DISPLAY " + JSON.stringify(await window.webContents.executeJavaScript("window.island.display().then(r => r, e => String(e))")));
   console.log("SMOKE " + JSON.stringify(results));
   quit();

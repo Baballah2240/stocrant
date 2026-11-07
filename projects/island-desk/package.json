@@ -1,7 +1,7 @@
 {
   "name": "island-desk",
   "productName": "Island Desk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A quiet, offline workspace floating above your desktop.",
   "author": "Island Desk",
   "license": "MIT",
@@ -20,11 +20,13 @@
     "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
+    "qrcode": "1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.14",
+    "@types/qrcode": "1.5.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.1.2",

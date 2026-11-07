@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-11-07
+
+**New**
+- **Phone companion:** turn it on in Settings and scan the QR code. Your phone becomes a full-screen clock (it keeps the screen on), with notes, checklists, tasks with a Today view, the focus timer, a calculator and now-playing controls, all synced live with the desktop over your Wi-Fi. No app store, no account, and nothing leaves your network. Add it to your home screen to open it like an app.
+
+**Fixed**
+- Changing any setting failed if another app already held the global shortcut.
+
 ## 0.2.0 — 2026-11-07
 
 **New**

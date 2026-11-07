@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFil
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advanceTimer, defaults, duration, insideRoundedRect, timerAction, validateStore, type Store, type Settings, type Mode, type Shortcut, type Snapshot } from "../shared/model.js";
+import { startCompanion, stopCompanion, companionChanged, companionInfo, resetToken } from "./companion.js";
 import { startMedia, stopMedia, mediaCommand, media } from "./media.js";
 import { spotlight, resetOverlays, prepareOverlays } from "./dim.js";
 import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
@@ -17,7 +18,7 @@ let rect = { x: 0, y: 0, width: 0, height: 0, radius: 30 }, ignoring = true, mod
 let dimWanted = false, dimShown = false, dimChangedAt = 0;
 let dataFile = "", currentShortcut = "", trayTimer: ReturnType<typeof setInterval>;
 const stickies = new Map<string, BrowserWindow>();
-const emit = (event: DesktopEvent) => { for (const target of [window, ...stickies.values()]) if (target && !target.isDestroyed()) target.webContents.send("desktop-event", event); };
+const emit = (event: DesktopEvent) => { if (event.type !== "error") companionChanged(); for (const target of [window, ...stickies.values()]) if (target && !target.isDestroyed()) target.webContents.send("desktop-event", event); };
 
 function readData() {
   dataFile = join(app.getPath("userData"), "island-desk.json");
@@ -120,13 +121,15 @@ function installIpc() {
     note.sticky = note.sticky && !dropped ? note.sticky : { ...point, width: 260, height: 240 }; save(); openSticky(note.id); emit({ type: "replace", snapshot: snapshot() });
   });
   handle("sticky-close", (id: string) => { const note = store.notes.find(item => item.id === id); if (note) note.sticky = null; save(); syncStickies(); emit({ type: "replace", snapshot: snapshot() }); });
-  handle("settings", (patch: Partial<Settings>) => {
+  handle("settings", async (patch: Partial<Settings>) => {
     const next = validateStore({ ...store, settings: { ...store.settings, ...patch } }).settings;
     if (!testing && next.launchAtStartup !== store.settings.launchAtStartup) {
       if (!app.isPackaged || process.platform !== "win32") throw Error("Launch at startup is available in the installed Windows app.");
       app.setLoginItemSettings({ openAtLogin: next.launchAtStartup, path: process.execPath });
     }
-    registerShortcut(next.globalShortcut);
+    // Only a shortcut the user is changing must register; an unchanged one that another app holds must not block other settings.
+    if (next.globalShortcut !== store.settings.globalShortcut) registerShortcut(next.globalShortcut); else try { registerShortcut(next.globalShortcut); } catch { /* still taken; keep using the tray */ }
+    if (next.companion && !store.settings.companion) await startCompanion(companionHost); else if (!next.companion && store.settings.companion) stopCompanion();
     const oldDuration = duration(store.timer.phase, store.settings);
     store.settings = next;
     if (!store.timer.running && store.timer.remainingMs === oldDuration) store.timer.remainingMs = duration(store.timer.phase, next);
@@ -160,6 +163,8 @@ function installIpc() {
     if (saved.kind === "website") { const url = new URL(saved.target); if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw Error("Use a normal https:// or http:// website address."); await shell.openExternal(url.toString()); }
     else { if (!/^[A-Za-z]:[\\/]/.test(saved.target) || !existsSync(saved.target)) throw Error("This local path no longer exists."); if (saved.kind === "app" && !saved.target.toLowerCase().endsWith(".exe")) throw Error("Choose an .exe application."); if (saved.kind === "folder" && !statSync(saved.target).isDirectory()) throw Error("Choose a folder."); const error = await shell.openPath(saved.target); if (error) throw Error(error); }
   });
+  handle("companion-info", () => companionInfo());
+  handle("companion-reset", () => { resetToken(); return companionInfo(); });
   handle("media-get", () => media);
   handle("media-command", (command: string) => mediaCommand(command));
   handle("display-get", () => displayState);
@@ -202,6 +207,14 @@ function syncStickies() {
 // Reading brightness from Windows takes ~1s, so keep a cached copy the preview can show instantly.
 let displayState: { brightness: number | null; nightLight: boolean | null } = { brightness: null, nightLight: null };
 async function refreshDisplay() { const [brightness, nightLight] = await Promise.all([getBrightness(), getNightLight()]); displayState = { brightness, nightLight }; }
+/** What the phone companion may read and change; every change goes through the same validation as the app. */
+const companionHost = {
+  store: () => store,
+  media: () => media,
+  change(patch: Partial<Pick<Store, "notes" | "tasks" | "calculations">>) { store = validateStore({ ...store, ...patch }); save(); syncStickies(); emit({ type: "replace", snapshot: snapshot() }); },
+  timer(action: "toggle" | "reset" | "skip" | "work" | "break") { advanceTimer(store); timerAction(store, action); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); },
+  mediaCommand: (command: "toggle" | "next" | "previous") => mediaCommand(command),
+};
 function createWindow() {
   window = new BrowserWindow({ width: 1100, height: 820, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, show: false, title: "Island Desk", webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true, devTools: !app.isPackaged } });
   window.setIgnoreMouseEvents(true, { forward: true }); position();
@@ -234,7 +247,8 @@ function createWindow() {
 if (!app.requestSingleInstanceLock() && !testing) app.quit();
 else {
   app.whenReady().then(() => {
-    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); startMedia(state => emit({ type: "media", media: state })); void refreshDisplay(); setInterval(() => void refreshDisplay(), 20000);
+    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); startMedia(state => emit({ type: "media", media: state }));
+    if (store.settings.companion) startCompanion(companionHost).catch(error => setTimeout(() => emit({ type: "error", message: "Phone companion: " + error.message }), 1500)); void refreshDisplay(); setInterval(() => void refreshDisplay(), 20000);
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }
@@ -244,5 +258,5 @@ else {
     if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, () => { quitting = true; app.quit(); }));
   }).catch(error => { dialog.showErrorBox("Island Desk could not start", String(error)); app.quit(); });
 }
-app.on("before-quit", () => { quitting = true; stopMedia(); resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
+app.on("before-quit", () => { quitting = true; stopCompanion(); stopMedia(); resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
 app.on("window-all-closed", () => { if (quitting) app.quit(); });

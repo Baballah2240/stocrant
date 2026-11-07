@@ -24,6 +24,7 @@ A floating, Dynamic-Island-style workspace for Windows. Built with Electron, Rea
 - **Sticky notes on the desktop:** drag a note card out of the island and drop it anywhere (or click the note icon in the editor). Drag its top bar to move it, drag an edge to resize, and press x to send it back into the island. Position and size are saved across restarts. If its monitor is unplugged, the note moves to a screen you still have.
 - **Focus blur:** while the pointer is over the island or a sticky note (or the workspace is open), everything else goes softly out of focus, and it returns to normal when you move away. Clicks still pass through to your apps. Turn it off in Settings > "Blur the background on hover". Windows has no live blur for other apps, so the blurred background is a still snapshot taken when the blur starts (a playing video looks paused until you move away).
 - **Now playing:** music or video from any app that shows in the Windows volume pop-up (Spotify, YouTube in a browser, Media Player and so on) appears in the pill with album art, title and moving music bars. Hover for a player card with progress and previous / play-pause / next controls.
+- **Phone companion:** Settings > Phone companion > scan the QR code with your phone (same Wi-Fi). The phone gets a clock, notes, tasks, focus timer, calculator and music controls, synced live both ways. "Sign out paired phones" issues a new code.
 - Tray icon: open, show/hide, start/pause the focus timer, always-on-top, quit.
 - What's included: Notes (pinned, checklists, search, autosave), Tasks (priority, due date, reminders, Today view), Calculator (keyboard input, %, parentheses, history), a Focus timer whose countdown shows in the pill, Quick tools, and Shortcuts.
 - Settings: display, position offset, size, always on top, reduced motion, launch at startup, export/import a JSON backup.
@@ -31,6 +32,8 @@ A floating, Dynamic-Island-style workspace for Windows. Built with Electron, Rea
 Data is stored in `%APPDATA%\Island Desk\island-desk.json`. Saves are atomic, and a copy of the old data is kept before every import.
 
 ## Windows limitations
+
+- **Phone companion and the firewall:** the first time you turn it on, Windows Firewall asks whether to allow Island Desk. Allow it on **Private** networks. On public or guest Wi-Fi (hotels, some offices) devices often cannot reach each other, so the phone can't connect there. The connection is plain HTTP inside your network, protected by the secret pairing code. Anyone who has that code and is on the same Wi-Fi could use it, so use "Sign out paired phones" if a code may have been shared.
 
 - **Click-through:** the transparent window can't hit-test each pixel. The app checks the cursor against the pill's rounded shape about 40 times per second and switches mouse pass-through on or off. Clicks near the pill's edge during an animation may land a frame late.
 - **Always on top** uses the "floating" level. Exclusive-fullscreen games and some elevated (admin) windows can still cover it.

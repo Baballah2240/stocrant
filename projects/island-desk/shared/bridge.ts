@@ -23,6 +23,9 @@ export interface DesktopBridge {
   notePatch(id: string, patch: Partial<Pick<Note, "title" | "body" | "checklist">>): Promise<void>;
   media(): Promise<MediaState>;
   mediaCommand(command: "toggle" | "next" | "previous"): Promise<void>;
+  companion(): Promise<CompanionInfo>;
+  companionReset(): Promise<CompanionInfo>;
   onEvent(callback: (event: DesktopEvent) => void): () => void;
 }
 export interface DisplayState { brightness: number | null; nightLight: boolean | null }
+export interface CompanionInfo { running: boolean; url: string; qr: string; addresses: string[] }
