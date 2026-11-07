@@ -13,6 +13,7 @@ if (testing) app.setPath("userData", resolve(process.env.ISLAND_DESK_TEST_DIR!))
 app.setAppUserModelId("studio.islanddesk.desktop");
 let window: BrowserWindow, tray: Tray, store: Store = defaults(), mode: Mode = "compact", quitting = false, saveTimer: ReturnType<typeof setTimeout> | undefined, hitTimer: ReturnType<typeof setInterval>;
 let rect = { x: 0, y: 0, width: 0, height: 0, radius: 30 }, ignoring = true, modalDepth = 0, pendingCollapse = false;
+let dimWanted = false, dimShown = false, dimChangedAt = 0;
 let dataFile = "", currentShortcut = "", trayTimer: ReturnType<typeof setInterval>;
 const stickies = new Map<string, BrowserWindow>();
 const emit = (event: DesktopEvent) => { for (const target of [window, ...stickies.values()]) if (target && !target.isDestroyed()) target.webContents.send("desktop-event", event); };
@@ -213,7 +214,11 @@ function createWindow() {
     // Spotlight whatever is under the pointer: the island, or a sticky note on the desktop.
     const hoveredSticky = [...stickies.values()].find(s => { if (s.isDestroyed() || !s.isVisible()) return false; const b = s.getBounds(); return point.x >= b.x && point.x < b.x + b.width && point.y >= b.y && point.y < b.y + b.height; });
     const lit = store.settings.dimOnHover && modalDepth === 0 && (inside || mode === "expanded" || !!hoveredSticky);
-    spotlight(lit, hoveredSticky ? [hoveredSticky] : [window], store.settings.reducedMotion);
+    // Hysteresis: brief edge crossings and resize animations don't flash the dim on and off.
+    const now = Date.now();
+    if (lit !== dimWanted) { dimWanted = lit; dimChangedAt = now; }
+    if (dimWanted !== dimShown && now - dimChangedAt >= (dimWanted ? 90 : 260)) dimShown = dimWanted;
+    spotlight(dimShown, hoveredSticky ? [hoveredSticky] : [window], store.settings.reducedMotion);
   }, 24);
 }
 if (!app.requestSingleInstanceLock() && !testing) app.quit();

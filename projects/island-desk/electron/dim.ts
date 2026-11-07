@@ -5,7 +5,7 @@ import { BrowserWindow, screen } from "electron";
  * whatever the user is hovering (the island or a sticky note), dimming everything else.
  */
 const LEVEL = 0.5, overlays = new Map<number, BrowserWindow>();
-let current = 0, target = 0, animation: ReturnType<typeof setInterval> | undefined;
+let current = 0, target = 0, animation: ReturnType<typeof setInterval> | undefined, raised: BrowserWindow | undefined;
 
 function ensure() {
   const displays = screen.getAllDisplays(), ids = new Set(displays.map(d => d.id));
@@ -30,9 +30,15 @@ function apply(opacity: number) {
 /** `raise` holds the windows that must stay above the dim layer. */
 export function spotlight(on: boolean, raise: BrowserWindow[], reducedMotion: boolean) {
   const next = on ? LEVEL : 0;
-  if (next === target) { if (on) for (const w of raise) if (!w.isDestroyed()) w.moveTop(); return; }
+  const front = raise[0];
+  if (next === target) {
+    // Re-stack only when the spotlight moves to a different window, never on every poll.
+    if (on && front && front !== raised && !front.isDestroyed()) { front.moveTop(); raised = front; }
+    return;
+  }
   target = next;
-  if (on) { ensure(); apply(Math.max(current, 0.01)); for (const w of raise) if (!w.isDestroyed()) w.moveTop(); }
+  if (on) { ensure(); apply(Math.max(current, 0.01)); if (front && !front.isDestroyed()) { front.moveTop(); raised = front; } }
+  else raised = undefined;
   if (animation) clearInterval(animation);
   if (reducedMotion) { apply(target); return; }
   const start = current, began = Date.now(), ms = on ? 220 : 180;
@@ -42,4 +48,4 @@ export function spotlight(on: boolean, raise: BrowserWindow[], reducedMotion: bo
     if (t >= 1 && animation) { clearInterval(animation); animation = undefined; }
   }, 16);
 }
-export function resetOverlays() { for (const overlay of overlays.values()) if (!overlay.isDestroyed()) overlay.destroy(); overlays.clear(); current = target = 0; }
+export function resetOverlays() { for (const overlay of overlays.values()) if (!overlay.isDestroyed()) overlay.destroy(); overlays.clear(); current = target = 0; raised = undefined; }
