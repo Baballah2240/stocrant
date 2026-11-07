@@ -6,14 +6,14 @@ import { localDate, remaining, timeText, type Calculation, type Note, type Task,
 import type { MediaState } from "../../shared/bridge";
 import type { Action } from "../../shared/actions";
 import { isLauncher, loadPairing, newId, parsePairLink, savePairing, usePocket, type Pairing, type State, type Status } from "./backend";
-import { Launcher, type InstalledApp } from "./launcher";
+import { Launcher, type Alarm, type InstalledApp } from "./launcher";
 
 type View = "clock" | "notes" | "tasks" | "focus" | "calc" | "apps";
 type Run = (action: Action) => Promise<void>;
 
 const views: { id: View; label: string; icon: IconName }[] = [
   { id: "clock", label: isLauncher ? "Home" : "Clock", icon: "focus" }, { id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" },
-  { id: "focus", label: "Focus", icon: "play" }, { id: "calc", label: "Calc", icon: "calculator" }, ...(isLauncher ? [{ id: "apps" as View, label: "My apps", icon: "shortcuts" as IconName }] : []),
+  { id: "focus", label: isLauncher ? "Clock" : "Focus", icon: isLauncher ? "alarm" : "play" }, { id: "calc", label: "Calc", icon: "calculator" }, ...(isLauncher ? [{ id: "apps" as View, label: "My apps", icon: "shortcuts" as IconName }] : []),
 ];
 
 export default function Companion() {
@@ -44,6 +44,8 @@ export default function Companion() {
     return () => { void opened.then(h => h.remove()); void back.then(h => h.remove()); };
   }, []);
 
+  const [keepAwake, setKeepAwake] = useState(() => { try { return localStorage.getItem("island-keep-awake") === "1"; } catch { return false; } });
+  useEffect(() => { if (isLauncher) void Launcher.setKeepAwake({ value: keepAwake && view === "clock" }).catch(() => undefined); }, [keepAwake, view]);
   const run: Run = async action => { try { await send(action); } catch (error) { say((error as Error).message); } };
   if (!isLauncher && status === "unpaired") return <main className="c-shell center"><div className="c-pill big"><i className="dot"/>Island Desk</div><h1>Pair this phone</h1><p className="muted">On your computer, open Island Desk → Settings → Phone companion and scan the QR code with this phone's camera.</p></main>;
   if (!state) return <main className="c-shell center"><div className="c-pill big pulse"><i className="dot"/>Connecting…</div><p className="muted">Make sure this phone is on the same Wi-Fi as your computer and Island Desk is running.</p></main>;
@@ -59,18 +61,18 @@ export default function Companion() {
       </button>
     </header>
     <section className="c-content" key={view}>
-      {view === "clock" && <ClockView state={state} now={now} run={run}/>}
+      {view === "clock" && <ClockView state={state} now={now} run={run} openAlarms={() => setView("focus")}/>}
       {view === "clock" && isLauncher && !pairing && <PairCard onPair={next => { adoptLocalData(); savePairing(next); setPairing(next); }}/>}
       {view === "notes" && <NotesView notes={state.notes} run={run} openId={openNote} setOpenId={setOpenNote}/>}
       {view === "tasks" && <TasksView tasks={state.tasks} run={run}/>}
-      {view === "focus" && <FocusView timer={state.timer} now={serverNow} run={run} synced={status === "live"}/>}
+      {view === "focus" && (isLauncher ? <ClockTab timer={state.timer} now={serverNow} run={run} synced={status === "live"} say={say}/> : <FocusView timer={state.timer} now={serverNow} run={run} synced={status === "live"}/>)}
       {view === "calc" && <CalcView history={state.calculations} run={run}/>}
       {view === "apps" && <AppsView/>}
     </section>
     {view === "clock" && isLauncher && <SystemRail/>}
     {state.media.active && view !== "clock" && view !== "apps" && <MiniPlayer media={state.media} run={run}/>}
     <nav className="c-nav">{views.map(item => <button key={item.id} className={view === item.id ? "on" : ""} onClick={() => { setView(item.id); if (item.id !== "notes") setOpenNote(null); }}><Icon name={item.icon} size={20}/><span>{item.label}</span></button>)}</nav>
-    {sheet && <SettingsSheet status={status} pairing={pairing} close={() => setSheet(false)} unpair={() => { savePairing(null); setPairing(null); setSheet(false); say("Disconnected. Your notes stay on this phone."); }}/>}
+    {sheet && <SettingsSheet keepAwake={keepAwake} setKeepAwake={value => { setKeepAwake(value); try { localStorage.setItem("island-keep-awake", value ? "1" : "0"); } catch { /* ignore */ } }} status={status} pairing={pairing} close={() => setSheet(false)} unpair={() => { savePairing(null); setPairing(null); setSheet(false); say("Disconnected. Your notes stay on this phone."); }}/>}
     {toast && <div className="c-toast" onClick={() => setToast("")}>{toast}</div>}
   </main>;
 }
@@ -122,7 +124,7 @@ function PairCard({ onPair }: { onPair: (pairing: Pairing) => void }) {
   </div>;
 }
 
-function SettingsSheet({ status, pairing, close, unpair }: { status: Status; pairing: Pairing | null; close: () => void; unpair: () => void }) {
+function SettingsSheet({ keepAwake, setKeepAwake, status, pairing, close, unpair }: { keepAwake: boolean; setKeepAwake: (value: boolean) => void; status: Status; pairing: Pairing | null; close: () => void; unpair: () => void }) {
   const [isDefault, setDefault] = useState<boolean | null>(null);
   useEffect(() => { void Launcher.isDefaultLauncher().then(result => setDefault(result.value)).catch(() => setDefault(null)); }, []);
   return <div className="sheet-backdrop" onClick={close}><div className="sheet" onClick={event => event.stopPropagation()}>
@@ -130,12 +132,14 @@ function SettingsSheet({ status, pairing, close, unpair }: { status: Status; pai
     <h3>Island Launcher</h3>
     <div className="c-card"><strong>Home screen</strong><p className="muted">{isDefault ? "Island is your home screen." : "Make Island your home screen so the Home button opens it."}</p>
       <button className="pill-btn" onClick={() => void Launcher.openHomeSettings()}>{isDefault ? "Change home app" : "Set as home screen"}</button></div>
+    <label className="c-card switch-row"><span><strong>Keep screen on</strong><small className="muted">While Home is showing, so the phone works as a desk or bedside clock. Best while charging.</small></span><input type="checkbox" role="switch" checked={keepAwake} onChange={event => setKeepAwake(event.target.checked)}/></label>
     <div className="c-card"><strong>Computer</strong><p className="muted">{pairing ? `${status === "live" ? "Connected to" : "Paired with"} ${pairing.base.replace(/^https?:\/\//, "").replace(/\/$/, "")}${status === "offline" ? ", offline right now. Changes wait on this phone and sync later." : ""}` : "Not connected. Notes, tasks and the timer are saved on this phone."}</p>
       {pairing && <button className="pill-btn ghost" onClick={unpair}>Disconnect</button>}</div>
   </div></div>;
 }
 
-function ClockView({ state, now, run }: { state: State; now: number; run: Run }) {
+function ClockView({ state, now, run, openAlarms }: { state: State; now: number; run: Run; openAlarms: () => void }) {
+  const alarms = useAlarms();
   const date = new Date(now);
   const hm = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
   const seconds = String(date.getSeconds()).padStart(2, "0");
@@ -144,6 +148,7 @@ function ClockView({ state, now, run }: { state: State; now: number; run: Run })
   return <div className="clock-view">
     <div className="big-clock"><span>{hm}</span><small>{seconds}</small></div>
     <div className="clock-date">{new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" }).format(date)}</div>
+    {isLauncher && <button className="next-alarm" onClick={openAlarms}><Icon name="alarm" size={16}/>{alarms.next > 0 ? <>Alarm {new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(alarms.next)} <span className="muted">· in {until(alarms.next - now)}</span></> : <span className="muted">No alarm set</span>}</button>}
     {state.media.active && <MiniPlayer media={state.media} run={run} compact={!isLauncher}/>}
     <div className="clock-cards">
       <div className="c-card"><span className="eyebrow">{pending.length ? "TODAY" : "ALL CLEAR"}</span>{pending.length ? pending.map(task => <p key={task.id} className={`prio ${task.priority}`}><i/>{task.text}</p>) : <p className="muted">Nothing waiting on you.</p>}</div>
@@ -257,4 +262,65 @@ function LauncherLink() {
   if (!token) return null;
   const href = `islanddesk://pair?u=${encodeURIComponent(location.origin + "/")}&t=${encodeURIComponent(token)}`;
   return <a className="c-card launcher-link" href={href}><span className="eyebrow">HAVE ISLAND LAUNCHER?</span><strong>Open in Island Launcher</strong><p className="muted">Pairs the installed app with this computer in one tap.</p></a>;
+}
+
+/* ───────────── Alarms (launcher) ───────────── */
+const dayNames = ["S", "M", "T", "W", "T", "F", "S"], dayFull = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const until = (ms: number) => { const m = Math.max(1, Math.round(ms / 60000)), h = Math.floor(m / 60); return h >= 24 ? `${Math.floor(h / 24)} d ${h % 24} h` : h ? `${h} h ${m % 60} min` : `${m} min`; };
+const repeatText = (days: number[]) => { const set = [...days].sort(); if (!set.length) return "Once"; if (set.length === 7) return "Every day"; if (set.join() === "1,2,3,4,5") return "Weekdays"; if (set.join() === "0,6") return "Weekends"; return set.map(d => dayFull[d]).join(" "); };
+const two = (n: number) => String(n).padStart(2, "0");
+
+function useAlarms() {
+  const [list, setList] = useState<{ alarms: Alarm[]; next: number }>({ alarms: [], next: -1 });
+  const load = () => { if (isLauncher) void Launcher.getAlarms().then(setList).catch(() => undefined); };
+  useEffect(() => { load(); const again = () => { if (document.visibilityState === "visible") load(); }; document.addEventListener("visibilitychange", again); const timer = setInterval(load, 30000); return () => { document.removeEventListener("visibilitychange", again); clearInterval(timer); }; }, []);
+  return { ...list, setList, load };
+}
+
+function ClockTab(props: { timer: Timer; now: number; run: Run; synced: boolean; say: (text: string) => void }) {
+  const [tab, setTab] = useState<"alarms" | "focus">(() => { try { return (localStorage.getItem("island-clock-tab") as "alarms" | "focus") || "alarms"; } catch { return "alarms"; } });
+  useEffect(() => { try { localStorage.setItem("island-clock-tab", tab); } catch { /* ignore */ } }, [tab]);
+  return <div className="list-view">
+    <div className="row"><h2>{tab === "alarms" ? "Alarms" : "Focus"}</h2><div className="seg"><button className={tab === "alarms" ? "on" : ""} onClick={() => setTab("alarms")}>Alarms</button><button className={tab === "focus" ? "on" : ""} onClick={() => setTab("focus")}>Focus</button></div></div>
+    {tab === "alarms" ? <AlarmsView now={props.now} say={props.say}/> : <FocusView timer={props.timer} now={props.now} run={props.run} synced={props.synced}/>}
+  </div>;
+}
+
+function AlarmsView({ now, say }: { now: number; say: (text: string) => void }) {
+  const { alarms, next, setList } = useAlarms(), [editing, setEditing] = useState<Alarm | null>(null);
+  const sorted = [...alarms].sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute));
+  const save = async (alarm: Alarm) => { await Launcher.ensureAlarmPermissions().catch(() => undefined); setList(await Launcher.saveAlarm({ alarm })); };
+  const fresh = (): Alarm => { const at = new Date(now + 60 * 60000); return { id: newId(), hour: at.getHours(), minute: 0, days: [], label: "", enabled: true, vibrate: true, snoozeMinutes: 10 }; };
+  return <>
+    <p className="muted alarm-next">{next > 0 ? `Next alarm in ${until(next - now)}` : "No alarms on."}</p>
+    {sorted.map(alarm => <div key={alarm.id} className={`c-card alarm ${alarm.enabled ? "" : "off"}`}>
+      <button className="alarm-main" onClick={() => setEditing(alarm)}><b>{two(alarm.hour)}:{two(alarm.minute)}</b><span>{alarm.label || "Alarm"} · {repeatText(alarm.days)}</span></button>
+      <input type="checkbox" role="switch" aria-label={`Alarm ${two(alarm.hour)}:${two(alarm.minute)} on`} checked={alarm.enabled} onChange={event => void save({ ...alarm, enabled: event.target.checked }).catch(error => say(error.message))}/>
+    </div>)}
+    {!alarms.length && <p className="muted center-text">No alarms yet. Tap + to add one.</p>}
+    <button className="round fab" aria-label="Add alarm" onClick={() => setEditing(fresh())}><Icon name="plus" size={24}/></button>
+    {editing && <AlarmEditor alarm={editing} isNew={!alarms.some(a => a.id === editing.id)} close={() => setEditing(null)} say={say}
+      save={async alarm => { try { await save(alarm); setEditing(null); say(`Alarm set for ${two(alarm.hour)}:${two(alarm.minute)}.`); } catch (error) { say((error as Error).message); } }}
+      remove={async id => { setList(await Launcher.deleteAlarm({ id })); setEditing(null); }}/>}
+  </>;
+}
+
+function AlarmEditor({ alarm, isNew, save, remove, close, say }: { alarm: Alarm; isNew: boolean; save: (alarm: Alarm) => Promise<void>; remove: (id: string) => Promise<void>; close: () => void; say: (text: string) => void }) {
+  const [draft, setDraft] = useState<Alarm>(alarm);
+  const toggleDay = (day: number) => setDraft(d => ({ ...d, days: d.days.includes(day) ? d.days.filter(x => x !== day) : [...d.days, day] }));
+  return <div className="sheet-backdrop" onClick={close}><div className="sheet alarm-editor" onClick={event => event.stopPropagation()}>
+    <i className="grabber"/>
+    <h3>{isNew ? "New alarm" : "Edit alarm"}</h3>
+    <input className="time-pick" type="time" value={`${two(draft.hour)}:${two(draft.minute)}`} onChange={event => { const [h, m] = event.target.value.split(":").map(Number); if (Number.isFinite(h) && Number.isFinite(m)) setDraft(d => ({ ...d, hour: h, minute: m })); }}/>
+    <div className="days">{dayNames.map((name, day) => <button key={day} className={draft.days.includes(day) ? "on" : ""} aria-label={dayFull[day]} aria-pressed={draft.days.includes(day)} onClick={() => toggleDay(day)}>{name}</button>)}</div>
+    <p className="muted small">{repeatText(draft.days)}</p>
+    <input className="label-input" placeholder="Label (optional)" maxLength={60} value={draft.label} onChange={event => setDraft(d => ({ ...d, label: event.target.value }))}/>
+    <label className="switch-row"><span>Vibrate</span><input type="checkbox" role="switch" checked={draft.vibrate} onChange={event => setDraft(d => ({ ...d, vibrate: event.target.checked }))}/></label>
+    <label className="switch-row"><span>Snooze</span><select value={draft.snoozeMinutes} onChange={event => setDraft(d => ({ ...d, snoozeMinutes: Number(event.target.value) }))}>{[5, 10, 15, 20, 30].map(m => <option key={m} value={m}>{m} min</option>)}</select></label>
+    <div className="row gap editor-actions">
+      <button className="pill-btn" onClick={() => void save({ ...draft, enabled: true })}>Save</button>
+      {!isNew && <button className="pill-btn ghost-light" onClick={() => void Launcher.testAlarm({ id: draft.id }).then(() => say("Test alarm rings in 5 seconds.")).catch(error => say(error.message))}>Test</button>}
+      {!isNew && <button className="pill-btn ghost" onClick={() => void remove(draft.id)}>Delete</button>}
+    </div>
+  </div></div>;
 }
