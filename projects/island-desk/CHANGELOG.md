@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 (2026-11-08)
+
+**New**
+- Island Launcher home: a modern clock (blinking colon, seconds line, date and alarm chips) next to a scrolling feed.
+- Mail on the home screen: new email notifications (Gmail, Huawei Email, Outlook and others) after allowing Notification access. Tap to open, x to dismiss, or switch to all notifications.
+- Football news from BBC Sport, refreshed every 15 minutes; tap a story to read it in the browser.
+- The system-apps rail is gone: phone apps and your apps share the swipe-right drawer, in separate sections.
+- Automatic Wi-Fi discovery: the desktop announces itself while Phone companion is on, and a paired phone follows it if its address changes.
+
 ## 0.5.0 (2026-11-07)
 
 **New (Island Launcher)**

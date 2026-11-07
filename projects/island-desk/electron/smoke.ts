@@ -1,4 +1,5 @@
 import { BrowserWindow } from "electron";
+import { createSocket } from "node:dgram";
 import { existsSync } from "node:fs";
 import type { Mode, Store } from "../shared/model.js";
 type State = () => { store: Store; mode: Mode; rect: { width: number; height: number }; ignoring: boolean; dataFile: string };
@@ -40,6 +41,16 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   await wait(400);
   results.companionSyncsNotes = posted.ok && state().store.notes.some(note => note.title === "From phone");
   results.companionPage = (await (await fetch(local)).text()).includes("companion");
+  // Discovery: the beacon a phone listens for must name this computer.
+  const stateId = ((await (await fetch(local + "api/state", { headers: { authorization: "Bearer " + pairing } })).json()) as { serverId?: string }).serverId || "";
+  results.companionBeacon = await new Promise<boolean>(resolve => {
+    const socket = createSocket({ type: "udp4", reuseAddr: true });
+    const done = (value: boolean) => { try { socket.close(); } catch { /* closed */ } resolve(value); };
+    socket.on("message", data => { try { const beacon = JSON.parse(String(data)); if (beacon.app === "island-desk" && beacon.id === stateId && stateId) done(true); } catch { /* ignore */ } });
+    socket.on("error", () => done(false));
+    socket.bind(Number(process.env.ISLAND_DESK_BEACON_PORT));
+    setTimeout(() => done(false), 5000);
+  });
   console.log("DISPLAY phone=" + base);
   console.log("DISPLAY " + JSON.stringify(await window.webContents.executeJavaScript("window.island.display().then(r => r, e => String(e))")));
   console.log("SMOKE " + JSON.stringify(results));

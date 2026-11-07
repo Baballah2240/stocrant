@@ -9,7 +9,7 @@ input,textarea{background:none;border:0;outline:none}
 .ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:160px}
 .clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:6px 0 0}
 
-.c-shell{min-height:100dvh;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 84px)}
+.c-shell{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 84px)}
 .c-shell.center{align-items:center;justify-content:center;text-align:center;gap:14px;padding-bottom:40px}.c-shell.center h1{margin:12px 0 0;font-size:26px}.c-shell.center p{max-width:300px;line-height:1.5}
 .c-top{display:flex;justify-content:center;position:sticky;top:calc(env(safe-area-inset-top) + 8px);z-index:5;margin-bottom:14px}
 .c-pill{display:flex;align-items:center;gap:10px;height:38px;padding:0 18px;border-radius:19px;background:#000;border:1px solid #1d1d22;box-shadow:0 6px 24px #0009;font-size:13px;font-weight:500;transition:all .4s cubic-bezier(.22,1.12,.36,1)}
@@ -210,3 +210,45 @@ input[role=switch]{appearance:none;-webkit-appearance:none;width:52px;height:32p
 .launcher .system-rail img{width:36px;height:36px}
 .launcher .drawer-panel{padding-left:86px}
 .launcher .mini-player:not(.compact),.launcher .c-toast{left:86px}
+
+/* ───── Modern launcher home ───── */
+.launcher.view-clock.c-shell{padding-right:20px}
+.launcher.view-clock .c-content{display:block;min-height:0;padding:0}
+.home-modern{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:26px;height:calc(100dvh - 28px);align-items:stretch}
+.mc{display:flex;flex-direction:column;justify-content:center;gap:14px;padding-left:6px}
+.mc-time{display:flex;align-items:baseline;font-weight:250;font-size:min(46vh,17vw);line-height:.86;letter-spacing:-.06em;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,#fff 30%,#9a9aa6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mc-colon{margin:0 -.02em;transition:opacity .35s}.mc-colon.dim{opacity:.25}
+.mc-min{font-weight:150}
+.mc-seconds{height:2px;width:min(100%,520px);background:#1d1d23;border-radius:2px;overflow:hidden}.mc-seconds i{display:block;height:100%;background:var(--mint);transform-origin:left;transition:transform .25s linear}
+.mc-chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 13px;border-radius:16px;background:#121216;border:1px solid #22222a;color:#a4a4ae;font-size:12.5px;white-space:nowrap}
+.chip b{color:var(--text);font-weight:500}.chip svg{color:#f3b25e}.chip.live svg,.chip.live b{color:var(--mint)}
+.feed{display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding:4px 2px 12px;scrollbar-width:none;mask-image:linear-gradient(#000 92%,transparent)}
+.feed::-webkit-scrollbar{display:none}
+.glass{display:block;width:100%;text-align:left;padding:14px 16px;border-radius:20px;background:linear-gradient(160deg,#16161b,#0d0d10);border:1px solid #23232b;box-shadow:inset 0 1px 0 #ffffff08;flex:none}
+.glass header{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#8d8d97;font-weight:600}
+.glass header svg{color:var(--mint)}.glass header em{font-style:normal;color:var(--text);background:#23232b;border-radius:9px;padding:1px 7px;font-size:11px}
+.glass header .link,.glass header small{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500;font-size:12px}.glass header .link{color:var(--mint)}
+.glass p{margin:6px 0 0;font-size:14px}
+.glass.invite p{color:#a4a4ae;line-height:1.45;font-size:13px;margin-bottom:12px}
+.small-btn{display:inline-flex;align-items:center;height:34px;padding:0 14px;font-size:13px;margin-top:0}
+.note-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid #1d1d24}.note-row:first-of-type{border-top:0;padding-top:0}
+.note-open{flex:1;min-width:0;display:flex;gap:11px;align-items:flex-start;text-align:left}
+.note-open img,.note-open .art-blank{width:30px;height:30px;border-radius:9px;flex:none}
+.note-lines{min-width:0;display:grid;gap:2px;flex:1}.note-top{display:flex;gap:8px;align-items:baseline;min-width:0}
+.note-top b{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.note-top small{margin-left:auto;flex:none;color:#7d7d87;font-size:11px}
+.note-text{font-size:12.5px;color:#a4a4ae;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.note-x{width:26px;height:26px;display:grid;place-items:center;border-radius:13px;color:#6d6d77;flex:none}.note-x:active{background:#23232b}
+.story{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:8px 0;border-top:1px solid #1d1d24}
+.story span{display:grid;gap:3px;min-width:0}.story b{font-size:13.5px;font-weight:500;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.story small{font-size:11px;color:#7d7d87}
+.story.lead{border-top:0;padding-top:0}.story.lead img{width:96px;height:62px;border-radius:12px;object-fit:cover;flex:none;background:#1d1d23}.story.lead b{font-size:14.5px;font-weight:600}
+.drawer-section{margin:18px 0 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8d8d97;font-weight:600}
+/* Clock: plain white thin digits (gradient text renders badly in Android WebView), kept inside its column. */
+.home-modern{grid-template-rows:minmax(0,1fr);overflow:hidden}
+.mc{min-height:0;overflow:hidden;justify-content:center}
+.mc-time{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#f4f4f7;-webkit-text-fill-color:#f4f4f7;font-weight:200;font-size:min(34vh,13.5vw);line-height:1;letter-spacing:-.01em;white-space:nowrap}
+.mc-min{font-weight:200;color:#b9b9c2;-webkit-text-fill-color:#b9b9c2}
+.mc-colon{display:inline-block;width:.32em;text-align:center}
+/* Older Android WebViews have no dvh: size the home from vh so the feed scrolls instead of stretching the page. */
+.home-modern{height:calc(100vh - 28px);max-height:calc(100vh - 28px)}
+.feed{min-height:0;max-height:100%}

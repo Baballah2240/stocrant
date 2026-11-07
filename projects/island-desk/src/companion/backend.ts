@@ -5,9 +5,9 @@ import type { MediaState } from "../../shared/bridge";
 
 /** Running as the installed Android launcher (vs. the browser page the desktop serves). */
 export const isLauncher = Capacitor.isNativePlatform();
-export type State = PocketData & { media: MediaState; serverTime: number };
+export type State = PocketData & { media: MediaState; serverTime: number; serverId?: string };
 export type Status = "connecting" | "live" | "offline" | "unpaired" | "local";
-export interface Pairing { base: string; token: string }
+export interface Pairing { base: string; token: string; serverId?: string }
 
 const read = <T,>(key: string, fallback: T): T => { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked */ } };
@@ -32,11 +32,15 @@ function webPairing(): Pairing | null {
   return token ? { base: "/", token } : null;
 }
 
-export function usePocket(pairing: Pairing | null) {
+/** Native discovery, injected by the launcher so this file stays usable in the browser page. */
+let discoverComputers: ((ms: number) => Promise<{ host: string; port: number; id: string }[]>) | null = null;
+export function setDiscovery(fn: typeof discoverComputers) { discoverComputers = fn; }
+
+export function usePocket(pairing: Pairing | null, onMoved?: (next: Pairing) => void) {
   const web = !isLauncher, link = web ? webPairing() : pairing;
   const [state, setState] = useState<State | null>(() => web ? null : { ...read<PocketData>("island-pocket", emptyPocket()), media: { active: false }, serverTime: Date.now() });
   const [status, setStatus] = useState<Status>(link ? "connecting" : web ? "unpaired" : "local");
-  const queue = useRef<Action[]>(web ? [] : read<Action[]>("island-queue", [])), skew = useRef(0), busy = useRef(false);
+  const queue = useRef<Action[]>(web ? [] : read<Action[]>("island-queue", [])), skew = useRef(0), busy = useRef(false), lastSearch = useRef(0);
   const stateRef = useRef(state); stateRef.current = state;
 
   const keep = (next: State) => { setState(next); if (!web) write("island-pocket", { notes: next.notes, tasks: next.tasks, calculations: next.calculations, timer: next.timer, settings: next.settings }); };
@@ -51,7 +55,18 @@ export function usePocket(pairing: Pairing | null) {
     try {
       while (queue.current.length) { await request("api/action", { method: "POST", body: JSON.stringify(queue.current[0]) }); queue.current.shift(); write("island-queue", queue.current); }
       const next = await request("api/state"); skew.current = next.serverTime - Date.now(); keep(next); setStatus("live");
-    } catch (error) { if ((error as Error).message.includes("signed out")) throw error; setStatus("offline"); }
+      if (next.serverId && link && link.serverId !== next.serverId) onMoved?.({ ...link, serverId: next.serverId });
+    } catch (error) {
+      if ((error as Error).message.includes("signed out")) throw error;
+      setStatus("offline");
+      // The computer may have a new address: listen for its beacon (at most every 15 s) and follow it.
+      if (!web && link?.serverId && discoverComputers && Date.now() - lastSearch.current > 15000) {
+        lastSearch.current = Date.now();
+        const found = (await discoverComputers(2500).catch(() => [])).find(computer => computer.id === link.serverId);
+        const base = found ? `http://${found.host}:${found.port}/` : "";
+        if (base && base !== link.base) onMoved?.({ ...link, base });
+      }
+    }
     finally { busy.current = false; }
   };
 

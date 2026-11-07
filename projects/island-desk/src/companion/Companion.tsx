@@ -5,8 +5,10 @@ import { calculate } from "../../shared/calculator";
 import { localDate, remaining, timeText, type Calculation, type Note, type Task, type Timer } from "../../shared/model";
 import type { MediaState } from "../../shared/bridge";
 import type { Action } from "../../shared/actions";
-import { isLauncher, loadPairing, newId, parsePairLink, savePairing, usePocket, type Pairing, type State, type Status } from "./backend";
-import { Launcher, type Alarm, type InstalledApp } from "./launcher";
+import { isLauncher, loadPairing, newId, parsePairLink, savePairing, setDiscovery, usePocket, type Pairing, type State, type Status } from "./backend";
+import { Launcher, type Alarm, type InstalledApp, type PhoneNotification } from "./launcher";
+
+if (isLauncher) setDiscovery(ms => Launcher.discover({ timeoutMs: ms }).then(result => result.computers));
 
 type View = "clock" | "notes" | "tasks" | "focus" | "calc";
 type Run = (action: Action) => Promise<void>;
@@ -18,7 +20,7 @@ const views: { id: View; label: string; icon: IconName }[] = [
 
 export default function Companion() {
   const [pairing, setPairing] = useState<Pairing | null>(() => isLauncher ? loadPairing() : null);
-  const { state, status, run: send, skew, adoptLocalData } = usePocket(pairing);
+  const { state, status, run: send, skew, adoptLocalData } = usePocket(pairing, next => { savePairing(next); setPairing(next); });
   const [view, setView] = useState<View>(() => { if (isLauncher) return "clock"; try { return (localStorage.getItem("island-desk-view") as View) || "clock"; } catch { return "clock"; } });
   const [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [openNote, setOpenNote] = useState<string | null>(null), [sheet, setSheet] = useState(false), [drawer, setDrawer] = useState(false);
   const viewRef = useRef(view); viewRef.current = view;
@@ -53,7 +55,7 @@ export default function Companion() {
   if (!state) return <main className="c-shell center"><div className="c-pill big pulse"><i className="dot"/>Connecting…</div><p className="muted">Make sure this phone is on the same Wi-Fi as your computer and Island Desk is running.</p></main>;
   const serverNow = now + (status === "live" ? skew.current : 0);
   const swipe = swipeRef.current;
-  const onTouchStart = (event: React.TouchEvent) => { const target = event.target as HTMLElement, touch = event.touches[0]; swipe.x = touch.clientX; swipe.y = touch.clientY; swipe.t = Date.now(); swipe.ok = isLauncher && !drawer && !sheet && !target.closest("input, textarea, select, .app-drawer, .system-rail, .sheet"); };
+  const onTouchStart = (event: React.TouchEvent) => { const target = event.target as HTMLElement, touch = event.touches[0]; swipe.x = touch.clientX; swipe.y = touch.clientY; swipe.t = Date.now(); swipe.ok = isLauncher && !drawer && !sheet && !target.closest("input, textarea, select, .app-drawer, .sheet, .feed"); };
   const onTouchEnd = (event: React.TouchEvent) => { if (!swipe.ok) return; const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y; if (dx > 90 && Math.abs(dy) < Math.abs(dx) * 0.6 && Date.now() - swipe.t < 700) setDrawer(true); };
   const pillText = status === "live" ? "Connected" : status === "local" ? "On this phone" : status === "unpaired" ? "Pair again" : status === "offline" ? "Offline · saved on phone" : "Connecting…";
   return <main className={`c-shell view-${view} ${isLauncher ? "launcher" : ""}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -66,13 +68,12 @@ export default function Companion() {
       </button>
     </header>}
     <section className="c-content" key={view}>
-      {view === "clock" && <ClockView state={state} now={now} run={run} openAlarms={() => setView("focus")}/>}
+      {view === "clock" && (isLauncher ? <LauncherHome state={state} now={now} openAlarms={() => setView("focus")} openTasks={() => setView("tasks")} openNote={id => { setOpenNote(id); setView("notes"); }} say={say}/> : <ClockView state={state} now={now} run={run} openAlarms={() => setView("focus")}/>)}
       {view === "notes" && <NotesView notes={state.notes} run={run} openId={openNote} setOpenId={setOpenNote}/>}
       {view === "tasks" && <TasksView tasks={state.tasks} run={run}/>}
       {view === "focus" && (isLauncher ? <ClockTab timer={state.timer} now={serverNow} run={run} synced={status === "live"} say={say}/> : <FocusView timer={state.timer} now={serverNow} run={run} synced={status === "live"}/>)}
       {view === "calc" && <CalcView history={state.calculations} run={run}/>}
     </section>
-    {view === "clock" && isLauncher && <SystemRail/>}
     {state.media.active && view !== "clock" && <MiniPlayer media={state.media} run={run}/>}
     {isLauncher ? <SideNav view={view} timerRunning={state.timer.running} offline={!!pairing && status !== "live"} go={id => { setView(id); if (id !== "notes") setOpenNote(null); }} openApps={() => setDrawer(true)} openSettings={() => setSheet(true)}/>
     : <nav className="c-nav">{views.map(item => <button key={item.id} className={view === item.id ? "on" : ""} onClick={() => { setView(item.id); if (item.id !== "notes") setOpenNote(null); }}><Icon name={item.icon} size={20}/><span>{item.label}</span></button>)}</nav>}
@@ -98,13 +99,6 @@ const launchApp = (app: InstalledApp) => void Launcher.launch({ packageName: app
 const essentials = [/dialer|incallui|\.phone$|contacts/i, /mms|messag/i, /camera/i, /gallery|photos/i, /settings/i, /browser|chrome/i, /deskclock|clock/i, /calendar/i, /filemanager|files/i, /music|video/i];
 const rank = (app: InstalledApp) => { const index = essentials.findIndex(rule => rule.test(app.packageName) || rule.test(app.label)); return index < 0 ? essentials.length : index; };
 
-/** Home: system apps in a slim vertical rail along the right edge. */
-function SystemRail() {
-  const apps = useApps().filter(app => app.system).sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label));
-  if (!apps.length) return null;
-  return <aside className="system-rail" aria-label="System apps">{apps.map(app => <button key={app.packageName + app.activity} onClick={() => launchApp(app)} aria-label={app.label} title={app.label}><img src={app.icon} alt=""/></button>)}</aside>;
-}
-
 /** Left icon rail: the app's sections, then Apps and Settings. */
 function SideNav({ view, timerRunning, offline, go, openApps, openSettings }: { view: View; timerRunning: boolean; offline: boolean; go: (id: View) => void; openApps: () => void; openSettings: () => void }) {
   return <nav className="side-nav" aria-label="Sections">
@@ -116,24 +110,129 @@ function SideNav({ view, timerRunning, offline, go, openApps, openSettings }: { 
   </nav>;
 }
 
-/** Your installed apps, folded behind one icon. Opens with a swipe right; closes with a swipe left, Back, or a tap outside. */
+/** All apps behind one icon: phone apps first, then the ones you installed. Swipe right to open; swipe left, Back or a tap outside closes. */
 function AppDrawer({ open, close }: { open: boolean; close: () => void }) {
-  const apps = useApps().filter(app => !app.system), [query, setQuery] = useState("");
+  const all = useApps(), [query, setQuery] = useState("");
   const start = useRef({ x: 0, y: 0 });
   useEffect(() => { if (!open) setQuery(""); }, [open]);
-  const shown = apps.filter(app => app.label.toLowerCase().includes(query.toLowerCase()));
+  const match = (app: InstalledApp) => app.label.toLowerCase().includes(query.toLowerCase());
+  const phone = all.filter(app => app.system && match(app)).sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label));
+  const mine = all.filter(app => !app.system && match(app));
+  const tile = (app: InstalledApp) => <button key={app.packageName + app.activity} tabIndex={open ? 0 : -1} onClick={() => { if (open) launchApp(app); close(); }} onContextMenu={event => { event.preventDefault(); void Launcher.openAppInfo({ packageName: app.packageName }); }}>
+    <img src={app.icon} alt="" loading="lazy"/><span>{app.label}</span></button>;
   return <div className={`app-drawer ${open ? "open" : ""}`} aria-hidden={!open} onClick={close}
     onTouchStart={event => { start.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }; }}
     onTouchEnd={event => { const dx = event.changedTouches[0].clientX - start.current.x, dy = event.changedTouches[0].clientY - start.current.y; if (dx < -80 && Math.abs(dy) < Math.abs(dx)) close(); }}>
     <div className="drawer-panel" onClick={event => event.stopPropagation()}>
-      <div className="drawer-head"><div><span className="eyebrow">YOUR APPS</span><h2>{apps.length} installed</h2></div>
+      <div className="drawer-head"><div><span className="eyebrow">APPS</span><h2>{all.length} on this phone</h2></div>
         <label className="c-search"><Icon name="search" size={16}/><input placeholder="Search apps" value={query} onChange={event => setQuery(event.target.value)} tabIndex={open ? 0 : -1}/></label>
         <button className="round small" aria-label="Close apps" onClick={close}><Icon name="close" size={16}/></button></div>
-      <div className="app-grid drawer-grid">{shown.map(app => <button key={app.packageName + app.activity} tabIndex={open ? 0 : -1} onClick={() => { open && launchApp(app); close(); }} onContextMenu={event => { event.preventDefault(); void Launcher.openAppInfo({ packageName: app.packageName }); }}>
-        <img src={app.icon} alt="" loading="lazy"/><span>{app.label}</span></button>)}</div>
-      {!apps.length && <p className="muted center-text">{appCache ? "No apps installed yet." : "Loading your apps…"}</p>}
-      {apps.length > 0 && !shown.length && <p className="muted center-text">No app matches "{query}".</p>}
+      {phone.length > 0 && <><h4 className="drawer-section">Phone</h4><div className="app-grid drawer-grid">{phone.map(tile)}</div></>}
+      {mine.length > 0 && <><h4 className="drawer-section">Your apps</h4><div className="app-grid drawer-grid">{mine.map(tile)}</div></>}
+      {!all.length && <p className="muted center-text">{appCache ? "No apps found." : "Loading your apps…"}</p>}
+      {all.length > 0 && !phone.length && !mine.length && <p className="muted center-text">No app matches "{query}".</p>}
     </div>
+  </div>;
+}
+
+/* ───────────── Modern launcher home ───────────── */
+const ago = (time: number, now: number) => { const m = Math.max(0, Math.round((now - time) / 60000)); if (m < 1) return "now"; if (m < 60) return `${m}m`; const h = Math.round(m / 60); return h < 24 ? `${h}h` : `${Math.round(h / 24)}d`; };
+const isMail = (n: PhoneNotification) => n.category === "email" || /(\.gm$|email|mail|outlook|yahoo|proton|spark|bluemail)/i.test(n.packageName);
+
+function LauncherHome({ state, now, openAlarms, openTasks, openNote, say }: { state: State; now: number; openAlarms: () => void; openTasks: () => void; openNote: (id: string) => void; say: (text: string) => void }) {
+  const date = new Date(now), alarms = useAlarms();
+  const hh = String(date.getHours()).padStart(2, "0"), mm = String(date.getMinutes()).padStart(2, "0");
+  const today = localDate(date), rankP = { high: 0, medium: 1, low: 2 };
+  const pending = state.tasks.filter(task => !task.done && (!task.due || task.due <= today)).sort((a, b) => rankP[a.priority] - rankP[b.priority]).slice(0, 4);
+  const pinned = state.notes.filter(note => note.pinned).slice(0, 2);
+  return <div className="home-modern">
+    <section className="mc">
+      <div className="mc-time" aria-label={`${hh}:${mm}`}><span>{hh}</span><span className={`mc-colon ${date.getSeconds() % 2 ? "dim" : ""}`}>:</span><span className="mc-min">{mm}</span></div>
+      <div className="mc-seconds" aria-hidden="true"><i style={{ transform: `scaleX(${(date.getSeconds() + date.getMilliseconds() / 1000) / 60})` }}/></div>
+      <div className="mc-chips">
+        <span className="chip">{new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(date)}<b>{new Intl.DateTimeFormat(undefined, { day: "numeric", month: "long" }).format(date)}</b></span>
+        <button className="chip" onClick={openAlarms}><Icon name="alarm" size={14}/>{alarms.next > 0 ? <>{new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(alarms.next)}<b>in {until(alarms.next - now)}</b></> : <b>No alarm</b>}</button>
+        {state.timer.running && <button className="chip live" onClick={openAlarms}><Icon name="play" size={13}/>{state.timer.phase === "work" ? "Focus" : "Break"}<b>{timeText(remaining(state.timer, now))}</b></button>}
+      </div>
+    </section>
+    <section className="feed" aria-label="Your day">
+      <MailCard now={now} say={say}/>
+      <NewsCard now={now} say={say}/>
+      <button className="glass" onClick={openTasks}><header><Icon name="tasks" size={15}/><span>Today</span><em>{pending.length || ""}</em></header>
+        {pending.length ? pending.map(task => <p key={task.id} className={`prio ${task.priority}`}><i/>{task.text}</p>) : <p className="muted">Nothing waiting on you.</p>}</button>
+      {pinned.map(note => <button className="glass" key={note.id} onClick={() => openNote(note.id)}><header><Icon name="pin" size={15}/><span>{note.title || "Pinned note"}</span></header><p className="muted clamp">{note.body.replace(/\[[ x]\] /gi, "• ") || "Empty"}</p></button>)}
+    </section>
+  </div>;
+}
+
+function useNotifications() {
+  const [data, setData] = useState<{ granted: boolean; notifications: PhoneNotification[] } | null>(null);
+  useEffect(() => {
+    const load = () => void Launcher.getNotifications().then(setData).catch(() => setData({ granted: false, notifications: [] }));
+    load();
+    const listener = Launcher.addListener("notificationsChanged", load);
+    const again = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", again); const timer = setInterval(load, 20000);
+    return () => { void listener.then(h => h.remove()); document.removeEventListener("visibilitychange", again); clearInterval(timer); };
+  }, []);
+  return data;
+}
+
+function MailCard({ now, say }: { now: number; say: (text: string) => void }) {
+  const data = useNotifications();
+  const [everything, setEverything] = useState(() => { try { return localStorage.getItem("island-all-notifications") === "1"; } catch { return false; } });
+  if (!data) return null;
+  if (!data.granted) return <div className="glass invite"><header><Icon name="notes" size={15}/><span>Mail</span></header>
+    <p>Show new email on your home screen. Island reads only what your phone already shows in notifications, never your password, and nothing leaves the phone.</p>
+    <span className="pill-btn small-btn" onClick={() => void Launcher.openNotificationAccess()}>Allow notification access</span></div>;
+  const items = data.notifications.filter(n => everything || isMail(n)).slice(0, 4);
+  const toggle = () => { const next = !everything; setEverything(next); try { localStorage.setItem("island-all-notifications", next ? "1" : "0"); } catch { /* ignore */ } };
+  return <div className="glass">
+    <header><Icon name="notes" size={15}/><span>{everything ? "Notifications" : "Mail"}</span><em>{items.length || ""}</em><button className="link" onClick={toggle}>{everything ? "Mail only" : "All"}</button></header>
+    {items.length ? items.map(n => <div className="note-row" key={n.key}>
+      <button className="note-open" onClick={() => void Launcher.openNotification({ key: n.key }).catch(error => say(error.message))}>
+        {n.icon ? <img src={n.icon} alt=""/> : <span className="art-blank"/>}
+        <span className="note-lines"><span className="note-top"><b>{n.title || n.app}</b><small>{n.app} · {ago(n.time, now)}</small></span><span className="note-text">{n.text}</span></span>
+      </button>
+      <button className="note-x" aria-label="Dismiss" onClick={() => void Launcher.dismissNotification({ key: n.key })}><Icon name="close" size={12}/></button>
+    </div>) : <p className="muted">{everything ? "No notifications." : "No new email."}</p>}
+  </div>;
+}
+
+interface Story { title: string; link: string; time: number; image: string }
+const NEWS_URL = "https://feeds.bbci.co.uk/sport/football/rss.xml", NEWS_KEY = "island-news";
+function useNews() {
+  const [news, setNews] = useState<{ stories: Story[]; at: number; error?: string }>(() => { try { return JSON.parse(localStorage.getItem(NEWS_KEY) || "") ; } catch { return { stories: [], at: 0 }; } });
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const xml = new DOMParser().parseFromString(await (await fetch(NEWS_URL)).text(), "text/xml");
+        const stories = [...xml.querySelectorAll("item")].slice(0, 12).map(item => ({
+          title: item.querySelector("title")?.textContent?.trim() || "", link: item.querySelector("link")?.textContent?.trim() || "",
+          time: Date.parse(item.querySelector("pubDate")?.textContent || "") || Date.now(),
+          image: (item.getElementsByTagNameNS("http://search.yahoo.com/mrss/", "thumbnail")[0]?.getAttribute("url") || "").replace(/^http:/, "https:"),
+        })).filter(story => story.title && /^https:\/\//.test(story.link));
+        if (!stories.length) throw Error("empty");
+        const next = { stories, at: Date.now() }; setNews(next); try { localStorage.setItem(NEWS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      } catch { setNews(current => ({ ...current, error: "offline" })); }
+    };
+    if (Date.now() - news.at > 10 * 60000) void load();
+    const timer = setInterval(() => void load(), 15 * 60000);
+    return () => clearInterval(timer);
+  }, []);
+  return news;
+}
+
+function NewsCard({ now, say }: { now: number; say: (text: string) => void }) {
+  const news = useNews();
+  const open = (story: Story) => void Launcher.openUrl({ url: story.link }).catch(error => say(error.message));
+  const [lead, ...rest] = news.stories;
+  return <div className="glass news">
+    <header><Icon name="globe" size={15}/><span>Football</span><small className="muted">BBC Sport</small></header>
+    {lead ? <>
+      <button className="story lead" onClick={() => open(lead)}>{lead.image && <img src={lead.image} alt="" loading="lazy"/>}<span><b>{lead.title}</b><small>{ago(lead.time, now)} ago</small></span></button>
+      {rest.slice(0, 3).map(story => <button className="story" key={story.link} onClick={() => open(story)}><span><b>{story.title}</b><small>{ago(story.time, now)} ago</small></span></button>)}
+    </> : <p className="muted">{news.error ? "No connection. Football news will appear when you're online." : "Loading football news…"}</p>}
   </div>;
 }
 

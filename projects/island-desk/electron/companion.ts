@@ -5,6 +5,7 @@ import { networkInterfaces } from "node:os";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createSocket, type Socket } from "node:dgram";
 import QRCode from "qrcode";
 import type { Store } from "../shared/model.js";
 import { reduce, type Action, type PocketData } from "../shared/actions.js";
@@ -28,6 +29,34 @@ export interface CompanionHost {
 }
 
 let server: Server | undefined, token = "", port = PORT, host: CompanionHost | undefined;
+// Discovery: a small UDP beacon so a paired phone can find this computer again if its address changes.
+const BEACON_PORT = Number(process.env.ISLAND_DESK_BEACON_PORT) || 47821;
+let beacon: Socket | undefined, beaconTimer: ReturnType<typeof setInterval> | undefined, serverId = "";
+function loadServerId() {
+  const file = join(app.getPath("userData"), "companion-id.txt");
+  try { const saved = readFileSync(file, "utf8").trim(); if (/^[a-f0-9]{16}$/.test(saved)) return saved; } catch { /* create below */ }
+  const fresh = randomBytes(8).toString("hex"); writeFileSync(file, fresh); return fresh;
+}
+function broadcastTargets() {
+  const targets = new Set<string>(["255.255.255.255"]);
+  for (const [name, list] of Object.entries(networkInterfaces())) for (const entry of list || []) {
+    if (entry.family !== "IPv4" || entry.internal || /vethernet|virtual|vmware|vbox|hyper-v|wsl|docker/i.test(name)) continue;
+    const ip = entry.address.split(".").map(Number), mask = entry.netmask.split(".").map(Number);
+    targets.add(ip.map((part, i) => (part & mask[i]) | (~mask[i] & 255)).join("."));
+  }
+  return [...targets];
+}
+function startBeacon() {
+  if (beacon) return;
+  beacon = createSocket({ type: "udp4", reuseAddr: true });
+  beacon.on("error", () => { stopBeacon(); });
+  beacon.bind(() => {
+    beacon?.setBroadcast(true);
+    const announce = () => { const message = Buffer.from(JSON.stringify({ app: "island-desk", id: serverId, port })); for (const target of broadcastTargets()) beacon?.send(message, BEACON_PORT, target, () => undefined); };
+    announce(); beaconTimer = setInterval(announce, 2000);
+  });
+}
+function stopBeacon() { if (beaconTimer) clearInterval(beaconTimer); beaconTimer = undefined; try { beacon?.close(); } catch { /* already closed */ } beacon = undefined; }
 const streams = new Set<ServerResponse>();
 let pushTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -57,14 +86,14 @@ export async function companionInfo(): Promise<CompanionInfo> {
 
 export function startCompanion(next: CompanionHost) {
   host = next; if (server) return Promise.resolve();
-  token ||= loadToken();
+  token ||= loadToken(); serverId ||= loadServerId();
   return new Promise<void>((resolve, reject) => {
     const candidate = createServer(route);
     candidate.once("error", error => { server = undefined; reject(Error((error as NodeJS.ErrnoException).code === "EADDRINUSE" ? `Port ${port} is already in use by another app.` : "The phone companion could not start.")); });
-    candidate.listen(port, "0.0.0.0", () => { server = candidate; resolve(); });
+    candidate.listen(port, "0.0.0.0", () => { server = candidate; startBeacon(); resolve(); });
   });
 }
-export function stopCompanion() { for (const stream of streams) stream.end(); streams.clear(); server?.close(); server = undefined; }
+export function stopCompanion() { stopBeacon(); for (const stream of streams) stream.end(); streams.clear(); server?.close(); server = undefined; }
 
 /** Called whenever the desktop state changes; coalesces bursts into one push. */
 export function companionChanged() {
@@ -75,7 +104,7 @@ export function companionChanged() {
 
 function state() {
   const store = host!.store();
-  return { notes: store.notes.map(({ sticky: _sticky, ...note }) => note), tasks: store.tasks, calculations: store.calculations.slice(0, 30), timer: store.timer, settings: { workMinutes: store.settings.workMinutes, breakMinutes: store.settings.breakMinutes, longBreakMinutes: store.settings.longBreakMinutes, longBreakEvery: store.settings.longBreakEvery }, media: host!.media(), serverTime: Date.now() };
+  return { notes: store.notes.map(({ sticky: _sticky, ...note }) => note), tasks: store.tasks, calculations: store.calculations.slice(0, 30), timer: store.timer, settings: { workMinutes: store.settings.workMinutes, breakMinutes: store.settings.breakMinutes, longBreakMinutes: store.settings.longBreakMinutes, longBreakEvery: store.settings.longBreakEvery }, media: host!.media(), serverTime: Date.now(), serverId };
 }
 
 function authorized(request: IncomingMessage, url: URL) {

@@ -21,6 +21,17 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import android.Manifest;
+import android.net.wifi.WifiManager;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
+import android.app.Notification;
+import android.content.ComponentName;
+import android.os.Bundle;
+import android.service.notification.StatusBarNotification;
+import androidx.core.app.NotificationManagerCompat;
 import android.app.AlarmManager;
 import android.os.Build;
 import android.view.WindowManager;
@@ -35,6 +46,11 @@ import java.util.List;
 public class LauncherPlugin extends Plugin {
     private static final int ICON_SIZE = 108;
     private final LruCache<String, String> icons = new LruCache<>(400);
+    private static volatile LauncherPlugin active;
+
+    @Override public void load() { active = this; }
+    /** Called by NotifyListener; the page then asks for the fresh list. */
+    static void notificationsChanged() { LauncherPlugin plugin = active; if (plugin != null) plugin.notifyListeners("notificationsChanged", new JSObject()); }
 
     @PluginMethod
     public void listApps(PluginCall call) {
@@ -180,6 +196,120 @@ public class LauncherPlugin extends Plugin {
     public void setKeepAwake(PluginCall call) {
         boolean on = Boolean.TRUE.equals(call.getBoolean("value", false));
         getActivity().runOnUiThread(() -> { if (on) getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); });
+        call.resolve();
+    }
+
+    /* ── Notifications (needs Settings > Notification access) ── */
+    @PluginMethod
+    public void notificationAccess(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("granted", NotificationManagerCompat.getEnabledListenerPackages(getContext()).contains(getContext().getPackageName()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openNotificationAccess(PluginCall call) {
+        getActivity().startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        call.resolve();
+    }
+
+    /** Current notifications, newest first. Ongoing ones (music, downloads) and Island's own are left out. */
+    @PluginMethod
+    public void getNotifications(PluginCall call) {
+        NotifyListener listener = NotifyListener.get();
+        JSArray list = new JSArray();
+        if (listener != null) {
+            try {
+                StatusBarNotification[] active = listener.getActiveNotifications();
+                PackageManager pm = getContext().getPackageManager();
+                java.util.Arrays.sort(active, (a, b) -> Long.compare(b.getPostTime(), a.getPostTime()));
+                for (StatusBarNotification item : active) {
+                    Notification n = item.getNotification();
+                    if (item.isOngoing() || (n.flags & Notification.FLAG_GROUP_SUMMARY) != 0 || item.getPackageName().equals(getContext().getPackageName())) continue;
+                    Bundle extras = n.extras;
+                    CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE), text = extras.getCharSequence(Notification.EXTRA_TEXT), big = extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
+                    if (title == null && text == null) continue;
+                    JSObject row = new JSObject();
+                    row.put("key", item.getKey());
+                    row.put("packageName", item.getPackageName());
+                    String label = item.getPackageName();
+                    try { label = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(item.getPackageName(), 0))); } catch (Exception ignored) { }
+                    row.put("app", label);
+                    row.put("title", title == null ? "" : title.toString());
+                    row.put("text", (big != null ? big : text == null ? "" : text).toString());
+                    row.put("time", item.getPostTime());
+                    row.put("category", n.category == null ? "" : n.category);
+                    String icon = icons.get("app:" + item.getPackageName());
+                    if (icon == null) { try { icon = encode(pm.getApplicationIcon(item.getPackageName())); } catch (Exception e) { icon = ""; } icons.put("app:" + item.getPackageName(), icon); }
+                    row.put("icon", icon);
+                    list.put(row);
+                    if (list.length() >= 40) break;
+                }
+            } catch (Exception ignored) { }
+        }
+        JSObject result = new JSObject();
+        result.put("granted", listener != null);
+        result.put("notifications", list);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openNotification(PluginCall call) {
+        NotifyListener listener = NotifyListener.get();
+        String key = call.getString("key", "");
+        if (listener != null) for (StatusBarNotification item : listener.getActiveNotifications()) {
+            if (!item.getKey().equals(key)) continue;
+            try {
+                if (item.getNotification().contentIntent != null) item.getNotification().contentIntent.send();
+                else { Intent open = getContext().getPackageManager().getLaunchIntentForPackage(item.getPackageName()); if (open != null) getActivity().startActivity(open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+                if ((item.getNotification().flags & Notification.FLAG_AUTO_CANCEL) != 0) listener.cancelNotification(item.getKey());
+            } catch (Exception error) { call.reject("That notification can no longer be opened."); return; }
+            call.resolve(); return;
+        }
+        call.reject("That notification is gone.");
+    }
+
+    @PluginMethod
+    public void dismissNotification(PluginCall call) {
+        NotifyListener listener = NotifyListener.get();
+        if (listener != null) listener.cancelNotification(call.getString("key", ""));
+        call.resolve();
+    }
+
+    /** Listens briefly for Island Desk computers announcing themselves on this Wi-Fi. */
+    @PluginMethod
+    public void discover(PluginCall call) {
+        int timeout = Math.max(500, Math.min(8000, call.getInt("timeoutMs", 3000)));
+        getBridge().execute(() -> {
+            WifiManager wifi = (WifiManager) getContext().getApplicationContext().getSystemService(android.content.Context.WIFI_SERVICE);
+            WifiManager.MulticastLock lock = wifi == null ? null : wifi.createMulticastLock("island-discovery");
+            JSArray found = new JSArray(); java.util.HashSet<String> seen = new java.util.HashSet<>();
+            if (lock != null) lock.acquire();
+            try (DatagramSocket socket = new DatagramSocket(null)) {
+                socket.setReuseAddress(true); socket.setBroadcast(true); socket.bind(new InetSocketAddress(47821)); socket.setSoTimeout(400);
+                byte[] buffer = new byte[512]; long end = System.currentTimeMillis() + timeout;
+                while (System.currentTimeMillis() < end) {
+                    try {
+                        DatagramPacket packet = new DatagramPacket(buffer, buffer.length); socket.receive(packet);
+                        JSONObject beacon = new JSONObject(new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8));
+                        if (!"island-desk".equals(beacon.optString("app"))) continue;
+                        String hostIp = packet.getAddress().getHostAddress(), id = beacon.optString("id"); int port = beacon.optInt("port", 47820);
+                        if (!seen.add(id + "@" + hostIp + ":" + port)) continue;
+                        JSObject row = new JSObject(); row.put("host", hostIp); row.put("port", port); row.put("id", id); found.put(row);
+                    } catch (SocketTimeoutException wait) { /* keep listening */ } catch (Exception ignored) { }
+                }
+            } catch (Exception error) { /* no Wi-Fi or port busy: report what we have */ }
+            finally { if (lock != null && lock.isHeld()) lock.release(); }
+            JSObject result = new JSObject(); result.put("computers", found); call.resolve(result);
+        });
+    }
+
+    /** Opens a web page (for example a news story) in the phone's browser. Only http(s). */
+    @PluginMethod
+    public void openUrl(PluginCall call) {
+        String url = call.getString("url", "");
+        if (!url.startsWith("https://") && !url.startsWith("http://")) { call.reject("Only web links can be opened."); return; }
+        getActivity().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         call.resolve();
     }
 
