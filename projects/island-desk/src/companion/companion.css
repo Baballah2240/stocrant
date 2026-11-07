@@ -163,3 +163,50 @@ input[role=switch]{appearance:none;-webkit-appearance:none;width:52px;height:32p
 
 /* Landscape menu: two columns so it fits the short screen. */
 @media (orientation:landscape){.sheet{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;align-content:start}.sheet>.grabber,.sheet>h3{grid-column:1/-1}.sheet .c-card{margin-top:8px}.alarm-editor{grid-template-columns:minmax(0,1fr)}}
+
+/* ───── Launcher, professional layout: left section rail · content · right system-app rail ───── */
+.launcher.c-shell,.launcher.c-shell[class]{padding:14px 84px 14px 100px}
+.launcher.view-clock.c-shell{padding-right:84px}
+.launcher:not(.view-clock).c-shell{padding-right:24px}
+.launcher .c-content{padding-bottom:24px}
+.launcher.view-clock .c-content{padding-right:0;padding-bottom:0;min-height:calc(100dvh - 28px);align-content:center}
+.side-nav{position:fixed;left:12px;top:12px;bottom:12px;width:68px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-radius:24px;background:#0b0b0d;border:1px solid #1c1c21;z-index:12}
+.side-nav button{position:relative;width:48px;height:48px;display:grid;place-items:center;border-radius:16px;color:#7d7d87;transition:background .2s,color .2s}
+.side-nav button.on{background:#1b1b20;color:var(--text)}.side-nav button.on::before{content:"";position:absolute;left:-12px;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--mint)}
+.side-nav button:active{transform:scale(.92)}
+.side-nav .apps-btn{background:#16161a;color:var(--text)}
+.side-spacer{flex:1}
+.badge{position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 2px #0b0b0d}.badge.warn{background:#f3b25e}
+.launcher .system-rail{top:12px;bottom:12px;right:12px;width:60px;border-radius:24px;background:#0b0b0d;border-color:#1c1c21;gap:10px}
+.launcher .system-rail img{width:38px;height:38px;border-radius:11px}
+/* Home typography */
+.launcher .big-clock span{font-size:min(40vh,15vw);font-weight:200;letter-spacing:-.05em}
+.launcher .clock-date{color:#9a9aa4;font-size:min(5vh,21px);letter-spacing:.01em}
+.launcher .next-alarm{background:transparent;border:1px solid #23232a;padding:7px 14px;font-size:13.5px}
+.launcher .focus-chip{margin-bottom:8px;color:var(--mint)}.launcher .focus-chip b{font-variant-numeric:tabular-nums}
+.launcher .c-card{border-radius:18px;background:#0e0e11;border-color:#1c1c21}
+.launcher .fab{bottom:22px;right:22px}
+.launcher .mini-player:not(.compact){left:100px;right:24px;bottom:14px}
+.launcher .c-toast{left:100px;right:24px;bottom:18px}
+/* Apps drawer: slides in from the left over a dimmed screen */
+.app-drawer{position:fixed;inset:0;z-index:25;background:#000000b3;opacity:0;pointer-events:none;transition:opacity .28s ease}
+.app-drawer.open{opacity:1;pointer-events:auto}
+.drawer-panel{position:absolute;left:0;top:0;bottom:0;width:min(78vw,980px);padding:18px 22px 18px 100px;background:#0a0a0c;border-right:1px solid #1c1c21;transform:translateX(-102%);transition:transform .38s cubic-bezier(.22,1,.36,1);overflow-y:auto;overscroll-behavior:contain}
+.app-drawer.open .drawer-panel{transform:none}
+.drawer-head{display:flex;align-items:center;gap:16px;position:sticky;top:-18px;padding:4px 0 14px;background:#0a0a0c;z-index:1}.drawer-head h2{font-size:22px}
+.drawer-head .c-search{flex:1;margin:0}
+.drawer-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:20px 10px;margin-top:4px}
+.drawer-grid img{width:56px;height:56px}
+@media (prefers-reduced-motion:reduce){.drawer-panel,.app-drawer{transition:none}}
+/* Fit all seven rail icons on a short landscape screen. */
+.side-nav{top:8px;bottom:8px;width:60px;gap:2px;padding:8px 0;justify-content:space-between}
+.side-nav button{width:42px;height:42px;border-radius:14px;flex:none}
+.side-nav button svg{width:20px;height:20px}
+.side-nav button.on::before{left:-9px;top:10px;bottom:10px}
+.side-spacer{flex:1 1 0;min-height:4px}
+.badge{top:7px;right:7px}
+.launcher.c-shell,.launcher.c-shell[class]{padding-left:86px}
+.launcher .system-rail{top:8px;bottom:8px;width:56px;gap:8px;padding:8px 0}
+.launcher .system-rail img{width:36px;height:36px}
+.launcher .drawer-panel{padding-left:86px}
+.launcher .mini-player:not(.compact),.launcher .c-toast{left:86px}

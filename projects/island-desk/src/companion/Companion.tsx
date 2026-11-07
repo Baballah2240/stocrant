@@ -8,20 +8,22 @@ import type { Action } from "../../shared/actions";
 import { isLauncher, loadPairing, newId, parsePairLink, savePairing, usePocket, type Pairing, type State, type Status } from "./backend";
 import { Launcher, type Alarm, type InstalledApp } from "./launcher";
 
-type View = "clock" | "notes" | "tasks" | "focus" | "calc" | "apps";
+type View = "clock" | "notes" | "tasks" | "focus" | "calc";
 type Run = (action: Action) => Promise<void>;
 
 const views: { id: View; label: string; icon: IconName }[] = [
   { id: "clock", label: isLauncher ? "Home" : "Clock", icon: "focus" }, { id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" },
-  { id: "focus", label: isLauncher ? "Clock" : "Focus", icon: isLauncher ? "alarm" : "play" }, { id: "calc", label: "Calc", icon: "calculator" }, ...(isLauncher ? [{ id: "apps" as View, label: "My apps", icon: "shortcuts" as IconName }] : []),
+  { id: "focus", label: isLauncher ? "Clock" : "Focus", icon: isLauncher ? "alarm" : "play" }, { id: "calc", label: "Calc", icon: "calculator" },
 ];
 
 export default function Companion() {
   const [pairing, setPairing] = useState<Pairing | null>(() => isLauncher ? loadPairing() : null);
   const { state, status, run: send, skew, adoptLocalData } = usePocket(pairing);
   const [view, setView] = useState<View>(() => { if (isLauncher) return "clock"; try { return (localStorage.getItem("island-desk-view") as View) || "clock"; } catch { return "clock"; } });
-  const [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [openNote, setOpenNote] = useState<string | null>(null), [sheet, setSheet] = useState(false);
+  const [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [openNote, setOpenNote] = useState<string | null>(null), [sheet, setSheet] = useState(false), [drawer, setDrawer] = useState(false);
   const viewRef = useRef(view); viewRef.current = view;
+  // Survives the clock re-rendering several times a second during a swipe.
+  const swipeRef = useRef({ x: 0, y: 0, t: 0, ok: false });
   const say = (text: string) => { setToast(text); setTimeout(() => setToast(""), 3500); };
   useEffect(() => { try { localStorage.setItem("island-desk-view", view); } catch { /* ignore */ } }, [view]);
   useEffect(() => { const clock = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(clock); }, []);
@@ -40,7 +42,7 @@ export default function Companion() {
     const pair = (link: string) => { const next = parsePairLink(link); if (!next) return; adoptLocalData(); savePairing(next); setPairing(next); say("Connected to your computer."); };
     void NativeApp.getLaunchUrl().then(result => { if (result?.url) pair(result.url); }).catch(() => undefined);
     const opened = NativeApp.addListener("appUrlOpen", event => pair(event.url));
-    const back = NativeApp.addListener("backButton", () => { setSheet(false); setOpenNote(null); if (viewRef.current !== "clock") setView("clock"); });
+    const back = NativeApp.addListener("backButton", () => { setSheet(false); setDrawer(false); setOpenNote(null); if (viewRef.current !== "clock") setView("clock"); });
     return () => { void opened.then(h => h.remove()); void back.then(h => h.remove()); };
   }, []);
 
@@ -50,27 +52,31 @@ export default function Companion() {
   if (!isLauncher && status === "unpaired") return <main className="c-shell center"><div className="c-pill big"><i className="dot"/>Island Desk</div><h1>Pair this phone</h1><p className="muted">On your computer, open Island Desk → Settings → Phone companion and scan the QR code with this phone's camera.</p></main>;
   if (!state) return <main className="c-shell center"><div className="c-pill big pulse"><i className="dot"/>Connecting…</div><p className="muted">Make sure this phone is on the same Wi-Fi as your computer and Island Desk is running.</p></main>;
   const serverNow = now + (status === "live" ? skew.current : 0);
+  const swipe = swipeRef.current;
+  const onTouchStart = (event: React.TouchEvent) => { const target = event.target as HTMLElement, touch = event.touches[0]; swipe.x = touch.clientX; swipe.y = touch.clientY; swipe.t = Date.now(); swipe.ok = isLauncher && !drawer && !sheet && !target.closest("input, textarea, select, .app-drawer, .system-rail, .sheet"); };
+  const onTouchEnd = (event: React.TouchEvent) => { if (!swipe.ok) return; const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y; if (dx > 90 && Math.abs(dy) < Math.abs(dx) * 0.6 && Date.now() - swipe.t < 700) setDrawer(true); };
   const pillText = status === "live" ? "Connected" : status === "local" ? "On this phone" : status === "unpaired" ? "Pair again" : status === "offline" ? "Offline · saved on phone" : "Connecting…";
-  return <main className={`c-shell view-${view} ${isLauncher ? "launcher" : ""}`}>
-    <header className="c-top">
+  return <main className={`c-shell view-${view} ${isLauncher ? "launcher" : ""}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    {!isLauncher && <header className="c-top">
       <button className={`c-pill ${state.timer.running ? "active" : ""}`} onClick={() => isLauncher && setSheet(true)}>
         <i className={`dot ${status === "live" || status === "local" ? "" : "off"}`}/>
         {state.timer.running ? <><span>{state.timer.phase === "work" ? "Focus" : "Break"}</span><b>{timeText(remaining(state.timer, serverNow))}</b></>
           : state.media.active ? <><span className="ellipsis">{state.media.title}</span><span className={`bars ${state.media.playing ? "on" : ""}`}><i/><i/><i/></span></>
           : <span>{pillText}</span>}
       </button>
-    </header>
+    </header>}
     <section className="c-content" key={view}>
       {view === "clock" && <ClockView state={state} now={now} run={run} openAlarms={() => setView("focus")}/>}
       {view === "notes" && <NotesView notes={state.notes} run={run} openId={openNote} setOpenId={setOpenNote}/>}
       {view === "tasks" && <TasksView tasks={state.tasks} run={run}/>}
       {view === "focus" && (isLauncher ? <ClockTab timer={state.timer} now={serverNow} run={run} synced={status === "live"} say={say}/> : <FocusView timer={state.timer} now={serverNow} run={run} synced={status === "live"}/>)}
       {view === "calc" && <CalcView history={state.calculations} run={run}/>}
-      {view === "apps" && <AppsView/>}
     </section>
     {view === "clock" && isLauncher && <SystemRail/>}
-    {state.media.active && view !== "clock" && view !== "apps" && <MiniPlayer media={state.media} run={run}/>}
-    <nav className="c-nav">{views.map(item => <button key={item.id} className={view === item.id ? "on" : ""} onClick={() => { setView(item.id); if (item.id !== "notes") setOpenNote(null); }}><Icon name={item.icon} size={20}/><span>{item.label}</span></button>)}</nav>
+    {state.media.active && view !== "clock" && <MiniPlayer media={state.media} run={run}/>}
+    {isLauncher ? <SideNav view={view} timerRunning={state.timer.running} offline={!!pairing && status !== "live"} go={id => { setView(id); if (id !== "notes") setOpenNote(null); }} openApps={() => setDrawer(true)} openSettings={() => setSheet(true)}/>
+    : <nav className="c-nav">{views.map(item => <button key={item.id} className={view === item.id ? "on" : ""} onClick={() => { setView(item.id); if (item.id !== "notes") setOpenNote(null); }}><Icon name={item.icon} size={20}/><span>{item.label}</span></button>)}</nav>}
+    {isLauncher && <AppDrawer open={drawer} close={() => setDrawer(false)}/>}
     {sheet && <SettingsSheet keepAwake={keepAwake} setKeepAwake={value => { setKeepAwake(value); try { localStorage.setItem("island-keep-awake", value ? "1" : "0"); } catch { /* ignore */ } }} status={status} pairing={pairing} onPair={next => { adoptLocalData(); savePairing(next); setPairing(next); setSheet(false); say("Connected to your computer."); }} close={() => setSheet(false)} unpair={() => { savePairing(null); setPairing(null); setSheet(false); say("Disconnected. Your notes stay on this phone."); }}/>}
     {toast && <div className="c-toast" onClick={() => setToast("")}>{toast}</div>}
   </main>;
@@ -87,7 +93,7 @@ function useApps() {
   }, []);
   return apps;
 }
-const open = (app: InstalledApp) => void Launcher.launch({ packageName: app.packageName, activity: app.activity });
+const launchApp = (app: InstalledApp) => void Launcher.launch({ packageName: app.packageName, activity: app.activity });
 /** Preinstalled apps people reach for first; anything else that came with the phone follows. */
 const essentials = [/dialer|incallui|\.phone$|contacts/i, /mms|messag/i, /camera/i, /gallery|photos/i, /settings/i, /browser|chrome/i, /deskclock|clock/i, /calendar/i, /filemanager|files/i, /music|video/i];
 const rank = (app: InstalledApp) => { const index = essentials.findIndex(rule => rule.test(app.packageName) || rule.test(app.label)); return index < 0 ? essentials.length : index; };
@@ -96,20 +102,38 @@ const rank = (app: InstalledApp) => { const index = essentials.findIndex(rule =>
 function SystemRail() {
   const apps = useApps().filter(app => app.system).sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label));
   if (!apps.length) return null;
-  return <aside className="system-rail" aria-label="System apps">{apps.map(app => <button key={app.packageName + app.activity} onClick={() => open(app)} aria-label={app.label} title={app.label}><img src={app.icon} alt=""/></button>)}</aside>;
+  return <aside className="system-rail" aria-label="System apps">{apps.map(app => <button key={app.packageName + app.activity} onClick={() => launchApp(app)} aria-label={app.label} title={app.label}><img src={app.icon} alt=""/></button>)}</aside>;
 }
 
-/** A separate window for the apps you installed yourself. */
-function AppsView() {
+/** Left icon rail: the app's sections, then Apps and Settings. */
+function SideNav({ view, timerRunning, offline, go, openApps, openSettings }: { view: View; timerRunning: boolean; offline: boolean; go: (id: View) => void; openApps: () => void; openSettings: () => void }) {
+  return <nav className="side-nav" aria-label="Sections">
+    {views.map(item => <button key={item.id} className={view === item.id ? "on" : ""} onClick={() => go(item.id)} aria-label={item.label} title={item.label}>
+      <Icon name={item.icon} size={22}/>{item.id === "focus" && timerRunning && <i className="badge"/>}</button>)}
+    <span className="side-spacer"/>
+    <button className="apps-btn" onClick={openApps} aria-label="Your apps" title="Your apps (or swipe right)"><Icon name="grid" size={22}/></button>
+    <button onClick={openSettings} aria-label="Settings" title="Settings"><Icon name="settings" size={22}/>{offline && <i className="badge warn"/>}</button>
+  </nav>;
+}
+
+/** Your installed apps, folded behind one icon. Opens with a swipe right; closes with a swipe left, Back, or a tap outside. */
+function AppDrawer({ open, close }: { open: boolean; close: () => void }) {
   const apps = useApps().filter(app => !app.system), [query, setQuery] = useState("");
+  const start = useRef({ x: 0, y: 0 });
+  useEffect(() => { if (!open) setQuery(""); }, [open]);
   const shown = apps.filter(app => app.label.toLowerCase().includes(query.toLowerCase()));
-  return <div className="list-view apps-view">
-    <div className="row"><h2>My apps</h2><span className="muted small">{apps.length}</span></div>
-    <label className="c-search"><Icon name="search" size={16}/><input placeholder="Search your apps" value={query} onChange={event => setQuery(event.target.value)}/></label>
-    <div className="app-grid">{shown.map(app => <button key={app.packageName + app.activity} onClick={() => open(app)} onContextMenu={event => { event.preventDefault(); void Launcher.openAppInfo({ packageName: app.packageName }); }}>
-      <img src={app.icon} alt=""/><span>{app.label}</span></button>)}</div>
-    {!apps.length && <p className="muted center-text">{appCache ? "No apps installed yet." : "Loading your apps…"}</p>}
-    {apps.length > 0 && !shown.length && <p className="muted center-text">No app matches "{query}".</p>}
+  return <div className={`app-drawer ${open ? "open" : ""}`} aria-hidden={!open} onClick={close}
+    onTouchStart={event => { start.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }; }}
+    onTouchEnd={event => { const dx = event.changedTouches[0].clientX - start.current.x, dy = event.changedTouches[0].clientY - start.current.y; if (dx < -80 && Math.abs(dy) < Math.abs(dx)) close(); }}>
+    <div className="drawer-panel" onClick={event => event.stopPropagation()}>
+      <div className="drawer-head"><div><span className="eyebrow">YOUR APPS</span><h2>{apps.length} installed</h2></div>
+        <label className="c-search"><Icon name="search" size={16}/><input placeholder="Search apps" value={query} onChange={event => setQuery(event.target.value)} tabIndex={open ? 0 : -1}/></label>
+        <button className="round small" aria-label="Close apps" onClick={close}><Icon name="close" size={16}/></button></div>
+      <div className="app-grid drawer-grid">{shown.map(app => <button key={app.packageName + app.activity} tabIndex={open ? 0 : -1} onClick={() => { open && launchApp(app); close(); }} onContextMenu={event => { event.preventDefault(); void Launcher.openAppInfo({ packageName: app.packageName }); }}>
+        <img src={app.icon} alt="" loading="lazy"/><span>{app.label}</span></button>)}</div>
+      {!apps.length && <p className="muted center-text">{appCache ? "No apps installed yet." : "Loading your apps…"}</p>}
+      {apps.length > 0 && !shown.length && <p className="muted center-text">No app matches "{query}".</p>}
+    </div>
   </div>;
 }
 
@@ -148,6 +172,7 @@ function ClockView({ state, now, run, openAlarms }: { state: State; now: number;
   return <div className="clock-view">
     <div className="big-clock"><span>{hm}</span><small>{seconds}</small></div>
     <div className="clock-date">{new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" }).format(date)}</div>
+    {isLauncher && state.timer.running && <button className="next-alarm focus-chip" onClick={openAlarms}><Icon name="play" size={14}/>{state.timer.phase === "work" ? "Focus" : "Break"} <b>{timeText(remaining(state.timer, now))}</b></button>}
     {isLauncher && <button className="next-alarm" onClick={openAlarms}><Icon name="alarm" size={16}/>{alarms.next > 0 ? <>Alarm {new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(alarms.next)} <span className="muted">· in {until(alarms.next - now)}</span></> : <span className="muted">No alarm set</span>}</button>}
     {state.media.active && <MiniPlayer media={state.media} run={run} compact={!isLauncher}/>}
     <div className="clock-cards">
