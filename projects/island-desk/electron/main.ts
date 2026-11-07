@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFil
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advanceTimer, defaults, duration, insideRoundedRect, timerAction, validateStore, type Store, type Settings, type Mode, type Shortcut, type Snapshot } from "../shared/model.js";
+import { startMedia, stopMedia, mediaCommand, media } from "./media.js";
 import { spotlight, resetOverlays, prepareOverlays } from "./dim.js";
 import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
 import type { ContentPatch, DesktopEvent } from "../shared/bridge.js";
@@ -159,6 +160,8 @@ function installIpc() {
     if (saved.kind === "website") { const url = new URL(saved.target); if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw Error("Use a normal https:// or http:// website address."); await shell.openExternal(url.toString()); }
     else { if (!/^[A-Za-z]:[\\/]/.test(saved.target) || !existsSync(saved.target)) throw Error("This local path no longer exists."); if (saved.kind === "app" && !saved.target.toLowerCase().endsWith(".exe")) throw Error("Choose an .exe application."); if (saved.kind === "folder" && !statSync(saved.target).isDirectory()) throw Error("Choose a folder."); const error = await shell.openPath(saved.target); if (error) throw Error(error); }
   });
+  handle("media-get", () => media);
+  handle("media-command", (command: string) => mediaCommand(command));
   handle("display-get", () => displayState);
   handle("display-set", async (patch: { brightness?: unknown; nightLight?: unknown }) => {
     if (typeof patch?.brightness === "number" && Number.isFinite(patch.brightness)) await setBrightness(patch.brightness);
@@ -231,7 +234,7 @@ function createWindow() {
 if (!app.requestSingleInstanceLock() && !testing) app.quit();
 else {
   app.whenReady().then(() => {
-    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); void refreshDisplay(); setInterval(() => void refreshDisplay(), 20000);
+    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); startMedia(state => emit({ type: "media", media: state })); void refreshDisplay(); setInterval(() => void refreshDisplay(), 20000);
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }
@@ -241,5 +244,5 @@ else {
     if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, () => { quitting = true; app.quit(); }));
   }).catch(error => { dialog.showErrorBox("Island Desk could not start", String(error)); app.quit(); });
 }
-app.on("before-quit", () => { quitting = true; resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
+app.on("before-quit", () => { quitting = true; stopMedia(); resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
 app.on("window-all-closed", () => { if (quitting) app.quit(); });

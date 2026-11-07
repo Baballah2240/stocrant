@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "./icons";
 import { calculate } from "../shared/calculator";
 import { defaults, duration, localDate, remaining, timeText, type Mode, type Note, type Settings, type Shortcut, type Snapshot, type Store, type Tab, type Task } from "../shared/model";
-import type { ContentPatch, DisplayState } from "../shared/bridge";
+import type { ContentPatch, DisplayState, MediaState } from "../shared/bridge";
 
 const tabs: { id: Tab; label: string; icon: IconName }[] = [{ id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" }, { id: "calculator", label: "Calculator", icon: "calculator" }, { id: "focus", label: "Focus", icon: "focus" }, { id: "tools", label: "Tools", icon: "tools" }, { id: "shortcuts", label: "Shortcuts", icon: "shortcuts" }];
 const uid = () => crypto.randomUUID();
 const api = window.island;
 function ping() { try { const context = new AudioContext(); const oscillator = context.createOscillator(), gain = context.createGain(); oscillator.connect(gain); gain.connect(context.destination); oscillator.frequency.value = 660; gain.gain.setValueAtTime(0.06, context.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.65); oscillator.start(); oscillator.stop(context.currentTime + 0.7); oscillator.onended = () => void context.close(); } catch { /* A muted device still receives the visual completion. */ } }
 export default function App() {
-  const [store, setStore] = useState<Store>(defaults), [snapshot, setSnapshot] = useState<Snapshot | null>(null), [mode, setMode] = useState<Mode>("compact"), [tab, setTab] = useState<Tab>("notes"), [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [saved, setSaved] = useState(true), [ready, setReady] = useState(false);
+  const [store, setStore] = useState<Store>(defaults), [snapshot, setSnapshot] = useState<Snapshot | null>(null), [mode, setMode] = useState<Mode>("compact"), [tab, setTab] = useState<Tab>("notes"), [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [saved, setSaved] = useState(true), [ready, setReady] = useState(false), [media, setMedia] = useState<MediaState>({ active: false });
   const storeRef = useRef(store), modeRef = useRef(mode), island = useRef<HTMLElement>(null), hover = useRef<ReturnType<typeof setTimeout> | null>(null), toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   storeRef.current = store; modeRef.current = mode;
   function message(text: string) { setToast(text); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 5500); }
@@ -20,9 +20,11 @@ export default function App() {
       if (event.type === "timer") { setStore(current => ({ ...current, timer: event.timer })); if (event.completedPhase) { message(event.completedPhase === "work" ? "Session complete. Take a little breather." : "Break complete. Ready when you are."); if (storeRef.current.settings.sound) ping(); } }
       if (event.type === "replace") { setSnapshot(event.snapshot); setStore(event.snapshot.store); }
       if (event.type === "saved") setSaved(true);
+      if (event.type === "media") setMedia(event.media);
       if (event.type === "error") { setSaved(false); message(event.message); }
     });
     void api.snapshot().then(data => { setSnapshot(data); setStore(data.store); setReady(true); }).catch(error => message(error.message));
+    void api.media().then(setMedia).catch(() => undefined);
     const clock = setInterval(() => setNow(Date.now()), 250);
     return () => { dispose(); clearInterval(clock); };
   }, []);
@@ -59,9 +61,10 @@ export default function App() {
   return <main className={`canvas ${store.settings.reducedMotion ? "reduce-motion" : ""}`} style={{ "--scale": store.settings.scale } as CSSProperties}>
     <section ref={island} className={`island ${mode}`} aria-label="Island Desk" onMouseEnter={() => { if (modeRef.current === "compact") hover.current = setTimeout(() => { if (modeRef.current === "compact") api?.mode("preview"); }, 180); }} onMouseLeave={() => { if (hover.current) clearTimeout(hover.current); }}>
       <button className="compact-face" aria-label="Expand Island Desk" onClick={() => api?.mode("expanded")} tabIndex={mode === "expanded" ? -1 : 0}>
-        <span className={`signal ${focused ? "active" : ""}`}><i/><i/><i/><i/></span><span className="compact-label">{focused ? store.timer.phase === "work" ? "In the flow" : "Take a breather" : "Island Desk"}</span><span className="compact-right">{focused ? timeText(timerMs) : clockLabel}</span>
+        {!focused && media.active ? <>{media.art ? <img className="compact-art" src={media.art} alt=""/> : <span className="compact-art blank"><Icon name="music" size={13}/></span>}<span className="compact-label compact-track">{media.title}</span><span className={`signal music ${media.playing ? "active" : "paused"}`}><i/><i/><i/><i/></span></>
+          : <><span className={`signal ${focused ? "active" : ""}`}><i/><i/><i/><i/></span><span className="compact-label">{focused ? store.timer.phase === "work" ? "In the flow" : "Take a breather" : "Island Desk"}</span><span className="compact-right">{focused ? timeText(timerMs) : clockLabel}</span></>}
       </button>
-      {mode === "preview" && <Preview clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
+      {mode === "preview" && <Preview media={media} now={now} clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
       <div className="workspace" aria-hidden={mode !== "expanded"} inert={mode !== "expanded"}>
         <header className="topbar"><div className="brand"><span className="brand-mark"><i/><i/></span><strong>island<span>desk</span></strong><span className="version">BETA 01</span></div><div className="top-actions"><span className="time">{clockLabel}</span><button className={`icon-btn ${tab === "settings" ? "selected" : ""}`} title="Settings" aria-label="Settings" onClick={() => setTab("settings")}><Icon name="settings"/></button><button className="icon-btn" title="Collapse · Esc" aria-label="Collapse island" onClick={() => api.mode("compact")}><Icon name="close"/></button></div></header>
         <div className="workspace-intro"><div><span className="eyebrow">{dateLabel}</span><h1>{tab === "settings" ? "Make yourself at home." : "A little room for your day."}</h1></div><span className="offline"><span/>Local. Private. Yours.</span></div>
@@ -163,7 +166,7 @@ function Preferences({ settings, snapshot, update, message }: { settings: Settin
   return <div className="preferences"><div className="settings-grid"><section><span className="eyebrow">YOUR ISLAND, YOUR WAY</span><h2>Feel right at home.</h2>{toggle("alwaysOnTop", "Float above other windows", "A quiet presence, always within reach.")}{toggle("dimOnHover", "Blur the background on hover", "Everything else softly goes out of focus while you use the island or a sticky note.")}{toggle("reducedMotion", "Gentler motion", "Skip spring transitions and animated details.")}{toggle("launchAtStartup", "Be here when I sign in", snapshot.startupSupported ? "Start Island Desk with Windows." : "Available after installing the Windows app.", !snapshot.startupSupported)}{toggle("sound", "A soft chime", "A little nudge when your session ends.")}{toggle("notifications", "Desktop reminders", "Task reminders and focus notifications.")}<div className="setting-field"><label htmlFor="global-shortcut">Global keyboard shortcut</label><div><input id="global-shortcut" value={shortcut} maxLength={100} onChange={event => setShortcut(event.target.value)}/><button onClick={() => void update({ globalShortcut: shortcut.trim() }).then(ok => { if (ok) message("Your new shortcut is ready."); })}>Apply</button></div><small>Example: Control+Alt+Space. A shortcut already in use stays unchanged.</small></div></section><section><span className="eyebrow">A PLACE ON YOUR DESKTOP</span><label className="setting-field">Display<select value={settings.displayId ?? "primary"} onChange={event => void update({ displayId: event.target.value === "primary" ? null : Number(event.target.value) })}><option value="primary">Follow primary display</option>{snapshot.displays.map(display => <option key={display.id} value={display.id}>{display.label} · {display.width} × {display.height}{display.primary ? " · primary" : ""}</option>)}</select></label><label className="setting-field">Island size <span>{Math.round(settings.scale * 100)}%</span><input type="range" aria-label="Island size" min="0.8" max="1.15" step="0.05" value={settings.scale} onChange={event => void update({ scale: Number(event.target.value) })}/></label><label className="setting-field">From top <span>{settings.offsetY}px</span><input type="range" aria-label="Vertical position" min="0" max="240" step="4" value={settings.offsetY} onChange={event => void update({ offsetY: Number(event.target.value) })}/></label><label className="setting-field">From center <span>{settings.offsetX}px</span><input type="range" aria-label="Horizontal position" min="-700" max="700" step="10" value={settings.offsetX} onChange={event => void update({ offsetX: Number(event.target.value) })}/></label><button className="text-btn" onClick={() => void update({ offsetX: 0, offsetY: 16, scale: 1, displayId: null })}><Icon name="reset" size={14}/>Back to center</button><div className="backup-card"><strong>Keep a little backup.</strong><p>Notes, tasks, history, shortcuts, and your settings. A file you own.</p><div><button onClick={() => void api.backupExport().then(ok => { if (ok) message("Backup exported."); }).catch(err => message(err.message))}><Icon name="download" size={15}/>Export</button><button onClick={() => void api.backupImport().then(ok => { if (ok) message("Backup restored."); }).catch(err => message(err.message))}><Icon name="upload" size={15}/>Import</button></div><button className="text-btn" onClick={() => void api.openData().catch(err => message(err.message))}><Icon name="folder" size={13}/>Open local data folder</button></div></section></div><div className="settings-bottom"><span>Island Desk {snapshot.version} · Offline by design. No account. No telemetry.</span><div><button className="text-btn" onClick={() => api.hide()}>Hide to tray</button><button className="text-btn danger" onClick={() => api.quit()}>Quit app</button></div></div></div>;
 }
 const priorityRank = { high: 0, medium: 1, low: 2 } as const;
-function Preview({ clock, date, tasks, focus, message, onOpen }: { clock: string; date: string; tasks: Task[]; focus: string; message: (text: string) => void; onOpen: () => void }) {
+function Preview({ media, now, clock, date, tasks, focus, message, onOpen }: { media: MediaState; now: number; clock: string; date: string; tasks: Task[]; focus: string; message: (text: string) => void; onOpen: () => void }) {
   const [display, setDisplay] = useState<DisplayState | null>(null), [level, setLevel] = useState<number | null>(null);
   const pending = tasks.filter(task => !task.done).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999") || priorityRank[a.priority] - priorityRank[b.priority]);
   const today = localDate(), sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,7 +180,8 @@ function Preview({ clock, date, tasks, focus, message, onOpen }: { clock: string
     const next = !display.nightLight; setDisplay({ ...display, nightLight: next });
     void api.setDisplay({ nightLight: next }).then(setDisplay).catch(error => { setDisplay({ ...display }); message(error.message); });
   }
-  return <div className="preview-body">
+  return <div className={`preview-body ${media.active ? "with-media" : ""}`}>
+    {media.active && <NowPlaying media={media} now={now} message={message}/>}
     <div className="preview-clock"><strong>{clock}</strong><span>{date}</span>{focus && <em>{focus}</em>}</div>
     <button className="preview-tasks" onClick={onOpen} title="Open tasks">
       <span className="eyebrow">{pending.length ? `${pending.length} PENDING` : "ALL CLEAR"}</span>
@@ -187,6 +191,25 @@ function Preview({ clock, date, tasks, focus, message, onOpen }: { clock: string
     <div className="preview-display">
       <label title="Screen brightness"><Icon name="sun"/><input type="range" min={0} max={100} step={5} value={level ?? 50} disabled={level === null} aria-label="Screen brightness" onChange={event => brightness(Number(event.target.value))}/><span>{level === null ? "—" : `${level}%`}</span></label>
       <button className={`night ${display?.nightLight ? "on" : ""}`} disabled={display?.nightLight == null} onClick={night} aria-pressed={!!display?.nightLight} title="Night light"><Icon name="moon"/>Night light</button>
+    </div>
+  </div>;
+}
+
+const clockOf = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+function NowPlaying({ media, now, message }: { media: Extract<MediaState, { active: true }>; now: number; message: (text: string) => void }) {
+  const position = Math.min(media.durationMs || Infinity, media.positionMs + (media.playing ? Math.max(0, now - media.updatedAt) : 0));
+  const send = (command: "toggle" | "next" | "previous") => void api.mediaCommand(command).catch(error => message(error.message));
+  return <div className="now-playing">
+    {media.art ? <img className="np-art" src={media.art} alt=""/> : <span className="np-art blank"><Icon name="music" size={22}/></span>}
+    <div className="np-info">
+      <strong title={media.title}>{media.title}</strong>
+      <span title={media.artist}>{media.artist || media.app}</span>
+      {media.durationMs > 0 && <div className="np-progress"><small>{clockOf(position)}</small><i><b style={{ width: `${Math.min(100, position / media.durationMs * 100)}%` }}/></i><small>{clockOf(media.durationMs)}</small></div>}
+    </div>
+    <div className="np-controls">
+      <button aria-label="Previous track" title="Previous" disabled={!media.canPrevious} onClick={() => send("previous")}><Icon name="previous" size={16}/></button>
+      <button className="np-play" aria-label={media.playing ? "Pause" : "Play"} title={media.playing ? "Pause" : "Play"} disabled={!media.canToggle} onClick={() => send("toggle")}><Icon name={media.playing ? "pause" : "play"} size={16}/></button>
+      <button aria-label="Next track" title="Next" disabled={!media.canNext} onClick={() => send("next")}><Icon name="skip" size={16}/></button>
     </div>
   </div>;
 }

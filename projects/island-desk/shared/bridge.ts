@@ -1,6 +1,7 @@
 import type { Note, Store, Settings, Snapshot, Mode, Timer, Shortcut } from "./model.js";
 export type ContentPatch = Partial<Pick<Store, "notes" | "tasks" | "calculations" | "shortcuts">>;
-export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string };
+export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState };
+export type MediaState = { active: false } | { active: true; title: string; artist: string; album: string; app: string; playing: boolean; canNext: boolean; canPrevious: boolean; canToggle: boolean; positionMs: number; durationMs: number; updatedAt: number; art: string };
 export interface DesktopBridge {
   snapshot(): Promise<Snapshot>;
   save(patch: ContentPatch): Promise<void>;
@@ -20,6 +21,8 @@ export interface DesktopBridge {
   stickyOpen(id: string, at?: { x: number; y: number }): Promise<void>;
   stickyClose(id: string): Promise<void>;
   notePatch(id: string, patch: Partial<Pick<Note, "title" | "body" | "checklist">>): Promise<void>;
+  media(): Promise<MediaState>;
+  mediaCommand(command: "toggle" | "next" | "previous"): Promise<void>;
   onEvent(callback: (event: DesktopEvent) => void): () => void;
 }
 export interface DisplayState { brightness: number | null; nightLight: boolean | null }

@@ -62,6 +62,12 @@
     },
     "portable": {
       "artifactName": "Island-Desk-Portable-${version}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "electron/media.ps1",
+        "to": "media.ps1"
+      }
+    ]
   }
 }
