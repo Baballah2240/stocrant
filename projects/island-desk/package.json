@@ -51,14 +51,17 @@
         "portable"
       ],
       "icon": "assets/icon.ico",
-      "signAndEditExecutable": false
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "artifactName": "Island-Desk-Setup-${version}.${ext}"
     },
-    "artifactName": "Island-Desk-${version}-${arch}-${target}.${ext}"
+    "portable": {
+      "artifactName": "Island-Desk-Portable-${version}.${ext}"
+    }
   }
 }
