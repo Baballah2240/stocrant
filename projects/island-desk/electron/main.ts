@@ -55,8 +55,10 @@ function setMode(next: Mode) {
   mode = next; pendingCollapse = false;
   if (!window.isVisible()) window.showInactive();
   emit({ type: "mode", mode });
-  if (mode === "expanded") { window.show(); window.focus(); }
-  if (mode !== "expanded") window.setFocusable(false); else window.setFocusable(true);
+  if (mode === "expanded") { window.show(); window.focus(); app.focus({ steal: true }); window.webContents.focus(); }
+  // The island stays focusable: a click on it activates the window, so typing works immediately.
+  // Changing focusability can drop the topmost flag on Windows; restore it and stay above the blur.
+  if (store.settings.alwaysOnTop) window.setAlwaysOnTop(true, "floating"); window.moveTop();
 }
 function toggle() { if (mode === "expanded" && window.isVisible()) setMode("compact"); else { window.setFocusable(true); setMode("expanded"); } }
 function registerShortcut(accelerator: string) {
@@ -157,11 +159,13 @@ function installIpc() {
     if (saved.kind === "website") { const url = new URL(saved.target); if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw Error("Use a normal https:// or http:// website address."); await shell.openExternal(url.toString()); }
     else { if (!/^[A-Za-z]:[\\/]/.test(saved.target) || !existsSync(saved.target)) throw Error("This local path no longer exists."); if (saved.kind === "app" && !saved.target.toLowerCase().endsWith(".exe")) throw Error("Choose an .exe application."); if (saved.kind === "folder" && !statSync(saved.target).isDirectory()) throw Error("Choose a folder."); const error = await shell.openPath(saved.target); if (error) throw Error(error); }
   });
-  handle("display-get", async () => ({ brightness: await getBrightness(), nightLight: await getNightLight() }));
+  handle("display-get", () => displayState);
   handle("display-set", async (patch: { brightness?: unknown; nightLight?: unknown }) => {
     if (typeof patch?.brightness === "number" && Number.isFinite(patch.brightness)) await setBrightness(patch.brightness);
     if (typeof patch?.nightLight === "boolean") await setNightLight(patch.nightLight);
-    return { brightness: await getBrightness(), nightLight: await getNightLight() };
+    if (typeof patch?.brightness === "number") displayState.brightness = Math.round(patch.brightness);
+    if (typeof patch?.nightLight === "boolean") displayState.nightLight = patch.nightLight;
+    void refreshDisplay(); return displayState;
   });
   handle("open-data", () => shell.openPath(dirname(dataFile)));
   ipcMain.on("mode", (event, next) => { trust(event); if (["compact", "preview", "expanded"].includes(next)) { if (next === "expanded") window.setFocusable(true); setMode(next); } });
@@ -192,6 +196,9 @@ function syncStickies() {
   for (const [id, sticky] of stickies) if (!store.notes.some(note => note.id === id && note.sticky)) { stickies.delete(id); if (!sticky.isDestroyed()) sticky.destroy(); }
   for (const note of store.notes) if (note.sticky && !stickies.has(note.id)) openSticky(note.id);
 }
+// Reading brightness from Windows takes ~1s, so keep a cached copy the preview can show instantly.
+let displayState: { brightness: number | null; nightLight: boolean | null } = { brightness: null, nightLight: null };
+async function refreshDisplay() { const [brightness, nightLight] = await Promise.all([getBrightness(), getNightLight()]); displayState = { brightness, nightLight }; }
 function createWindow() {
   window = new BrowserWindow({ width: 1100, height: 820, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, show: false, title: "Island Desk", webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true, devTools: !app.isPackaged } });
   window.setIgnoreMouseEvents(true, { forward: true }); position();
@@ -200,7 +207,7 @@ function createWindow() {
   window.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
   window.on("blur", () => { if (mode === "expanded" && !modalDepth) setMode("compact"); });
   window.on("close", event => { if (!quitting) { event.preventDefault(); window.hide(); trayMenu(); } });
-  window.once("ready-to-show", () => { window.showInactive(); window.setFocusable(false); });
+  window.once("ready-to-show", () => window.showInactive());
   const devUrl = process.env.ISLAND_DESK_DEV_URL;
   if (devUrl === "http://127.0.0.1:5178") void window.loadURL(devUrl); else void window.loadFile(join(here, "../../dist/index.html"));
   // Native cursor polling tests the live animated rounded rectangle, not the transparent canvas.
@@ -224,7 +231,7 @@ function createWindow() {
 if (!app.requestSingleInstanceLock() && !testing) app.quit();
 else {
   app.whenReady().then(() => {
-    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500);
+    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); void refreshDisplay(); setInterval(() => void refreshDisplay(), 20000);
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }

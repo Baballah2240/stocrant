@@ -18,7 +18,8 @@ function ensure() {
     let overlay = overlays.get(display.id);
     if (!overlay || overlay.isDestroyed()) {
       overlay = new BrowserWindow({ ...display.bounds, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, movable: false, focusable: false, skipTaskbar: true, show: false, enableLargerThanScreen: true, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-      overlay.setIgnoreMouseEvents(true); overlay.setAlwaysOnTop(true, "floating");
+      // Not topmost: it sits above ordinary apps but always below the island and sticky notes.
+      overlay.setIgnoreMouseEvents(true);
       overlay.webContents.on("will-navigate", event => event.preventDefault());
       void overlay.loadFile(join(here, "../../dist/blur.html"));
       overlays.set(display.id, overlay);
@@ -57,8 +58,9 @@ export function spotlight(want: boolean, raise: BrowserWindow[], reducedMotion: 
       const url = "data:image/jpeg;base64," + image.toJPEG(72).toString("base64");
       void overlay.webContents.executeJavaScript(`showBlur(${JSON.stringify(url)}, ${reducedMotion})`).then(() => {
         if (token !== mine || overlay.isDestroyed()) return;
-        overlay.showInactive();
-        if (front && !front.isDestroyed()) { front.moveTop(); raised = front; }
+        overlay.showInactive(); overlay.moveTop();
+        for (const w of raise) if (!w.isDestroyed()) w.moveTop();
+        raised = front;
       }).catch(() => undefined);
     }
   }).catch(() => undefined);

@@ -12,6 +12,10 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.clickThrough = state().ignoring;
   setMode("expanded"); await wait(900);
   results.expanded = state().mode === "expanded" && state().rect.width * state().rect.height > compact;
+  results.keyboardFocus = window.isFocused() && (await window.webContents.executeJavaScript("document.hasFocus()")) === true;
+  await window.webContents.executeJavaScript("[...document.querySelectorAll(\"button\")].find(b => b.textContent.trim() === \"Calculator\").click()"); await wait(400);
+  for (const ch of "7*6") window.webContents.sendInputEvent({ type: "char", keyCode: ch }); window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" }); window.webContents.sendInputEvent({ type: "char", keyCode: "\r" }); window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" }); await wait(500);
+  results.typingWorks = (await window.webContents.executeJavaScript("document.querySelector(\".workspace\").innerText.includes(\"42\")")) === true;
   const dims = () => BrowserWindow.getAllWindows().filter(w => w !== window && w.webContents.getURL().includes("blur.html") && w.isVisible());
   await wait(800); results.dimmedWhileOpen = dims().length > 0 && (await dims()[0].webContents.executeJavaScript("document.querySelector(\"img\").classList.contains(\"on\")")) === true;
   setMode("compact"); await wait(900);
@@ -26,6 +30,7 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.stickyMoveSaved = state().store.notes[0].sticky?.x === 500;
   await window.webContents.executeJavaScript("window.island.stickyClose(\"n1\")"); await wait(400);
   results.stickyDocked = notes().length === 0 && !state().store.notes[0].sticky;
+  console.log("DISPLAY " + JSON.stringify(await window.webContents.executeJavaScript("window.island.display().then(r => r, e => String(e))")));
   console.log("SMOKE " + JSON.stringify(results));
   quit();
 }
