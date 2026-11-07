@@ -357,14 +357,36 @@ function FocusView({ timer, now, run, synced }: { timer: Timer; now: number; run
   </div>;
 }
 
+const OPERATORS = "÷×−+%^";
 function CalcView({ history, run }: { history: Calculation[]; run: Run }) {
-  const [expression, setExpression] = useState(""), [answer, setAnswer] = useState("0"), [error, setError] = useState("");
-  const solve = () => { try { const result = calculate(expression); setAnswer(result); setError(""); void run({ type: "calc-add", expression, result, id: newId() }); } catch (err) { setError((err as Error).message); } };
-  const press = (key: string) => { if (key === "=") return solve(); if (key === "AC") { setExpression(""); setAnswer("0"); setError(""); return; } if (key === "⌫") return setExpression(value => value.slice(0, -1)); setExpression(value => value + key); };
+  const [expression, setExpression] = useState(""), [answer, setAnswer] = useState(""), [error, setError] = useState(""), [solved, setSolved] = useState(false);
+  // Live preview while typing; quietly empty while the sum is incomplete.
+  const preview = useMemo(() => { if (!expression || solved) return ""; try { const value = calculate(expression); return value !== expression ? value : ""; } catch { return ""; } }, [expression, solved]);
+  const solve = () => {
+    if (!expression) return;
+    try { const result = calculate(expression); setAnswer(result); setError(""); setSolved(true); void run({ type: "calc-add", expression, result, id: newId() }); }
+    catch (err) { setError((err as Error).message); }
+  };
+  const press = (key: string) => {
+    setError("");
+    if (key === "=") return solve();
+    if (key === "AC") { setExpression(""); setAnswer(""); setSolved(false); return; }
+    if (key === "⌫") { setSolved(false); return setExpression(value => value.slice(0, -1)); }
+    if (solved) {
+      // After "=", an operator continues from the answer; anything else starts a new sum.
+      setSolved(false); setExpression(OPERATORS.includes(key) ? answer + key : key); return;
+    }
+    setExpression(value => (value + key).slice(0, 200));
+  };
+  const keys = ["AC", "(", ")", "÷", "7", "8", "9", "×", "4", "5", "6", "−", "1", "2", "3", "+", "%", "0", ".", "="];
   return <div className="calc-view">
-    <div className="calc-screen"><input inputMode="decimal" value={expression} placeholder="0" onChange={event => setExpression(event.target.value)} onKeyDown={event => { if (event.key === "Enter") solve(); }}/><output>{error || answer}</output></div>
-    <div className="pad">{["AC", "(", ")", "÷", "7", "8", "9", "×", "4", "5", "6", "−", "1", "2", "3", "+", "%", "0", ".", "="].map(key => <button key={key} className={key === "=" ? "eq" : "÷×−+".includes(key) ? "op" : key === "AC" ? "fn" : ""} onClick={() => press(key)}>{key}</button>)}</div>
-    {history.length > 0 && <div className="calc-history">{history.slice(0, 6).map(item => <button key={item.id} onClick={() => setExpression(item.result)}><span className="muted">{item.expression}</span><b>= {item.result}</b></button>)}</div>}
+    <div className="calc-screen">
+      <div className="calc-expr">{solved ? expression + " =" : expression || "0"}</div>
+      <output className={error ? "calc-err" : ""}>{error || (solved ? answer : preview || (expression ? "" : "0"))}</output>
+      <button className="calc-back" aria-label="Delete last" onClick={() => press("⌫")} disabled={!expression}><Icon name="arrow" size={18} style={{ transform: "rotate(180deg)" }}/></button>
+    </div>
+    <div className="pad">{keys.map(key => <button key={key} className={key === "=" ? "eq" : "÷×−+".includes(key) ? "op" : key === "AC" || key === "%" || key === "(" || key === ")" ? "fn" : ""} onClick={() => press(key)}>{key}</button>)}</div>
+    {history.length > 0 && <div className="calc-history"><span className="eyebrow">RECENT</span>{history.slice(0, 8).map(item => <button key={item.id} onClick={() => { setExpression(item.result); setSolved(false); setError(""); }}><span className="muted">{item.expression}</span><b>= {item.result}</b></button>)}</div>}
   </div>;
 }
 

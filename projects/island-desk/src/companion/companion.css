@@ -252,3 +252,20 @@ input[role=switch]{appearance:none;-webkit-appearance:none;width:52px;height:32p
 /* Older Android WebViews have no dvh: size the home from vh so the feed scrolls instead of stretching the page. */
 .home-modern{height:calc(100vh - 28px);max-height:calc(100vh - 28px)}
 .feed{min-height:0;max-height:100%}
+
+/* ───── Calculator ───── */
+.calc-screen{position:relative;display:grid;justify-items:end;gap:6px;padding:16px 56px 16px 18px;border-radius:22px;background:#0e0e11;border:1px solid #1c1c21}
+.calc-expr{font-size:20px;color:#8d8d97;text-align:right;overflow-wrap:anywhere;min-height:26px;font-variant-numeric:tabular-nums}
+.calc-screen output{font-size:min(14vw,58px);font-weight:300;line-height:1.05;min-height:1.05em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
+.calc-screen output.calc-err{font-size:18px;color:var(--red);font-weight:400}
+.calc-back{position:absolute;right:10px;top:12px;width:38px;height:38px;display:grid;place-items:center;border-radius:19px;color:#a4a4ae}.calc-back:active{background:#1d1d23}
+.pad .fn{color:#c9c9d2;background:#141418}.pad .fn:first-child{color:var(--red)}
+.calc-history{display:grid;gap:6px;align-content:start}.calc-history .eyebrow{margin:4px 2px}
+@media (orientation:landscape){
+  .calc-view{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);grid-template-rows:auto minmax(0,1fr);gap:12px 18px;height:calc(100vh - 28px)}
+  .calc-screen{grid-column:1;grid-row:1}
+  .calc-history{grid-column:1;grid-row:2;overflow-y:auto;scrollbar-width:none}
+  .pad{grid-column:2;grid-row:1/span 2;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(5,1fr);gap:8px}
+  .pad button{aspect-ratio:auto;font-size:22px;border-radius:18px;min-height:0}
+  .launcher.view-calc .c-content{padding-bottom:0}
+}
