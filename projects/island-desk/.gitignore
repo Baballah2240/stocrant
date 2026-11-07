@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-electron/
+dist-test/
+release/
+.qa/
+*.log
+*.tsbuildinfo
