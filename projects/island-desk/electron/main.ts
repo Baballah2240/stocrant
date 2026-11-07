@@ -13,7 +13,8 @@ app.setAppUserModelId("studio.islanddesk.desktop");
 let window: BrowserWindow, tray: Tray, store: Store = defaults(), mode: Mode = "compact", quitting = false, saveTimer: ReturnType<typeof setTimeout> | undefined, hitTimer: ReturnType<typeof setInterval>;
 let rect = { x: 0, y: 0, width: 0, height: 0, radius: 30 }, ignoring = true, modalDepth = 0, pendingCollapse = false;
 let dataFile = "", currentShortcut = "", trayTimer: ReturnType<typeof setInterval>;
-const emit = (event: DesktopEvent) => { if (window && !window.isDestroyed()) window.webContents.send("desktop-event", event); };
+const stickies = new Map<string, BrowserWindow>();
+const emit = (event: DesktopEvent) => { for (const target of [window, ...stickies.values()]) if (target && !target.isDestroyed()) target.webContents.send("desktop-event", event); };
 
 function readData() {
   dataFile = join(app.getPath("userData"), "island-desk.json");
@@ -69,7 +70,7 @@ function trayMenu() {
     { label: "Open Island Desk", click: () => { window.setFocusable(true); setMode("expanded"); } },
     { label: window.isVisible() ? "Hide island" : "Show island", click: () => window.isVisible() ? window.hide() : setMode("compact") },
     { type: "separator" }, { label: store.timer.running ? "Pause focus timer" : "Start focus timer", click: () => { timerAction(store, "toggle"); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); } },
-    { label: "Always on top", type: "checkbox", checked: store.settings.alwaysOnTop, click: item => { store.settings.alwaysOnTop = item.checked; position(); save(true); emit({ type: "replace", snapshot: snapshot() }); } },
+    { label: "Always on top", type: "checkbox", checked: store.settings.alwaysOnTop, click: item => { store.settings.alwaysOnTop = item.checked; position(); for (const s of stickies.values()) if (!s.isDestroyed()) s.setAlwaysOnTop(item.checked); save(true); emit({ type: "replace", snapshot: snapshot() }); } },
     { type: "separator" }, { label: "Quit Island Desk", click: () => { quitting = true; app.quit(); } },
   ]));
 }
@@ -87,8 +88,8 @@ function tick() {
   }
   if (changed) { save(); emit({ type: "replace", snapshot: snapshot() }); }
 }
-function trust(event: IpcMainInvokeEvent | Electron.IpcMainEvent) { if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) throw Error("This request is not allowed."); }
-function handle(name: string, fn: (value: any) => unknown) { ipcMain.handle(name, (event, value) => { trust(event); return fn(value); }); }
+function trust(event: IpcMainInvokeEvent | Electron.IpcMainEvent) { const owner = [window, ...stickies.values()].find(w => !w.isDestroyed() && w.webContents === event.sender); if (!owner || event.senderFrame !== owner.webContents.mainFrame) throw Error("This request is not allowed."); }
+function handle(name: string, fn: (value: any, extra?: any) => unknown) { ipcMain.handle(name, (event, value, extra) => { trust(event); return fn(value, extra); }); }
 async function withDialog<T>(operation: () => Promise<T>) {
   modalDepth++; try { return await operation(); } finally { modalDepth--; window.show(); if (mode === "expanded") window.focus(); }
 }
@@ -96,8 +97,24 @@ function installIpc() {
   handle("snapshot", snapshot);
   handle("content", (patch: ContentPatch) => {
     if (!patch || typeof patch !== "object" || Object.keys(patch).some(key => !["notes", "tasks", "calculations", "shortcuts"].includes(key))) throw Error("Invalid content update.");
-    store = validateStore({ ...store, ...patch }); save();
+    // Sticky placement is owned by the main process; keep it when the island sends a notes list.
+    if (patch.notes) patch.notes = patch.notes.map(note => ({ ...note, sticky: store.notes.find(old => old.id === note.id)?.sticky ?? null }));
+    store = validateStore({ ...store, ...patch }); save(); syncStickies(); if (patch.notes) emit({ type: "replace", snapshot: snapshot() });
   });
+  handle("note-patch", (id: string, patch: Record<string, unknown>) => {
+    const note = store.notes.find(item => item.id === id); if (!note || !patch || typeof patch !== "object") throw Error("That note no longer exists.");
+    const next = { ...note, updatedAt: Date.now() } as Record<string, unknown>;
+    for (const key of ["title", "body", "checklist"]) if (key in patch) next[key] = patch[key];
+    store = validateStore({ ...store, notes: store.notes.map(item => item.id === id ? next : item) }); save(); emit({ type: "replace", snapshot: snapshot() });
+  });
+  handle("sticky-open", (id: string, at?: { x: number; y: number }) => {
+    const note = store.notes.find(item => item.id === id); if (!note) throw Error("That note no longer exists.");
+    const dropped = at && Number.isFinite(at.x) && Number.isFinite(at.y);
+    const area = screen.getDisplayNearestPoint(dropped ? at : screen.getCursorScreenPoint()).workArea;
+    const point = dropped ? { x: Math.round(at.x - 40), y: Math.round(at.y - 20) } : { x: area.x + area.width - 300, y: area.y + 120 + stickies.size * 30 };
+    note.sticky = note.sticky && !dropped ? note.sticky : { ...point, width: 260, height: 240 }; save(); openSticky(note.id); emit({ type: "replace", snapshot: snapshot() });
+  });
+  handle("sticky-close", (id: string) => { const note = store.notes.find(item => item.id === id); if (note) note.sticky = null; save(); syncStickies(); emit({ type: "replace", snapshot: snapshot() }); });
   handle("settings", (patch: Partial<Settings>) => {
     const next = validateStore({ ...store, settings: { ...store.settings, ...patch } }).settings;
     if (!testing && next.launchAtStartup !== store.settings.launchAtStartup) {
@@ -108,7 +125,7 @@ function installIpc() {
     const oldDuration = duration(store.timer.phase, store.settings);
     store.settings = next;
     if (!store.timer.running && store.timer.remainingMs === oldDuration) store.timer.remainingMs = duration(store.timer.phase, next);
-    position(); save(true); trayMenu(); emit({ type: "timer", timer: store.timer }); return next;
+    position(); for (const s of stickies.values()) if (!s.isDestroyed()) s.setAlwaysOnTop(next.alwaysOnTop); save(true); trayMenu(); emit({ type: "timer", timer: store.timer }); return next;
   });
   handle("timer", action => { if (!["toggle", "reset", "skip", "work", "break"].includes(action)) throw Error("Invalid timer action."); advanceTimer(store); timerAction(store, action); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); return store.timer; });
   handle("export", () => withDialog(async () => {
@@ -125,7 +142,7 @@ function installIpc() {
     if (confirmation.response !== 1) return false;
     flush(); copyFileSync(dataFile, dataFile + ".before-import-" + Date.now());
     imported.settings = { ...imported.settings, displayId: store.settings.displayId, offsetX: store.settings.offsetX, offsetY: store.settings.offsetY, scale: store.settings.scale, globalShortcut: store.settings.globalShortcut, launchAtStartup: store.settings.launchAtStartup };
-    store = imported; position(); save(true); trayMenu(); emit({ type: "replace", snapshot: snapshot() }); tick(); return true;
+    store = imported; position(); syncStickies(); save(true); trayMenu(); emit({ type: "replace", snapshot: snapshot() }); tick(); return true;
   }));
   handle("pick", kind => withDialog(async () => {
     if (kind !== "app" && kind !== "folder") throw Error("Choose an app or folder.");
@@ -149,6 +166,29 @@ function installIpc() {
   ipcMain.on("geometry", (event, value) => { trust(event); if (value && ["x", "y", "width", "height", "radius"].every(key => typeof value[key] === "number" && Number.isFinite(value[key]) && value[key] >= 0 && value[key] <= 5000)) rect = value; });
   ipcMain.on("hide", event => { trust(event); window.hide(); trayMenu(); });
   ipcMain.on("quit", event => { trust(event); quitting = true; app.quit(); });
+}
+function openSticky(id: string) {
+  const note = store.notes.find(item => item.id === id); if (!note?.sticky) return;
+  const existing = stickies.get(id); if (existing && !existing.isDestroyed()) { existing.setBounds(note.sticky); existing.showInactive(); return; }
+  const area = screen.getDisplayMatching(note.sticky).workArea, b = note.sticky;
+  // Keep a note reachable if the monitor it lived on was unplugged.
+  const visible = b.x + 60 > area.x && b.x < area.x + area.width - 60 && b.y >= area.y - 10 && b.y < area.y + area.height - 40;
+  const bounds = visible ? b : { ...b, x: area.x + area.width - b.width - 40, y: area.y + 100 };
+  const sticky = new BrowserWindow({ ...bounds, minWidth: 180, minHeight: 140, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: true, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: store.settings.alwaysOnTop, show: false, title: "Island Desk note", webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true, devTools: !app.isPackaged } });
+  stickies.set(id, sticky);
+  sticky.webContents.setWindowOpenHandler(() => ({ action: "deny" })); sticky.webContents.on("will-navigate", event => event.preventDefault());
+  let moveTimer: ReturnType<typeof setTimeout> | undefined;
+  const remember = () => { if (moveTimer) clearTimeout(moveTimer); moveTimer = setTimeout(() => { const n = store.notes.find(item => item.id === id); if (n && n.sticky && !sticky.isDestroyed()) { n.sticky = sticky.getBounds(); save(); } }, 250); };
+  sticky.on("move", remember); sticky.on("resize", remember);
+  sticky.on("closed", () => { if (stickies.get(id) === sticky) stickies.delete(id); });
+  sticky.once("ready-to-show", () => sticky.showInactive());
+  const devUrl = process.env.ISLAND_DESK_DEV_URL;
+  if (devUrl === "http://127.0.0.1:5178") void sticky.loadURL(devUrl + "/?sticky=" + encodeURIComponent(id)); else void sticky.loadFile(join(here, "../../dist/index.html"), { query: { sticky: id } });
+}
+/** Close sticky windows whose note was deleted or docked back, and open ones that should be showing. */
+function syncStickies() {
+  for (const [id, sticky] of stickies) if (!store.notes.some(note => note.id === id && note.sticky)) { stickies.delete(id); if (!sticky.isDestroyed()) sticky.destroy(); }
+  for (const note of store.notes) if (note.sticky && !stickies.has(note.id)) openSticky(note.id);
 }
 function createWindow() {
   window = new BrowserWindow({ width: 1100, height: 820, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, show: false, title: "Island Desk", webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true, devTools: !app.isPackaged } });
@@ -174,7 +214,7 @@ function createWindow() {
 if (!app.requestSingleInstanceLock() && !testing) app.quit();
 else {
   app.whenReady().then(() => {
-    readData(); createWindow(); installIpc();
+    readData(); createWindow(); installIpc(); syncStickies();
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }

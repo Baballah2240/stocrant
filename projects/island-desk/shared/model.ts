@@ -1,6 +1,7 @@
 export type Tab = "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings";
 export type Mode = "compact" | "preview" | "expanded";
-export interface Note { id: string; title: string; body: string; pinned: boolean; checklist: boolean; updatedAt: number }
+export interface StickyBounds { x: number; y: number; width: number; height: number }
+export interface Note { id: string; title: string; body: string; pinned: boolean; checklist: boolean; updatedAt: number; sticky?: StickyBounds | null }
 export interface Task { id: string; text: string; done: boolean; priority: "low" | "medium" | "high"; due: string; reminderAt: string; notified: boolean; createdAt: number }
 export interface Calculation { id: string; expression: string; result: string; at: number }
 export interface Shortcut { id: string; name: string; target: string; kind: "website" | "app" | "folder" }
@@ -56,7 +57,7 @@ export function validateStore(input: unknown): Store {
   if (!settings.globalShortcut.trim()) throw Error("A global shortcut is required.");
   const result: Store = { version: 1, settings,
     timer: { phase: choice(t.phase, ["work", "break", "longBreak"]), running: bool(t.running), endAt: t.endAt === null ? null : number(t.endAt, 0, 1e14), remainingMs: number(t.remainingMs, 0, 180 * 60000), sessions: number(t.sessions, 0, 1e9), completed: number(t.completed, 0, 1e9), lastCompletedAt: t.lastCompletedAt === null ? null : number(t.lastCompletedAt, 0, 1e14) },
-    notes: list(row.notes, 10000).map(n => ({ id: text(n.id, 100), title: text(n.title, 300), body: text(n.body, 200000), pinned: bool(n.pinned), checklist: bool(n.checklist), updatedAt: number(n.updatedAt, 0, 1e14) })),
+    notes: list(row.notes, 10000).map(n => ({ id: text(n.id, 100), title: text(n.title, 300), body: text(n.body, 200000), pinned: bool(n.pinned), checklist: bool(n.checklist), updatedAt: number(n.updatedAt, 0, 1e14), sticky: n.sticky == null ? null : (b => ({ x: number(b.x, -20000, 20000), y: number(b.y, -20000, 20000), width: number(b.width, 160, 2000), height: number(b.height, 120, 2000) }))(object(n.sticky)) })),
     tasks: list(row.tasks, 10000).map(n => ({ id: text(n.id, 100), text: text(n.text, 2000), done: bool(n.done), priority: choice(n.priority, ["low", "medium", "high"]), due: text(n.due, 10), reminderAt: text(n.reminderAt, 30), notified: bool(n.notified), createdAt: number(n.createdAt, 0, 1e14) })),
     calculations: list(row.calculations, 200).map(n => ({ id: text(n.id, 100), expression: text(n.expression, 500), result: text(n.result, 100), at: number(n.at, 0, 1e14) })),
     shortcuts: list(row.shortcuts, 100).map(n => ({ id: text(n.id, 100), name: text(n.name, 100), target: text(n.target, 2000), kind: choice(n.kind, ["website", "app", "folder"]) })) };

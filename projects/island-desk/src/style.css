@@ -17,3 +17,12 @@
 .preview-display label{flex:1;display:flex;align-items:center;gap:10px;height:38px;padding:0 14px;border-radius:19px;background:#1c1c1f}.preview-display label span{width:34px;text-align:right;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .preview-display input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:#3a3a40;outline-offset:6px}.preview-display input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0008}
 .preview-display .night{display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;border-radius:19px;border:0;background:#1c1c1f;font-size:12px;transition:background .25s,color .25s}.preview-display .night.on{background:#f3b25e;color:#1a1206}
+body.sticky-window{overflow:hidden}
+.sticky{position:fixed;inset:0;display:flex;flex-direction:column;background:#111113;border:1px solid #2a2a2f;border-radius:22px;overflow:hidden;box-shadow:inset 0 1px 0 #ffffff12}
+.sticky-bar{-webkit-app-region:drag;display:flex;align-items:center;gap:4px;height:40px;padding:0 8px 0 16px;border-bottom:1px solid #222227;cursor:grab;flex:none}
+.sticky-bar>span{color:var(--muted);font-size:12px}
+.sticky-title{flex:1;min-width:0;background:none;border:0;color:var(--text);font-weight:600;font-size:13px;outline:none;padding:4px 0}
+.sticky-btn{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:14px;background:transparent;color:var(--muted)}.sticky-btn:hover{background:#26262b;color:var(--text)}
+.sticky-body{flex:1;resize:none;background:none;border:0;outline:none;color:var(--text);padding:12px 16px 16px;line-height:1.5;font-size:13px}
+.sticky-checklist{flex:1;overflow:auto;padding:10px 16px;display:grid;align-content:start;gap:8px}.sticky-checklist label{display:flex;gap:9px;align-items:flex-start;font-size:13px}.sticky-checklist input{accent-color:#bce8c8;margin-top:2px}.sticky-checklist .done{color:var(--muted);text-decoration:line-through}
+.sticky-error{position:absolute;left:10px;right:10px;bottom:10px;padding:8px 12px;border-radius:12px;background:#3a1f1c;color:#ffb4a8;font-size:11.5px}

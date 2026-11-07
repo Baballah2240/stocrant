@@ -1,4 +1,4 @@
-import type { Store, Settings, Snapshot, Mode, Timer, Shortcut } from "./model.js";
+import type { Note, Store, Settings, Snapshot, Mode, Timer, Shortcut } from "./model.js";
 export type ContentPatch = Partial<Pick<Store, "notes" | "tasks" | "calculations" | "shortcuts">>;
 export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string };
 export interface DesktopBridge {
@@ -17,6 +17,9 @@ export interface DesktopBridge {
   setDisplay(patch: Partial<{ brightness: number; nightLight: boolean }>): Promise<DisplayState>;
   hide(): void;
   quit(): void;
+  stickyOpen(id: string, at?: { x: number; y: number }): Promise<void>;
+  stickyClose(id: string): Promise<void>;
+  notePatch(id: string, patch: Partial<Pick<Note, "title" | "body" | "checklist">>): Promise<void>;
   onEvent(callback: (event: DesktopEvent) => void): () => void;
 }
 export interface DisplayState { brightness: number | null; nightLight: boolean | null }

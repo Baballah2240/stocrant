@@ -21,6 +21,7 @@ A floating, Dynamic-Island-style workspace for Windows. Built with Electron, Rea
 - **Hover** the pill for a preview. **Click** it to open the workspace. Press **Esc** or click outside to collapse it.
 - Global shortcut: **Ctrl+Shift+Space** (you can change it in Settings). **Ctrl+1–6** switches tabs.
 - **Hover preview:** the time and date, up to 3 pending tasks (overdue ones in red), a screen brightness slider and a Night Light toggle.
+- **Sticky notes on the desktop:** drag a note card out of the island and drop it anywhere (or click the note icon in the editor). Drag its top bar to move it, drag an edge to resize, and press x to send it back into the island. Position and size are saved across restarts. If its monitor is unplugged, the note moves to a screen you still have.
 - Tray icon: open, show/hide, start/pause the focus timer, always-on-top, quit.
 - What's included: Notes (pinned, checklists, search, autosave), Tasks (priority, due date, reminders, Today view), Calculator (keyboard input, %, parentheses, history), a Focus timer whose countdown shows in the pill, Quick tools, and Shortcuts.
 - Settings: display, position offset, size, always on top, reduced motion, launch at startup, export/import a JSON backup.

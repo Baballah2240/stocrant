@@ -13,7 +13,7 @@ test("timer runs, completes, and moves to break", () => {
   assert.equal(s.timer.phase, "break"); assert.equal(s.timer.completed, 1);
 });
 test("backup validation round-trips and rejects junk", () => {
-  const s = defaults(); s.notes.push({ id: "a", title: "t", body: "b", pinned: true, checklist: false, updatedAt: 1 });
+  const s = defaults(); s.notes.push({ id: "a", title: "t", body: "b", pinned: true, checklist: false, updatedAt: 1, sticky: { x: 10, y: 20, width: 260, height: 240 } });
   assert.deepEqual(validateStore(JSON.parse(JSON.stringify(s))), s);
   assert.throws(() => validateStore({ version: 2 })); assert.throws(() => validateStore({ ...s, notes: [{ id: 1 }] }));
 });
