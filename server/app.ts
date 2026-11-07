@@ -1,4 +1,5 @@
 import tasksRouter from "./routes/tasks.js";
+import { invitationsRouter, invitationAcceptanceRouter } from "./invitations.js";
 import { shopImageUploads, shopImageDownloads } from "./routes/shop-images.js";
 import { commerceRouter, shopIntegrationRouter } from "./commerce.js";
 import { storefrontAdminRouter, storefrontRouter, storefrontForHost } from "./storefront.js";
@@ -91,6 +92,7 @@ export function createApp() {
   });
 
   app.use("/api/auth", authRouter);
+  app.use("/api/auth", invitationAcceptanceRouter);
   app.use("/api/public", publicWebsiteRouter);
   app.use("/api/shop-connection", shopIntegrationRouter);
   app.use("/api/storefront", storefrontRouter);
@@ -125,6 +127,7 @@ export function createApp() {
   app.use("/api/workspace/shops", shopImageUploads);
   app.use("/api/workspace/storefronts", storefrontAdminRouter);
   app.use("/api/workspace", workspaceRouter);
+  app.use("/api/workspace/access/invitations", invitationsRouter);
   app.use("/api/notifications", notificationRouter);
 
   // Unknown /api paths must return JSON, never HTML or the SPA shell.

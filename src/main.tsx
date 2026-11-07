@@ -42,7 +42,7 @@ if (isNativeApp()) {
   if (platform) document.documentElement.setAttribute("data-native-platform", platform);
 }
 
-const employeeActivation = new URLSearchParams(location.hash.slice(1)).has("activate");
+const employeeActivation = (new URLSearchParams(location.hash.slice(1)).has("activate") || new URLSearchParams(location.hash.slice(1)).has("invite"));
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>

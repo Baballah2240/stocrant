@@ -1,3 +1,4 @@
+import Invitations from "./Invitations";
 import ApprovalRuleManagement from "./ApprovalRuleManagement";
 import RoleManagement from "./RoleManagement";
 import AdministrationPolicy from "./AdministrationPolicy";
@@ -19,8 +20,8 @@ import BackButton from "./BackButton";
 import ServerSettings from "./ServerSettings";
 import "../access-workspace.css";
 
-type Tab = "Overview" | "Onboarding & Security" | "App lock" | "Manage app" | "Users" | "Roles" | "Approval rules" | "Approvals" | "Audit" | "Mobile app";
-const allTabs: Tab[] = ["Overview", "Onboarding & Security", "Users", "Roles", "Approvals", "Approval rules", "Audit", "Manage app", "App lock", "Mobile app"];
+type Tab = "Overview" | "Onboarding & Security" | "App lock" | "Manage app" | "Users" | "Invitations" | "Roles" | "Approval rules" | "Approvals" | "Audit" | "Mobile app";
+const allTabs: Tab[] = ["Overview", "Onboarding & Security", "Users", "Invitations", "Roles", "Approvals", "Approval rules", "Audit", "Manage app", "App lock", "Mobile app"];
 const sections = ["shops", "organizations", "locations", "hr", "operations", "customerService", "inventory", "finance", "payroll", "access", "approvals", "audit"];
 const actions = ["view", "create", "edit", "delete", "approve", "reply", "export", "pay", "configure"];
 const sectionLabels: Record<string, string> = { shops: "Shops & orders", organizations: "Organizations", locations: "Locations", hr: "Workforce & HR", operations: "Operations", customerService: "Customer Service", inventory: "Inventory", finance: "Finance", payroll: "Payroll", access: "User management", approvals: "Approvals", audit: "Audit" };
@@ -39,7 +40,7 @@ export default function AccessWorkspace() {
   const canApprovals = main || allows(actor?.permissions,"approvals","view");
   const canView = canAccess || canApprovals;
   const canAudit = main || allows(actor?.permissions, "audit", "view");
-  const visibleTabs: Tab[] = main ? allTabs : [...(canAccess ? ["Users" as Tab] : []), ...(canApprovals ? ["Approvals" as Tab] : []), ...(canAudit ? ["Audit" as Tab] : []), "App lock"];
+  const visibleTabs: Tab[] = main ? allTabs : [...(canAccess ? ["Users" as Tab, "Invitations" as Tab] : []), ...(canApprovals ? ["Approvals" as Tab] : []), ...(canAudit ? ["Audit" as Tab] : []), "App lock"];
   const [tab, setTab] = useWorkspaceTab(visibleTabs, main?"Overview":"Users");
   const [settingsQuery,setSettingsQuery]=useState("");
   const [collapsed,setCollapsed]=useState(false);
@@ -96,7 +97,7 @@ export default function AccessWorkspace() {
     if (success) { setShowInvite(false); setForm(blankForm); }
   }
   const pendingCount = approvals.filter(request => request.status === "pending").length;
-  const heading = tab === "Overview" ? "Review access, onboarding and pending work." : tab === "Onboarding & Security" ? "Configure secure employee onboarding and administrative approval policy." : tab === "Users" ? "Manage accounts, approvals and access within your assigned scope." : tab === "Roles" ? "Choose what each role can view and change." : tab === "Approvals" ? "Review pending changes and previous decisions." : tab === "Audit" ? "Review who changed records and when." : tab === "Approval rules" ? "Choose which changes require approval." : tab === "Mobile app" ? "Connect your mobile app to the correct server." : "Manage your workspace preferences.";
+  const heading = tab === "Invitations" ? "Invite people to one company with a selected role." : tab === "Overview" ? "Review access, onboarding and pending work." : tab === "Onboarding & Security" ? "Configure secure employee onboarding and administrative approval policy." : tab === "Users" ? "Manage accounts, approvals and access within your assigned scope." : tab === "Roles" ? "Choose what each role can view and change." : tab === "Approvals" ? "Review pending changes and previous decisions." : tab === "Audit" ? "Review who changed records and when." : tab === "Approval rules" ? "Choose which changes require approval." : tab === "Mobile app" ? "Connect your mobile app to the correct server." : "Manage your workspace preferences.";
   if (!canView) return <Navigate to="/" replace />;
 
   return <div className="page settings-page access-workspace">
@@ -120,6 +121,7 @@ export default function AccessWorkspace() {
         {loading && <><p role="status">{t("Loading…")}</p><div className="settings-loading-grid" aria-busy="true" aria-hidden="true">{Array.from({length:6},(_,index)=><div className="card" key={index}><span/><span/></div>)}</div></>}
         {tab === "Users" && !loading && <UsersPanel companies={companies} organizations={organizations} employees={employees} users={users} roles={roles} main={main} canEdit={permitted("edit")} canDelete={permitted("delete")} actorPermissions={actor?.permissions || []} saving={saving} onSave={(id, input) => perform(() => api.workspace.updateUser(id, input), "User details and permissions saved. Changes apply immediately.")} onDelete={id => perform(() => api.workspace.deleteUser(id), "User deleted and sessions revoked.")} />}
         {tab === "Overview"&&main&&!loading&&<><SettingsOverview users={users.length} roles={roles.length} companies={companies.length} departments={departmentCount} approvals={pendingCount} onSelect={value=>setTab(value as Tab)} query={settingsQuery}/><h3>{t("Recent configuration changes")}</h3><AuditPanel entries={audit.slice(0,5)}/></>}
+        {tab === "Invitations" && canAccess && <Invitations/>}
         {tab === "Onboarding & Security"&&main&&<AdministrationPolicy/>}
         {tab === "Roles" && main && <RoleManagement onChanged={load}/>}
         {tab === "Manage app" && main && <><div className="hr-link-grid">{[{ to: "/organizations", label: "Organizations & companies", detail: "Manage your organization structure" }, { to: "/stores", label: "Locations", detail: "Manage company locations" }, { to: "/hr", label: "Employees & HR", detail: "Add employees and manage HR records" }, { to: "/operations", label: "Operations", detail: "Assignments and business records" }, { to: "/inventory", label: "Inventory", detail: "Items, employee access and movements" }, { to: "/finance", label: "Finance", detail: "Accounts and financial movements" }].map(link => <NavLink className="hr-record-link" key={link.to} to={link.to}><div><strong>{t(link.label)}</strong><span>{t(link.detail)}</span></div></NavLink>)}</div><h3>{t("All records")}</h3><div className="hr-link-grid">{entities.filter(entity => entity.module !== "admin").map(entity => <NavLink className="hr-record-link" key={entity.collection} to={`/${entity.module}/${entity.collection}`}><strong>{t(entity.label)}</strong><span>{t("View, add and edit records")}</span></NavLink>)}</div></>}

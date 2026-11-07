@@ -57,6 +57,7 @@ function calculate(user:AuthenticatedUser,p:PayrollPeriod,ignoreRun?:string,chec
    return {...calculatePayroll({employee:e,company,salary,rules,period:p,attendance,leave,sources,shift:salary.shiftId?rows("shifts").find(s=>s.id===salary.shiftId):undefined}),legacyPayrollIds:legacy.map(r=>r.id)};
  });
  if(new Set(entries.map(e=>e.currency)).size!==1)payrollError("Generate separate payroll runs for each currency.");
+ if(process.env.STOCRANT_ATTENDANCE_PILOT === "1" && entries.some(entry=>scaled(entry.deductions,entry.precision)>0n))payrollError("Salary deductions are disabled during the attendance pilot.",409);
  const totals=Object.fromEntries(["basic","allowances","overtimePay","otherEarnings","gross","absenceDeductions","otherDeductions","deductions","netPay"].map(k=>[k,money(entries.reduce((sum,e)=>sum+scaled(e[k as keyof typeof e] as string,e.precision),0n),entries[0].precision)]));
  const previewToken=createHash("sha256").update(JSON.stringify({period:p,entries})).digest("hex");return {period:p,entries,totals,currency:entries[0].currency,previewToken};
 }

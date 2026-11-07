@@ -233,7 +233,7 @@ export function settingsFor(companyId: string): AttendanceSettings {
   const stages = Array.isArray(saved.approvalStages) && saved.approvalStages.length
     ? saved.approvalStages.filter((stage): stage is AttendanceSettings["approvalStages"][number] => Boolean(stage && typeof stage.roleId === "string" && typeof stage.label === "string" && ["hr", "general", "finance"].includes(String(stage.key))))
     : defaults.approvalStages;
-  return { ...defaults, ...saved, workingDays: Array.isArray(saved.workingDays) ? saved.workingDays.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6) : defaults.workingDays, approvalStages: stages.length ? stages : defaults.approvalStages };
+  return { ...defaults, ...saved, ...(process.env.STOCRANT_ATTENDANCE_PILOT === "1" ? { deductionsEnabled: false } : {}), workingDays: Array.isArray(saved.workingDays) ? saved.workingDays.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6) : defaults.workingDays, approvalStages: stages.length ? stages : defaults.approvalStages };
 }
 
 export function attendanceSettingsForUser(user: AuthenticatedUser, companyId: string) {
@@ -630,6 +630,7 @@ export function saveAttendanceSettings(user: AuthenticatedUser, companyId: strin
   return transaction(() => {
     if (!canConfigureAttendance(user, companyId)) failure("Only authorized administrators can change attendance settings.", 403);
     const current = settingsFor(companyId);
+    if (process.env.STOCRANT_ATTENDANCE_PILOT === "1" && input.deductionsEnabled === true) failure("Salary deductions are disabled during the attendance pilot.", 409);
     if (!isMainManager(user) && input.approvalStages && JSON.stringify(input.approvalStages) !== JSON.stringify(current.approvalStages)) failure("Only the Main Admin can change approval stages.", 403);
     const next: AttendanceSettings = {
       ...current,

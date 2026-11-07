@@ -1,5 +1,13 @@
 # Mobile update history
 
+## 2026-11-07 - Company and role invitations
+
+- Add Invitations under Access & Settings in shared website/mobile source. Authorized admins choose a company, role and optional employee, create a private expiring link, explicitly send/resend email, or revoke a pending invitation. Recipients choose their own password; acceptance rechecks authorization and consumes the token once.
+- Invitation links open the application login route and use the configured mobile server address. Existing invited employee accounts are reused with the selected role; obsolete activation links and old permission overrides are removed.
+- Set `STOCRANT_ATTENDANCE_PILOT=1` on local/staging servers to disable attendance deductions and reject payroll calculations with salary deductions. Amal regression fixtures cover Employee, HR Manager, General Manager and Finance Manager, company isolation, and HR → General Manager → Finance attendance approval.
+- Shared source update only. No native build, synchronization or phone installation was requested. Live invitation delivery requires separate authorization; automated delivery tests use a local provider stub.
+- Verification: `npm run check` passed 271 server tests plus script/translation checks, type checks, builds and production smoke checks. The isolated invitation browser test passed desktop and mobile-width form/acceptance checks; screenshots were inspected locally.
+
 ## 2026-10-31 - Account identity and sign-in security
 
 - Server update shared by website and app: employee records now follow an account's linked employee, never a matching email or name. Existing accounts are linked once at startup; an account that changed its own email to one on an employee record stays unlinked for an administrator to review.
