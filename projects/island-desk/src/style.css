@@ -42,3 +42,11 @@ body.sticky-window{overflow:hidden}
 .companion-pair img{width:132px;height:132px;border-radius:12px;background:#fff;padding:6px;flex:none}
 .companion-pair>div{display:grid;gap:6px;min-width:0}.companion-pair small{color:var(--muted);line-height:1.45}
 .companion-pair code{font-size:11.5px;color:var(--mint);overflow-wrap:anywhere}
+/* Smaller collapsed island: 200 × 34 instead of 288 × 48. Preview and workspace keep their size. */
+.island.compact{width:200px;height:34px;border-radius:17px}
+.compact-face{height:34px;padding:0 13px;gap:8px}
+.compact-label,.compact-right{font-size:11px}
+.signal{gap:2px;height:13px}.signal i{width:2.5px;height:5px}.signal i:nth-child(2){height:12px}.signal i:nth-child(3){height:8px}.signal i:nth-child(4){height:4px}
+.compact-art{width:20px;height:20px;border-radius:6px;margin-left:-5px}
+.preview-body{top:38px}
+.island.preview{height:222px}.island.preview:has(.with-media){height:292px}
