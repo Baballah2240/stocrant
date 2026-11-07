@@ -62,7 +62,6 @@ export default function Companion() {
     </header>
     <section className="c-content" key={view}>
       {view === "clock" && <ClockView state={state} now={now} run={run} openAlarms={() => setView("focus")}/>}
-      {view === "clock" && isLauncher && !pairing && <PairCard onPair={next => { adoptLocalData(); savePairing(next); setPairing(next); }}/>}
       {view === "notes" && <NotesView notes={state.notes} run={run} openId={openNote} setOpenId={setOpenNote}/>}
       {view === "tasks" && <TasksView tasks={state.tasks} run={run}/>}
       {view === "focus" && (isLauncher ? <ClockTab timer={state.timer} now={serverNow} run={run} synced={status === "live"} say={say}/> : <FocusView timer={state.timer} now={serverNow} run={run} synced={status === "live"}/>)}
@@ -72,7 +71,7 @@ export default function Companion() {
     {view === "clock" && isLauncher && <SystemRail/>}
     {state.media.active && view !== "clock" && view !== "apps" && <MiniPlayer media={state.media} run={run}/>}
     <nav className="c-nav">{views.map(item => <button key={item.id} className={view === item.id ? "on" : ""} onClick={() => { setView(item.id); if (item.id !== "notes") setOpenNote(null); }}><Icon name={item.icon} size={20}/><span>{item.label}</span></button>)}</nav>
-    {sheet && <SettingsSheet keepAwake={keepAwake} setKeepAwake={value => { setKeepAwake(value); try { localStorage.setItem("island-keep-awake", value ? "1" : "0"); } catch { /* ignore */ } }} status={status} pairing={pairing} close={() => setSheet(false)} unpair={() => { savePairing(null); setPairing(null); setSheet(false); say("Disconnected. Your notes stay on this phone."); }}/>}
+    {sheet && <SettingsSheet keepAwake={keepAwake} setKeepAwake={value => { setKeepAwake(value); try { localStorage.setItem("island-keep-awake", value ? "1" : "0"); } catch { /* ignore */ } }} status={status} pairing={pairing} onPair={next => { adoptLocalData(); savePairing(next); setPairing(next); setSheet(false); say("Connected to your computer."); }} close={() => setSheet(false)} unpair={() => { savePairing(null); setPairing(null); setSheet(false); say("Disconnected. Your notes stay on this phone."); }}/>}
     {toast && <div className="c-toast" onClick={() => setToast("")}>{toast}</div>}
   </main>;
 }
@@ -124,7 +123,7 @@ function PairCard({ onPair }: { onPair: (pairing: Pairing) => void }) {
   </div>;
 }
 
-function SettingsSheet({ keepAwake, setKeepAwake, status, pairing, close, unpair }: { keepAwake: boolean; setKeepAwake: (value: boolean) => void; status: Status; pairing: Pairing | null; close: () => void; unpair: () => void }) {
+function SettingsSheet({ keepAwake, setKeepAwake, status, pairing, onPair, close, unpair }: { keepAwake: boolean; setKeepAwake: (value: boolean) => void; status: Status; pairing: Pairing | null; onPair: (pairing: Pairing) => void; close: () => void; unpair: () => void }) {
   const [isDefault, setDefault] = useState<boolean | null>(null);
   useEffect(() => { void Launcher.isDefaultLauncher().then(result => setDefault(result.value)).catch(() => setDefault(null)); }, []);
   return <div className="sheet-backdrop" onClick={close}><div className="sheet" onClick={event => event.stopPropagation()}>
@@ -135,6 +134,7 @@ function SettingsSheet({ keepAwake, setKeepAwake, status, pairing, close, unpair
     <label className="c-card switch-row"><span><strong>Keep screen on</strong><small className="muted">While Home is showing, so the phone works as a desk or bedside clock. Best while charging.</small></span><input type="checkbox" role="switch" checked={keepAwake} onChange={event => setKeepAwake(event.target.checked)}/></label>
     <div className="c-card"><strong>Computer</strong><p className="muted">{pairing ? `${status === "live" ? "Connected to" : "Paired with"} ${pairing.base.replace(/^https?:\/\//, "").replace(/\/$/, "")}${status === "offline" ? ", offline right now. Changes wait on this phone and sync later." : ""}` : "Not connected. Notes, tasks and the timer are saved on this phone."}</p>
       {pairing && <button className="pill-btn ghost" onClick={unpair}>Disconnect</button>}</div>
+    {!pairing && <PairCard onPair={onPair}/>}
   </div></div>;
 }
 

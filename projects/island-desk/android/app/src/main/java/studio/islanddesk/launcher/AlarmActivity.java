@@ -15,7 +15,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
-import java.text.DateFormat;
 import java.util.Date;
 
 /** Full-screen ringing screen, shown over the lock screen. */
@@ -51,10 +50,11 @@ public class AlarmActivity extends Activity {
         root.addView(pill);
 
         TextView time = new TextView(this);
-        time.setText(DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date()));
+        time.setText(android.text.format.DateFormat.format(android.text.format.DateFormat.is24HourFormat(this) ? "HH:mm" : "h:mm", new Date()));
+        time.setSingleLine(true);
         time.setTextColor(Color.WHITE);
-        time.setTextSize(88);
-        time.setTypeface(Typeface.create("sans-serif-thin", Typeface.NORMAL));
+        time.setTextSize(96);
+        time.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
         time.setGravity(Gravity.CENTER);
         time.setPadding(0, (int) (40 * dp), 0, 0);
         root.addView(time);

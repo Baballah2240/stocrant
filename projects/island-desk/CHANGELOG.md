@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 (2026-11-07)
+
+**New (Island Launcher)**
+- Always landscape: the launcher and its alarm screen stay in landscape (either way up), with a two-column home: clock, date and next alarm on the left, tasks and pinned notes on the right.
+- Alarms: one-time or repeating, labels, vibration, snooze length, and a Test button. They ring at alarm volume with a full-screen Snooze/Stop screen over the lock screen, work with the app closed, and re-arm after a restart or a time change.
+- Clock tab with Alarms and Focus; the next alarm shows on Home; optional Keep screen on for a bedside clock.
+- Pairing with the computer moved into the island pill menu.
+
 ## 0.4.0 — 2026-11-07
 
 **New**

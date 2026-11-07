@@ -19,7 +19,7 @@
             android:stateNotNeeded="true"
             android:clearTaskOnLaunch="true"
             android:excludeFromRecents="true"
-            android:screenOrientation="fullSensor"
+            android:screenOrientation="sensorLandscape"
             android:exported="true">
 
             <intent-filter>
@@ -52,7 +52,7 @@
             android:launchMode="singleInstance"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:screenOrientation="fullSensor"
+            android:screenOrientation="sensorLandscape"
             android:theme="@style/AppTheme.NoActionBar" />
         <service android:name=".AlarmService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".AlarmReceiver" android:exported="true">
