@@ -50,3 +50,25 @@ body.sticky-window{overflow:hidden}
 .compact-art{width:20px;height:20px;border-radius:6px;margin-left:-5px}
 .preview-body{top:38px}
 .island.preview{height:222px}.island.preview:has(.with-media){height:292px}
+
+/* ───── Live island: brief, springy announcements ───── */
+.island.compact.live{width:340px;height:52px;border-radius:26px;box-shadow:0 18px 46px #0007,0 0 0 1px #2e2e34}
+.island.compact.live-phone,.island.compact.live-reminder{box-shadow:0 18px 46px #0007,0 0 0 1px #2e2e34,0 0 24px #bdb5e633}
+.island.compact.live-timer,.island.compact.live-connected{box-shadow:0 18px 46px #0007,0 0 0 1px #2e2e34,0 0 24px #bce8c833}
+.hidden-face{opacity:0!important;pointer-events:none}
+.live-card{position:absolute;inset:0;display:flex;align-items:center;gap:11px;padding:0 16px 0 10px;animation:live-in .5s var(--spring) both}
+.live-card img,.live-icon{width:34px;height:34px;border-radius:10px;object-fit:cover;flex:none}
+.live-icon{display:grid;place-items:center;background:#1d1d22;color:var(--mint)}
+.live-phone .live-icon,.live-reminder .live-icon{color:var(--lavender)}
+.live-text{flex:1;min-width:0;display:grid;line-height:1.25}.live-text b{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.live-text small{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live-pulse{width:8px;height:8px;border-radius:50%;background:var(--lavender);box-shadow:0 0 0 0 #bdb5e688;animation:pulse-ring 1.4s ease-out infinite;flex:none}
+.live-timer .live-pulse,.live-connected .live-pulse{background:var(--mint);box-shadow:0 0 0 0 #bce8c888}
+@keyframes live-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+@keyframes pulse-ring{to{box-shadow:0 0 0 9px #0000}}
+.reduce-motion .live-card{animation:none}
+/* Phone notifications in the hover preview */
+.phone-feed{grid-column:1/-1;display:grid;gap:6px;padding:10px 12px;border-radius:16px;background:#141417}
+.phone-row{display:grid;grid-template-columns:20px auto 1fr;align-items:center;gap:8px;font-size:12px;min-width:0}
+.phone-row img,.phone-dot{width:20px;height:20px;border-radius:6px}.phone-dot{background:#26262b}
+.phone-row b{font-weight:600;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}.phone-row span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.island.preview:has(.with-phone){height:310px}.island.preview:has(.with-phone.with-media){height:390px}

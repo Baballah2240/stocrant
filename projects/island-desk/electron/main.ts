@@ -7,7 +7,7 @@ import { startCompanion, stopCompanion, companionChanged, companionInfo, resetTo
 import { startMedia, stopMedia, mediaCommand, media } from "./media.js";
 import { spotlight, resetOverlays, prepareOverlays } from "./dim.js";
 import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
-import type { ContentPatch, DesktopEvent } from "../shared/bridge.js";
+import type { ContentPatch, DesktopEvent, PhoneFeed, PhoneItem } from "../shared/bridge.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const testing = Boolean(process.env.ISLAND_DESK_TEST_DIR);
@@ -90,7 +90,7 @@ function tick() {
   if (advanceTimer(store)) { save(true); emit({ type: "timer", timer: store.timer, completedPhase: phase }); notify(phase === "work" ? "A little space to breathe" : "Ready for a fresh start?", phase === "work" ? "Your focus session is complete. Start your break when you’re ready." : "Your break is complete. Start your next focus session."); trayMenu(); }
   let changed = false;
   for (const task of store.tasks) {
-    if (!task.done && !task.notified && task.reminderAt && Date.parse(task.reminderAt) <= Date.now() && store.settings.notifications) { task.notified = true; changed = true; notify("A gentle reminder", task.text); }
+    if (!task.done && !task.notified && task.reminderAt && Date.parse(task.reminderAt) <= Date.now() && store.settings.notifications) { task.notified = true; changed = true; notify("A gentle reminder", task.text); emit({ type: "activity", activity: { kind: "reminder", title: "Reminder", text: task.text } }); }
   }
   if (changed) { save(); emit({ type: "replace", snapshot: snapshot() }); }
 }
@@ -166,6 +166,7 @@ function installIpc() {
   handle("companion-info", () => companionInfo());
   handle("companion-reset", () => { resetToken(); return companionInfo(); });
   handle("media-get", () => media);
+  handle("phone-get", () => phoneFeed);
   handle("media-command", (command: string) => mediaCommand(command));
   handle("display-get", () => displayState);
   handle("display-set", async (patch: { brightness?: unknown; nightLight?: unknown }) => {
@@ -214,7 +215,24 @@ const companionHost = {
   change(patch: Partial<Pick<Store, "notes" | "tasks" | "calculations">>) { store = validateStore({ ...store, ...patch }); save(); syncStickies(); emit({ type: "replace", snapshot: snapshot() }); },
   timer(action: "toggle" | "reset" | "skip" | "work" | "break") { advanceTimer(store); timerAction(store, action); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); },
   mediaCommand: (command: "toggle" | "next" | "previous") => mediaCommand(command),
+  async askPair(device: string) {
+    if (testing) { emit({ type: "activity", activity: { kind: "connected", title: "Phone connected", text: device } }); return true; }
+    if (!window.isVisible()) window.showInactive();
+    const answer = await dialog.showMessageBox({ type: "question", title: "Connect a phone?", message: `${device} wants to connect to Island Desk`, detail: "It found this computer on your Wi-Fi. Allow it to sync notes, tasks and the timer, and to show its notifications in the island?", buttons: ["Don't allow", "Allow"], defaultId: 1, cancelId: 0, noLink: true });
+    if (answer.response === 1) emit({ type: "activity", activity: { kind: "connected", title: "Phone connected", text: device } });
+    return answer.response === 1;
+  },
+  phoneNotifications(device: string, items: PhoneItem[]) {
+    const known = new Set(phoneFeed.items.map(item => item.key));
+    const fresh = items.filter(item => !known.has(item.key) && Date.now() - item.time < 10 * 60000);
+    phoneFeed = { connected: true, device, items, at: Date.now() };
+    emit({ type: "phone", phone: phoneFeed });
+    for (const item of fresh.slice(0, 2)) emit({ type: "activity", activity: { kind: "phone", title: item.title || item.app, text: item.text || item.app, icon: item.icon } });
+  },
 };
+let phoneFeed: PhoneFeed = { connected: false, device: "", items: [], at: 0 };
+// The phone reports every ~20 s while connected; after a minute of silence treat it as gone.
+setInterval(() => { if (phoneFeed.connected && Date.now() - phoneFeed.at > 75000) { phoneFeed = { ...phoneFeed, connected: false, items: [] }; emit({ type: "phone", phone: phoneFeed }); } }, 15000);
 function createWindow() {
   window = new BrowserWindow({ width: 1100, height: 820, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, show: false, title: "Island Desk", webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true, devTools: !app.isPackaged } });
   window.setIgnoreMouseEvents(true, { forward: true }); position();
@@ -247,7 +265,13 @@ function createWindow() {
 if (!app.requestSingleInstanceLock() && !testing) app.quit();
 else {
   app.whenReady().then(() => {
-    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); startMedia(state => emit({ type: "media", media: state }));
+    readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); let lastTrack = "";
+    startMedia(state => {
+      emit({ type: "media", media: state });
+      const track = state.active ? `${state.title}|${state.artist}` : "";
+      if (state.active && state.playing && track !== lastTrack) emit({ type: "activity", activity: { kind: "music", title: state.title, text: state.artist || state.app, icon: state.art } });
+      if (!state.active || state.playing) lastTrack = track;
+    });
     if (store.settings.companion) startCompanion(companionHost).catch(error => setTimeout(() => emit({ type: "error", message: "Phone companion: " + error.message }), 1500)); void refreshDisplay(); setInterval(() => void refreshDisplay(), 20000);
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();

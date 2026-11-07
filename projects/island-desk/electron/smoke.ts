@@ -22,6 +22,10 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   setMode("compact"); await wait(900);
   results.collapsed = state().mode === "compact";
   await wait(600); results.undimmedAfter = dims().length === 0;
+  // The blur must come back on every open, not just the first.
+  setMode("expanded"); await wait(1700);
+  results.dimmedSecondTime = dims().length > 0 && (await dims()[0].webContents.executeJavaScript("document.querySelector(\"img\").classList.contains(\"on\")")) === true;
+  setMode("compact"); await wait(900);
   await window.webContents.executeJavaScript("window.island.timer(\"toggle\").then(() => window.island.timer(\"toggle\"))"); await wait(300);
   results.saved = existsSync(state().dataFile) && !state().store.timer.running;
   await window.webContents.executeJavaScript("window.island.save({ notes: [{ id: \"n1\", title: \"Hi\", body: \"x\", pinned: false, checklist: false, updatedAt: 1 }] }).then(() => window.island.stickyOpen(\"n1\", { x: 300, y: 300 }))"); await wait(1500);
@@ -51,6 +55,17 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
     socket.bind(Number(process.env.ISLAND_DESK_BEACON_PORT));
     setTimeout(() => done(false), 5000);
   });
+  // Wi-Fi pairing, phone notifications in the island, and the live announcement.
+  const paired = await fetch(local + "api/pair-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: "Test Phone" }) });
+  const pairBody = await paired.json() as { token?: string };
+  results.wifiPairing = paired.ok && pairBody.token === pairing;
+  await wait(5600); // let the "Phone connected" announcement finish
+  await fetch(local + "api/action", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + pairing }, body: JSON.stringify({ type: "phone-notifications", device: "Test Phone", items: [{ key: "k1", app: "Gmail", title: "Sara Ahmed", text: "The contract is ready to sign", time: Date.now(), icon: "" }] }) });
+  await wait(700);
+  const feed = await window.webContents.executeJavaScript("window.island.phone()") as { connected: boolean; items: unknown[] };
+  results.phoneNotificationsOnDesktop = feed.connected && feed.items.length === 1;
+  results.liveIslandReacts = (await window.webContents.executeJavaScript("(document.querySelector('.live-card')?.textContent || '').includes('Sara Ahmed')")) === true;
+  if (process.env.SHOT) { const img = await window.webContents.capturePage(); const z = img.getSize(); (await import("node:fs")).writeFileSync(process.env.SHOT, img.crop({ x: Math.round(z.width * 0.28), y: 0, width: Math.round(z.width * 0.44), height: Math.round(z.height * 0.11) }).toPNG()); }
   console.log("DISPLAY phone=" + base);
   console.log("DISPLAY " + JSON.stringify(await window.webContents.executeJavaScript("window.island.display().then(r => r, e => String(e))")));
   console.log("SMOKE " + JSON.stringify(results));

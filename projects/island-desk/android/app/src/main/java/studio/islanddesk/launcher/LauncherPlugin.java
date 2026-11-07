@@ -247,8 +247,12 @@ public class LauncherPlugin extends Plugin {
                 }
             } catch (Exception ignored) { }
         }
+        boolean allowed = NotificationManagerCompat.getEnabledListenerPackages(getContext()).contains(getContext().getPackageName());
+        // After an update Android may leave the listener disconnected; ask it to reconnect.
+        if (allowed && listener == null) { try { android.service.notification.NotificationListenerService.requestRebind(new ComponentName(getContext(), NotifyListener.class)); } catch (Exception ignored) { } }
         JSObject result = new JSObject();
-        result.put("granted", listener != null);
+        result.put("granted", allowed);
+        result.put("connecting", allowed && listener == null);
         result.put("notifications", list);
         call.resolve(result);
     }
@@ -274,6 +278,13 @@ public class LauncherPlugin extends Plugin {
         NotifyListener listener = NotifyListener.get();
         if (listener != null) listener.cancelNotification(call.getString("key", ""));
         call.resolve();
+    }
+
+    @PluginMethod
+    public void deviceName(PluginCall call) {
+        String maker = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER, model = Build.MODEL == null ? "" : Build.MODEL;
+        String name = model.toLowerCase().startsWith(maker.toLowerCase()) ? model : (maker.isEmpty() ? model : maker.substring(0, 1).toUpperCase() + maker.substring(1) + " " + model);
+        JSObject result = new JSObject(); result.put("name", name.trim().isEmpty() ? "Android phone" : name.trim()); call.resolve(result);
     }
 
     /** Listens briefly for Island Desk computers announcing themselves on this Wi-Fi. */

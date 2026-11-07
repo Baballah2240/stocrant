@@ -269,3 +269,7 @@ input[role=switch]{appearance:none;-webkit-appearance:none;width:52px;height:32p
   .pad button{aspect-ratio:auto;font-size:22px;border-radius:18px;min-height:0}
   .launcher.view-calc .c-content{padding-bottom:0}
 }
+
+.pair-banner{position:fixed;left:50%;top:10px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:10px 18px;border-radius:22px;background:#111114;border:1px solid #2a2a30;box-shadow:0 12px 30px #000c;z-index:40;animation:rise .35s cubic-bezier(.22,1,.36,1)}
+.pair-banner span{display:grid}.pair-banner b{font-size:14px}.pair-banner small{font-size:12px;color:var(--muted)}
+.pulse-dot{width:10px;height:10px;border-radius:50%;background:var(--mint);animation:pair-pulse 1.4s ease-out infinite;flex:none}@keyframes pair-pulse{0%{box-shadow:0 0 0 0 #bce8c888}100%{box-shadow:0 0 0 12px #0000}}

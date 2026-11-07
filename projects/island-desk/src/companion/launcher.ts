@@ -19,10 +19,11 @@ interface LauncherPlugin {
   setKeepAwake(options: { value: boolean }): Promise<void>;
   notificationAccess(): Promise<{ granted: boolean }>;
   openNotificationAccess(): Promise<void>;
-  getNotifications(): Promise<{ granted: boolean; notifications: PhoneNotification[] }>;
+  getNotifications(): Promise<{ granted: boolean; connecting?: boolean; notifications: PhoneNotification[] }>;
   openNotification(options: { key: string }): Promise<void>;
   dismissNotification(options: { key: string }): Promise<void>;
   openUrl(options: { url: string }): Promise<void>;
+  deviceName(): Promise<{ name: string }>;
   discover(options: { timeoutMs?: number }): Promise<{ computers: { host: string; port: number; id: string }[] }>;
   addListener(event: "notificationsChanged", handler: () => void): Promise<{ remove: () => Promise<void> }>;
 }

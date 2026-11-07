@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0 (2026-11-08)
+
+**New**
+- Automatic Wi-Fi pairing: on the same Wi-Fi the phone finds Island Desk and asks to connect; the computer shows Allow / Don't allow. No QR code or typing.
+- Phone notifications on the desktop: a paired phone forwards its notifications; they appear in the island's hover preview.
+- Live island: the pill grows briefly to announce a new song, a phone notification, a finished focus session, a task reminder or a phone connecting.
+- Phone companion is on by default for new installs.
+
+**Fixed**
+- Focus blur only appeared the first time; it now appears every time.
+- Mail card disappeared after a launcher update; it now reconnects to notifications.
+- Launcher calculator keypad order and missing display in landscape.
+- Empty count badges on launcher cards.
+
 ## 0.6.0 (2026-11-08)
 
 **New**

@@ -48,6 +48,8 @@ export default function Companion() {
     return () => { void opened.then(h => h.remove()); void back.then(h => h.remove()); };
   }, []);
 
+  const finding = useAutoPair(pairing, next => { adoptLocalData(); savePairing(next); setPairing(next); say("Connected to your computer."); });
+  useForwardNotifications(pairing, status === "live");
   const [keepAwake, setKeepAwake] = useState(() => { try { return localStorage.getItem("island-keep-awake") === "1"; } catch { return false; } });
   useEffect(() => { if (isLauncher) void Launcher.setKeepAwake({ value: keepAwake && view === "clock" }).catch(() => undefined); }, [keepAwake, view]);
   const run: Run = async action => { try { await send(action); } catch (error) { say((error as Error).message); } };
@@ -78,6 +80,7 @@ export default function Companion() {
     {isLauncher ? <SideNav view={view} timerRunning={state.timer.running} offline={!!pairing && status !== "live"} go={id => { setView(id); if (id !== "notes") setOpenNote(null); }} openApps={() => setDrawer(true)} openSettings={() => setSheet(true)}/>
     : <nav className="c-nav">{views.map(item => <button key={item.id} className={view === item.id ? "on" : ""} onClick={() => { setView(item.id); if (item.id !== "notes") setOpenNote(null); }}><Icon name={item.icon} size={20}/><span>{item.label}</span></button>)}</nav>}
     {isLauncher && <AppDrawer open={drawer} close={() => setDrawer(false)}/>}
+    {isLauncher && finding && <div className="pair-banner" role="status"><i className="pulse-dot"/><span><b>{finding === "asking" ? "Click Allow on your computer" : "Island Desk found on your Wi-Fi"}</b><small>{finding === "asking" ? "Your computer is asking whether this phone may connect." : "Connecting…"}</small></span></div>}
     {sheet && <SettingsSheet keepAwake={keepAwake} setKeepAwake={value => { setKeepAwake(value); try { localStorage.setItem("island-keep-awake", value ? "1" : "0"); } catch { /* ignore */ } }} status={status} pairing={pairing} onPair={next => { adoptLocalData(); savePairing(next); setPairing(next); setSheet(false); say("Connected to your computer."); }} close={() => setSheet(false)} unpair={() => { savePairing(null); setPairing(null); setSheet(false); say("Disconnected. Your notes stay on this phone."); }}/>}
     {toast && <div className="c-toast" onClick={() => setToast("")}>{toast}</div>}
   </main>;
@@ -158,7 +161,7 @@ function LauncherHome({ state, now, openAlarms, openTasks, openNote, say }: { st
     <section className="feed" aria-label="Your day">
       <MailCard now={now} say={say}/>
       <NewsCard now={now} say={say}/>
-      <button className="glass" onClick={openTasks}><header><Icon name="tasks" size={15}/><span>Today</span><em>{pending.length || ""}</em></header>
+      <button className="glass" onClick={openTasks}><header><Icon name="tasks" size={15}/><span>Today</span>{pending.length > 0 && <em>{pending.length}</em>}</header>
         {pending.length ? pending.map(task => <p key={task.id} className={`prio ${task.priority}`}><i/>{task.text}</p>) : <p className="muted">Nothing waiting on you.</p>}</button>
       {pinned.map(note => <button className="glass" key={note.id} onClick={() => openNote(note.id)}><header><Icon name="pin" size={15}/><span>{note.title || "Pinned note"}</span></header><p className="muted clamp">{note.body.replace(/\[[ x]\] /gi, "• ") || "Empty"}</p></button>)}
     </section>
@@ -166,7 +169,7 @@ function LauncherHome({ state, now, openAlarms, openTasks, openNote, say }: { st
 }
 
 function useNotifications() {
-  const [data, setData] = useState<{ granted: boolean; notifications: PhoneNotification[] } | null>(null);
+  const [data, setData] = useState<{ granted: boolean; connecting?: boolean; notifications: PhoneNotification[] } | null>(null);
   useEffect(() => {
     const load = () => void Launcher.getNotifications().then(setData).catch(() => setData({ granted: false, notifications: [] }));
     load();
@@ -188,8 +191,8 @@ function MailCard({ now, say }: { now: number; say: (text: string) => void }) {
   const items = data.notifications.filter(n => everything || isMail(n)).slice(0, 4);
   const toggle = () => { const next = !everything; setEverything(next); try { localStorage.setItem("island-all-notifications", next ? "1" : "0"); } catch { /* ignore */ } };
   return <div className="glass">
-    <header><Icon name="notes" size={15}/><span>{everything ? "Notifications" : "Mail"}</span><em>{items.length || ""}</em><button className="link" onClick={toggle}>{everything ? "Mail only" : "All"}</button></header>
-    {items.length ? items.map(n => <div className="note-row" key={n.key}>
+    <header><Icon name="notes" size={15}/><span>{everything ? "Notifications" : "Mail"}</span>{items.length > 0 && <em>{items.length}</em>}<button className="link" onClick={toggle}>{everything ? "Mail only" : "All"}</button></header>
+    {data.connecting ? <p className="muted">Connecting to your notifications…</p> : items.length ? items.map(n => <div className="note-row" key={n.key}>
       <button className="note-open" onClick={() => void Launcher.openNotification({ key: n.key }).catch(error => say(error.message))}>
         {n.icon ? <img src={n.icon} alt=""/> : <span className="art-blank"/>}
         <span className="note-lines"><span className="note-top"><b>{n.title || n.app}</b><small>{n.app} · {ago(n.time, now)}</small></span><span className="note-text">{n.text}</span></span>
@@ -469,4 +472,57 @@ function AlarmEditor({ alarm, isNew, save, remove, close, say }: { alarm: Alarm;
       {!isNew && <button className="pill-btn ghost" onClick={() => void remove(draft.id)}>Delete</button>}
     </div>
   </div></div>;
+}
+
+/* ───────────── Wi-Fi: find the computer, pair once, forward notifications ───────────── */
+let phoneName = "";
+const deviceName = async () => phoneName || (phoneName = (await Launcher.deviceName().catch(() => ({ name: "Android phone" }))).name);
+
+/** While unpaired, listen for an Island Desk computer on the Wi-Fi and ask it to pair (it shows Allow / Don't allow). */
+function useAutoPair(pairing: Pairing | null, onPaired: (pairing: Pairing) => void): "" | "found" | "asking" {
+  const [finding, setFinding] = useState<"" | "found" | "asking">("");
+  const declined = useRef(new Map<string, number>());
+  useEffect(() => {
+    if (!isLauncher || pairing) { setFinding(""); return; }
+    let stopped = false, busy = false;
+    const look = async () => {
+      if (busy || stopped || document.visibilityState !== "visible") return; busy = true;
+      try {
+        const computers = (await Launcher.discover({ timeoutMs: 2500 })).computers.filter(c => Date.now() - (declined.current.get(c.id) || 0) > 10 * 60000);
+        const computer = computers[0]; if (!computer || stopped) return;
+        const base = `http://${computer.host}:${computer.port}/`;
+        setFinding("asking");
+        const response = await fetch(base + "api/pair-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: await deviceName() }) });
+        const body = await response.json().catch(() => ({}));
+        if (response.ok && body.token) { if (!stopped) onPaired({ base, token: body.token, serverId: body.serverId || computer.id }); }
+        else if (response.status === 403) declined.current.set(computer.id, Date.now());
+      } catch { /* not reachable yet; try again shortly */ }
+      finally { busy = false; if (!stopped) setFinding(""); }
+    };
+    void look(); const timer = setInterval(() => void look(), 20000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [pairing?.token]);
+  return finding;
+}
+
+/** While connected, keep the computer's island up to date with this phone's notifications. */
+function useForwardNotifications(pairing: Pairing | null, live: boolean) {
+  const last = useRef("");
+  useEffect(() => {
+    if (!isLauncher || !pairing || !live) return;
+    let stopped = false;
+    const send = async (force = false) => {
+      const data = await Launcher.getNotifications().catch(() => null);
+      if (!data?.granted || stopped) return;
+      const items = data.notifications.slice(0, 15).map(n => ({ key: n.key, app: n.app, title: n.title, text: n.text.slice(0, 300), time: n.time, icon: n.icon }));
+      const signature = items.map(i => i.key + i.time).join("|");
+      if (!force && signature === last.current) return;
+      last.current = signature;
+      await fetch(pairing.base + "api/action", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${pairing.token}` }, body: JSON.stringify({ type: "phone-notifications", device: await deviceName(), items }) }).catch(() => undefined);
+    };
+    void send(true);
+    const listener = Launcher.addListener("notificationsChanged", () => void send());
+    const heartbeat = setInterval(() => void send(true), 20000); // also tells the computer the phone is still here
+    return () => { stopped = true; clearInterval(heartbeat); void listener.then(h => h.remove()); };
+  }, [pairing?.base, pairing?.token, live]);
 }

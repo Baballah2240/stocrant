@@ -10,10 +10,8 @@
 <body><img alt=""/>
 <script>
   const img = document.querySelector("img");
-  window.showBlur = (url, instant) => new Promise(resolve => {
-    img.classList.toggle("instant", instant); img.classList.remove("on");
-    img.onload = () => { requestAnimationFrame(() => { img.classList.add("on"); resolve(true); }); };
-    img.src = url;
-  });
+  // Load the snapshot (resolves once decoded, without waiting for a paint), then fade in separately.
+  window.setBlur = url => new Promise(resolve => { img.classList.remove("on"); img.onload = () => resolve(true); img.onerror = () => resolve(false); img.src = url; if (img.complete && img.naturalWidth) resolve(true); setTimeout(() => resolve(true), 1500); });
+  window.fadeIn = instant => { img.classList.toggle("instant", instant); void img.offsetWidth; img.classList.add("on"); return true; };
   window.hideBlur = instant => { img.classList.toggle("instant", instant); img.classList.remove("on"); return instant ? 0 : 280; };
 </script></body></html>

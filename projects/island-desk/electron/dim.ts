@@ -17,7 +17,7 @@ function ensure() {
   for (const display of displays) {
     let overlay = overlays.get(display.id);
     if (!overlay || overlay.isDestroyed()) {
-      overlay = new BrowserWindow({ ...display.bounds, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, movable: false, focusable: false, skipTaskbar: true, show: false, enableLargerThanScreen: true, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+      overlay = new BrowserWindow({ ...display.bounds, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: false, movable: false, focusable: false, skipTaskbar: true, show: false, enableLargerThanScreen: true, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
       // Not topmost: it sits above ordinary apps but always below the island and sticky notes.
       overlay.setIgnoreMouseEvents(true);
       overlay.webContents.on("will-navigate", event => event.preventDefault());
@@ -56,9 +56,11 @@ export function spotlight(want: boolean, raise: BrowserWindow[], reducedMotion: 
     for (const [id, overlay] of overlays) {
       const image = images.get(id); if (!image || image.isEmpty() || overlay.isDestroyed()) continue;
       const url = "data:image/jpeg;base64," + image.toJPEG(72).toString("base64");
-      void overlay.webContents.executeJavaScript(`showBlur(${JSON.stringify(url)}, ${reducedMotion})`).then(() => {
+      // Show the window first, then fade in: a hidden window may never paint, so nothing may wait on it.
+      void overlay.webContents.executeJavaScript(`setBlur(${JSON.stringify(url)})`).then(() => {
         if (token !== mine || overlay.isDestroyed()) return;
         overlay.showInactive(); overlay.moveTop();
+        void overlay.webContents.executeJavaScript(`fadeIn(${reducedMotion})`).catch(() => undefined);
         for (const w of raise) if (!w.isDestroyed()) w.moveTop();
         raised = front;
       }).catch(() => undefined);

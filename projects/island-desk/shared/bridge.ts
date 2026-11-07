@@ -1,6 +1,11 @@
 import type { Note, Store, Settings, Snapshot, Mode, Timer, Shortcut } from "./model.js";
 export type ContentPatch = Partial<Pick<Store, "notes" | "tasks" | "calculations" | "shortcuts">>;
-export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState };
+export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState } | { type: "phone"; phone: PhoneFeed } | { type: "activity"; activity: Activity };
+/** Notifications forwarded by the paired phone over Wi-Fi. Kept in memory only. */
+export interface PhoneItem { key: string; app: string; title: string; text: string; time: number; icon: string }
+export interface PhoneFeed { connected: boolean; device: string; items: PhoneItem[]; at: number }
+/** Something the island should briefly announce, Dynamic Island style. */
+export interface Activity { kind: "music" | "phone" | "timer" | "reminder" | "connected"; title: string; text: string; icon?: string }
 export type MediaState = { active: false } | { active: true; title: string; artist: string; album: string; app: string; playing: boolean; canNext: boolean; canPrevious: boolean; canToggle: boolean; positionMs: number; durationMs: number; updatedAt: number; art: string };
 export interface DesktopBridge {
   snapshot(): Promise<Snapshot>;
@@ -22,6 +27,7 @@ export interface DesktopBridge {
   stickyClose(id: string): Promise<void>;
   notePatch(id: string, patch: Partial<Pick<Note, "title" | "body" | "checklist">>): Promise<void>;
   media(): Promise<MediaState>;
+  phone(): Promise<PhoneFeed>;
   mediaCommand(command: "toggle" | "next" | "previous"): Promise<void>;
   companion(): Promise<CompanionInfo>;
   companionReset(): Promise<CompanionInfo>;
