@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-11-07
+
+**New**
+- **Island Launcher for Android:** an app that replaces the phone's home screen. Portrait home with the island pill, a large clock, today's tasks and pinned notes, and the phone's system apps in a rail on the right. A separate **My apps** window lists the apps you installed, with search. Notes, tasks, focus timer and calculator work on the phone alone and sync with the desktop when paired; changes made offline wait on the phone and sync later.
+- Pair the launcher by opening the desktop's QR code on the phone and tapping "Open in Island Launcher", or over a USB cable.
+
+**Changed**
+- The desktop companion keeps the IDs the phone gives new notes and tasks, so offline edits never duplicate.
+
 ## 0.3.0 — 2026-11-07
 
 **New**

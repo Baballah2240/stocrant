@@ -6,7 +6,8 @@ import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import QRCode from "qrcode";
-import type { Note, Store, Task } from "../shared/model.js";
+import type { Store } from "../shared/model.js";
+import { reduce, type Action, type PocketData } from "../shared/actions.js";
 import type { CompanionInfo, MediaState } from "../shared/bridge.js";
 
 /**
@@ -14,7 +15,7 @@ import type { CompanionInfo, MediaState } from "../shared/bridge.js";
  * Every API request must carry the pairing token. Nothing leaves your Wi-Fi.
  */
 const here = dirname(fileURLToPath(import.meta.url));
-const PORT = 47820;
+const PORT = Number(process.env.ISLAND_DESK_COMPANION_PORT) || 47820;
 const types: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/manifest+json", ".webmanifest": "application/manifest+json" };
 
 export interface CompanionHost {
@@ -74,7 +75,7 @@ export function companionChanged() {
 
 function state() {
   const store = host!.store();
-  return { notes: store.notes.map(({ sticky: _sticky, ...note }) => note), tasks: store.tasks, calculations: store.calculations.slice(0, 30), timer: store.timer, settings: { workMinutes: store.settings.workMinutes, breakMinutes: store.settings.breakMinutes, longBreakMinutes: store.settings.longBreakMinutes }, media: host!.media(), serverTime: Date.now() };
+  return { notes: store.notes.map(({ sticky: _sticky, ...note }) => note), tasks: store.tasks, calculations: store.calculations.slice(0, 30), timer: store.timer, settings: { workMinutes: store.settings.workMinutes, breakMinutes: store.settings.breakMinutes, longBreakMinutes: store.settings.longBreakMinutes, longBreakEvery: store.settings.longBreakEvery }, media: host!.media(), serverTime: Date.now() };
 }
 
 function authorized(request: IncomingMessage, url: URL) {
@@ -96,6 +97,8 @@ function readJson(request: IncomingMessage): Promise<any> {
 
 async function route(request: IncomingMessage, response: ServerResponse) {
   const url = new URL(request.url || "/", "http://local");
+  if (url.pathname.startsWith("/api/")) { response.setHeader("access-control-allow-origin", "*"); response.setHeader("access-control-allow-headers", "authorization, content-type"); response.setHeader("access-control-allow-methods", "GET, POST"); }
+  if (request.method === "OPTIONS") { response.writeHead(204); response.end(); return; }
   try {
     if (!url.pathname.startsWith("/api/")) return serveFile(url.pathname, response);
     if (!authorized(request, url)) return send(response, 401, { error: "This phone isn't paired. Scan the QR code in Island Desk settings again." });
@@ -116,28 +119,14 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 }
 
 const uid = () => randomBytes(12).toString("hex");
-function apply(action: any) {
+function apply(action: Action) {
   const store = host!.store(), now = Date.now();
-  switch (action?.type) {
-    case "note-save": {
-      const input = action.note || {}; const existing = store.notes.find(note => note.id === input.id);
-      const note: Note = { id: existing?.id || uid(), title: String(input.title ?? existing?.title ?? ""), body: String(input.body ?? existing?.body ?? ""), pinned: Boolean(input.pinned ?? existing?.pinned ?? false), checklist: Boolean(input.checklist ?? existing?.checklist ?? false), updatedAt: now, sticky: existing?.sticky ?? null };
-      return host!.change({ notes: existing ? store.notes.map(item => item.id === note.id ? note : item) : [note, ...store.notes] });
-    }
-    case "note-delete": return host!.change({ notes: store.notes.filter(note => note.id !== action.id) });
-    case "task-save": {
-      const input = action.task || {}; const existing = store.tasks.find(task => task.id === input.id);
-      const task: Task = { id: existing?.id || uid(), text: String(input.text ?? existing?.text ?? "").slice(0, 2000), done: Boolean(input.done ?? existing?.done ?? false), priority: ["low", "medium", "high"].includes(input.priority) ? input.priority : existing?.priority || "medium", due: String(input.due ?? existing?.due ?? ""), reminderAt: String(input.reminderAt ?? existing?.reminderAt ?? ""), notified: existing && input.reminderAt === undefined ? existing.notified : false, createdAt: existing?.createdAt || now };
-      if (!task.text.trim()) throw Error("A task needs some text.");
-      return host!.change({ tasks: existing ? store.tasks.map(item => item.id === task.id ? task : item) : [task, ...store.tasks] });
-    }
-    case "task-delete": return host!.change({ tasks: store.tasks.filter(task => task.id !== action.id) });
-    case "calc-add": return host!.change({ calculations: [{ id: uid(), expression: String(action.expression).slice(0, 500), result: String(action.result).slice(0, 100), at: now }, ...store.calculations].slice(0, 200) });
-    case "timer": if (!["toggle", "reset", "skip", "work", "break"].includes(action.action)) throw Error("Unknown timer action."); return host!.timer(action.action);
-    case "media": if (!["toggle", "next", "previous"].includes(action.command)) throw Error("Unknown media command."); return host!.mediaCommand(action.command);
-    default: throw Error("Unknown action.");
-  }
+  if (action?.type === "timer") { reduce({ ...pocket(store) }, action, now, uid); return host!.timer(action.action); }
+  if (action?.type === "media") { if (!["toggle", "next", "previous"].includes(action.command)) throw Error("Unknown media command."); return host!.mediaCommand(action.command); }
+  const next = reduce(pocket(store), action, now, uid);
+  host!.change({ notes: next.notes, tasks: next.tasks, calculations: next.calculations });
 }
+const pocket = (store: Store): PocketData => ({ notes: store.notes, tasks: store.tasks, calculations: store.calculations, timer: store.timer, settings: store.settings });
 
 function serveFile(pathname: string, response: ServerResponse) {
   const root = join(here, "../../dist");

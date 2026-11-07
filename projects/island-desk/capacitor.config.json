@@ -1,0 +1,7 @@
+{
+  "appId": "studio.islanddesk.launcher",
+  "appName": "Island Launcher",
+  "webDir": "dist-launcher",
+  "android": { "allowMixedContent": true },
+  "plugins": { "CapacitorHttp": { "enabled": true } }
+}

@@ -6,3 +6,10 @@ release/
 .qa/
 *.log
 *.tsbuildinfo
+
+dist-launcher/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+*.apk

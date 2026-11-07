@@ -1,7 +1,7 @@
 {
   "name": "island-desk",
   "productName": "Island Desk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A quiet, offline workspace floating above your desktop.",
   "author": "Island Desk",
   "license": "MIT",
@@ -17,14 +17,19 @@
     "test:desktop": "npm run build && node scripts/smoke.mjs",
     "package:win": "npm run build && electron-builder --win nsis portable",
     "package:dir": "npm run build && electron-builder --dir",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "launcher:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-launcher-apk.ps1"
   },
   "dependencies": {
+    "@capacitor/android": "7.6.9",
+    "@capacitor/app": "7.1.2",
+    "@capacitor/core": "7.6.9",
     "qrcode": "1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "7.6.9",
     "@types/node": "^24.0.14",
     "@types/qrcode": "1.5.5",
     "@types/react": "^19.2.0",

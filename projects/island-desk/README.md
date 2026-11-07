@@ -31,6 +31,14 @@ A floating, Dynamic-Island-style workspace for Windows. Built with Electron, Rea
 
 Data is stored in `%APPDATA%\Island Desk\island-desk.json`. Saves are atomic, and a copy of the old data is kept before every import.
 
+## Island Launcher (Android home screen)
+
+- Build: `npm run launcher:apk` (needs JDK 21 in `C:\jdks` and the Android SDK). The APK lands in `release/launcher/`, which is not committed.
+- Install: `adb install -r release/launcher/Island-Launcher-<version>.apk`, or copy the APK to the phone and open it.
+- Make it the home screen: tap the island pill on the phone, then **Set as home screen**. To go back, choose the original launcher in Settings > Apps > Default apps > Launcher.
+- Pairing over USB: `adb reverse tcp:47820 tcp:47820`, then open `islanddesk://pair?u=http://127.0.0.1:47820/&t=<code>` on the phone. The code is in `%APPDATA%\Island Desk\companion-token.txt`.
+- It is a home screen app, not a new operating system: notifications, the status bar, lock screen and calls stay Android's own.
+
 ## Windows limitations
 
 - **Phone companion and the firewall:** the first time you turn it on, Windows Firewall asks whether to allow Island Desk. Allow it on **Private** networks. On public or guest Wi-Fi (hotels, some offices) devices often cannot reach each other, so the phone can't connect there. The connection is plain HTTP inside your network, protected by the secret pairing code. Anyone who has that code and is on the same Wi-Fi could use it, so use "Sign out paired phones" if a code may have been shared.
