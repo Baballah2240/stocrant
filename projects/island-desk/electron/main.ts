@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFil
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advanceTimer, defaults, duration, insideRoundedRect, timerAction, validateStore, type Store, type Settings, type Mode, type Shortcut, type Snapshot } from "../shared/model.js";
+import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
 import type { ContentPatch, DesktopEvent } from "../shared/bridge.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -136,6 +137,12 @@ function installIpc() {
     if (!saved) throw Error("Save this shortcut before opening it.");
     if (saved.kind === "website") { const url = new URL(saved.target); if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw Error("Use a normal https:// or http:// website address."); await shell.openExternal(url.toString()); }
     else { if (!/^[A-Za-z]:[\\/]/.test(saved.target) || !existsSync(saved.target)) throw Error("This local path no longer exists."); if (saved.kind === "app" && !saved.target.toLowerCase().endsWith(".exe")) throw Error("Choose an .exe application."); if (saved.kind === "folder" && !statSync(saved.target).isDirectory()) throw Error("Choose a folder."); const error = await shell.openPath(saved.target); if (error) throw Error(error); }
+  });
+  handle("display-get", async () => ({ brightness: await getBrightness(), nightLight: await getNightLight() }));
+  handle("display-set", async (patch: { brightness?: unknown; nightLight?: unknown }) => {
+    if (typeof patch?.brightness === "number" && Number.isFinite(patch.brightness)) await setBrightness(patch.brightness);
+    if (typeof patch?.nightLight === "boolean") await setNightLight(patch.nightLight);
+    return { brightness: await getBrightness(), nightLight: await getNightLight() };
   });
   handle("open-data", () => shell.openPath(dirname(dataFile)));
   ipcMain.on("mode", (event, next) => { trust(event); if (["compact", "preview", "expanded"].includes(next)) { if (next === "expanded") window.setFocusable(true); setMode(next); } });

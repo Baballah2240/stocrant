@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "./icons";
 import { calculate } from "../shared/calculator";
 import { defaults, duration, localDate, remaining, timeText, type Mode, type Note, type Settings, type Shortcut, type Snapshot, type Store, type Tab, type Task } from "../shared/model";
-import type { ContentPatch } from "../shared/bridge";
+import type { ContentPatch, DisplayState } from "../shared/bridge";
 
 const tabs: { id: Tab; label: string; icon: IconName }[] = [{ id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" }, { id: "calculator", label: "Calculator", icon: "calculator" }, { id: "focus", label: "Focus", icon: "focus" }, { id: "tools", label: "Tools", icon: "tools" }, { id: "shortcuts", label: "Shortcuts", icon: "shortcuts" }];
 const uid = () => crypto.randomUUID();
@@ -51,7 +51,7 @@ export default function App() {
   async function changeSettings(patch: Partial<Settings>) {
     try { const settings = await api.settings(patch); setStore(current => ({ ...current, settings })); return true; } catch (error) { message((error as Error).message); return false; }
   }
-  const timerMs = remaining(store.timer, now), nextTask = store.tasks.filter(task => !task.done).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999"))[0];
+  const timerMs = remaining(store.timer, now);
   const dateLabel = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "short", day: "numeric" }).format(now);
   const clockLabel = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(now);
   const focused = store.timer.running;
@@ -61,7 +61,7 @@ export default function App() {
       <button className="compact-face" aria-label="Expand Island Desk" onClick={() => api?.mode("expanded")} tabIndex={mode === "expanded" ? -1 : 0}>
         <span className={`signal ${focused ? "active" : ""}`}><i/><i/><i/><i/></span><span className="compact-label">{focused ? store.timer.phase === "work" ? "In the flow" : "Take a breather" : "Island Desk"}</span><span className="compact-right">{focused ? timeText(timerMs) : clockLabel}</span>
       </button>
-      {mode === "preview" && <button className="preview-body" onClick={() => api?.mode("expanded")}><span><span className="eyebrow">{focused ? "YOUR FOCUS SESSION" : nextTask ? "UP NEXT" : "A LITTLE SPACE FOR YOU"}</span><strong>{focused ? `${timeText(timerMs)} to ${store.timer.phase === "work" ? "your next breather" : "a fresh start"}` : nextTask?.text || "Thoughts, plans, and a clearer mind."}</strong></span><Icon name="arrow"/></button>}
+      {mode === "preview" && <Preview clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
       <div className="workspace" aria-hidden={mode !== "expanded"} inert={mode !== "expanded"}>
         <header className="topbar"><div className="brand"><span className="brand-mark"><i/><i/></span><strong>island<span>desk</span></strong><span className="version">BETA 01</span></div><div className="top-actions"><span className="time">{clockLabel}</span><button className={`icon-btn ${tab === "settings" ? "selected" : ""}`} title="Settings" aria-label="Settings" onClick={() => setTab("settings")}><Icon name="settings"/></button><button className="icon-btn" title="Collapse · Esc" aria-label="Collapse island" onClick={() => api.mode("compact")}><Icon name="close"/></button></div></header>
         <div className="workspace-intro"><div><span className="eyebrow">{dateLabel}</span><h1>{tab === "settings" ? "Make yourself at home." : "A little room for your day."}</h1></div><span className="offline"><span/>Local. Private. Yours.</span></div>
@@ -152,4 +152,32 @@ function Preferences({ settings, snapshot, update, message }: { settings: Settin
   const [shortcut, setShortcut] = useState(settings.globalShortcut);
   const toggle = (field: "alwaysOnTop" | "reducedMotion" | "launchAtStartup" | "sound" | "notifications", label: string, description: string, disabled = false) => <label className={`setting-toggle ${disabled ? "disabled" : ""}`}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" role="switch" checked={settings[field]} disabled={disabled} onChange={event => void update({ [field]: event.target.checked })}/></label>;
   return <div className="preferences"><div className="settings-grid"><section><span className="eyebrow">YOUR ISLAND, YOUR WAY</span><h2>Feel right at home.</h2>{toggle("alwaysOnTop", "Float above other windows", "A quiet presence, always within reach.")}{toggle("reducedMotion", "Gentler motion", "Skip spring transitions and animated details.")}{toggle("launchAtStartup", "Be here when I sign in", snapshot.startupSupported ? "Start Island Desk with Windows." : "Available after installing the Windows app.", !snapshot.startupSupported)}{toggle("sound", "A soft chime", "A little nudge when your session ends.")}{toggle("notifications", "Desktop reminders", "Task reminders and focus notifications.")}<div className="setting-field"><label htmlFor="global-shortcut">Global keyboard shortcut</label><div><input id="global-shortcut" value={shortcut} maxLength={100} onChange={event => setShortcut(event.target.value)}/><button onClick={() => void update({ globalShortcut: shortcut.trim() }).then(ok => { if (ok) message("Your new shortcut is ready."); })}>Apply</button></div><small>Example: Control+Alt+Space. A shortcut already in use stays unchanged.</small></div></section><section><span className="eyebrow">A PLACE ON YOUR DESKTOP</span><label className="setting-field">Display<select value={settings.displayId ?? "primary"} onChange={event => void update({ displayId: event.target.value === "primary" ? null : Number(event.target.value) })}><option value="primary">Follow primary display</option>{snapshot.displays.map(display => <option key={display.id} value={display.id}>{display.label} · {display.width} × {display.height}{display.primary ? " · primary" : ""}</option>)}</select></label><label className="setting-field">Island size <span>{Math.round(settings.scale * 100)}%</span><input type="range" aria-label="Island size" min="0.8" max="1.15" step="0.05" value={settings.scale} onChange={event => void update({ scale: Number(event.target.value) })}/></label><label className="setting-field">From top <span>{settings.offsetY}px</span><input type="range" aria-label="Vertical position" min="0" max="240" step="4" value={settings.offsetY} onChange={event => void update({ offsetY: Number(event.target.value) })}/></label><label className="setting-field">From center <span>{settings.offsetX}px</span><input type="range" aria-label="Horizontal position" min="-700" max="700" step="10" value={settings.offsetX} onChange={event => void update({ offsetX: Number(event.target.value) })}/></label><button className="text-btn" onClick={() => void update({ offsetX: 0, offsetY: 16, scale: 1, displayId: null })}><Icon name="reset" size={14}/>Back to center</button><div className="backup-card"><strong>Keep a little backup.</strong><p>Notes, tasks, history, shortcuts, and your settings. A file you own.</p><div><button onClick={() => void api.backupExport().then(ok => { if (ok) message("Backup exported."); }).catch(err => message(err.message))}><Icon name="download" size={15}/>Export</button><button onClick={() => void api.backupImport().then(ok => { if (ok) message("Backup restored."); }).catch(err => message(err.message))}><Icon name="upload" size={15}/>Import</button></div><button className="text-btn" onClick={() => void api.openData().catch(err => message(err.message))}><Icon name="folder" size={13}/>Open local data folder</button></div></section></div><div className="settings-bottom"><span>Island Desk {snapshot.version} · Offline by design. No account. No telemetry.</span><div><button className="text-btn" onClick={() => api.hide()}>Hide to tray</button><button className="text-btn danger" onClick={() => api.quit()}>Quit app</button></div></div></div>;
+}
+const priorityRank = { high: 0, medium: 1, low: 2 } as const;
+function Preview({ clock, date, tasks, focus, message, onOpen }: { clock: string; date: string; tasks: Task[]; focus: string; message: (text: string) => void; onOpen: () => void }) {
+  const [display, setDisplay] = useState<DisplayState | null>(null), [level, setLevel] = useState<number | null>(null);
+  const pending = tasks.filter(task => !task.done).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999") || priorityRank[a.priority] - priorityRank[b.priority]);
+  const today = localDate(), sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { void api?.display().then(state => { setDisplay(state); setLevel(state.brightness); }).catch(() => setDisplay({ brightness: null, nightLight: null })); }, []);
+  function brightness(value: number) {
+    setLevel(value); if (sendTimer.current) clearTimeout(sendTimer.current);
+    sendTimer.current = setTimeout(() => void api.setDisplay({ brightness: value }).catch(error => message(error.message)), 120);
+  }
+  function night() {
+    if (display?.nightLight == null) return;
+    const next = !display.nightLight; setDisplay({ ...display, nightLight: next });
+    void api.setDisplay({ nightLight: next }).then(setDisplay).catch(error => { setDisplay({ ...display }); message(error.message); });
+  }
+  return <div className="preview-body">
+    <div className="preview-clock"><strong>{clock}</strong><span>{date}</span>{focus && <em>{focus}</em>}</div>
+    <button className="preview-tasks" onClick={onOpen} title="Open tasks">
+      <span className="eyebrow">{pending.length ? `${pending.length} PENDING` : "ALL CLEAR"}</span>
+      {pending.length ? pending.slice(0, 3).map(task => <span className={`preview-task ${task.priority}`} key={task.id}><i/>{task.text}{task.due && <small className={task.due < today ? "late" : ""}>{task.due === today ? "Today" : task.due < today ? "Overdue" : task.due.slice(5)}</small>}</span>) : <span className="preview-task none">Nothing waiting on you.</span>}
+      {pending.length > 3 && <small className="more">+{pending.length - 3} more</small>}
+    </button>
+    <div className="preview-display">
+      <label title="Screen brightness"><Icon name="sun"/><input type="range" min={0} max={100} step={5} value={level ?? 50} disabled={level === null} aria-label="Screen brightness" onChange={event => brightness(Number(event.target.value))}/><span>{level === null ? "—" : `${level}%`}</span></label>
+      <button className={`night ${display?.nightLight ? "on" : ""}`} disabled={display?.nightLight == null} onClick={night} aria-pressed={!!display?.nightLight} title="Night light"><Icon name="moon"/>Night light</button>
+    </div>
+  </div>;
 }

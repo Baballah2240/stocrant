@@ -20,6 +20,7 @@ A floating, Dynamic-Island-style workspace for Windows. Built with Electron, Rea
 
 - **Hover** the pill for a preview. **Click** it to open the workspace. Press **Esc** or click outside to collapse it.
 - Global shortcut: **Ctrl+Shift+Space** (you can change it in Settings). **Ctrl+1–6** switches tabs.
+- **Hover preview:** the time and date, up to 3 pending tasks (overdue ones in red), a screen brightness slider and a Night Light toggle.
 - Tray icon: open, show/hide, start/pause the focus timer, always-on-top, quit.
 - What's included: Notes (pinned, checklists, search, autosave), Tasks (priority, due date, reminders, Today view), Calculator (keyboard input, %, parentheses, history), a Focus timer whose countdown shows in the pill, Quick tools, and Shortcuts.
 - Settings: display, position offset, size, always on top, reduced motion, launch at startup, export/import a JSON backup.
@@ -34,4 +35,6 @@ Data is stored in `%APPDATA%\Island Desk\island-desk.json`. Saves are atomic, an
 - **Global shortcut:** if another app has already taken the combination, Windows won't let Island Desk register it. Settings shows an error so you can pick another one.
 - **Notifications:** Focus Assist / Do Not Disturb can silence reminders. Timer completion is always shown inside the island too.
 - The installer is unsigned, so SmartScreen will warn on first run ("More info → Run anyway").
+- **Brightness** only works on built-in laptop screens. External monitors use their own buttons (the slider is disabled if the screen doesn't support it).
+- **Night Light** is switched through its per-user registry setting, which Microsoft doesn't document. It may stop working after a Windows update; if it does, use Settings > Display > Night light.
 - The pill sits at the top of the work area. It doesn't merge with a camera notch the way the iPhone hardware does.

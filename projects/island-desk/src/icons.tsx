@@ -1,4 +1,4 @@
-export type IconName = "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings" | "plus" | "search" | "pin" | "trash" | "arrow" | "check" | "play" | "pause" | "reset" | "skip" | "close" | "download" | "upload" | "folder" | "globe" | "sun" | "chevron" | "copy";
+export type IconName = "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings" | "plus" | "search" | "pin" | "trash" | "arrow" | "check" | "play" | "pause" | "reset" | "skip" | "close" | "download" | "upload" | "folder" | "globe" | "sun" | "chevron" | "copy" | "moon";
 const paths: Record<IconName, React.ReactNode> = {
   notes: <><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5"/></>,
   tasks: <><rect x="3" y="4" width="18" height="17" rx="4"/><path d="m7 12 3 3 7-7"/></>,
@@ -14,6 +14,6 @@ const paths: Record<IconName, React.ReactNode> = {
   close: <path d="m6 6 12 12M6 18 18 6"/>, download: <><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></>, upload: <><path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5"/></>,
   folder: <path d="M3 7V5h7l2 3h9v12H3z"/>, globe: <><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c6 5 6 13 0 18-6-5-6-13 0-18"/></>,
   sun: <><circle cx="12" cy="12" r="4"/><path d="M12 1v2m0 18v2M1 12h2m18 0h2M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/></>,
-  chevron: <path d="m8 5 7 7-7 7"/>, copy: <><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V3H3v13h5"/></>,
+  moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>, chevron: <path d="m8 5 7 7-7 7"/>, copy: <><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V3H3v13h5"/></>,
 };
 export function Icon({ name, size = 18, ...props }: { name: IconName; size?: number } & React.SVGProps<SVGSVGElement>) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>; }

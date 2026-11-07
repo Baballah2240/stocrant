@@ -13,7 +13,10 @@ export interface DesktopBridge {
   pick(kind: "app" | "folder"): Promise<string | null>;
   open(shortcut: Shortcut): Promise<void>;
   openData(): Promise<void>;
+  display(): Promise<DisplayState>;
+  setDisplay(patch: Partial<{ brightness: number; nightLight: boolean }>): Promise<DisplayState>;
   hide(): void;
   quit(): void;
   onEvent(callback: (event: DesktopEvent) => void): () => void;
 }
+export interface DisplayState { brightness: number | null; nightLight: boolean | null }
