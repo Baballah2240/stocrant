@@ -1,6 +1,6 @@
-import { BrowserWindow } from "electron";
+import { BrowserWindow, screen, dialog } from "electron";
 import { createSocket } from "node:dgram";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import type { Mode, Store } from "../shared/model.js";
 type State = () => { store: Store; mode: Mode; rect: { width: number; height: number }; ignoring: boolean; dataFile: string };
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -25,6 +25,8 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   // The blur must come back on every open, not just the first.
   setMode("expanded"); await wait(1700);
   results.dimmedSecondTime = dims().length > 0 && (await dims()[0].webContents.executeJavaScript("document.querySelector(\"img\").classList.contains(\"on\")")) === true;
+  window.hide(); await wait(900);
+  results.undimmedWhenHidden = dims().length === 0;
   setMode("compact"); await wait(900);
   await window.webContents.executeJavaScript("window.island.timer(\"toggle\").then(() => window.island.timer(\"toggle\"))"); await wait(300);
   results.saved = existsSync(state().dataFile) && !state().store.timer.running;
@@ -33,6 +35,12 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.stickyOpened = !!sticky && sticky.isVisible() && state().store.notes[0].sticky?.x === 260;
   if (sticky) { sticky.setPosition(500, 400); await wait(600); }
   results.stickyMoveSaved = state().store.notes[0].sticky?.x === 500;
+  if (sticky) {
+    state().store.notes[0].sticky = { x: 25000, y: 25000, width: 260, height: 240 };
+    screen.emit("display-removed", {}, screen.getPrimaryDisplay());
+    const b = sticky.getBounds(), a = screen.getDisplayMatching(b).workArea;
+    results.stickyRecoveredAfterDisplayRemoval = b.x >= a.x && b.y >= a.y && b.x + b.width <= a.x + a.width && b.y + b.height <= a.y + a.height;
+  }
   await window.webContents.executeJavaScript("window.island.stickyClose(\"n1\")"); await wait(400);
   results.stickyDocked = notes().length === 0 && !state().store.notes[0].sticky;
   // Phone companion: pair, refuse strangers, sync a note from the "phone", serve the page.
@@ -44,6 +52,13 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   const posted = await fetch(local + "api/action", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + pairing }, body: JSON.stringify({ type: "note-save", note: { title: "From phone", body: "hello" } }) });
   await wait(400);
   results.companionSyncsNotes = posted.ok && state().store.notes.some(note => note.title === "From phone");
+  const timerRequest = () => fetch(local + "api/action", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + pairing }, body: JSON.stringify({ type: "timer", action: "toggle", requestId: "smoke-timer-123" }) });
+  await timerRequest();
+  const timerAfterFirst = JSON.stringify(state().store.timer);
+  await timerRequest();
+  results.timerRetryDeduplicated = state().store.timer.running && JSON.stringify(state().store.timer) === timerAfterFirst;
+  results.timerReceiptSaved = (await import("node:fs")).readFileSync(state().dataFile, "utf8").includes("smoke-timer-123");
+  await window.webContents.executeJavaScript('window.island.timer("reset")');
   results.companionPage = (await (await fetch(local)).text()).includes("companion");
   // Discovery: the beacon a phone listens for must name this computer.
   const stateId = ((await (await fetch(local + "api/state", { headers: { authorization: "Bearer " + pairing } })).json()) as { serverId?: string }).serverId || "";
@@ -66,6 +81,21 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.phoneNotificationsOnDesktop = feed.connected && feed.items.length === 1;
   results.liveIslandReacts = (await window.webContents.executeJavaScript("(document.querySelector('.live-card')?.textContent || '').includes('Sara Ahmed')")) === true;
   if (process.env.SHOT) { const img = await window.webContents.capturePage(); const z = img.getSize(); (await import("node:fs")).writeFileSync(process.env.SHOT, img.crop({ x: Math.round(z.width * 0.28), y: 0, width: Math.round(z.width * 0.44), height: Math.round(z.height * 0.11) }).toPNG()); }
+  const openDialog = dialog.showOpenDialog, messageDialog = dialog.showMessageBox;
+  const backupFile = state().dataFile + ".test-import.json";
+  try {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [backupFile] })) as typeof dialog.showOpenDialog;
+    dialog.showMessageBox = (async () => ({ response: 1, checkboxChecked: false })) as typeof dialog.showMessageBox;
+    const backup = JSON.parse(JSON.stringify(state().store)) as Store;
+    backup.settings.companion = false;
+    writeFileSync(backupFile, JSON.stringify(backup));
+    await window.webContents.executeJavaScript("window.island.backupImport()");
+    results.importStopsCompanion = (await window.webContents.executeJavaScript("window.island.companion()") as { running: boolean }).running === false;
+    backup.settings.companion = true;
+    writeFileSync(backupFile, JSON.stringify(backup));
+    await window.webContents.executeJavaScript("window.island.backupImport()");
+    results.importStartsCompanion = (await window.webContents.executeJavaScript("window.island.companion()") as { running: boolean }).running === true;
+  } finally { dialog.showOpenDialog = openDialog; dialog.showMessageBox = messageDialog; }
   console.log("DISPLAY phone=" + base);
   console.log("DISPLAY " + JSON.stringify(await window.webContents.executeJavaScript("window.island.display().then(r => r, e => String(e))")));
   console.log("SMOKE " + JSON.stringify(results));

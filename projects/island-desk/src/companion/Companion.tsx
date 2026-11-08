@@ -5,6 +5,7 @@ import { calculate } from "../../shared/calculator";
 import { localDate, remaining, timeText, type Calculation, type Note, type Task, type Timer } from "../../shared/model";
 import type { MediaState } from "../../shared/bridge";
 import type { Action } from "../../shared/actions";
+import { pendingPatch } from "../../shared/pending-patch";
 import { isLauncher, loadPairing, newId, parsePairLink, savePairing, setDiscovery, usePocket, type Pairing, type State, type Status } from "./backend";
 import { Launcher, type Alarm, type InstalledApp, type PhoneNotification } from "./launcher";
 
@@ -20,13 +21,14 @@ const views: { id: View; label: string; icon: IconName }[] = [
 
 export default function Companion() {
   const [pairing, setPairing] = useState<Pairing | null>(() => isLauncher ? loadPairing() : null);
-  const { state, status, run: send, skew, adoptLocalData } = usePocket(pairing, next => { savePairing(next); setPairing(next); });
+  const { state, status, run: send, skew, adoptLocalData, syncError } = usePocket(pairing, next => { savePairing(next); setPairing(next); });
   const [view, setView] = useState<View>(() => { if (isLauncher) return "clock"; try { return (localStorage.getItem("island-desk-view") as View) || "clock"; } catch { return "clock"; } });
   const [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [openNote, setOpenNote] = useState<string | null>(null), [sheet, setSheet] = useState(false), [drawer, setDrawer] = useState(false);
   const viewRef = useRef(view); viewRef.current = view;
   // Survives the clock re-rendering several times a second during a swipe.
   const swipeRef = useRef({ x: 0, y: 0, t: 0, ok: false });
   const say = (text: string) => { setToast(text); setTimeout(() => setToast(""), 3500); };
+  useEffect(() => { if (syncError) say(syncError); }, [syncError]);
   useEffect(() => { try { localStorage.setItem("island-desk-view", view); } catch { /* ignore */ } }, [view]);
   useEffect(() => { const clock = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(clock); }, []);
   // Keep the screen awake on the clock view where supported (a bedside or desk clock).
@@ -289,7 +291,7 @@ function NotesView({ notes, run, openId, setOpenId }: { notes: Note[]; run: Run;
   const [query, setQuery] = useState("");
   const shown = useMemo(() => notes.filter(note => `${note.title} ${note.body}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt), [notes, query]);
   const open = notes.find(note => note.id === openId);
-  if (open) return <NoteEditor note={open} run={run} back={() => setOpenId(null)}/>;
+  if (open) return <NoteEditor key={open.id} note={open} run={run} back={() => setOpenId(null)}/>;
   return <div className="list-view">
     <div className="row"><h2>Notes</h2><button className="round" aria-label="New note" onClick={() => { const id = newId(); void run({ type: "note-save", note: { id, title: "", body: "" } }).then(() => setOpenId(id)); }}><Icon name="plus" size={20}/></button></div>
     <label className="c-search"><Icon name="search" size={16}/><input placeholder="Find a thought…" value={query} onChange={event => setQuery(event.target.value)}/></label>
@@ -299,14 +301,18 @@ function NotesView({ notes, run, openId, setOpenId }: { notes: Note[]; run: Run;
 }
 
 function NoteEditor({ note, run, back }: { note: Note; run: Run; back: () => void }) {
-  const [draft, setDraft] = useState({ title: note.title, body: note.body }), timer = useRef<ReturnType<typeof setTimeout> | null>(null), [confirm, setConfirm] = useState(false);
+  const [draft, setDraft] = useState({ title: note.title, body: note.body }), [confirm, setConfirm] = useState(false);
+  const send = useRef(run); send.current = run;
+  const [pending] = useState(() => pendingPatch<{ title: string; body: string }>(patch => {
+    void send.current({ type: "note-save", note: { id: note.id, ...patch } });
+  }, 350));
+  useEffect(() => () => pending.flush(), [pending]);
   const edited = useRef(0);
   // Accept edits from the desktop unless the phone is mid-edit.
   useEffect(() => { if (Date.now() - edited.current > 1500) setDraft({ title: note.title, body: note.body }); }, [note.title, note.body]);
   const change = (patch: Partial<typeof draft>) => {
     edited.current = Date.now(); const next = { ...draft, ...patch }; setDraft(next);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void run({ type: "note-save", note: { id: note.id, ...next } }), 350);
+    pending.push(patch);
   };
   const lines = draft.body.split("\n");
   return <div className="editor-view">
@@ -314,7 +320,7 @@ function NoteEditor({ note, run, back }: { note: Note; run: Run; back: () => voi
       <button className={`round small ${note.pinned ? "on" : ""}`} aria-label="Pin" onClick={() => void run({ type: "note-save", note: { id: note.id, pinned: !note.pinned } })}><Icon name="pin" size={16}/></button>
       <button className={`round small ${note.checklist ? "on" : ""}`} aria-label="Checklist" onClick={() => void run({ type: "note-save", note: { id: note.id, checklist: !note.checklist } })}><Icon name="tasks" size={16}/></button>
       <button className="round small danger" aria-label="Delete" onClick={() => setConfirm(true)}><Icon name="trash" size={16}/></button></div></div>
-    {confirm && <div className="c-card confirm"><span>Delete this note?</span><button onClick={() => { void run({ type: "note-delete", id: note.id }); back(); }}>Delete</button><button onClick={() => setConfirm(false)}>Keep</button></div>}
+    {confirm && <div className="c-card confirm"><span>Delete this note?</span><button onClick={() => { pending.cancel(); void run({ type: "note-delete", id: note.id }); back(); }}>Delete</button><button onClick={() => setConfirm(false)}>Keep</button></div>}
     <input className="title-input" placeholder="Title" value={draft.title} onChange={event => change({ title: event.target.value })}/>
     {note.checklist ? <div className="checklist">{lines.map((line, index) => { const done = /^\[x\] /i.test(line); return <label key={index} className={done ? "done" : ""}>
         <input type="checkbox" checked={done} onChange={() => change({ body: lines.map((text, i) => i !== index ? text : done ? text.replace(/^\[x\] /i, "[ ] ") : "[x] " + text.replace(/^\[ \] /, "")).join("\n") })}/>

@@ -7,7 +7,7 @@ export interface Calculation { id: string; expression: string; result: string; a
 export interface Shortcut { id: string; name: string; target: string; kind: "website" | "app" | "folder" }
 export interface Settings { alwaysOnTop: boolean; launchAtStartup: boolean; reducedMotion: boolean; displayId: number | null; offsetX: number; offsetY: number; scale: number; globalShortcut: string; workMinutes: number; breakMinutes: number; longBreakMinutes: number; longBreakEvery: number; sound: boolean; notifications: boolean; dimOnHover: boolean; companion: boolean; weatherCity: string }
 export interface Timer { phase: "work" | "break" | "longBreak"; running: boolean; endAt: number | null; remainingMs: number; sessions: number; completed: number; lastCompletedAt: number | null }
-export interface Store { version: 1; notes: Note[]; tasks: Task[]; calculations: Calculation[]; shortcuts: Shortcut[]; settings: Settings; timer: Timer }
+export interface Store { timerReceipts?: string[]; version: 1; notes: Note[]; tasks: Task[]; calculations: Calculation[]; shortcuts: Shortcut[]; settings: Settings; timer: Timer }
 export interface DisplayInfo { id: number; label: string; primary: boolean; width: number; height: number }
 export interface Snapshot { store: Store; displays: DisplayInfo[]; dataPath: string; startupSupported: boolean; version: string }
 export const defaults = (): Store => ({ version: 1, notes: [], tasks: [], calculations: [], shortcuts: [], settings: { alwaysOnTop: true, launchAtStartup: false, reducedMotion: false, displayId: null, offsetX: 0, offsetY: 16, scale: 1, globalShortcut: "CommandOrControl+Shift+Space", workMinutes: 25, breakMinutes: 5, longBreakMinutes: 15, longBreakEvery: 4, sound: true, notifications: true, dimOnHover: true, companion: true, weatherCity: "" }, timer: { phase: "work", running: false, endAt: null, remainingMs: 25 * 60000, sessions: 0, completed: 0, lastCompletedAt: null } });
@@ -61,6 +61,10 @@ export function validateStore(input: unknown): Store {
     tasks: list(row.tasks, 10000).map(n => ({ id: text(n.id, 100), text: text(n.text, 2000), done: bool(n.done), priority: choice(n.priority, ["low", "medium", "high"]), due: text(n.due, 10), reminderAt: text(n.reminderAt, 30), notified: bool(n.notified), createdAt: number(n.createdAt, 0, 1e14) })),
     calculations: list(row.calculations, 200).map(n => ({ id: text(n.id, 100), expression: text(n.expression, 500), result: text(n.result, 100), at: number(n.at, 0, 1e14) })),
     shortcuts: list(row.shortcuts, 100).map(n => ({ id: text(n.id, 100), name: text(n.name, 100), target: text(n.target, 2000), kind: choice(n.kind, ["website", "app", "folder"]) })) };
+  if (row.timerReceipts !== undefined) {
+    if (!Array.isArray(row.timerReceipts) || row.timerReceipts.length > 10000) throw Error("Invalid timer receipts.");
+    result.timerReceipts = row.timerReceipts.map(id => text(id, 100));
+  }
   for (const key of ["notes", "tasks", "calculations", "shortcuts"] as const) if (new Set(result[key].map(item => item.id)).size !== result[key].length) throw Error("The backup contains duplicate item IDs.");
   if (result.timer.running && result.timer.endAt === null) throw Error("The backup timer is invalid.");
   return result;

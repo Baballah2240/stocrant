@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { emptyPocket, reduce, tickPocket, type Action, type PocketData } from "../../shared/actions";
+import { drainQueue, RequestError, type QueuedAction } from "../../shared/sync";
 import type { MediaState } from "../../shared/bridge";
 
 /** Running as the installed Android launcher (vs. the browser page the desktop serves). */
@@ -10,7 +11,7 @@ export type Status = "connecting" | "live" | "offline" | "unpaired" | "local";
 export interface Pairing { base: string; token: string; serverId?: string }
 
 const read = <T,>(key: string, fallback: T): T => { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; } };
-const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked */ } };
+const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 export const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, "0")).join("");
 
 export function loadPairing(): Pairing | null { return read<Pairing | null>("island-pairing", null); }
@@ -40,21 +41,40 @@ export function usePocket(pairing: Pairing | null, onMoved?: (next: Pairing) => 
   const web = !isLauncher, link = web ? webPairing() : pairing;
   const [state, setState] = useState<State | null>(() => web ? null : { ...read<PocketData>("island-pocket", emptyPocket()), media: { active: false }, serverTime: Date.now() });
   const [status, setStatus] = useState<Status>(link ? "connecting" : web ? "unpaired" : "local");
-  const queue = useRef<Action[]>(web ? [] : read<Action[]>("island-queue", [])), skew = useRef(0), busy = useRef(false), lastSearch = useRef(0);
+  const [syncError, setSyncError] = useState("");
+  const [initialQueue] = useState(() => web ? [] : read<QueuedAction[]>("island-queue", []).map(action => ({ ...action, requestId: action.requestId || newId() })));
+  const queue = useRef<QueuedAction[]>(initialQueue), skew = useRef(0), busy = useRef(false), lastSearch = useRef(0);
   const stateRef = useRef(state); stateRef.current = state;
 
-  const keep = (next: State) => { setState(next); if (!web) write("island-pocket", { notes: next.notes, tasks: next.tasks, calculations: next.calculations, timer: next.timer, settings: next.settings }); };
+  const keep = (next: State) => { stateRef.current = next; setState(next); if (!web) write("island-pocket", { notes: next.notes, tasks: next.tasks, calculations: next.calculations, timer: next.timer, settings: next.settings }); };
+  const persistQueue = () => {
+    if (!write("island-queue", queue.current)) {
+      setSyncError("Phone storage is full. Keep the app open and free storage to save your pending edits.");
+      throw Error("Could not save pending edits");
+    }
+  };
   const request = async (path: string, init?: RequestInit) => {
     const response = await fetch(link!.base + path, { ...init, headers: { "content-type": "application/json", authorization: `Bearer ${link!.token}`, ...(init?.headers || {}) } });
     if (response.status === 401) { setStatus("unpaired"); throw Error("This phone was signed out. Pair it again from Island Desk on your computer."); }
-    const body = await response.json(); if (!response.ok) throw Error(body.error || "That didn't save."); return body as State;
+    const body = await response.json(); if (!response.ok) throw new RequestError(body.error || "That didn't save.", response.status); return body as State;
   };
   /** Send queued changes in order, then adopt the computer's copy. Stops quietly when offline. */
   const sync = async () => {
     if (!link || busy.current) return; busy.current = true;
     try {
-      while (queue.current.length) { await request("api/action", { method: "POST", body: JSON.stringify(queue.current[0]) }); queue.current.shift(); write("island-queue", queue.current); }
-      const next = await request("api/state"); skew.current = next.serverTime - Date.now(); keep(next); setStatus("live");
+      persistQueue();
+      await drainQueue(queue.current,
+        action => request("api/action", { method: "POST", body: JSON.stringify(action) }),
+        persistQueue,
+        (action, error) => {
+          const rejected = read<unknown[]>("island-rejected", []);
+          if (!write("island-rejected", [...rejected, { action, error: error.message, at: Date.now() }])) {
+            setSyncError("Phone storage is full. The rejected edit remains queued; free storage to resume syncing.");
+            throw Error("Could not preserve rejected edit");
+          }
+          setSyncError("An edit could not sync: " + error.message + " It was kept on this phone for recovery.");
+        });
+      const next = await request("api/state"); skew.current = next.serverTime - Date.now(); if (queue.current.length) return; keep(next); setStatus("live");
       if (next.serverId && link && link.serverId !== next.serverId) onMoved?.({ ...link, serverId: next.serverId });
     } catch (error) {
       if ((error as Error).message.includes("signed out")) throw error;
@@ -101,19 +121,20 @@ export function usePocket(pairing: Pairing | null, onMoved?: (next: Pairing) => 
     if (web) { setState(await request("api/action", { method: "POST", body: JSON.stringify(action) })); return; }
     const current = stateRef.current!; const stamped = withIds(action);
     keep({ ...current, ...reduce(current, stamped, Date.now(), newId) });
-    if (link) { queue.current.push(stamped); write("island-queue", queue.current); await sync(); }
+    if (link) { queue.current.push(stamped); persistQueue(); await sync(); }
   }
   /** When a phone that has been used on its own pairs for the first time, upload what it already has. */
   function adoptLocalData() {
     const current = stateRef.current; if (!current) return;
-    for (const note of current.notes) queue.current.push({ type: "note-save", note });
-    for (const task of current.tasks) queue.current.push({ type: "task-save", task });
+    for (const note of current.notes) queue.current.push(withIds({ type: "note-save", note }));
+    for (const task of current.tasks) queue.current.push(withIds({ type: "task-save", task }));
     write("island-queue", queue.current);
   }
-  return { state, status, run, skew, adoptLocalData };
+  return { state, status, run, skew, adoptLocalData, syncError };
 }
 /** New items get their id on the phone, so a queued change and its later edits refer to the same item. */
-function withIds(action: Action): Action {
+function withIds(input: Action): QueuedAction {
+  const action: QueuedAction = { ...input, requestId: newId() };
   if (action.type === "note-save" && !action.note.id) return { ...action, note: { ...action.note, id: newId() } };
   if (action.type === "task-save" && !action.task.id) return { ...action, task: { ...action.task, id: newId() } };
   if (action.type === "calc-add" && !action.id) return { ...action, id: newId() };

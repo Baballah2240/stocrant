@@ -7,8 +7,9 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createSocket, type Socket } from "node:dgram";
 import QRCode from "qrcode";
+import type { QueuedAction } from "../shared/sync.js";
 import type { Store } from "../shared/model.js";
-import { reduce, type Action, type PocketData } from "../shared/actions.js";
+import { reduce, type PocketData } from "../shared/actions.js";
 import type { CompanionInfo, MediaState, PhoneItem } from "../shared/bridge.js";
 
 /**
@@ -24,7 +25,7 @@ export interface CompanionHost {
   media(): MediaState;
   /** Apply a validated change to notes/tasks/calculations, persist it, and notify every window. */
   change(patch: Partial<Pick<Store, "notes" | "tasks" | "calculations">>): void;
-  timer(action: "toggle" | "reset" | "skip" | "work" | "break"): void;
+  timer(action: "toggle" | "reset" | "skip" | "work" | "break", requestId?: string): void;
   mediaCommand(command: "toggle" | "next" | "previous"): void;
   /** A phone on the Wi-Fi asks to pair; resolves true if the person at the computer allows it. */
   askPair(device: string): Promise<boolean>;
@@ -157,18 +158,18 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       return send(response, 200, state());
     }
     send(response, 404, { error: "Not found" });
-  } catch (error) { send(response, 400, { error: (error as Error).message || "That change couldn't be saved." }); }
+  } catch (error) { send(response, (error as NodeJS.ErrnoException).code ? 500 : 400, { error: (error as Error).message || "That change couldn't be saved." }); }
 }
 
 const uid = () => randomBytes(12).toString("hex");
-function apply(action: Action | { type: "phone-notifications"; device?: string; items?: unknown[] }) {
+function apply(action: QueuedAction | { type: "phone-notifications"; device?: string; items?: unknown[] }) {
   if (action?.type === "phone-notifications") {
     const items = (Array.isArray(action.items) ? action.items : []).slice(0, 20).map((raw): PhoneItem => { const item = (raw || {}) as Record<string, unknown>; const icon = String(item.icon || "");
       return { key: String(item.key || "").slice(0, 200), app: String(item.app || "").slice(0, 60), title: String(item.title || "").slice(0, 200), text: String(item.text || "").slice(0, 500), time: Number(item.time) || Date.now(), icon: /^data:image\/png;base64,[A-Za-z0-9+/=]{1,40000}$/.test(icon) ? icon : "" }; }).filter(item => item.key);
     return host!.phoneNotifications(String(action.device || "Phone").slice(0, 60), items);
   }
   const store = host!.store(), now = Date.now();
-  if (action?.type === "timer") { reduce({ ...pocket(store) }, action, now, uid); return host!.timer(action.action); }
+  if (action?.type === "timer") { reduce({ ...pocket(store) }, action, now, uid); if (action.requestId !== undefined && (typeof action.requestId !== "string" || !/^[A-Za-z0-9_-]{6,100}$/.test(action.requestId))) throw Error("Invalid request ID."); return host!.timer(action.action, action.requestId); }
   if (action?.type === "media") { if (!["toggle", "next", "previous"].includes(action.command)) throw Error("Unknown media command."); return host!.mediaCommand(action.command); }
   const next = reduce(pocket(store), action, now, uid);
   host!.change({ notes: next.notes, tasks: next.tasks, calculations: next.calculations });

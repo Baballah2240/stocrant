@@ -3,6 +3,8 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFil
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advanceTimer, defaults, duration, insideRoundedRect, timerAction, validateStore, type Store, type Settings, type Mode, type Shortcut, type Snapshot } from "../shared/model.js";
+import { applyPhoneTimer } from "../shared/sync.js";
+import { fitSticky } from "../shared/bounds.js";
 import { startCompanion, stopCompanion, companionChanged, companionInfo, resetToken } from "./companion.js";
 import { watchStats, stopStats } from "./stats.js";
 import { fetchWeather } from "./weather.js";
@@ -153,7 +155,10 @@ function installIpc() {
     if (confirmation.response !== 1) return false;
     flush(); copyFileSync(dataFile, dataFile + ".before-import-" + Date.now());
     imported.settings = { ...imported.settings, displayId: store.settings.displayId, offsetX: store.settings.offsetX, offsetY: store.settings.offsetY, scale: store.settings.scale, globalShortcut: store.settings.globalShortcut, launchAtStartup: store.settings.launchAtStartup };
-    store = imported; position(); syncStickies(); save(true); trayMenu(); emit({ type: "replace", snapshot: snapshot() }); tick(); return true;
+    if (imported.settings.companion) await startCompanion(companionHost); else stopCompanion();
+    store = imported; position(); repositionStickies(); syncStickies();
+    for (const sticky of stickies.values()) sticky.setAlwaysOnTop(store.settings.alwaysOnTop);
+    void refreshWeather(true); save(true); trayMenu(); emit({ type: "replace", snapshot: snapshot() }); tick(); return true;
   }));
   handle("pick", kind => withDialog(async () => {
     if (kind !== "app" && kind !== "folder") throw Error("Choose an app or folder.");
@@ -189,11 +194,10 @@ function installIpc() {
 }
 function openSticky(id: string) {
   const note = store.notes.find(item => item.id === id); if (!note?.sticky) return;
-  const existing = stickies.get(id); if (existing && !existing.isDestroyed()) { existing.setBounds(note.sticky); existing.showInactive(); return; }
-  const area = screen.getDisplayMatching(note.sticky).workArea, b = note.sticky;
-  // Keep a note reachable if the monitor it lived on was unplugged.
-  const visible = b.x + 60 > area.x && b.x < area.x + area.width - 60 && b.y >= area.y - 10 && b.y < area.y + area.height - 40;
-  const bounds = visible ? b : { ...b, x: area.x + area.width - b.width - 40, y: area.y + 100 };
+  const area = screen.getDisplayMatching(note.sticky).workArea;
+  const bounds = fitSticky(note.sticky, area);
+  note.sticky = bounds;
+  const existing = stickies.get(id); if (existing && !existing.isDestroyed()) { existing.setBounds(bounds); existing.showInactive(); return; }
   const sticky = new BrowserWindow({ ...bounds, minWidth: 180, minHeight: 140, frame: false, transparent: true, backgroundColor: "#00000000", hasShadow: false, resizable: true, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: store.settings.alwaysOnTop, show: false, title: "Island Desk note", webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true, devTools: !app.isPackaged } });
   stickies.set(id, sticky);
   sticky.webContents.setWindowOpenHandler(() => ({ action: "deny" })); sticky.webContents.on("will-navigate", event => event.preventDefault());
@@ -210,6 +214,15 @@ function syncStickies() {
   for (const [id, sticky] of stickies) if (!store.notes.some(note => note.id === id && note.sticky)) { stickies.delete(id); if (!sticky.isDestroyed()) sticky.destroy(); }
   for (const note of store.notes) if (note.sticky && !stickies.has(note.id)) openSticky(note.id);
 }
+function repositionStickies() {
+  for (const note of store.notes) {
+    if (!note.sticky) continue;
+    note.sticky = fitSticky(note.sticky, screen.getDisplayMatching(note.sticky).workArea);
+    const sticky = stickies.get(note.id);
+    if (sticky && !sticky.isDestroyed()) sticky.setBounds(note.sticky);
+  }
+  save();
+}
 // Reading brightness from Windows takes ~1s, so keep a cached copy the preview can show instantly.
 let displayState: { brightness: number | null; nightLight: boolean | null } = { brightness: null, nightLight: null };
 async function refreshDisplay() { const [brightness, nightLight] = await Promise.all([getBrightness(), getNightLight()]); displayState = { brightness, nightLight }; }
@@ -218,7 +231,7 @@ const companionHost = {
   store: () => store,
   media: () => media,
   change(patch: Partial<Pick<Store, "notes" | "tasks" | "calculations">>) { store = validateStore({ ...store, ...patch }); save(); syncStickies(); emit({ type: "replace", snapshot: snapshot() }); },
-  timer(action: "toggle" | "reset" | "skip" | "work" | "break") { advanceTimer(store); timerAction(store, action); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); },
+  timer(action: "toggle" | "reset" | "skip" | "work" | "break", requestId?: string) { applyPhoneTimer(store, action, requestId); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); },
   mediaCommand: (command: "toggle" | "next" | "previous") => mediaCommand(command),
   async askPair(device: string) {
     if (testing) { emit({ type: "activity", activity: { kind: "connected", title: "Phone connected", text: device } }); return true; }
@@ -259,7 +272,9 @@ function createWindow() {
   if (devUrl === "http://127.0.0.1:5178") void window.loadURL(devUrl); else void window.loadFile(join(here, "../../dist/index.html"));
   // Native cursor polling tests the live animated rounded rectangle, not the transparent canvas.
   hitTimer = setInterval(() => {
-    if (window.isDestroyed() || !window.isVisible()) return;
+    if (window.isDestroyed() || !window.isVisible()) {
+      dimWanted = false; dimShown = false; spotlight(false, [], store.settings.reducedMotion); return;
+    }
     const point = screen.getCursorScreenPoint(), bounds = window.getBounds();
     const inside = insideRoundedRect(point.x - bounds.x, point.y - bounds.y, rect);
     if (ignoring === inside) { ignoring = !inside; window.setIgnoreMouseEvents(ignoring, { forward: true }); }
@@ -290,7 +305,7 @@ else {
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }
-    screen.on("display-added", () => { resetOverlays(); position(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-removed", () => { resetOverlays(); position(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-metrics-changed", position);
+    screen.on("display-added", () => { resetOverlays(); position(); repositionStickies(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-removed", () => { resetOverlays(); position(); repositionStickies(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-metrics-changed", () => { resetOverlays(); position(); repositionStickies(); });
     powerMonitor.on("resume", tick); trayTimer = setInterval(tick, 1000); tick();
     app.on("second-instance", () => { window.setFocusable(true); setMode("expanded"); });
     if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, () => { quitting = true; app.quit(); }));
