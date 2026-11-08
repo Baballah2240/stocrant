@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0 (2026-11-08)
+
+**New**
+- The island hangs from the top edge of the screen like a notch, with curved corners that blend into the edge.
+- Pages in the hover island, switched with the mouse wheel or the dots: Music, Today and Hardware monitor.
+- Music player tinted with the album art colour: app badge, title, artist and album, wave bars, progress with time remaining, round accent buttons.
+- Hardware monitor: CPU, RAM, GPU, disk and network up/down, measured only while the page is open.
+- Compact pill shows time, weather and a status dot (green when your phone is connected). Weather from Open-Meteo; set the city in Settings.
+
 ## 0.7.0 (2026-11-08)
 
 **New**

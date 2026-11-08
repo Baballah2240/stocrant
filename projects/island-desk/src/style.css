@@ -72,3 +72,90 @@ body.sticky-window{overflow:hidden}
 .phone-row img,.phone-dot{width:20px;height:20px;border-radius:6px}.phone-dot{background:#26262b}
 .phone-row b{font-weight:600;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}.phone-row span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .island.preview:has(.with-phone){height:310px}.island.preview:has(.with-phone.with-media){height:390px}
+
+/* ───── Music player, tinted by the album art ───── */
+.now-playing{--accent:188,232,200;grid-column:1/-1;display:grid;gap:10px;grid-template-columns:none;padding:14px 16px 12px;border-radius:22px;position:relative;overflow:hidden;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(var(--accent),.30),transparent 60%),linear-gradient(160deg,rgba(var(--accent),.14),#0c0c0f 70%);border:1px solid rgba(var(--accent),.22);box-shadow:inset 0 1px 0 #ffffff0d}
+.np-top{display:flex;align-items:center;gap:14px;min-width:0}
+.np-cover{position:relative;flex:none}
+.np-cover img,.np-cover .np-art{width:58px;height:58px;border-radius:14px;object-fit:cover;display:block;box-shadow:0 6px 18px rgba(var(--accent),.28),0 2px 6px #0008}
+.np-badge{position:absolute;right:-4px;bottom:-4px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#111;box-shadow:0 0 0 2px #0c0c0f}
+.np-info{flex:1;min-width:0;display:grid;gap:1px}
+.np-info strong{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.np-info span{font-size:12px;color:#c4c4cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.np-info small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.np-wave{display:flex;align-items:center;gap:2.5px;height:18px;flex:none}
+.np-wave i{width:3px;height:4px;border-radius:2px;background:rgb(var(--accent))}
+.np-wave.on i{animation:np-wave 1s ease-in-out infinite alternate}
+.np-wave.on i:nth-child(2){animation-delay:-.7s}.np-wave.on i:nth-child(3){animation-delay:-.35s}.np-wave.on i:nth-child(4){animation-delay:-.9s}.np-wave.on i:nth-child(5){animation-delay:-.2s}.np-wave.on i:nth-child(6){animation-delay:-.55s}.np-wave.on i:nth-child(7){animation-delay:-.8s}
+@keyframes np-wave{0%{height:4px}100%{height:18px}}
+.np-progress{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;margin-top:2px}
+.np-progress small{font-size:10.5px;color:#b4b4bc;font-variant-numeric:tabular-nums}
+.np-progress i{position:relative;height:4px;border-radius:2px;background:#ffffff1f}
+.np-progress b{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:rgb(var(--accent));transition:width .7s linear}
+.np-progress em{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(var(--accent),.35);transition:left .7s linear}
+.np-controls{display:flex;justify-content:center;align-items:center;gap:16px}
+.np-controls button{width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(var(--accent),.16);color:rgb(var(--accent));transition:background .2s,transform .15s}
+.np-controls button:hover:not(:disabled){background:rgba(var(--accent),.26)}.np-controls button:active:not(:disabled){transform:scale(.9)}
+.np-controls .np-play{width:46px;height:46px;background:rgba(var(--accent),.24);color:rgb(var(--accent))}
+.np-controls .np-play:hover:not(:disabled){background:rgba(var(--accent),.34)}
+.np-controls button:disabled{opacity:.35}
+.island.preview:has(.with-media){height:336px}.island.preview:has(.with-phone.with-media){height:420px}
+/* The live "now playing" announcement uses the same accent wave. */
+.live-music .signal.music i{background:#f5a8c8}
+
+/* ───── Compact pill: time | weather | status ───── */
+.pill-idle{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;font-size:12px;color:#e9e9ee}
+.pill-idle b{font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.pill-sep{width:1px;height:14px;background:#33333a}
+.pill-weather{display:inline-flex;align-items:center;gap:5px;font-weight:600}.pill-weather svg{color:#4cc2ff}
+.pill-dot{width:7px;height:7px;border-radius:50%;background:#3a3a42;margin-left:2px}.pill-dot.on{background:#34d27b;box-shadow:0 0 6px #34d27b88}
+/* ───── Paged preview ───── */
+.page-dots{position:absolute;right:9px;top:50%;transform:translateY(-50%);display:grid;gap:5px;z-index:2}
+.page-dots button{width:5px;height:5px;padding:0;border:0;border-radius:3px;background:#55555e;transition:height .3s var(--spring),background .2s}
+.page-dots button.on{height:14px;background:#fff}
+.preview-body.page-music,.preview-body.page-system{display:block;padding:8px 22px 14px 16px}
+.island.preview:has(.page-music){width:440px;height:252px;border-radius:40px}
+.island.preview:has(.page-system){width:460px;height:282px;border-radius:40px}
+.page-music .now-playing{background:radial-gradient(120% 160% at 0% 0%,rgba(var(--accent),.32),transparent 62%),transparent;border:0;box-shadow:none;padding:6px 4px 0}
+.preview-weather{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:-4px}.preview-weather svg{color:#4cc2ff}.preview-weather b{color:var(--text);font-size:14px}
+.page-today{padding-right:26px}
+/* ───── Hardware monitor ───── */
+.hw h4{margin:2px 0 10px;font-size:13px;font-weight:650}
+.hw-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hw-tile{--hw:#4cc2ff;display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border-radius:14px;background:#17171b;border:1px solid #222228}
+.hw-tile>svg{color:var(--hw);margin-top:2px;flex:none}
+.hw-tile span{flex:1;min-width:0;display:grid;gap:2px}
+.hw-tile small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.hw-tile b{font-size:14px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hw-tile i{height:3px;border-radius:2px;background:#2a2a31;margin-top:4px;overflow:hidden}.hw-tile em{display:block;height:100%;border-radius:2px;background:var(--hw);transition:width .8s ease}
+.setting-text{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0}.setting-text>span{display:grid;gap:3px}.setting-text small{color:var(--muted);font-size:11.5px}
+.setting-text input{width:160px;height:34px;padding:0 12px;border-radius:10px;background:#141417;border:1px solid #26262c;color:var(--text)}
+/* Music and hardware pages use the whole island: hide the small pill header there. */
+.island.preview:has(.page-music) .compact-face,.island.preview:has(.page-system) .compact-face{opacity:0;pointer-events:none}
+.preview-body.page-music,.preview-body.page-system{top:12px}
+.island.preview:has(.page-music){height:216px}
+.island.preview:has(.page-system){height:262px}
+.island.preview:has(.page-today){height:236px}.island.preview:has(.page-today.with-phone){height:320px}
+.hw h4{margin:2px 0 8px}
+.hw-grid{gap:6px}
+.hw-tile{padding:7px 11px;border-radius:12px;align-items:center}
+.hw-tile b{font-size:13px}
+.hw-tile i{margin-top:3px}
+
+/* ───── Attached to the top edge, like a notch ───── */
+.canvas{padding-top:0}
+.island-wrap{position:relative;flex-shrink:0;pointer-events:none;align-self:flex-start;transform:scale(var(--scale));transform-origin:center top}
+.island-wrap .island{transform:none;border-top:0;border-top-left-radius:0!important;border-top-right-radius:0!important}
+.island.compact{border-radius:0 0 18px 18px}
+.island.compact.live{border-radius:0 0 26px 26px}
+.island.preview{border-radius:0 0 34px 34px}
+.island.preview:has(.page-music),.island.preview:has(.page-system){border-radius:0 0 38px 38px}
+.island.expanded{border-radius:0 0 30px 30px}
+/* Concave corners that blend the island into the screen edge. */
+.ear{position:absolute;top:0;width:14px;height:14px;z-index:1;pointer-events:none}
+.ear.left{left:-14px;background:radial-gradient(circle at 0 100%,transparent 13.5px,#09090b 14px)}
+.ear.right{right:-14px;background:radial-gradient(circle at 100% 100%,transparent 13.5px,#09090b 14px)}
+/* Lose the drop shadow's top edge so it reads as part of the screen. */
+.island-wrap .island{box-shadow:0 14px 34px #0006,0 2px 6px #0003}
+button.preview-weather{background:none;border:0;padding:0;cursor:pointer;color:var(--muted)}button.preview-weather:hover span{color:var(--text);text-decoration:underline}

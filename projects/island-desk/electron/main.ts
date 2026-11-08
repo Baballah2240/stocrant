@@ -4,10 +4,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advanceTimer, defaults, duration, insideRoundedRect, timerAction, validateStore, type Store, type Settings, type Mode, type Shortcut, type Snapshot } from "../shared/model.js";
 import { startCompanion, stopCompanion, companionChanged, companionInfo, resetToken } from "./companion.js";
+import { watchStats, stopStats } from "./stats.js";
+import { fetchWeather } from "./weather.js";
 import { startMedia, stopMedia, mediaCommand, media } from "./media.js";
 import { spotlight, resetOverlays, prepareOverlays } from "./dim.js";
 import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
-import type { ContentPatch, DesktopEvent, PhoneFeed, PhoneItem } from "../shared/bridge.js";
+import type { ContentPatch, DesktopEvent, PhoneFeed, PhoneItem, Weather } from "../shared/bridge.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const testing = Boolean(process.env.ISLAND_DESK_TEST_DIR);
@@ -48,7 +50,7 @@ function snapshot(): Snapshot {
 }
 function position() {
   const display = screen.getAllDisplays().find(display => display.id === store.settings.displayId) || screen.getPrimaryDisplay();
-  const area = display.workArea, width = Math.min(1100, area.width), y = area.y + Math.min(store.settings.offsetY, Math.max(0, area.height - 360));
+  const area = display.workArea, width = Math.min(1100, area.width), y = area.y; // The island hangs from the top edge like a notch; offsets move it sideways only.
   const x = Math.round(Math.max(area.x, Math.min(area.x + area.width - width, area.x + (area.width - width) / 2 + store.settings.offsetX)));
   window.setBounds({ x, y, width, height: Math.min(820, area.y + area.height - y) });
   window.setAlwaysOnTop(store.settings.alwaysOnTop, "floating");
@@ -133,6 +135,7 @@ function installIpc() {
     const oldDuration = duration(store.timer.phase, store.settings);
     store.settings = next;
     if (!store.timer.running && store.timer.remainingMs === oldDuration) store.timer.remainingMs = duration(store.timer.phase, next);
+    if (next.weatherCity !== weatherCity) setTimeout(() => void refreshWeather(true), 0);
     position(); for (const s of stickies.values()) if (!s.isDestroyed()) s.setAlwaysOnTop(next.alwaysOnTop); save(true); trayMenu(); emit({ type: "timer", timer: store.timer }); return next;
   });
   handle("timer", action => { if (!["toggle", "reset", "skip", "work", "break"].includes(action)) throw Error("Invalid timer action."); advanceTimer(store); timerAction(store, action); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); return store.timer; });
@@ -167,6 +170,8 @@ function installIpc() {
   handle("companion-reset", () => { resetToken(); return companionInfo(); });
   handle("media-get", () => media);
   handle("phone-get", () => phoneFeed);
+  handle("weather-get", () => weather);
+  ipcMain.on("stats-watch", (event, on) => { trust(event); watchStats(on === true, stats => emit({ type: "stats", stats })); });
   handle("media-command", (command: string) => mediaCommand(command));
   handle("display-get", () => displayState);
   handle("display-set", async (patch: { brightness?: unknown; nightLight?: unknown }) => {
@@ -230,6 +235,14 @@ const companionHost = {
     for (const item of fresh.slice(0, 2)) emit({ type: "activity", activity: { kind: "phone", title: item.title || item.app, text: item.text || item.app, icon: item.icon } });
   },
 };
+// Weather refreshes every 20 minutes, and right away when the city setting changes.
+let weather: Weather | null = null, weatherCity: string | null = null;
+async function refreshWeather(force = false) {
+  if (!force && weather && weatherCity === store.settings.weatherCity && Date.now() - weather.at < 20 * 60000) return;
+  weatherCity = store.settings.weatherCity;
+  try { weather = await fetchWeather(store.settings.weatherCity); } catch { /* offline: keep the last reading */ }
+  emit({ type: "weather", weather });
+}
 let phoneFeed: PhoneFeed = { connected: false, device: "", items: [], at: 0 };
 // The phone reports every ~20 s while connected; after a minute of silence treat it as gone.
 setInterval(() => { if (phoneFeed.connected && Date.now() - phoneFeed.at > 75000) { phoneFeed = { ...phoneFeed, connected: false, items: [] }; emit({ type: "phone", phone: phoneFeed }); } }, 15000);
@@ -266,6 +279,7 @@ if (!app.requestSingleInstanceLock() && !testing) app.quit();
 else {
   app.whenReady().then(() => {
     readData(); createWindow(); installIpc(); syncStickies(); setTimeout(prepareOverlays, 1500); let lastTrack = "";
+    void refreshWeather(); setInterval(() => void refreshWeather(), 5 * 60000);
     startMedia(state => {
       emit({ type: "media", media: state });
       const track = state.active ? `${state.title}|${state.artist}` : "";
@@ -282,5 +296,5 @@ else {
     if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, () => { quitting = true; app.quit(); }));
   }).catch(error => { dialog.showErrorBox("Island Desk could not start", String(error)); app.quit(); });
 }
-app.on("before-quit", () => { quitting = true; stopCompanion(); stopMedia(); resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
+app.on("before-quit", () => { quitting = true; stopStats(); stopCompanion(); stopMedia(); resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });
 app.on("window-all-closed", () => { if (quitting) app.quit(); });

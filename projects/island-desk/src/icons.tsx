@@ -1,4 +1,4 @@
-export type IconName = "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings" | "plus" | "search" | "pin" | "trash" | "arrow" | "check" | "play" | "pause" | "reset" | "skip" | "close" | "download" | "upload" | "folder" | "globe" | "sun" | "chevron" | "copy" | "moon" | "sticky" | "music" | "previous" | "alarm" | "grid";
+export type IconName = "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings" | "plus" | "search" | "pin" | "trash" | "arrow" | "check" | "play" | "pause" | "reset" | "skip" | "close" | "download" | "upload" | "folder" | "globe" | "sun" | "chevron" | "copy" | "moon" | "sticky" | "music" | "previous" | "alarm" | "grid" | "cloud" | "rain" | "storm" | "snow" | "fog" | "cpu" | "ram" | "gpu" | "disk" | "up" | "down";
 const paths: Record<IconName, React.ReactNode> = {
   notes: <><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5"/></>,
   tasks: <><rect x="3" y="4" width="18" height="17" rx="4"/><path d="m7 12 3 3 7-7"/></>,
@@ -14,6 +14,16 @@ const paths: Record<IconName, React.ReactNode> = {
   close: <path d="m6 6 12 12M6 18 18 6"/>, download: <><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></>, upload: <><path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5"/></>,
   folder: <path d="M3 7V5h7l2 3h9v12H3z"/>, globe: <><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c6 5 6 13 0 18-6-5-6-13 0-18"/></>,
   sun: <><circle cx="12" cy="12" r="4"/><path d="M12 1v2m0 18v2M1 12h2m18 0h2M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/></>,
+  cloud: <path d="M7 18h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 18z"/>,
+  rain: <><path d="M7 15h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 15z"/><path d="m9 18-1 3m5-3-1 3m5-3-1 3"/></>,
+  storm: <><path d="M7 15h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 15z"/><path d="m12.5 15-2 3.5h3l-2 3.5"/></>,
+  snow: <><path d="M7 15h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 15z"/><path d="M9 19h.01M12 21h.01M15 19h.01"/></>,
+  fog: <path d="M4 10h16M6 14h12M8 18h8"/>,
+  cpu: <><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3"/></>,
+  ram: <><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11v2m4-2v2m4-2v2M6 17v2m4-2v2m4-2v2m4-2v2"/></>,
+  gpu: <><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="14" cy="12" r="3"/><path d="M7 10h2m-2 4h2M3 20h4"/></>,
+  disk: <><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></>,
+  up: <path d="M12 19V5m-6 6 6-6 6 6"/>, down: <path d="M12 5v14m-6-6 6 6 6-6"/>,
   grid: <><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></>, alarm: <><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M4 5l3-2.5M20 5l-3-2.5M7 19.5 5.5 21M17 19.5l1.5 1.5"/></>, music: <><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></>, previous: <><path d="m19 5-11 7 11 7z"/><path d="M5 5v14"/></>, sticky: <><path d="M5 4h14v10l-6 6H5z"/><path d="M13 20v-6h6"/></>, moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>, chevron: <path d="m8 5 7 7-7 7"/>, copy: <><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V3H3v13h5"/></>,
 };
 export function Icon({ name, size = 18, ...props }: { name: IconName; size?: number } & React.SVGProps<SVGSVGElement>) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>; }

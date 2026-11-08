@@ -1,7 +1,7 @@
 {
   "name": "island-desk",
   "productName": "Island Desk",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "A quiet, offline workspace floating above your desktop.",
   "author": "Island Desk",
   "license": "MIT",
@@ -74,6 +74,10 @@
       {
         "from": "electron/media.ps1",
         "to": "media.ps1"
+      },
+      {
+        "from": "electron/stats.ps1",
+        "to": "stats.ps1"
       }
     ]
   }

@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "./icons";
 import { calculate } from "../shared/calculator";
 import { defaults, duration, localDate, remaining, timeText, type Mode, type Note, type Settings, type Shortcut, type Snapshot, type Store, type Tab, type Task } from "../shared/model";
-import type { Activity, CompanionInfo, ContentPatch, DisplayState, MediaState, PhoneFeed } from "../shared/bridge";
+import type { Activity, CompanionInfo, ContentPatch, DisplayState, MediaState, PhoneFeed, Stats, Weather } from "../shared/bridge";
 
 const tabs: { id: Tab; label: string; icon: IconName }[] = [{ id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" }, { id: "calculator", label: "Calculator", icon: "calculator" }, { id: "focus", label: "Focus", icon: "focus" }, { id: "tools", label: "Tools", icon: "tools" }, { id: "shortcuts", label: "Shortcuts", icon: "shortcuts" }];
 const uid = () => crypto.randomUUID();
 const api = window.island;
 function ping() { try { const context = new AudioContext(); const oscillator = context.createOscillator(), gain = context.createGain(); oscillator.connect(gain); gain.connect(context.destination); oscillator.frequency.value = 660; gain.gain.setValueAtTime(0.06, context.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.65); oscillator.start(); oscillator.stop(context.currentTime + 0.7); oscillator.onended = () => void context.close(); } catch { /* A muted device still receives the visual completion. */ } }
 export default function App() {
-  const [store, setStore] = useState<Store>(defaults), [snapshot, setSnapshot] = useState<Snapshot | null>(null), [mode, setMode] = useState<Mode>("compact"), [tab, setTab] = useState<Tab>("notes"), [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [saved, setSaved] = useState(true), [ready, setReady] = useState(false), [media, setMedia] = useState<MediaState>({ active: false }), [phone, setPhone] = useState<PhoneFeed>({ connected: false, device: "", items: [], at: 0 }), [activity, setActivity] = useState<Activity | null>(null);
+  const [store, setStore] = useState<Store>(defaults), [snapshot, setSnapshot] = useState<Snapshot | null>(null), [mode, setMode] = useState<Mode>("compact"), [tab, setTab] = useState<Tab>("notes"), [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [saved, setSaved] = useState(true), [ready, setReady] = useState(false), [media, setMedia] = useState<MediaState>({ active: false }), [phone, setPhone] = useState<PhoneFeed>({ connected: false, device: "", items: [], at: 0 }), [activity, setActivity] = useState<Activity | null>(null), [weather, setWeather] = useState<Weather | null>(null);
   const activityQueue = useRef<Activity[]>([]), activityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Live island: show one announcement at a time for a few seconds, then the next. */
   function announce(next: Activity) {
@@ -33,12 +33,14 @@ export default function App() {
       if (event.type === "saved") setSaved(true);
       if (event.type === "media") setMedia(event.media);
       if (event.type === "phone") setPhone(event.phone);
+      if (event.type === "weather") setWeather(event.weather);
       if (event.type === "activity") announce(event.activity);
       if (event.type === "error") { setSaved(false); message(event.message); }
     });
     void api.snapshot().then(data => { setSnapshot(data); setStore(data.store); setReady(true); }).catch(error => message(error.message));
     void api.media().then(setMedia).catch(() => undefined);
     void api.phone().then(setPhone).catch(() => undefined);
+    void api.weather().then(setWeather).catch(() => undefined);
     const clock = setInterval(() => setNow(Date.now()), 250);
     return () => { dispose(); clearInterval(clock); };
   }, []);
@@ -73,7 +75,7 @@ export default function App() {
   const focused = store.timer.running;
   const timerRequest = (action: "toggle" | "reset" | "skip" | "work" | "break") => { void api.timer(action).then(timer => setStore(current => ({ ...current, timer }))).catch(error => message(error.message)); };
   return <main className={`canvas ${store.settings.reducedMotion ? "reduce-motion" : ""}`} style={{ "--scale": store.settings.scale } as CSSProperties}>
-    <section ref={island} className={`island ${mode} ${activity && mode === "compact" ? `live live-${activity.kind}` : ""}`} aria-label="Island Desk" onMouseEnter={() => { if (modeRef.current === "compact") hover.current = setTimeout(() => { if (modeRef.current === "compact") api?.mode("preview"); }, 180); }} onMouseLeave={() => { if (hover.current) clearTimeout(hover.current); }}>
+    <div className={`island-wrap wrap-${mode}`}><i className="ear left" aria-hidden="true"/><i className="ear right" aria-hidden="true"/><section ref={island} className={`island ${mode} ${activity && mode === "compact" ? `live live-${activity.kind}` : ""}`} aria-label="Island Desk" onMouseEnter={() => { if (modeRef.current === "compact") hover.current = setTimeout(() => { if (modeRef.current === "compact") api?.mode("preview"); }, 180); }} onMouseLeave={() => { if (hover.current) clearTimeout(hover.current); }}>
       {activity && mode === "compact" && <div className="live-card" key={activity.title + activity.text} role="status" aria-live="polite">
         {activity.icon ? <img src={activity.icon} alt=""/> : <span className="live-icon"><Icon name={activity.kind === "music" ? "music" : activity.kind === "timer" ? "focus" : activity.kind === "reminder" ? "alarm" : activity.kind === "connected" ? "check" : "notes"} size={16}/></span>}
         <span className="live-text"><b>{activity.title}</b><small>{activity.text}</small></span>
@@ -81,9 +83,10 @@ export default function App() {
       </div>}
       <button className={`compact-face ${activity && mode === "compact" ? "hidden-face" : ""}`} aria-label="Expand Island Desk" onClick={() => api?.mode("expanded")} tabIndex={mode === "expanded" ? -1 : 0}>
         {!focused && media.active ? <>{media.art ? <img className="compact-art" src={media.art} alt=""/> : <span className="compact-art blank"><Icon name="music" size={13}/></span>}<span className="compact-label compact-track">{media.title}</span><span className={`signal music ${media.playing ? "active" : "paused"}`}><i/><i/><i/><i/></span></>
-          : <><span className={`signal ${focused ? "active" : ""}`}><i/><i/><i/><i/></span><span className="compact-label">{focused ? store.timer.phase === "work" ? "In the flow" : "Take a breather" : "Island Desk"}</span><span className="compact-right">{focused ? timeText(timerMs) : clockLabel}</span></>}
+          : focused ? <><span className="signal active"><i/><i/><i/><i/></span><span className="compact-label">{store.timer.phase === "work" ? "In the flow" : "Take a breather"}</span><span className="compact-right">{timeText(timerMs)}</span></>
+          : <span className="pill-idle"><b>{clockLabel}</b>{weather && <><i className="pill-sep"/><span className="pill-weather"><Icon name={weatherIcon(weather)} size={15}/>{weather.temp}°</span></>}<i className={`pill-dot ${phone.connected ? "on" : ""}`} title={phone.connected ? `${phone.device} connected` : "Island Desk"}/></span>}
       </button>
-      {mode === "preview" && <Preview phone={phone} media={media} now={now} clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
+      {mode === "preview" && <Preview onSettings={() => { setTab("settings"); api?.mode("expanded"); }} weather={weather} phone={phone} media={media} now={now} clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
       <div className="workspace" aria-hidden={mode !== "expanded"} inert={mode !== "expanded"}>
         <header className="topbar"><div className="brand"><span className="brand-mark"><i/><i/></span><strong>island<span>desk</span></strong><span className="version">{snapshot ? `V${snapshot.version}` : ""}</span></div><div className="top-actions"><span className="time">{clockLabel}</span><button className={`icon-btn ${tab === "settings" ? "selected" : ""}`} title="Settings" aria-label="Settings" onClick={() => setTab("settings")}><Icon name="settings"/></button><button className="icon-btn" title="Collapse · Esc" aria-label="Collapse island" onClick={() => api.mode("compact")}><Icon name="close"/></button></div></header>
         <div className="workspace-intro"><div><span className="eyebrow">{dateLabel}</span><h1>{tab === "settings" ? "Make yourself at home." : "A little room for your day."}</h1></div><span className="offline"><span/>Local. Private. Yours.</span></div>
@@ -100,7 +103,7 @@ export default function App() {
         <footer><span className={`save-status ${saved ? "" : "saving"}`}><span/>{saved ? "Saved on this device" : "Saving changes…"}</span><span>Less switching. More doing.<kbd>esc</kbd> to fold away</span></footer>
       </div>
       {toast && mode === "expanded" && <div className="toast" role="status"><span>{toast}</span><button className="icon-btn" aria-label="Dismiss message" onClick={() => setToast("")}><Icon name="close" size={14}/></button></div>}
-    </section>
+    </section></div>
   </main>;
 }
 function Empty({ icon, title, detail }: { icon: IconName; title: string; detail: string }) { return <div className="empty"><span className="empty-icon"><Icon name={icon} size={27}/></span><h2>{title}</h2><p>{detail}</p></div>; }
@@ -182,10 +185,10 @@ function Shortcuts({ items, onChange, message }: { items: Shortcut[]; onChange: 
 function Preferences({ settings, snapshot, update, message }: { settings: Settings; snapshot: Snapshot; update: (patch: Partial<Settings>) => Promise<boolean>; message: (text: string) => void }) {
   const [shortcut, setShortcut] = useState(settings.globalShortcut);
   const toggle = (field: "alwaysOnTop" | "dimOnHover" | "companion" | "reducedMotion" | "launchAtStartup" | "sound" | "notifications", label: string, description: string, disabled = false) => <label className={`setting-toggle ${disabled ? "disabled" : ""}`}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" role="switch" checked={settings[field]} disabled={disabled} onChange={event => void update({ [field]: event.target.checked })}/></label>;
-  return <div className="preferences"><div className="settings-grid"><section><span className="eyebrow">YOUR ISLAND, YOUR WAY</span><h2>Feel right at home.</h2>{toggle("alwaysOnTop", "Float above other windows", "A quiet presence, always within reach.")}<CompanionCard enabled={settings.companion} toggle={toggle("companion", "Phone companion", "Use your phone as a clock, notes, tasks and focus timer over your Wi-Fi.")} message={message}/>{toggle("dimOnHover", "Blur the background on hover", "Everything else softly goes out of focus while you use the island or a sticky note.")}{toggle("reducedMotion", "Gentler motion", "Skip spring transitions and animated details.")}{toggle("launchAtStartup", "Be here when I sign in", snapshot.startupSupported ? "Start Island Desk with Windows." : "Available after installing the Windows app.", !snapshot.startupSupported)}{toggle("sound", "A soft chime", "A little nudge when your session ends.")}{toggle("notifications", "Desktop reminders", "Task reminders and focus notifications.")}<div className="setting-field"><label htmlFor="global-shortcut">Global keyboard shortcut</label><div><input id="global-shortcut" value={shortcut} maxLength={100} onChange={event => setShortcut(event.target.value)}/><button onClick={() => void update({ globalShortcut: shortcut.trim() }).then(ok => { if (ok) message("Your new shortcut is ready."); })}>Apply</button></div><small>Example: Control+Alt+Space. A shortcut already in use stays unchanged.</small></div></section><section><span className="eyebrow">A PLACE ON YOUR DESKTOP</span><label className="setting-field">Display<select value={settings.displayId ?? "primary"} onChange={event => void update({ displayId: event.target.value === "primary" ? null : Number(event.target.value) })}><option value="primary">Follow primary display</option>{snapshot.displays.map(display => <option key={display.id} value={display.id}>{display.label} · {display.width} × {display.height}{display.primary ? " · primary" : ""}</option>)}</select></label><label className="setting-field">Island size <span>{Math.round(settings.scale * 100)}%</span><input type="range" aria-label="Island size" min="0.8" max="1.15" step="0.05" value={settings.scale} onChange={event => void update({ scale: Number(event.target.value) })}/></label><label className="setting-field">From top <span>{settings.offsetY}px</span><input type="range" aria-label="Vertical position" min="0" max="240" step="4" value={settings.offsetY} onChange={event => void update({ offsetY: Number(event.target.value) })}/></label><label className="setting-field">From center <span>{settings.offsetX}px</span><input type="range" aria-label="Horizontal position" min="-700" max="700" step="10" value={settings.offsetX} onChange={event => void update({ offsetX: Number(event.target.value) })}/></label><button className="text-btn" onClick={() => void update({ offsetX: 0, offsetY: 16, scale: 1, displayId: null })}><Icon name="reset" size={14}/>Back to center</button><div className="backup-card"><strong>Keep a little backup.</strong><p>Notes, tasks, history, shortcuts, and your settings. A file you own.</p><div><button onClick={() => void api.backupExport().then(ok => { if (ok) message("Backup exported."); }).catch(err => message(err.message))}><Icon name="download" size={15}/>Export</button><button onClick={() => void api.backupImport().then(ok => { if (ok) message("Backup restored."); }).catch(err => message(err.message))}><Icon name="upload" size={15}/>Import</button></div><button className="text-btn" onClick={() => void api.openData().catch(err => message(err.message))}><Icon name="folder" size={13}/>Open local data folder</button></div></section></div><div className="settings-bottom"><span>Island Desk {snapshot.version} · Offline by design. No account. No telemetry.</span><div><button className="text-btn" onClick={() => api.hide()}>Hide to tray</button><button className="text-btn danger" onClick={() => api.quit()}>Quit app</button></div></div></div>;
+  return <div className="preferences"><div className="settings-grid"><section><span className="eyebrow">YOUR ISLAND, YOUR WAY</span><h2>Feel right at home.</h2>{toggle("alwaysOnTop", "Float above other windows", "A quiet presence, always within reach.")}<label className="setting-text"><span><strong>Weather city</strong><small>Leave empty to use your time zone. Weather by Open-Meteo.</small></span><input placeholder="Automatic" defaultValue={settings.weatherCity} maxLength={80} onBlur={event => { if (event.target.value.trim() !== settings.weatherCity) void update({ weatherCity: event.target.value.trim() }); }} onKeyDown={event => { if (event.key === "Enter") (event.target as HTMLInputElement).blur(); }}/></label><CompanionCard enabled={settings.companion} toggle={toggle("companion", "Phone companion", "Use your phone as a clock, notes, tasks and focus timer over your Wi-Fi.")} message={message}/>{toggle("dimOnHover", "Blur the background on hover", "Everything else softly goes out of focus while you use the island or a sticky note.")}{toggle("reducedMotion", "Gentler motion", "Skip spring transitions and animated details.")}{toggle("launchAtStartup", "Be here when I sign in", snapshot.startupSupported ? "Start Island Desk with Windows." : "Available after installing the Windows app.", !snapshot.startupSupported)}{toggle("sound", "A soft chime", "A little nudge when your session ends.")}{toggle("notifications", "Desktop reminders", "Task reminders and focus notifications.")}<div className="setting-field"><label htmlFor="global-shortcut">Global keyboard shortcut</label><div><input id="global-shortcut" value={shortcut} maxLength={100} onChange={event => setShortcut(event.target.value)}/><button onClick={() => void update({ globalShortcut: shortcut.trim() }).then(ok => { if (ok) message("Your new shortcut is ready."); })}>Apply</button></div><small>Example: Control+Alt+Space. A shortcut already in use stays unchanged.</small></div></section><section><span className="eyebrow">A PLACE ON YOUR DESKTOP</span><label className="setting-field">Display<select value={settings.displayId ?? "primary"} onChange={event => void update({ displayId: event.target.value === "primary" ? null : Number(event.target.value) })}><option value="primary">Follow primary display</option>{snapshot.displays.map(display => <option key={display.id} value={display.id}>{display.label} · {display.width} × {display.height}{display.primary ? " · primary" : ""}</option>)}</select></label><label className="setting-field">Island size <span>{Math.round(settings.scale * 100)}%</span><input type="range" aria-label="Island size" min="0.8" max="1.15" step="0.05" value={settings.scale} onChange={event => void update({ scale: Number(event.target.value) })}/></label><label className="setting-field">From top <span>{settings.offsetY}px</span><input type="range" aria-label="Vertical position" min="0" max="240" step="4" value={settings.offsetY} onChange={event => void update({ offsetY: Number(event.target.value) })}/></label><label className="setting-field">From center <span>{settings.offsetX}px</span><input type="range" aria-label="Horizontal position" min="-700" max="700" step="10" value={settings.offsetX} onChange={event => void update({ offsetX: Number(event.target.value) })}/></label><button className="text-btn" onClick={() => void update({ offsetX: 0, offsetY: 16, scale: 1, displayId: null })}><Icon name="reset" size={14}/>Back to center</button><div className="backup-card"><strong>Keep a little backup.</strong><p>Notes, tasks, history, shortcuts, and your settings. A file you own.</p><div><button onClick={() => void api.backupExport().then(ok => { if (ok) message("Backup exported."); }).catch(err => message(err.message))}><Icon name="download" size={15}/>Export</button><button onClick={() => void api.backupImport().then(ok => { if (ok) message("Backup restored."); }).catch(err => message(err.message))}><Icon name="upload" size={15}/>Import</button></div><button className="text-btn" onClick={() => void api.openData().catch(err => message(err.message))}><Icon name="folder" size={13}/>Open local data folder</button></div></section></div><div className="settings-bottom"><span>Island Desk {snapshot.version} · Offline by design. No account. No telemetry.</span><div><button className="text-btn" onClick={() => api.hide()}>Hide to tray</button><button className="text-btn danger" onClick={() => api.quit()}>Quit app</button></div></div></div>;
 }
 const priorityRank = { high: 0, medium: 1, low: 2 } as const;
-function Preview({ phone, media, now, clock, date, tasks, focus, message, onOpen }: { phone: PhoneFeed; media: MediaState; now: number; clock: string; date: string; tasks: Task[]; focus: string; message: (text: string) => void; onOpen: () => void }) {
+function Preview({ onSettings, weather, phone, media, now, clock, date, tasks, focus, message, onOpen }: { onSettings: () => void; weather: Weather | null; phone: PhoneFeed; media: MediaState; now: number; clock: string; date: string; tasks: Task[]; focus: string; message: (text: string) => void; onOpen: () => void }) {
   const [display, setDisplay] = useState<DisplayState | null>(null), [level, setLevel] = useState<number | null>(null);
   const pending = tasks.filter(task => !task.done).sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999") || priorityRank[a.priority] - priorityRank[b.priority]);
   const today = localDate(), sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -199,8 +202,17 @@ function Preview({ phone, media, now, clock, date, tasks, focus, message, onOpen
     const next = !display.nightLight; setDisplay({ ...display, nightLight: next });
     void api.setDisplay({ nightLight: next }).then(setDisplay).catch(error => { setDisplay({ ...display }); message(error.message); });
   }
-  return <div className={`preview-body ${media.active ? "with-media" : ""} ${phone.connected && phone.items.length ? "with-phone" : ""}`}>
-    {media.active && <NowPlaying media={media} now={now} message={message}/>}
+  const pages = [...(media.active ? ["music"] : []), "today", "system"] as const;
+  const [page, setPage] = useState(0);
+  const current = pages[Math.min(page, pages.length - 1)];
+  const wheel = useRef(0);
+  const onWheel = (event: React.WheelEvent) => { if (Date.now() - wheel.current < 380 || Math.abs(event.deltaY) < 8) return; wheel.current = Date.now(); setPage(p => Math.max(0, Math.min(pages.length - 1, p + (event.deltaY > 0 ? 1 : -1)))); };
+  const dots = <div className="page-dots" role="tablist" aria-label="Island pages">{pages.map((name, index) => <button key={name} role="tab" aria-selected={current === name} aria-label={name} className={current === name ? "on" : ""} onClick={() => setPage(index)}/>)}</div>;
+  if (current === "music" && media.active) return <div className="preview-body page-music" onWheel={onWheel}><NowPlaying media={media} now={now} message={message}/>{dots}</div>;
+  if (current === "system") return <div className="preview-body page-system" onWheel={onWheel}><SystemMonitor/>{dots}</div>;
+  return <div className={`preview-body page-today ${phone.connected && phone.items.length ? "with-phone" : ""}`} onWheel={onWheel}>
+    {dots}
+    {weather && <button className="preview-weather" onClick={onSettings} title="Change the weather city"><Icon name={weatherIcon(weather)} size={18}/><b>{weather.temp}°</b><span>{weather.city}</span></button>}
     {phone.connected && phone.items.length > 0 && <div className="phone-feed"><span className="eyebrow">ON YOUR PHONE</span>{phone.items.slice(0, 3).map(item => <div className="phone-row" key={item.key}>{item.icon ? <img src={item.icon} alt=""/> : <span className="phone-dot"/>}<b>{item.title || item.app}</b><span>{item.text}</span></div>)}</div>}
     <div className="preview-clock"><strong>{clock}</strong><span>{date}</span>{focus && <em>{focus}</em>}</div>
     <button className="preview-tasks" onClick={onOpen} title="Open tasks">
@@ -216,20 +228,60 @@ function Preview({ phone, media, now, clock, date, tasks, focus, message, onOpen
 }
 
 const clockOf = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+/** Picks a vivid colour from the album art so the player can be tinted with it. */
+function useArtColor(art: string) {
+  const [color, setColor] = useState("188, 232, 200");
+  useEffect(() => {
+    if (!art) { setColor("188, 232, 200"); return; }
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const canvas = document.createElement("canvas"); canvas.width = canvas.height = 24;
+        const context = canvas.getContext("2d", { willReadFrequently: true })!; context.drawImage(image, 0, 0, 24, 24);
+        const pixels = context.getImageData(0, 0, 24, 24).data;
+        let best = { score: -1, r: 188, g: 232, b: 200 };
+        // Score each pixel by saturation and brightness; ignore near-black and near-white.
+        for (let i = 0; i < pixels.length; i += 4) {
+          const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2], max = Math.max(r, g, b), min = Math.min(r, g, b);
+          if (max < 60 || min > 225) continue;
+          const score = (max - min) / max * 0.75 + max / 255 * 0.25;
+          if (score > best.score) best = { score, r, g, b };
+        }
+        // Lift dark picks so the accent reads on black.
+        const lift = Math.max(1, 170 / Math.max(best.r, best.g, best.b));
+        setColor([best.r, best.g, best.b].map(v => Math.min(255, Math.round(v * lift))).join(", "));
+      } catch { setColor("188, 232, 200"); }
+    };
+    image.src = art;
+  }, [art]);
+  return color;
+}
+const appGlyph = (app: string): IconName => /chrome|edge|firefox|browser|opera|brave/i.test(app) ? "globe" : "music";
+
 function NowPlaying({ media, now, message }: { media: Extract<MediaState, { active: true }>; now: number; message: (text: string) => void }) {
+  const accent = useArtColor(media.art);
   const position = Math.min(media.durationMs || Infinity, media.positionMs + (media.playing ? Math.max(0, now - media.updatedAt) : 0));
+  const progress = media.durationMs > 0 ? Math.min(100, position / media.durationMs * 100) : 0;
   const send = (command: "toggle" | "next" | "previous") => void api.mediaCommand(command).catch(error => message(error.message));
-  return <div className="now-playing">
-    {media.art ? <img className="np-art" src={media.art} alt=""/> : <span className="np-art blank"><Icon name="music" size={22}/></span>}
-    <div className="np-info">
-      <strong title={media.title}>{media.title}</strong>
-      <span title={media.artist}>{media.artist || media.app}</span>
-      {media.durationMs > 0 && <div className="np-progress"><small>{clockOf(position)}</small><i><b style={{ width: `${Math.min(100, position / media.durationMs * 100)}%` }}/></i><small>{clockOf(media.durationMs)}</small></div>}
+  return <div className={`now-playing ${media.playing ? "is-playing" : ""}`} style={{ "--accent": accent } as CSSProperties}>
+    <div className="np-top">
+      <span className="np-cover">{media.art ? <img src={media.art} alt=""/> : <span className="np-art blank"><Icon name="music" size={22}/></span>}<i className="np-badge" title={media.app}><Icon name={appGlyph(media.app)} size={10}/></i></span>
+      <div className="np-info">
+        <strong title={media.title}>{media.title}</strong>
+        <span title={media.artist}>{media.artist || media.app}</span>
+        {media.album && <small title={media.album}>{media.album}</small>}
+      </div>
+      <span className={`np-wave ${media.playing ? "on" : ""}`} aria-hidden="true">{Array.from({ length: 7 }, (_, i) => <i key={i}/>)}</span>
     </div>
+    {media.durationMs > 0 && <div className="np-progress">
+      <small>{clockOf(position)}</small>
+      <i><b style={{ width: `${progress}%` }}/><em style={{ left: `${progress}%` }}/></i>
+      <small>-{clockOf(media.durationMs - position)}</small>
+    </div>}
     <div className="np-controls">
-      <button aria-label="Previous track" title="Previous" disabled={!media.canPrevious} onClick={() => send("previous")}><Icon name="previous" size={16}/></button>
-      <button className="np-play" aria-label={media.playing ? "Pause" : "Play"} title={media.playing ? "Pause" : "Play"} disabled={!media.canToggle} onClick={() => send("toggle")}><Icon name={media.playing ? "pause" : "play"} size={16}/></button>
-      <button aria-label="Next track" title="Next" disabled={!media.canNext} onClick={() => send("next")}><Icon name="skip" size={16}/></button>
+      <button aria-label="Previous track" title="Previous" disabled={!media.canPrevious} onClick={() => send("previous")}><Icon name="previous" size={15}/></button>
+      <button className="np-play" aria-label={media.playing ? "Pause" : "Play"} title={media.playing ? "Pause" : "Play"} disabled={!media.canToggle} onClick={() => send("toggle")}><Icon name={media.playing ? "pause" : "play"} size={17}/></button>
+      <button aria-label="Next track" title="Next" disabled={!media.canNext} onClick={() => send("next")}><Icon name="skip" size={15}/></button>
     </div>
   </div>;
 }
@@ -245,4 +297,39 @@ function CompanionCard({ enabled, toggle, message }: { enabled: boolean; toggle:
         <button className="text-btn" onClick={() => void api.companionReset().then(next => { setInfo(next); message("Paired phones were signed out. Scan the new code to reconnect."); })}>Sign out paired phones</button></div>
     </div> : <small className="micro">Connect this computer to Wi-Fi to pair a phone.</small>)}
   </div>;
+}
+
+/* ───────────── Weather + hardware widgets ───────────── */
+function weatherIcon(weather: Weather): IconName {
+  const c = weather.code;
+  if (c === 0 || c === 1) return weather.isDay ? "sun" : "moon";
+  if (c === 2 || c === 3) return "cloud";
+  if (c === 45 || c === 48) return "fog";
+  if (c >= 95) return "storm";
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return "snow";
+  return "rain";
+}
+const bytes = (value: number) => value >= 1e9 ? `${(value / 1073741824).toFixed(1)} GB` : `${(value / 1048576).toFixed(0)} MB`;
+const speed = (bytesPerSecond: number | null) => { if (bytesPerSecond == null) return "—"; const bits = bytesPerSecond * 8; return bits >= 1e6 ? `${(bits / 1e6).toFixed(1)} Mbps` : `${Math.round(bits / 1e3)} Kbps`; };
+
+/** Live CPU, memory, GPU, disk and network. Only measures while this page is showing. */
+function SystemMonitor() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  useEffect(() => {
+    const dispose = api.onEvent(event => { if (event.type === "stats") setStats(event.stats); });
+    api.watchStats(true);
+    return () => { api.watchStats(false); dispose(); };
+  }, []);
+  const tile = (icon: IconName, label: string, value: string, percent: number | null, color: string) => <div className="hw-tile" style={{ "--hw": color } as CSSProperties}>
+    <Icon name={icon} size={17}/><span><small>{label}</small><b>{value}</b>{percent != null && <i><em style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}/></i>}</span></div>;
+  if (!stats) return <div className="hw"><h4>Hardware monitor</h4><p className="micro">Measuring…</p></div>;
+  const ram = stats.ramUsed / stats.ramTotal * 100;
+  return <div className="hw"><h4>Hardware monitor</h4><div className="hw-grid">
+    {tile("cpu", "CPU", `${stats.cpu}%`, stats.cpu, "#4cc2ff")}
+    {tile("up", "Net up", speed(stats.up), null, "#4cc2ff")}
+    {tile("ram", "RAM", `${bytes(stats.ramUsed)} / ${bytes(stats.ramTotal)}`, ram, "#f3b25e")}
+    {tile("down", "Net down", speed(stats.down), null, "#4cc2ff")}
+    {tile("gpu", "GPU", stats.gpu == null ? "—" : `${stats.gpu}%`, stats.gpu, "#ff6b6b")}
+    {tile("disk", "Disk", stats.disk == null ? "—" : `${stats.disk}%`, stats.disk, "#4cc2ff")}
+  </div></div>;
 }

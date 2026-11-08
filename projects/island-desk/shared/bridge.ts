@@ -1,7 +1,9 @@
 import type { Note, Store, Settings, Snapshot, Mode, Timer, Shortcut } from "./model.js";
 export type ContentPatch = Partial<Pick<Store, "notes" | "tasks" | "calculations" | "shortcuts">>;
-export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState } | { type: "phone"; phone: PhoneFeed } | { type: "activity"; activity: Activity };
+export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState } | { type: "phone"; phone: PhoneFeed } | { type: "activity"; activity: Activity } | { type: "stats"; stats: Stats } | { type: "weather"; weather: Weather | null };
 /** Notifications forwarded by the paired phone over Wi-Fi. Kept in memory only. */
+export interface Stats { cpu: number; ramUsed: number; ramTotal: number; disk: number | null; gpu: number | null; up: number | null; down: number | null }
+export interface Weather { temp: number; code: number; isDay: boolean; city: string; at: number }
 export interface PhoneItem { key: string; app: string; title: string; text: string; time: number; icon: string }
 export interface PhoneFeed { connected: boolean; device: string; items: PhoneItem[]; at: number }
 /** Something the island should briefly announce, Dynamic Island style. */
@@ -28,6 +30,8 @@ export interface DesktopBridge {
   notePatch(id: string, patch: Partial<Pick<Note, "title" | "body" | "checklist">>): Promise<void>;
   media(): Promise<MediaState>;
   phone(): Promise<PhoneFeed>;
+  weather(): Promise<Weather | null>;
+  watchStats(on: boolean): void;
   mediaCommand(command: "toggle" | "next" | "previous"): Promise<void>;
   companion(): Promise<CompanionInfo>;
   companionReset(): Promise<CompanionInfo>;
