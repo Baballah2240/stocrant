@@ -16,6 +16,12 @@ export default function App() {
     activityQueue.current.push(next); if (activityQueue.current.length > 4) activityQueue.current.shift();
     if (!activityTimer.current) playNext();
   }
+  function openActivity(item: Activity) {
+    if (activityTimer.current) clearTimeout(activityTimer.current); activityTimer.current = null; setActivity(null); activityQueue.current = [];
+    if (item.kind === "reminder") { setTab("tasks"); api?.mode("expanded"); }
+    else if (item.kind === "timer") { setTab("focus"); api?.mode("expanded"); }
+    else api?.mode("preview");
+  }
   function playNext() {
     const next = activityQueue.current.shift();
     if (!next) { setActivity(null); activityTimer.current = null; return; }
@@ -76,11 +82,11 @@ export default function App() {
   const timerRequest = (action: "toggle" | "reset" | "skip" | "work" | "break") => { void api.timer(action).then(timer => setStore(current => ({ ...current, timer }))).catch(error => message(error.message)); };
   return <main className={`canvas ${store.settings.reducedMotion ? "reduce-motion" : ""}`} style={{ "--scale": store.settings.scale } as CSSProperties}>
     <div className={`island-wrap wrap-${mode}`}><i className="ear left" aria-hidden="true"/><i className="ear right" aria-hidden="true"/><section ref={island} className={`island ${mode} ${activity && mode === "compact" ? `live live-${activity.kind}` : ""}`} aria-label="Island Desk" onMouseEnter={() => { if (modeRef.current === "compact") hover.current = setTimeout(() => { if (modeRef.current === "compact") api?.mode("preview"); }, 180); }} onMouseLeave={() => { if (hover.current) clearTimeout(hover.current); }}>
-      {activity && mode === "compact" && <div className="live-card" key={activity.title + activity.text} role="status" aria-live="polite">
-        {activity.icon ? <img src={activity.icon} alt=""/> : <span className="live-icon"><Icon name={activity.kind === "music" ? "music" : activity.kind === "timer" ? "focus" : activity.kind === "reminder" ? "alarm" : activity.kind === "connected" ? "check" : "notes"} size={16}/></span>}
+      {activity && mode === "compact" && <button className="live-card" key={activity.title + activity.text} role="status" aria-live="polite" onClick={() => openActivity(activity)} title="Open">
+        <span className="live-ring">{activity.icon ? <img src={activity.icon} alt=""/> : <Icon name={activity.kind === "music" ? "music" : activity.kind === "timer" ? "focus" : activity.kind === "reminder" ? "alarm" : activity.kind === "connected" ? "check" : "notes"} size={17}/>}</span>
         <span className="live-text"><b>{activity.title}</b><small>{activity.text}</small></span>
-        {activity.kind === "music" ? <span className="signal music active"><i/><i/><i/><i/></span> : <span className="live-pulse"/>}
-      </div>}
+        {activity.kind === "music" ? <span className="signal music active"><i/><i/><i/><i/></span> : <Icon name="chevron" size={15}/>}
+      </button>}
       <button className={`compact-face ${activity && mode === "compact" ? "hidden-face" : ""}`} aria-label="Expand Island Desk" onClick={() => api?.mode("expanded")} tabIndex={mode === "expanded" ? -1 : 0}>
         {!focused && media.active ? <>{media.art ? <img className="compact-art" src={media.art} alt=""/> : <span className="compact-art blank"><Icon name="music" size={13}/></span>}<span className="compact-label compact-track">{media.title}</span><span className={`signal music ${media.playing ? "active" : "paused"}`}><i/><i/><i/><i/></span></>
           : focused ? <><span className="signal active"><i/><i/><i/><i/></span><span className="compact-label">{store.timer.phase === "work" ? "In the flow" : "Take a breather"}</span><span className="compact-right">{timeText(timerMs)}</span></>
@@ -214,12 +220,12 @@ function Preview({ onSettings, weather, phone, media, now, clock, date, tasks, f
     {dots}
     {weather && <button className="preview-weather" onClick={onSettings} title="Change the weather city"><Icon name={weatherIcon(weather)} size={18}/><b>{weather.temp}°</b><span>{weather.city}</span></button>}
     {phone.connected && phone.items.length > 0 && <div className="phone-feed"><span className="eyebrow">ON YOUR PHONE</span>{phone.items.slice(0, 3).map(item => <div className="phone-row" key={item.key}>{item.icon ? <img src={item.icon} alt=""/> : <span className="phone-dot"/>}<b>{item.title || item.app}</b><span>{item.text}</span></div>)}</div>}
-    <div className="preview-clock"><strong>{clock}</strong><span>{date}</span>{focus && <em>{focus}</em>}</div>
-    <button className="preview-tasks" onClick={onOpen} title="Open tasks">
+    <div className="today-clock"><strong>{clock}</strong><span>{date}</span>{focus && <em>{focus}</em>}</div>
+    {media.active ? <MusicRow media={media} message={message}/> : <button className="preview-tasks" onClick={onOpen} title="Open tasks">
       <span className="eyebrow">{pending.length ? `${pending.length} PENDING` : "ALL CLEAR"}</span>
       {pending.length ? pending.slice(0, 3).map(task => <span className={`preview-task ${task.priority}`} key={task.id}><i/>{task.text}{task.due && <small className={task.due < today ? "late" : ""}>{task.due === today ? "Today" : task.due < today ? "Overdue" : task.due.slice(5)}</small>}</span>) : <span className="preview-task none">Nothing waiting on you.</span>}
       {pending.length > 3 && <small className="more">+{pending.length - 3} more</small>}
-    </button>
+    </button>}
     <div className="preview-display">
       <label title="Screen brightness"><Icon name="sun"/><input type="range" min={0} max={100} step={5} value={level ?? 50} disabled={level === null} aria-label="Screen brightness" onChange={event => brightness(Number(event.target.value))}/><span>{level === null ? "—" : `${level}%`}</span></label>
       <button className={`night ${display?.nightLight ? "on" : ""}`} disabled={display?.nightLight == null} onClick={night} aria-pressed={!!display?.nightLight} title="Night light"><Icon name="moon"/>Night light</button>
@@ -332,4 +338,19 @@ function SystemMonitor() {
     {tile("gpu", "GPU", stats.gpu == null ? "—" : `${stats.gpu}%`, stats.gpu, "#ff6b6b")}
     {tile("disk", "Disk", stats.disk == null ? "—" : `${stats.disk}%`, stats.disk, "#4cc2ff")}
   </div></div>;
+}
+
+/** Compact "now playing" row for the Today page. */
+function MusicRow({ media, message }: { media: Extract<MediaState, { active: true }>; message: (text: string) => void }) {
+  const accent = useArtColor(media.art);
+  const send = (command: "toggle" | "next" | "previous") => void api.mediaCommand(command).catch(error => message(error.message));
+  return <div className="music-row" style={{ "--accent": accent } as CSSProperties}>
+    {media.art ? <img src={media.art} alt=""/> : <span className="music-row-art"><Icon name="music" size={20}/></span>}
+    <span className="music-row-text"><b>{media.title}</b><small>{media.artist || media.app}</small></span>
+    <span className="music-row-controls">
+      <button aria-label="Previous track" disabled={!media.canPrevious} onClick={() => send("previous")}><Icon name="previous" size={13}/></button>
+      <button className="play" aria-label={media.playing ? "Pause" : "Play"} disabled={!media.canToggle} onClick={() => send("toggle")}><Icon name={media.playing ? "pause" : "play"} size={16}/></button>
+      <button aria-label="Next track" disabled={!media.canNext} onClick={() => send("next")}><Icon name="skip" size={13}/></button>
+    </span>
+  </div>;
 }

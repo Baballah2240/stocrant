@@ -232,7 +232,7 @@ const companionHost = {
     const fresh = items.filter(item => !known.has(item.key) && Date.now() - item.time < 10 * 60000);
     phoneFeed = { connected: true, device, items, at: Date.now() };
     emit({ type: "phone", phone: phoneFeed });
-    for (const item of fresh.slice(0, 2)) emit({ type: "activity", activity: { kind: "phone", title: item.title || item.app, text: item.text || item.app, icon: item.icon } });
+    for (const item of fresh.slice(0, 2)) emit({ type: "activity", activity: { kind: "phone", title: item.title && item.app ? `${item.app} — ${item.title}` : item.title || item.app, text: item.text || "New notification", icon: item.icon } });
   },
 };
 // Weather refreshes every 20 minutes, and right away when the city setting changes.
