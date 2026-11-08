@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0 (2026-11-08)
+
+**Motion**
+- One shared set of motion settings (spring, ease, durations) used everywhere.
+- Workspace tabs and island pages slide in the direction you move; going back reverses it.
+- The workspace unfolds from the top edge; messages and confirmations spring in and leave quickly.
+- Press feedback on buttons, a gentle lift on cards when hovered, smooth expand and collapse.
+- Timer digits roll as they change, the waveform moves only while the timer runs, progress bars glide.
+- A brief mint glow when a task, note or calculation is added, or the timer starts.
+- Everything respects Gentler motion in Settings and the Windows reduced-motion setting.
+
 ## 0.8.0 (2026-11-08)
 
 **New**

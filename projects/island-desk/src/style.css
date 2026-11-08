@@ -192,3 +192,44 @@ button.preview-weather{background:none;border:0;padding:0;cursor:pointer;color:v
 .island.preview:has(.page-today) .compact-face{opacity:0;pointer-events:none}
 .preview-body.page-today{top:14px}
 .island.preview:has(.page-today){height:258px}.island.preview:has(.page-today.with-phone){height:344px}
+
+/* ═════ Motion system (uses the tokens in tokens.css) ═════ */
+/* Navigation: content slides with the direction of travel; going back reverses it. */
+.slide-forward{animation:slide-from-right var(--t-base) var(--ease-out) both}
+.slide-back{animation:slide-from-left var(--t-base) var(--ease-out) both}
+@keyframes slide-from-right{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes slide-from-left{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+/* The workspace and the hover island unfold from the top edge. */
+.island.expanded .workspace{animation:unfold var(--t-open) var(--spring) both}
+.island.preview .preview-body{transform-origin:top center}
+@keyframes unfold{from{opacity:0;clip-path:inset(0 0 100% 0);transform:translateY(-8px)}to{opacity:1;clip-path:inset(0 0 0 0);transform:none}}
+/* Panels and popups: soft spring in, quick smooth exit. */
+.toast{animation:pop-in var(--t-base) var(--spring) both}
+.toast.leaving{animation:pop-out var(--t-fast) var(--ease-in) both}
+.inline-confirm,.date-result,.converter output{animation:pop-in var(--t-base) var(--spring) both}
+@keyframes pop-in{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes pop-out{to{opacity:0;transform:translateY(6px) scale(.97)}}
+/* Buttons and cards: press feedback and a gentle lift on hover. */
+button{transition:transform var(--t-press) var(--ease-out),background-color var(--t-fast) ease,color var(--t-fast) ease,box-shadow var(--t-fast) ease,opacity var(--t-fast) ease}
+button:active:not(:disabled){transform:scale(.96)}
+@media (hover:hover){
+  .note-card:hover,.preview-tasks:hover,.hw-tile:hover,.music-row:hover,.tool-card:hover,.shortcut-card:hover,.task-row:hover{transform:var(--lift);box-shadow:0 8px 22px #0006}
+}
+.note-card,.preview-tasks,.hw-tile,.music-row,.tool-card,.shortcut-card,.task-row{transition:transform var(--t-fast) var(--ease-out),box-shadow var(--t-fast) ease,background-color var(--t-fast) ease}
+/* Expanding and collapsing: the island resizes on the spring already; content follows smoothly. */
+.island{transition:width var(--t-open) var(--spring),height var(--t-open) var(--spring),border-radius var(--t-open) var(--spring),box-shadow var(--t-base) ease}
+/* Live elements: rolling timer digits, moving waveform only while running, gliding progress. */
+.rolling{display:inline-flex;font-variant-numeric:tabular-nums}
+.roll-digit{display:inline-block;animation:roll-in var(--t-base) var(--ease-out) both}
+@keyframes roll-in{from{opacity:0;transform:translateY(-55%)}to{opacity:1;transform:none}}
+.signal.active i{background:var(--mint)}
+.signal:not(.active):not(.music) i{animation:none}
+.timer-orbit .progress{transition:stroke-dashoffset 1s linear}
+.np-progress b,.np-progress em,.hw-tile em,.preview-display input{transition-duration:.8s}
+/* Success: a short mint glow around the island. */
+.island.ok-flash{box-shadow:0 0 0 1.5px #bce8c8aa,0 0 26px #bce8c855,0 14px 34px #0006}
+.island.ok-flash .save-status span{animation:ok-dot .7s var(--ease-out)}
+@keyframes ok-dot{0%{transform:scale(1)}40%{transform:scale(1.8);background:var(--mint)}100%{transform:scale(1)}}
+/* Respect reduced motion everywhere (the app toggle and the system setting). */
+.reduce-motion .slide-forward,.reduce-motion .slide-back,.reduce-motion .island.expanded .workspace,.reduce-motion .toast,.reduce-motion .roll-digit{animation:none}
+@media (prefers-reduced-motion:reduce){.slide-forward,.slide-back,.island.expanded .workspace,.toast,.roll-digit,.live-card{animation:none!important}button:active:not(:disabled){transform:none}}

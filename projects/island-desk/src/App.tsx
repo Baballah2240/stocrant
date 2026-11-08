@@ -16,6 +16,9 @@ export default function App() {
     activityQueue.current.push(next); if (activityQueue.current.length > 4) activityQueue.current.shift();
     if (!activityTimer.current) playNext();
   }
+  const [ok, setOk] = useState(0);
+  function celebrate() { setOk(value => value + 1); }
+  useEffect(() => { if (!ok) return; const timer = setTimeout(() => setOk(0), 700); return () => clearTimeout(timer); }, [ok]);
   function openActivity(item: Activity) {
     if (activityTimer.current) clearTimeout(activityTimer.current); activityTimer.current = null; setActivity(null); activityQueue.current = [];
     if (item.kind === "reminder") { setTab("tasks"); api?.mode("expanded"); }
@@ -69,6 +72,9 @@ export default function App() {
     window.addEventListener("keydown", keyboard); return () => window.removeEventListener("keydown", keyboard);
   }, []);
   function save(patch: ContentPatch) {
+    // A brief highlight when something new was added.
+    const cur = storeRef.current;
+    if ((patch.tasks && patch.tasks.length > cur.tasks.length) || (patch.notes && patch.notes.length > cur.notes.length) || (patch.calculations && patch.calculations.length > cur.calculations.length)) celebrate();
     setSaved(false); setStore(current => ({ ...current, ...patch }));
     void api.save(patch).catch(error => message(error.message));
   }
@@ -79,9 +85,14 @@ export default function App() {
   const dateLabel = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "short", day: "numeric" }).format(now);
   const clockLabel = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(now);
   const focused = store.timer.running;
-  const timerRequest = (action: "toggle" | "reset" | "skip" | "work" | "break") => { void api.timer(action).then(timer => setStore(current => ({ ...current, timer }))).catch(error => message(error.message)); };
+  const timerRequest = (action: "toggle" | "reset" | "skip" | "work" | "break") => { void api.timer(action).then(timer => { setStore(current => ({ ...current, timer })); if (action === "toggle" && timer.running) celebrate(); }).catch(error => message(error.message)); };
+  // Decide the slide direction once, when the tab changes, so clock re-renders cannot flip it.
+  const tabOrder = [...tabs.map(item => item.id), "settings"], previousTab = useRef(tab), tabDirectionRef = useRef<"forward" | "back">("forward");
+  if (previousTab.current !== tab) { tabDirectionRef.current = tabOrder.indexOf(tab) > tabOrder.indexOf(previousTab.current) ? "forward" : "back"; previousTab.current = tab; }
+  const tabDirection = tabDirectionRef.current;
+  const [toastShown, toastLeaving] = useLeaving(toast);
   return <main className={`canvas ${store.settings.reducedMotion ? "reduce-motion" : ""}`} style={{ "--scale": store.settings.scale } as CSSProperties}>
-    <div className={`island-wrap wrap-${mode}`}><i className="ear left" aria-hidden="true"/><i className="ear right" aria-hidden="true"/><section ref={island} className={`island ${mode} ${activity && mode === "compact" ? `live live-${activity.kind}` : ""}`} aria-label="Island Desk" onMouseEnter={() => { if (modeRef.current === "compact") hover.current = setTimeout(() => { if (modeRef.current === "compact") api?.mode("preview"); }, 180); }} onMouseLeave={() => { if (hover.current) clearTimeout(hover.current); }}>
+    <div className={`island-wrap wrap-${mode}`}><i className="ear left" aria-hidden="true"/><i className="ear right" aria-hidden="true"/><section ref={island} className={`island ${mode} ${ok ? "ok-flash" : ""} ${activity && mode === "compact" ? `live live-${activity.kind}` : ""}`} aria-label="Island Desk" onMouseEnter={() => { if (modeRef.current === "compact") hover.current = setTimeout(() => { if (modeRef.current === "compact") api?.mode("preview"); }, 180); }} onMouseLeave={() => { if (hover.current) clearTimeout(hover.current); }}>
       {activity && mode === "compact" && <button className="live-card" key={activity.title + activity.text} role="status" aria-live="polite" onClick={() => openActivity(activity)} title="Open">
         <span className="live-ring">{activity.icon ? <img src={activity.icon} alt=""/> : <Icon name={activity.kind === "music" ? "music" : activity.kind === "timer" ? "focus" : activity.kind === "reminder" ? "alarm" : activity.kind === "connected" ? "check" : "notes"} size={17}/>}</span>
         <span className="live-text"><b>{activity.title}</b><small>{activity.text}</small></span>
@@ -89,7 +100,7 @@ export default function App() {
       </button>}
       <button className={`compact-face ${activity && mode === "compact" ? "hidden-face" : ""}`} aria-label="Expand Island Desk" onClick={() => api?.mode("expanded")} tabIndex={mode === "expanded" ? -1 : 0}>
         {!focused && media.active ? <>{media.art ? <img className="compact-art" src={media.art} alt=""/> : <span className="compact-art blank"><Icon name="music" size={13}/></span>}<span className="compact-label compact-track">{media.title}</span><span className={`signal music ${media.playing ? "active" : "paused"}`}><i/><i/><i/><i/></span></>
-          : focused ? <><span className="signal active"><i/><i/><i/><i/></span><span className="compact-label">{store.timer.phase === "work" ? "In the flow" : "Take a breather"}</span><span className="compact-right">{timeText(timerMs)}</span></>
+          : focused ? <><span className="signal active"><i/><i/><i/><i/></span><span className="compact-label">{store.timer.phase === "work" ? "In the flow" : "Take a breather"}</span><span className="compact-right"><Rolling text={timeText(timerMs)}/></span></>
           : <span className="pill-idle"><b>{clockLabel}</b>{weather && <><i className="pill-sep"/><span className="pill-weather"><Icon name={weatherIcon(weather)} size={15}/>{weather.temp}°</span></>}<i className={`pill-dot ${phone.connected ? "on" : ""}`} title={phone.connected ? `${phone.device} connected` : "Island Desk"}/></span>}
       </button>
       {mode === "preview" && <Preview onSettings={() => { setTab("settings"); api?.mode("expanded"); }} weather={weather} phone={phone} media={media} now={now} clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
@@ -97,7 +108,7 @@ export default function App() {
         <header className="topbar"><div className="brand"><span className="brand-mark"><i/><i/></span><strong>island<span>desk</span></strong><span className="version">{snapshot ? `V${snapshot.version}` : ""}</span></div><div className="top-actions"><span className="time">{clockLabel}</span><button className={`icon-btn ${tab === "settings" ? "selected" : ""}`} title="Settings" aria-label="Settings" onClick={() => setTab("settings")}><Icon name="settings"/></button><button className="icon-btn" title="Collapse · Esc" aria-label="Collapse island" onClick={() => api.mode("compact")}><Icon name="close"/></button></div></header>
         <div className="workspace-intro"><div><span className="eyebrow">{dateLabel}</span><h1>{tab === "settings" ? "Make yourself at home." : "A little room for your day."}</h1></div><span className="offline"><span/>Local. Private. Yours.</span></div>
         <nav className="tabs" aria-label="Workspace">{tabs.map((item, index) => <button key={item.id} aria-current={tab === item.id ? "page" : undefined} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)} title={`${item.label} · Ctrl+${index + 1}`}><Icon name={item.icon} size={16}/>{item.label}{item.id === "tasks" && store.tasks.some(task => !task.done) && <span className="count">{store.tasks.filter(task => !task.done).length}</span>}</button>)}</nav>
-        <div className="content">{!ready ? <Empty icon="notes" title="Opening your workspace…" detail="Everything stays on this device."/> : <>
+        <div className={`content slide-${tabDirection}`} key={tab}>{!ready ? <Empty icon="notes" title="Opening your workspace…" detail="Everything stays on this device."/> : <>
           {tab === "notes" && <Notes notes={store.notes} onChange={notes => save({ notes })}/>}
           {tab === "tasks" && <Tasks tasks={store.tasks} onChange={tasks => save({ tasks })}/>}
           {tab === "calculator" && <Calculator items={store.calculations} onChange={calculations => save({ calculations })} message={message}/>}
@@ -108,7 +119,7 @@ export default function App() {
         </>}</div>
         <footer><span className={`save-status ${saved ? "" : "saving"}`}><span/>{saved ? "Saved on this device" : "Saving changes…"}</span><span>Less switching. More doing.<kbd>esc</kbd> to fold away</span></footer>
       </div>
-      {toast && mode === "expanded" && <div className="toast" role="status"><span>{toast}</span><button className="icon-btn" aria-label="Dismiss message" onClick={() => setToast("")}><Icon name="close" size={14}/></button></div>}
+      {toastShown && mode === "expanded" && <div className={`toast ${toastLeaving ? "leaving" : ""}`} role="status"><span>{toastShown}</span><button className="icon-btn" aria-label="Dismiss message" onClick={() => setToast("")}><Icon name="close" size={14}/></button></div>}
     </section></div>
   </main>;
 }
@@ -161,7 +172,7 @@ function Calculator({ items, onChange, message }: { items: Store["calculations"]
 }
 function Focus({ store, now, action, update }: { store: Store; now: number; action: (value: "toggle" | "reset" | "skip" | "work" | "break") => void; update: (patch: Partial<Settings>) => Promise<boolean> }) {
   const { timer, settings } = store, left = remaining(timer, now), percent = Math.max(0, Math.min(1, left / duration(timer.phase, settings)));
-  return <div className="focus-layout"><section className="focus-main"><div className="segmented"><button className={timer.phase === "work" ? "active" : ""} onClick={() => action("work")}>Focus</button><button className={timer.phase !== "work" ? "active" : ""} onClick={() => action("break")}>Breather</button></div><div className={`timer-orbit ${timer.running ? "running" : ""}`}><svg viewBox="0 0 260 260" aria-hidden="true"><circle className="track" cx="130" cy="130" r="117"/><circle className="progress" cx="130" cy="130" r="117" strokeDasharray={735.13} strokeDashoffset={735.13 * (1 - percent)}/></svg><div><span className="eyebrow">{timer.phase === "work" ? "STAY WITH ONE THING" : timer.phase === "longBreak" ? "A WELL-EARNED LONG BREAK" : "LET YOUR MIND WANDER"}</span><strong className="countdown">{timeText(left)}</strong><span className="timer-caption">{timer.running ? "You’re right where you need to be." : "No rush. Begin when you’re ready."}</span></div></div><div className="timer-actions"><button className="icon-btn" aria-label="Reset timer" title="Reset timer" onClick={() => action("reset")}><Icon name="reset" size={19}/></button><button className="primary start-focus" onClick={() => action("toggle")}><Icon name={timer.running ? "pause" : "play"} size={16}/>{timer.running ? "Pause session" : "Start session"}</button><button className="icon-btn" aria-label="Skip session" title="Skip session" onClick={() => action("skip")}><Icon name="skip" size={19}/></button></div></section><aside className="focus-sidebar"><span className="eyebrow">YOUR OWN RHYTHM</span><h2>Space to do your best.</h2><p>One task. A little focus. Then a moment to breathe.</p><div className="duration-grid">{([["workMinutes", "Focus", 180], ["breakMinutes", "Short break", 60], ["longBreakMinutes", "Long break", 120], ["longBreakEvery", "Long break every", 12]] as const).map(([field, label, max]) => <label key={field}>{label}<span><input aria-label={label + " duration"} type="number" min={field === "longBreakEvery" ? 2 : 1} max={max} value={settings[field]} onChange={event => { const value = Number(event.target.value); if (value >= (field === "longBreakEvery" ? 2 : 1) && value <= max) void update({ [field]: value }); }}/><small>{field === "longBreakEvery" ? "sessions" : "min"}</small></span></label>)}</div><div className="session-dots">{Array.from({ length: settings.longBreakEvery }, (_, index) => <i key={index} className={index < timer.sessions % settings.longBreakEvery ? "complete" : ""}/>)}<span>{timer.completed} sessions completed</span></div><p className="micro">Changes apply to the next session. Start each break yourself. Your timer keeps time while the island is folded away.</p></aside></div>;
+  return <div className="focus-layout"><section className="focus-main"><div className="segmented"><button className={timer.phase === "work" ? "active" : ""} onClick={() => action("work")}>Focus</button><button className={timer.phase !== "work" ? "active" : ""} onClick={() => action("break")}>Breather</button></div><div className={`timer-orbit ${timer.running ? "running" : ""}`}><svg viewBox="0 0 260 260" aria-hidden="true"><circle className="track" cx="130" cy="130" r="117"/><circle className="progress" cx="130" cy="130" r="117" strokeDasharray={735.13} strokeDashoffset={735.13 * (1 - percent)}/></svg><div><span className="eyebrow">{timer.phase === "work" ? "STAY WITH ONE THING" : timer.phase === "longBreak" ? "A WELL-EARNED LONG BREAK" : "LET YOUR MIND WANDER"}</span><strong className="countdown"><Rolling text={timeText(left)}/></strong><span className="timer-caption">{timer.running ? "You’re right where you need to be." : "No rush. Begin when you’re ready."}</span></div></div><div className="timer-actions"><button className="icon-btn" aria-label="Reset timer" title="Reset timer" onClick={() => action("reset")}><Icon name="reset" size={19}/></button><button className="primary start-focus" onClick={() => action("toggle")}><Icon name={timer.running ? "pause" : "play"} size={16}/>{timer.running ? "Pause session" : "Start session"}</button><button className="icon-btn" aria-label="Skip session" title="Skip session" onClick={() => action("skip")}><Icon name="skip" size={19}/></button></div></section><aside className="focus-sidebar"><span className="eyebrow">YOUR OWN RHYTHM</span><h2>Space to do your best.</h2><p>One task. A little focus. Then a moment to breathe.</p><div className="duration-grid">{([["workMinutes", "Focus", 180], ["breakMinutes", "Short break", 60], ["longBreakMinutes", "Long break", 120], ["longBreakEvery", "Long break every", 12]] as const).map(([field, label, max]) => <label key={field}>{label}<span><input aria-label={label + " duration"} type="number" min={field === "longBreakEvery" ? 2 : 1} max={max} value={settings[field]} onChange={event => { const value = Number(event.target.value); if (value >= (field === "longBreakEvery" ? 2 : 1) && value <= max) void update({ [field]: value }); }}/><small>{field === "longBreakEvery" ? "sessions" : "min"}</small></span></label>)}</div><div className="session-dots">{Array.from({ length: settings.longBreakEvery }, (_, index) => <i key={index} className={index < timer.sessions % settings.longBreakEvery ? "complete" : ""}/>)}<span>{timer.completed} sessions completed</span></div><p className="micro">Changes apply to the next session. Start each break yourself. Your timer keeps time while the island is folded away.</p></aside></div>;
 }
 const unitGroups: Record<string, Record<string, number>> = { Length: { Meters: 1, Kilometers: 1000, Centimeters: 0.01, Miles: 1609.344, Feet: 0.3048, Inches: 0.0254 }, Weight: { Kilograms: 1, Grams: 0.001, Pounds: 0.45359237, Ounces: 0.028349523125 }, Volume: { Liters: 1, Milliliters: 0.001, "US gallons": 3.785411784, "US cups": 0.2365882365 }, Temperature: { Celsius: 1, Fahrenheit: 1, Kelvin: 1 } };
 function Tools({ message }: { message: (text: string) => void }) {
@@ -209,14 +220,16 @@ function Preview({ onSettings, weather, phone, media, now, clock, date, tasks, f
     void api.setDisplay({ nightLight: next }).then(setDisplay).catch(error => { setDisplay({ ...display }); message(error.message); });
   }
   const pages = [...(media.active ? ["music"] : []), "today", "system"] as const;
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(0), previousPage = useRef(0), pageDirectionRef = useRef<"forward" | "back">("forward");
+  if (previousPage.current !== page) { pageDirectionRef.current = page > previousPage.current ? "forward" : "back"; previousPage.current = page; }
+  const pageDirection = pageDirectionRef.current;
   const current = pages[Math.min(page, pages.length - 1)];
   const wheel = useRef(0);
   const onWheel = (event: React.WheelEvent) => { if (Date.now() - wheel.current < 380 || Math.abs(event.deltaY) < 8) return; wheel.current = Date.now(); setPage(p => Math.max(0, Math.min(pages.length - 1, p + (event.deltaY > 0 ? 1 : -1)))); };
   const dots = <div className="page-dots" role="tablist" aria-label="Island pages">{pages.map((name, index) => <button key={name} role="tab" aria-selected={current === name} aria-label={name} className={current === name ? "on" : ""} onClick={() => setPage(index)}/>)}</div>;
-  if (current === "music" && media.active) return <div className="preview-body page-music" onWheel={onWheel}><NowPlaying media={media} now={now} message={message}/>{dots}</div>;
-  if (current === "system") return <div className="preview-body page-system" onWheel={onWheel}><SystemMonitor/>{dots}</div>;
-  return <div className={`preview-body page-today ${phone.connected && phone.items.length ? "with-phone" : ""}`} onWheel={onWheel}>
+  if (current === "music" && media.active) return <div key="music" className={`preview-body page-music slide-${pageDirection}`} onWheel={onWheel}><NowPlaying media={media} now={now} message={message}/>{dots}</div>;
+  if (current === "system") return <div key="system" className={`preview-body page-system slide-${pageDirection}`} onWheel={onWheel}><SystemMonitor/>{dots}</div>;
+  return <div key="today" className={`preview-body page-today slide-${pageDirection} ${phone.connected && phone.items.length ? "with-phone" : ""}`} onWheel={onWheel}>
     {dots}
     {weather && <button className="preview-weather" onClick={onSettings} title="Change the weather city"><Icon name={weatherIcon(weather)} size={18}/><b>{weather.temp}°</b><span>{weather.city}</span></button>}
     {phone.connected && phone.items.length > 0 && <div className="phone-feed"><span className="eyebrow">ON YOUR PHONE</span>{phone.items.slice(0, 3).map(item => <div className="phone-row" key={item.key}>{item.icon ? <img src={item.icon} alt=""/> : <span className="phone-dot"/>}<b>{item.title || item.app}</b><span>{item.text}</span></div>)}</div>}
@@ -353,4 +366,19 @@ function MusicRow({ media, message }: { media: Extract<MediaState, { active: tru
       <button aria-label="Next track" disabled={!media.canNext} onClick={() => send("next")}><Icon name="skip" size={13}/></button>
     </span>
   </div>;
+}
+
+/** Keeps a value on screen briefly after it clears, so it can animate out. */
+function useLeaving<T>(value: T, ms = 170): [T, boolean] {
+  const [shown, setShown] = useState(value), [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (value) { setShown(value); setLeaving(false); return; }
+    setLeaving(true); const timer = setTimeout(() => { setShown(value); setLeaving(false); }, ms); return () => clearTimeout(timer);
+  }, [value]);
+  return [shown, leaving];
+}
+
+/** Digits that roll into place when they change (the timer). */
+function Rolling({ text }: { text: string }) {
+  return <span className="rolling" aria-label={text}>{[...text].map((char, index) => <span key={index + ":" + char} className={/\d/.test(char) ? "roll-digit" : "roll-sep"} aria-hidden="true">{char}</span>)}</span>;
 }

@@ -1,1 +1,7 @@
-:root{--text:#eeeeF2;--muted:#85858f;--mint:#bce8c8;--lavender:#bdb5e6;--spring:cubic-bezier(.22,1.12,.36,1)}
+:root{--text:#eeeeF2;--muted:#85858f;--mint:#bce8c8;--lavender:#bdb5e6;
+  /* Motion: reuse these everywhere. */
+  --spring:cubic-bezier(.22,1.12,.36,1);   /* soft overshoot for things that open */
+  --ease-out:cubic-bezier(.2,.8,.2,1);     /* settling movement */
+  --ease-in:cubic-bezier(.4,0,1,1);        /* quick exits */
+  --t-press:110ms;--t-fast:160ms;--t-base:260ms;--t-open:420ms;
+  --lift:translateY(-1px)}
