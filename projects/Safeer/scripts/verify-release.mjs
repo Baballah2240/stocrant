@@ -39,7 +39,7 @@ try{
  const env={SAFEER_TEST_DATABASE_URL:databaseUrl};
  const native=readdirSync(join(root,'tests')).filter(p=>p.endsWith('.integration.mjs')).sort().map(p=>'tests/'+p);
  await run('all native PostgreSQL integration, security, concurrency and recovery checks',process.execPath,['--test',...native],env);
- for(const [name,built] of [['platform',false],['identity',true],['reservations',true],['ticketing',true],['boarding',true],['platform',true]])await run(`${built?'built':'source'} ${name} browser workflow`,process.execPath,['tests/'+name+'.browser.mjs'],{...env,SAFEER_BROWSER_BUILT:built?'1':'0'},180000);
+ for(const [name,built] of [['platform',false],['identity',true],['login',true],['reservations',true],['ticketing',true],['boarding',true],['platform',true]])await run(`${built?'built':'source'} ${name} browser workflow`,process.execPath,['tests/'+name+'.browser.mjs'],{...env,SAFEER_BROWSER_BUILT:built?'1':'0'},180000);
  complete=true;
 }catch(error){console.error(error.message);process.exitCode=1;}
 finally{

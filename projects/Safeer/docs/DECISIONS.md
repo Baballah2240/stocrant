@@ -1,5 +1,10 @@
 # Decisions
 
+## 2026-11-08 - Login reliability and local access
+
+D54: The owner requests opening Safeer, fixing login problems and pushing the scoped source changes to GitHub. Preserve the local database, accounts, role/company boundaries and loopback-only service. Fix Staff/Driver form draft loss and startup/in-flight sign-in races; retain the email on failure, clear rejected passwords, and keep pending submission disabled across re-renders. Test with fictional disposable identities. The owner separately approved local owner-password recovery, completed through the existing privileged tool with a private affected-account/session snapshot and mandatory password change;  never commit or archive credentials/runtime. No hosting, permission expansion or native package change.
+
+
 ## 2026-11-05 - Manual ticket-number fallback
 
 D53: The owner approves the new manual-entry fallback from the scanner proposal. Add a separate printed-ticket-number entry in Driver alongside existing QR/keyboard input. This does not implement phone camera scanning. API verify/board accept exactly one QR token or ticketNumber; normalize number case and preserve strict QR validation. Append migration 0015 replacing only driver_verify to resolve ticket numbers inside the authorized company/trip, retaining all assignment/revocation, payment/refund/cancellation, boarding-window, concurrency/idempotency, privacy and audit checks. Confirmation uses the exact checked credential; editing either input invalidates stale results. Checking never boards automatically, and connection failure never reports valid. Test invalid/wrong-trip/company/revoked/refunded/duplicate/racing requests on disposable data and actual fallback UI. Back up/restore-verify local runtime before migration, preserve existing records/accounts, restart and verify. No camera permission, APK change, hosting or private portfolio publication; update docs/mobile notes and archive scoped source.

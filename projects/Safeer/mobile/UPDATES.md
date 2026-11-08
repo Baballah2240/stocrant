@@ -1,5 +1,9 @@
 # Safeer mobile status
 
+## Shared login reliability - 2026-11-08, D54
+
+Staff/Driver sign-in preserves fields across language changes, retains the email after failed attempts, clears rejected passwords and prevents premature/duplicate submission. The shared web update is available on refresh; no native package change or APK installation. Existing permissions, data and local USB dependence are preserved. See [D54 handover](../docs/archive/LOGIN_RELIABILITY_2026-11-08.md).
+
 ## Render hosting - 2026-11-05
 
 The web app can now run hosted at https://safeer.mohbaba.online from `render.yaml` and `scripts/production.mjs`: one fixed HTTPS origin, Secure cookies, HSTS, hosted PostgreSQL with a limited runtime role, and migrations on start. Store builds use `--origin https://safeer.mohbaba.online` once the site is live. See [hosting](../docs/HOSTING.md).
