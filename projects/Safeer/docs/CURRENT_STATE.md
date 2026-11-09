@@ -1,5 +1,9 @@
 # Current state - read this first
 
+## Quality audit - D55, 2026-11-09
+
+The broad audit found seven confirmed issues. All 17 unit/server and 126 database tests pass; 18 of 19 distinct browser scripts pass, with the sidebar placement regression reproduced twice. Targeted probes also reproduce stale marketplace searches, lost search drafts and an allowed Arabic group-booking payload rejected by the 8 KB limit. Read-only online checks confirm that the reviewed login helper is absent from the deployment and the support contact remains empty. See [the complete quality report](testing/QUALITY_AUDIT_2026-11-09.md) for severity, evidence and coverage gaps. No product fixes or production data changes were made.
+
 ## Login reliability - D54, 2026-11-08
 
 Staff and Driver preserve entered sign-in fields during language/render changes, keep the email after rejection, clear rejected passwords, and serialize login submissions while startup/session checks or login requests are pending. Credentials stay in ephemeral form state, never browser storage, markup or source. Existing accounts/data, server authorization, password rules and loopback-only access are preserved. The owner separately approved private local owner-password recovery; no credentials are included here. See [D54 handover](archive/LOGIN_RELIABILITY_2026-11-08.md).

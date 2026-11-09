@@ -1,5 +1,10 @@
 # Decisions
 
+## 2026-11-09 - Broad quality audit
+
+D55: The owner requests testing Safeer to identify gaps and bugs. Run the existing unit/build/docs, native PostgreSQL and browser workflow checks with isolated fictional fixtures, plus local targeted probes and read-only checks of the published site. Preserve online/local business records and credentials. This authorizes an evidence-backed audit report, not product fixes, password changes, production test bookings, native installation or deployment. Keep generated test databases and receipts out of Git.
+
+
 ## 2026-11-08 - Login reliability and local access
 
 D54: The owner requests opening Safeer, fixing login problems and pushing the scoped source changes to GitHub. Preserve the local database, accounts, role/company boundaries and loopback-only service. Fix Staff/Driver form draft loss and startup/in-flight sign-in races; retain the email on failure, clear rejected passwords, and keep pending submission disabled across re-renders. Test with fictional disposable identities. The owner separately approved local owner-password recovery, completed through the existing privileged tool with a private affected-account/session snapshot and mandatory password change;  never commit or archive credentials/runtime. No hosting, permission expansion or native package change.
