@@ -1,5 +1,10 @@
 # Decisions
 
+## 2026-11-09 - Audit remediation
+
+D56: The owner authorizes fixing the seven audit findings, regression coverage and bringing the reviewed source to the existing online service. Preserve accounts, business records, tenant/financial authority and bounded requests. Publish the explicitly approved support contact, restore above-sidebar navigation, preserve search drafts and newest-request ordering, allow the validated group-booking envelope only on the hold-create endpoint, and distinguish hosted Android recovery from USB. Add reviewed hosted-owner recovery, hosted security checks and complete browser release gating. Physical acceptance and hosting changes must be verified separately; do not claim deployment or installation from a Git push. No MFA/email-delivery service or payment integration is introduced.
+
+
 ## 2026-11-09 - Broad quality audit
 
 D55: The owner requests testing Safeer to identify gaps and bugs. Run the existing unit/build/docs, native PostgreSQL and browser workflow checks with isolated fictional fixtures, plus local targeted probes and read-only checks of the published site. Preserve online/local business records and credentials. This authorizes an evidence-backed audit report, not product fixes, password changes, production test bookings, native installation or deployment. Keep generated test databases and receipts out of Git.

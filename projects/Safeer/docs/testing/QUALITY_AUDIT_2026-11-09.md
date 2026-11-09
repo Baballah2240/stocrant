@@ -1,5 +1,7 @@
 # Safeer quality audit - 2026-11-09
 
+Follow-up: [D56 source remediation and verification](../archive/AUDIT_REMEDIATION_2026-11-09.md). The six source issues are corrected and checked locally; online deployment remains pending authentication. The original audit evidence below is retained as history.
+
 Scope: current local source, all existing automated workflows, targeted boundary/race probes, and read-only public requests to https://safeer.mohbaba.online. No production sign-in, bookings, payments, account changes or deployment. This is a broad audit, not proof that every possible defect has been found.
 
 ## Test results
