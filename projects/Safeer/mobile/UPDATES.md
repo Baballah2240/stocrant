@@ -169,3 +169,9 @@ Add the responsive bilingual Station section, payment, refund and print sheets a
 ## 2026-11-02 - Section 11 luggage
 
 Add the responsive bilingual Luggage section, printable QR tags, a luggage field on passenger and walk-in forms and bag status on the passenger booking page to shared src/. No native app build or deployment requested. Verification: 102 automated checks and 32 luggage layouts per source/built mode.
+
+
+## 2026-11-11 - Minimal header and branded loading
+- Booking and Driver show localized Safeer centered beside the menu button, without the floating header panel.
+- Branded loading includes screen-reader status and reduced-motion support.
+- Shared changes require a website update; no phone installation is claimed.
