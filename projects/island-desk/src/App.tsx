@@ -1,14 +1,16 @@
+import { Translation, useTranslation } from "./Translation";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "./icons";
 import { calculate } from "../shared/calculator";
 import { defaults, duration, localDate, remaining, timeText, type Mode, type Note, type Settings, type Shortcut, type Snapshot, type Store, type Tab, type Task } from "../shared/model";
 import type { Activity, CompanionInfo, ContentPatch, DisplayState, MediaState, PhoneFeed, Stats, Weather } from "../shared/bridge";
 
-const tabs: { id: Tab; label: string; icon: IconName }[] = [{ id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" }, { id: "calculator", label: "Calculator", icon: "calculator" }, { id: "focus", label: "Focus", icon: "focus" }, { id: "tools", label: "Tools", icon: "tools" }, { id: "shortcuts", label: "Shortcuts", icon: "shortcuts" }];
+const tabs: { id: Tab; label: string; icon: IconName }[] = [{ id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" }, { id: "calculator", label: "Calculator", icon: "calculator" }, { id: "focus", label: "Focus", icon: "focus" }, { id: "tools", label: "Tools", icon: "tools" }, { id: "shortcuts", label: "Shortcuts", icon: "shortcuts" }, { id: "translation", label: "Translate", icon: "translate" }];
 const uid = () => crypto.randomUUID();
 const api = window.island;
 function ping() { try { const context = new AudioContext(); const oscillator = context.createOscillator(), gain = context.createGain(); oscillator.connect(gain); gain.connect(context.destination); oscillator.frequency.value = 660; gain.gain.setValueAtTime(0.06, context.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.65); oscillator.start(); oscillator.stop(context.currentTime + 0.7); oscillator.onended = () => void context.close(); } catch { /* A muted device still receives the visual completion. */ } }
 export default function App() {
+  const translation = useTranslation();
   const [store, setStore] = useState<Store>(defaults), [snapshot, setSnapshot] = useState<Snapshot | null>(null), [mode, setMode] = useState<Mode>("compact"), [tab, setTab] = useState<Tab>("notes"), [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [saved, setSaved] = useState(true), [ready, setReady] = useState(false), [media, setMedia] = useState<MediaState>({ active: false }), [phone, setPhone] = useState<PhoneFeed>({ connected: false, device: "", items: [], at: 0 }), [activity, setActivity] = useState<Activity | null>(null), [weather, setWeather] = useState<Weather | null>(null);
   const activityQueue = useRef<Activity[]>([]), activityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Live island: show one announcement at a time for a few seconds, then the next. */
@@ -67,7 +69,7 @@ export default function App() {
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
       if (event.key === "Escape") { api?.mode("compact"); return; }
-      if ((event.ctrlKey || event.metaKey) && /^[1-6]$/.test(event.key)) { event.preventDefault(); setTab(tabs[Number(event.key) - 1].id); }
+      if ((event.ctrlKey || event.metaKey) && /^[1-7]$/.test(event.key)) { event.preventDefault(); setTab(tabs[Number(event.key) - 1].id); }
     };
     window.addEventListener("keydown", keyboard); return () => window.removeEventListener("keydown", keyboard);
   }, []);
@@ -106,18 +108,19 @@ export default function App() {
       {mode === "preview" && <Preview onSettings={() => { setTab("settings"); api?.mode("expanded"); }} weather={weather} phone={phone} media={media} now={now} clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
       <div className="workspace" aria-hidden={mode !== "expanded"} inert={mode !== "expanded"}>
         <header className="topbar"><div className="brand"><span className="brand-mark"><i/><i/></span><strong>island<span>desk</span></strong><span className="version">{snapshot ? `V${snapshot.version}` : ""}</span></div><div className="top-actions"><span className="time">{clockLabel}</span><button className={`icon-btn ${tab === "settings" ? "selected" : ""}`} title="Settings" aria-label="Settings" onClick={() => setTab("settings")}><Icon name="settings"/></button><button className="icon-btn" title="Collapse · Esc" aria-label="Collapse island" onClick={() => api.mode("compact")}><Icon name="close"/></button></div></header>
-        <div className="workspace-intro"><div><span className="eyebrow">{dateLabel}</span><h1>{tab === "settings" ? "Make yourself at home." : "A little room for your day."}</h1></div><span className="offline"><span/>Local. Private. Yours.</span></div>
+        <div className="workspace-intro"><div><span className="eyebrow">{dateLabel}</span><h1>{tab === "settings" ? "Make yourself at home." : "A little room for your day."}</h1></div><span className="offline"><span/>{tab === "translation" ? "Translate online. Keep your flow." : "Local. Private. Yours."}</span></div>
         <nav className="tabs" aria-label="Workspace">{tabs.map((item, index) => <button key={item.id} aria-current={tab === item.id ? "page" : undefined} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)} title={`${item.label} · Ctrl+${index + 1}`}><Icon name={item.icon} size={16}/>{item.label}{item.id === "tasks" && store.tasks.some(task => !task.done) && <span className="count">{store.tasks.filter(task => !task.done).length}</span>}</button>)}</nav>
         <div className={`content slide-${tabDirection}`} key={tab}>{!ready ? <Empty icon="notes" title="Opening your workspace…" detail="Everything stays on this device."/> : <>
           {tab === "notes" && <Notes notes={store.notes} onChange={notes => save({ notes })}/>}
           {tab === "tasks" && <Tasks tasks={store.tasks} onChange={tasks => save({ tasks })}/>}
           {tab === "calculator" && <Calculator items={store.calculations} onChange={calculations => save({ calculations })} message={message}/>}
           {tab === "focus" && <Focus store={store} now={now} action={timerRequest} update={changeSettings}/>}
+          {tab === "translation" && <Translation state={translation} message={message}/>}
           {tab === "tools" && <Tools message={message}/>}
           {tab === "shortcuts" && <Shortcuts items={store.shortcuts} onChange={shortcuts => save({ shortcuts })} message={message}/>}
           {tab === "settings" && snapshot && <Preferences settings={store.settings} snapshot={snapshot} update={changeSettings} message={message}/>}
         </>}</div>
-        <footer><span className={`save-status ${saved ? "" : "saving"}`}><span/>{saved ? "Saved on this device" : "Saving changes…"}</span><span>Less switching. More doing.<kbd>esc</kbd> to fold away</span></footer>
+        <footer><span className={`save-status ${saved ? "" : "saving"}`}><span/>{tab === "translation" ? "Translation drafts are not saved" : saved ? "Saved on this device" : "Saving changes…"}</span><span>Less switching. More doing.<kbd>esc</kbd> to fold away</span></footer>
       </div>
       {toastShown && mode === "expanded" && <div className={`toast ${toastLeaving ? "leaving" : ""}`} role="status"><span>{toastShown}</span><button className="icon-btn" aria-label="Dismiss message" onClick={() => setToast("")}><Icon name="close" size={14}/></button></div>}
     </section></div>

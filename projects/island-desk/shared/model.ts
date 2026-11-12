@@ -1,4 +1,4 @@
-export type Tab = "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings";
+export type Tab = "translation" | "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings";
 export type Mode = "compact" | "preview" | "expanded";
 export interface StickyBounds { x: number; y: number; width: number; height: number }
 export interface Note { id: string; title: string; body: string; pinned: boolean; checklist: boolean; updatedAt: number; sticky?: StickyBounds | null }

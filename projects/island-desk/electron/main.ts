@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, globalShortcut, dialog, Notification, shell, powerMonitor, type IpcMainInvokeEvent } from "electron";
+import { translateText } from "../shared/translation.js";
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, globalShortcut, dialog, Notification, shell, powerMonitor, clipboard, type IpcMainInvokeEvent } from "electron";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +16,7 @@ import type { ContentPatch, DesktopEvent, PhoneFeed, PhoneItem, Weather } from "
 
 const here = dirname(fileURLToPath(import.meta.url));
 const testing = Boolean(process.env.ISLAND_DESK_TEST_DIR);
+let translationController: AbortController | null = null;
 if (testing) app.setPath("userData", resolve(process.env.ISLAND_DESK_TEST_DIR!));
 app.setAppUserModelId("studio.islanddesk.desktop");
 let window: BrowserWindow, tray: Tray, store: Store = defaults(), mode: Mode = "compact", quitting = false, saveTimer: ReturnType<typeof setTimeout> | undefined, hitTimer: ReturnType<typeof setInterval>;
@@ -176,6 +178,14 @@ function installIpc() {
   handle("media-get", () => media);
   handle("phone-get", () => phoneFeed);
   handle("weather-get", () => weather);
+  handle("translation", async request => {
+    translationController?.abort();
+    const controller = new AbortController(); translationController = controller;
+    try { return await translateText(request, AbortSignal.any([controller.signal, AbortSignal.timeout(90000)])); }
+    finally { if (translationController === controller) translationController = null; }
+  });
+  handle("translation-cancel", () => { translationController?.abort(); translationController = null; });
+  handle("clipboard-write", async text => { if (typeof text !== "string" || text.length > 50000) throw Error("Text is too long to copy."); await clipboard.writeText(text); });
   ipcMain.on("stats-watch", (event, on) => { trust(event); watchStats(on === true, stats => emit({ type: "stats", stats })); });
   handle("media-command", (command: string) => mediaCommand(command));
   handle("display-get", () => displayState);

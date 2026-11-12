@@ -2,6 +2,7 @@ import { BrowserWindow, screen, dialog } from "electron";
 import { createSocket } from "node:dgram";
 import { existsSync, writeFileSync } from "node:fs";
 import type { Mode, Store } from "../shared/model.js";
+import { translationSmoke } from "./translation-smoke.js";
 type State = () => { store: Store; mode: Mode; rect: { width: number; height: number }; ignoring: boolean; dataFile: string };
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 /** Launch check: renders, expands, collapses, saves to disk, and keeps transparent area click-through. */
@@ -17,6 +18,7 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   await window.webContents.executeJavaScript("[...document.querySelectorAll(\"button\")].find(b => b.textContent.trim() === \"Calculator\").click()"); await wait(400);
   for (const ch of "7*6") window.webContents.sendInputEvent({ type: "char", keyCode: ch }); window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" }); window.webContents.sendInputEvent({ type: "char", keyCode: "\r" }); window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" }); await wait(500);
   results.typingWorks = (await window.webContents.executeJavaScript("document.querySelector(\".workspace\").innerText.includes(\"42\")")) === true;
+  Object.assign(results, await translationSmoke(window));
   const dims = () => BrowserWindow.getAllWindows().filter(w => w !== window && w.webContents.getURL().includes("blur.html") && w.isVisible());
   await wait(800); results.dimmedWhileOpen = dims().length > 0 && (await dims()[0].webContents.executeJavaScript("document.querySelector(\"img\").classList.contains(\"on\")")) === true;
   setMode("compact"); await wait(900);

@@ -1,3 +1,4 @@
+import type { TranslationRequest, TranslationResult } from "./translation.js";
 import type { Note, Store, Settings, Snapshot, Mode, Timer, Shortcut } from "./model.js";
 export type ContentPatch = Partial<Pick<Store, "notes" | "tasks" | "calculations" | "shortcuts">>;
 export type DesktopEvent = { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState } | { type: "phone"; phone: PhoneFeed } | { type: "activity"; activity: Activity } | { type: "stats"; stats: Stats } | { type: "weather"; weather: Weather | null };
@@ -10,6 +11,9 @@ export interface PhoneFeed { connected: boolean; device: string; items: PhoneIte
 export interface Activity { kind: "music" | "phone" | "timer" | "reminder" | "connected"; title: string; text: string; icon?: string }
 export type MediaState = { active: false } | { active: true; title: string; artist: string; album: string; app: string; playing: boolean; canNext: boolean; canPrevious: boolean; canToggle: boolean; positionMs: number; durationMs: number; updatedAt: number; art: string };
 export interface DesktopBridge {
+  translate(request: TranslationRequest): Promise<TranslationResult>;
+  cancelTranslation(): Promise<void>;
+  copyText(text: string): Promise<void>;
   snapshot(): Promise<Snapshot>;
   save(patch: ContentPatch): Promise<void>;
   settings(patch: Partial<Settings>): Promise<Settings>;

@@ -1,6 +1,6 @@
 # Island Desk
 
-A floating, Dynamic-Island-style workspace for Windows. Built with Electron, React and TypeScript. Works fully offline, with no account.
+A floating, Dynamic-Island-style workspace for Windows. Built with Electron, React and TypeScript. Notes, tasks and focus tools work offline with no account; the optional Translate section uses an online service.
 
 ## Install and run (Windows 10/11)
 
@@ -19,7 +19,7 @@ A floating, Dynamic-Island-style workspace for Windows. Built with Electron, Rea
 ## Using it
 
 - **Hover** the pill for a preview. **Click** it to open the workspace. Press **Esc** or click outside to collapse it.
-- Global shortcut: **Ctrl+Shift+Space** (you can change it in Settings). **Ctrl+1–6** switches tabs.
+- Global shortcut: **Ctrl+Shift+Space** (you can change it in Settings). **Ctrl+1–7** switches tabs.
 - **Hover preview:** the time and date, up to 3 pending tasks (overdue ones in red), a screen brightness slider and a Night Light toggle.
 - **Sticky notes on the desktop:** drag a note card out of the island and drop it anywhere (or click the note icon in the editor). Drag its top bar to move it, drag an edge to resize, and press x to send it back into the island. Position and size are saved across restarts. If its monitor is unplugged, the note moves to a screen you still have.
 - **Focus blur:** while the pointer is over the island or a sticky note (or the workspace is open), everything else goes softly out of focus, and it returns to normal when you move away. Clicks still pass through to your apps. Turn it off in Settings > "Blur the background on hover". Windows has no live blur for other apps, so the blurred background is a still snapshot taken when the blur starts (a playing video looks paused until you move away).
@@ -40,6 +40,8 @@ Data is stored in `%APPDATA%\Island Desk\island-desk.json`. Saves are atomic, an
 - It is a home screen app, not a new operating system: notifications, the status bar, lock screen and calls stay Android's own.
 
 ## Windows limitations
+
+- **Translation:** open the Translate tab (Ctrl+7), choose source/target languages, type or paste up to 3,000 characters, then press Translate or Ctrl+Enter. English and Arabic are the defaults, with 14 languages available. Swap languages or copy the result. Only submitted text is sent to [MyMemory](https://mymemory.translated.net/); requests are split at its 500-byte UTF-8 limit, and free daily quotas apply ([provider limits](https://mymemory.translated.net/doc/usagelimits.php)). Translations need internet, may contain mistakes, and are not stored in backups or on disk. Drafts and results survive changing tabs but clear when the app exits. Cancel stops the remaining requests; it cannot retract text already sent. This section is currently in the Windows workspace.
 
 - **Phone companion and the firewall:** the first time you turn it on, Windows Firewall asks whether to allow Island Desk. Allow it on **Private** networks. On public or guest Wi-Fi (hotels, some offices) devices often cannot reach each other, so the phone can't connect there. The connection is plain HTTP inside your network, protected by the secret pairing code. Anyone who has that code and is on the same Wi-Fi could use it, so use "Sign out paired phones" if a code may have been shared.
 

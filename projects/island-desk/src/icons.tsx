@@ -1,5 +1,7 @@
-export type IconName = "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings" | "plus" | "search" | "pin" | "trash" | "arrow" | "check" | "play" | "pause" | "reset" | "skip" | "close" | "download" | "upload" | "folder" | "globe" | "sun" | "chevron" | "copy" | "moon" | "sticky" | "music" | "previous" | "alarm" | "grid" | "cloud" | "rain" | "storm" | "snow" | "fog" | "cpu" | "ram" | "gpu" | "disk" | "up" | "down";
+export type IconName = "translate" | "swap" | "notes" | "tasks" | "calculator" | "focus" | "tools" | "shortcuts" | "settings" | "plus" | "search" | "pin" | "trash" | "arrow" | "check" | "play" | "pause" | "reset" | "skip" | "close" | "download" | "upload" | "folder" | "globe" | "sun" | "chevron" | "copy" | "moon" | "sticky" | "music" | "previous" | "alarm" | "grid" | "cloud" | "rain" | "storm" | "snow" | "fog" | "cpu" | "ram" | "gpu" | "disk" | "up" | "down";
 const paths: Record<IconName, React.ReactNode> = {
+  translate: <><path d="M3 5h12M9 3v2M5 5c1 5 4 8 8 10M13 5c-1 5-4 8-9 11M13 21l4-10 4 10M14.5 17h5"/></>,
+  swap: <path d="M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4"/>,
   notes: <><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5"/></>,
   tasks: <><rect x="3" y="4" width="18" height="17" rx="4"/><path d="m7 12 3 3 7-7"/></>,
   calculator: <><rect x="5" y="2" width="14" height="20" rx="4"/><path d="M8 7h8M8 12h1m6 0h1m-8 5h1m6 0h1"/></>,
