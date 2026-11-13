@@ -15,6 +15,13 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   setMode("expanded"); await wait(900);
   results.expanded = state().mode === "expanded" && state().rect.width * state().rect.height > compact;
   results.keyboardFocus = window.isFocused() && (await window.webContents.executeJavaScript("document.hasFocus()")) === true;
+  await window.webContents.executeJavaScript("document.querySelector('button[aria-label=Settings]').click()"); await wait(400);
+  results.settingsVisible = await window.webContents.executeJavaScript("(()=>{const c=document.querySelector('.content'),p=document.querySelector('.atmosphere'),r=c.getBoundingClientRect(),s=p.getBoundingClientRect();return r.height>120&&s.top>=r.top-2&&s.top<r.bottom&&c.scrollHeight>c.clientHeight&&!!document.querySelector('.preferences');})()");
+  await window.webContents.executeJavaScript("(()=>{const s=document.querySelector('.atmosphere select');s.value='light';s.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait(200);
+  results.lightAppearance = await window.webContents.executeJavaScript("document.documentElement.dataset.appearance==='light'&&getComputedStyle(document.querySelector('.island')).color==='rgb(21, 32, 57)'");
+  if(process.env.ISLAND_DESK_QA_SCREENSHOT)writeFileSync(process.env.ISLAND_DESK_QA_SCREENSHOT,(await window.webContents.capturePage()).toPNG());
+  await window.webContents.executeJavaScript("(()=>{const s=document.querySelector('.atmosphere select');s.value='dark';s.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait(100);
+
   await window.webContents.executeJavaScript("[...document.querySelectorAll(\"button\")].find(b => b.textContent.trim() === \"Calculator\").click()"); await wait(400);
   for (const ch of "7*6") window.webContents.sendInputEvent({ type: "char", keyCode: ch }); window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" }); window.webContents.sendInputEvent({ type: "char", keyCode: "\r" }); window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" }); await wait(500);
   results.typingWorks = (await window.webContents.executeJavaScript("document.querySelector(\".workspace\").innerText.includes(\"42\")")) === true;

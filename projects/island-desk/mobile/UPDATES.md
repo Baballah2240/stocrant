@@ -21,3 +21,6 @@ Verification: Flutter 3.50 analysis passed with no issues; 5 domain/widget tests
 
 ## 2026-11-13 - Desktop atmosphere
 Shared desktop source adds saved light/dark translucent styling, clock style controls, a user-selected local audio playlist with playback and a real Web Audio energy response. Existing Windows media/event announcements remain. Music stays mounted when changing workspace tabs. No new Android package was built; desktop audio files require explicit file selection.
+
+## 2026-11-13 - 0.9.1 light appearance and Settings correction
+Appearance/music controls now sit inside the scrollable Settings content instead of above navigation. A labelled Settings tab is always available. Light surfaces, text, fields, navigation and calculator/tool controls use readable light colors. The desktop smoke test checks Settings visibility and real light appearance. New Windows installer; no Android rebuild.
