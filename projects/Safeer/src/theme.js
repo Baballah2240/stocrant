@@ -207,15 +207,18 @@ const appWords=(language,flavor)=>language==='ar'
 const releaseFor=flavor=>appRelease?.apps?.[flavor];
 export const appOutdated=()=>Boolean(installed&&appRelease&&Number(installed[1])<appRelease.versionCode);
 export const appVersionLabel=()=>appRelease?'v'+appRelease.versionName:'';
+// Any installed app can be refreshed from the release, so the download always behaves
+// like an update: installing over the same signing key updates the existing app.
+export const appUpdateAvailable=()=>Boolean(installed&&appRelease);
 export function appBanner(language,flavor){
   const file=releaseFor(flavor),w=appWords(language,flavor);
   if(!file)return '';
-  const kind=appOutdated()?'update':androidBrowser?'get':'';
+  const kind=appUpdateAvailable()?'update':androidBrowser?'get':'';
   if(!kind)return '';
   return `<aside class="app-banner app-banner-${kind}" aria-label="${w.name}">${downloadIcon}<span><strong>${kind==='update'?w.update:w.get}</strong><small>${w.name} · ${w.version} <bdi>${appRelease.versionName}</bdi></small></span><a class="app-banner-link" href="${file.url}" rel="noopener">${kind==='update'?w.updateLink:w.getLink}</a></aside>`;
 }
 export function appDrawerLink(language,flavor){
   const file=releaseFor(flavor),w=appWords(language,flavor);
-  if(!file||(installed&&!appOutdated()))return '';
-  return `<a class="drawer-download" href="${file.url}" rel="noopener">${downloadIcon}<span>${appOutdated()?w.updateLink:w.download}<small>${w.version} <bdi>${appRelease.versionName}</bdi></small></span></a>`;
+  if(!file)return '';
+  return `<a class="drawer-download" href="${file.url}" rel="noopener">${downloadIcon}<span>${appUpdateAvailable()?w.updateLink:w.download}<small>${w.version} <bdi>${appRelease.versionName}</bdi></small></span></a>`;
 }
