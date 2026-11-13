@@ -1,3 +1,4 @@
+import { validateInventoryImage } from "./routes/inventory-photos.js";
 import { applySmartTaskApproval, applyTaskManagementApproval, prepareTaskMutation } from "./operations.js";
 import { appendFinancialHistory, ledgerSummary, validateFinancialMutation } from "./finance-ledger.js";
 import { protectCommerceStock } from "./commerce-stock.js";
@@ -154,6 +155,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
       updatedByName: user.name,
       dataClassification: payload.dataClassification ?? "company",
     };
+  if (collection === "inventoryItems" && payload.image !== undefined) validateInventoryImage(user, String(payload.image), item.organizationId, existing, false);
   data.collections[collection] = existing ? list.map((row) => row.id === item.id ? item : row) : [...list, item];
   if(collection==="employees"&&!existing){data.collections.employeeIdentities=[...rows("employeeIdentities"),{id:rowId("employeeIdentities"),employeeCode:item.employeeCode,organizationId:item.organizationId,employeeId:item.id,issuedAt:now}];}
   if (["products", "inventoryItems"].includes(collection)) {

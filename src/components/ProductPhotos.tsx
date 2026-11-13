@@ -2,24 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { isNativeApp, mobileSession, request, serverUrl } from "../api";
 import { useLanguage } from "../language-context";
 
-export function ShopImage({ src, alt = "" }: { src: string; alt?: string }) {
+export function ShopImage({ src, alt = "", onError }: { src: string; alt?: string; onError?: () => void }) {
+  const onErrorRef = useRef(onError); onErrorRef.current = onError;
   const [blob, setBlob] = useState("");
-  const native = isNativeApp() && src.startsWith("/api/shop-images/");
+  const native = isNativeApp() && (src.startsWith("/api/shop-images/") || src.startsWith("/api/inventory-images/"));
   useEffect(() => {
     if (!native) return;
     const controller = new AbortController(); let url = "";
     setBlob("");
     void fetch(serverUrl.current() + src, { credentials: "include", signal: controller.signal, headers: { Authorization: `Bearer ${mobileSession.current()}` } }).then(async response => {
-      if (!response.ok) return;
+      if (!response.ok) { onErrorRef.current?.(); return; }
       url = URL.createObjectURL(await response.blob());
       if (controller.signal.aborted) URL.revokeObjectURL(url); else setBlob(url);
-    }).catch(() => {});
+    }).catch(() => { if (!controller.signal.aborted) onErrorRef.current?.(); });
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
   }, [src, native]);
-  return native && !blob ? <span aria-hidden="true">&#9671;</span> : <img src={native ? blob : src} alt={alt} loading="lazy" />;
+  return native && !blob ? <span aria-hidden="true">&#9671;</span> : <img src={native ? blob : src} alt={alt} loading="lazy" onError={onError} />;
 }
 
-async function optimizedPhoto(file: File): Promise<Blob> {
+export async function optimizedPhoto(file: File): Promise<Blob> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error("Choose JPEG, PNG or WebP photos up to 5 MB each.");
   const url = URL.createObjectURL(file);
   try {

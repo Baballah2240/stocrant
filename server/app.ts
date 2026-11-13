@@ -1,3 +1,4 @@
+import { inventoryPhotoUploads, inventoryPhotoDownloads } from "./routes/inventory-photos.js";
 import tasksRouter from "./routes/tasks.js";
 import { invitationsRouter, invitationAcceptanceRouter } from "./invitations.js";
 import { shopImageUploads, shopImageDownloads } from "./routes/shop-images.js";
@@ -112,6 +113,8 @@ export function createApp() {
   app.use("/api/collections/contracts", employmentContractsRouter);
   app.use("/api/workspace/contracts", employmentContractsRouter);
   app.use("/api/workspace/documents", documentsRouter);
+  app.use("/api/workspace/inventory", inventoryPhotoUploads);
+  app.use("/api/inventory-images", inventoryPhotoDownloads);
   app.use("/api/collections", collectionsRouter);
   app.use("/api/workspace/payroll", payrollRouter);
   app.use("/api/workspace/attendance", attendanceRouter);

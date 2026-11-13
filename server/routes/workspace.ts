@@ -1,3 +1,4 @@
+import { inventoryImage, validateInventoryImage } from "./inventory-photos.js";
 import { taskOverdue, taskToday } from "../operations.js";
 import { reverseFinancialTransaction } from "../finance-ledger.js";
 import { attendanceDate as dateStamp, attendanceDate, settingsFor } from "../attendance.js";
@@ -385,23 +386,23 @@ router.get("/inventory", requirePermission("inventory", "view"), (req, res) => {
 });
 
 router.post("/inventory/items", requirePermission("inventory", "create"), (req, res) => {
-  const parsed = z.object({ sku: z.string().trim().min(1).max(80), name: z.string().trim().min(1).max(180), unit: z.string().trim().min(1).max(40), stockLocation: z.string().trim().min(1).max(140), organizationId: z.string().min(1), itemType: z.enum(["ingredient", "finished-product", "equipment", "consumable", "packaging", "other"]), allowedEmployeeIds: z.array(z.string()).default([]), notes: z.string().max(2000).default(""), locationId: z.string().optional(), openingStock: z.coerce.number().min(0).default(0), reorderPoint: z.coerce.number().min(0).default(0), allowNegative: z.boolean().default(false) }).safeParse(req.body);
+  const parsed = z.object({ sku: z.string().trim().min(1).max(80), name: z.string().trim().min(1).max(180), unit: z.string().trim().min(1).max(40), stockLocation: z.string().trim().min(1).max(140), organizationId: z.string().min(1), itemType: z.enum(["ingredient", "finished-product", "equipment", "consumable", "packaging", "other"]), allowedEmployeeIds: z.array(z.string()).default([]), notes: z.string().max(2000).default(""), locationId: z.string().optional(), image: inventoryImage.optional(), openingStock: z.coerce.number().min(0).default(0), reorderPoint: z.coerce.number().min(0).default(0), allowNegative: z.boolean().default(false) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map((issue) => issue.message).join("; ") });
   const company = rows("companies").find((company) => company.id === parsed.data.organizationId);
   if (!company || !isWithinScope(req.auth!, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company." });
   if (parsed.data.allowedEmployeeIds.length && !isMainManager(req.auth)) return res.status(403).json({ error: "Only the main admin can assign inventory access." });
   if (parsed.data.allowedEmployeeIds.some((id) => !rows("employees").some((employee) => employee.id === id && (employee.organizationId ?? employee.companyId) === company.id))) return res.status(400).json({ error: "Select employees from this company." });
-  try { const result = mutateCollection(req.auth!, "inventoryItems", "create", parsed.data); res.status(result.pending ? 202 : 201).json(result); } catch (error) { sendError(res, error); }
+  try { if (parsed.data.image) validateInventoryImage(req.auth!, parsed.data.image, parsed.data.organizationId); const result = mutateCollection(req.auth!, "inventoryItems", "create", parsed.data); res.status(result.pending ? 202 : 201).json(result); } catch (error) { sendError(res, error); }
 });
 
 router.patch("/inventory/items/:id", requirePermission("inventory", "edit"), (req, res) => {
   const existing = rows("inventoryItems").find((item) => item.id === req.params.id);
   if (!existing || !isWithinScope(req.auth!, existing)) return res.status(404).json({ error: "Inventory item not found." });
-  const parsed = z.object({ name: z.string().trim().min(1).max(180), unit: z.string().trim().min(1).max(40), stockLocation: z.string().trim().min(1).max(140), itemType: z.enum(["ingredient", "finished-product", "equipment", "consumable", "packaging", "other"]), reorderPoint: z.coerce.number().min(0), notes: z.string().max(2000), allowedEmployeeIds: z.array(z.string()).optional() }).safeParse(req.body);
+  const parsed = z.object({ name: z.string().trim().min(1).max(180), unit: z.string().trim().min(1).max(40), stockLocation: z.string().trim().min(1).max(140), itemType: z.enum(["ingredient", "finished-product", "equipment", "consumable", "packaging", "other"]), reorderPoint: z.coerce.number().min(0), notes: z.string().max(2000), image: inventoryImage, allowedEmployeeIds: z.array(z.string()).optional() }).partial().strict().refine(value => Object.keys(value).length > 0).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Check the item details." });
   if (parsed.data.allowedEmployeeIds && !isMainManager(req.auth)) return res.status(403).json({ error: "Only the main admin can assign inventory access." });
   if (parsed.data.allowedEmployeeIds?.some((id) => !rows("employees").some((employee) => employee.id === id && (employee.organizationId ?? employee.companyId) === existing.organizationId))) return res.status(400).json({ error: "Select employees from this company." });
-  try { const result = mutateCollection(req.auth!, "inventoryItems", "edit", parsed.data, existing.id); res.status(result.pending ? 202 : 200).json(result); } catch (error) { sendError(res, error); }
+  try { if (parsed.data.image !== undefined) validateInventoryImage(req.auth!, parsed.data.image, existing.organizationId, existing); const result = mutateCollection(req.auth!, "inventoryItems", "edit", parsed.data, existing.id); res.status(result.pending ? 202 : 200).json(result); } catch (error) { sendError(res, error); }
 });
 
 router.post("/inventory/movements", requirePermission("inventory", "create"), (req, res) => {

@@ -159,3 +159,13 @@ html[data-theme] .ios-app.aer-workspace .inventory-detail-tabs button[aria-selec
   .inventory-page .inventory-print-heading h1, .inventory-page .inventory-print-heading p, .inventory-page .inventory-item-link { color: #000 !important; -webkit-text-fill-color: #000 !important; opacity: 1 !important; }
   body:has(.inventory-page) :is(.action-toast-stack, .mobile-bottom-nav, .inventory-actions-popover) { display: none !important; }
 }
+
+.inventory-photo-upload { border: 1px solid var(--inventory-line); border-radius: 10px; padding: 12px; min-width: 0; margin-block: 14px; }
+.inventory-photo-upload legend { font-size: 12px; font-weight: 600; padding-inline: 5px; }
+.inventory-photo-upload input[type=file] { width: 100%; min-width: 0; max-width: 100%; padding: 8px; font-size: 11px; }
+.inventory-photo-upload .hint { font-size: 11px; margin-block: 8px; }
+.inventory-upload-preview { width: min(100%, 240px); aspect-ratio: 16/9; margin-bottom: 12px; }
+.inventory-upload-preview img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+.inventory-photo-upload button { min-height: 44px; }
+
+.inventory-photo-upload input::file-selector-button { background: var(--color-primary-soft); color: var(--ink, var(--color-neutral)); border: 1px solid var(--inventory-line); border-radius: 6px; padding: 8px 10px; margin-inline-end: 8px; cursor: pointer; }

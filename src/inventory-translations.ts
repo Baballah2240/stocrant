@@ -1,4 +1,13 @@
 export const inventoryTranslations: Readonly<Record<string, string>> = {
+"Item picture":"صورة الصنف",
+"Upload picture":"رفع صورة",
+"Replace picture":"استبدال الصورة",
+"Remove picture":"إزالة الصورة",
+"Uploading picture…":"جارٍ رفع الصورة…",
+"Inventory picture saved.":"تم حفظ صورة الصنف.",
+"Choose a company before uploading a picture.":"اختر شركة قبل رفع الصورة.",
+"JPEG, PNG or WebP, up to 5 MB. Pictures follow the item's access and approval rules.":"JPEG أو PNG أو WebP، حتى 5 ميجابايت. تخضع الصور لصلاحيات الصنف وقواعد الموافقة.",
+
 "Legacy record":"سجل قديم",
 "Unknown":"غير معروف",
 "Inventory item":"صنف مخزون",

@@ -475,3 +475,8 @@ The APK installed locally is a USB development build. Production distribution ne
 - Photo/placeholder stock list and responsive Overview/Movements detail panel with permission-aware actions.
 - Filters survive opening/closing details; recorded movements refresh the table and selected item from the existing inventory API.
 - Inventory printout retains stock breakdown, audit information and active filters.
+
+## Inventory pictures
+- Upload, replace and remove private item pictures from Item details and New/Edit item forms.
+- Reuse image optimization and native authenticated image loading; JPEG/PNG/WebP up to 5 MB.
+- Picture changes respect inventory permissions, company/item scope, audit history and approvals.
