@@ -24,3 +24,8 @@ Shared desktop source adds saved light/dark translucent styling, clock style con
 
 ## 2026-11-13 - 0.9.1 light appearance and Settings correction
 Appearance/music controls now sit inside the scrollable Settings content instead of above navigation. A labelled Settings tab is always available. Light surfaces, text, fields, navigation and calculator/tool controls use readable light colors. The desktop smoke test checks Settings visibility and real light appearance. New Windows installer; no Android rebuild.
+
+## 2026-11-13 - 0.9.2 smooth island reactions
+Removed hard corner ears and exterior audio glow; native hide now fades over 180ms with cancellation on reopen. Music reacts through an interior audio glow and media motion; local file selection/playback announces an event and focus mode breathes gently. Reduced motion disables decorative motion. Float-off no longer unconditionally raises compact/preview windows. Windows installer rebuilt; Windows media sessions react automatically; optional explicit system-audio capture enables audio-energy reactions for other device sound without recording or uploading.
+
+Verification: packaged desktop tests pass for synthetic audio energy/capture stop, local music and focus motion, native fade completion, and float-off/float-on. Actual Windows loopback playback across the user's audio devices was not exercised automatically.

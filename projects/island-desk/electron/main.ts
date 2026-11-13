@@ -1,5 +1,5 @@
 import { translateText } from "../shared/translation.js";
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, globalShortcut, dialog, Notification, shell, powerMonitor, clipboard, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, desktopCapturer, Menu, Tray, nativeImage, ipcMain, screen, globalShortcut, dialog, Notification, shell, powerMonitor, clipboard, type IpcMainInvokeEvent } from "electron";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, copyFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,14 +59,21 @@ function position() {
   window.setBounds({ x, y, width, height: Math.min(820, area.y + area.height - y) });
   window.setAlwaysOnTop(store.settings.alwaysOnTop, "floating");
 }
+let hideFade: ReturnType<typeof setInterval> | undefined;let hiding=false;
+function hideIsland(){
+ if(hideFade)return;hiding=true;dimWanted=false;dimShown=false;spotlight(false,[],store.settings.reducedMotion);
+ if(store.settings.reducedMotion){window.hide();trayMenu();return;}
+ const start=Date.now();hideFade=setInterval(()=>{if(window.isDestroyed()){clearInterval(hideFade);hideFade=undefined;return;}const progress=Math.min(1,(Date.now()-start)/180);window.setOpacity(1-progress*progress);if(progress===1){clearInterval(hideFade);hideFade=undefined;window.hide();window.setOpacity(1);trayMenu();}},16);
+}
 function setMode(next: Mode) {
+  hiding=false;if(hideFade){clearInterval(hideFade);hideFade=undefined;}window.setOpacity(1);
   mode = next; pendingCollapse = false;
   if (!window.isVisible()) window.showInactive();
   emit({ type: "mode", mode });
   if (mode === "expanded") { window.show(); window.focus(); app.focus({ steal: true }); window.webContents.focus(); }
   // The island stays focusable: a click on it activates the window, so typing works immediately.
   // Changing focusability can drop the topmost flag on Windows; restore it and stay above the blur.
-  if (store.settings.alwaysOnTop) window.setAlwaysOnTop(true, "floating"); window.moveTop();
+  if (store.settings.alwaysOnTop) window.setAlwaysOnTop(true, "floating"); if (store.settings.alwaysOnTop || mode === "expanded") window.moveTop();
 }
 function toggle() { if (mode === "expanded" && window.isVisible()) setMode("compact"); else { window.setFocusable(true); setMode("expanded"); } }
 function registerShortcut(accelerator: string) {
@@ -80,7 +87,7 @@ function registerShortcut(accelerator: string) {
 function trayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Open Island Desk", click: () => { window.setFocusable(true); setMode("expanded"); } },
-    { label: window.isVisible() ? "Hide island" : "Show island", click: () => window.isVisible() ? window.hide() : setMode("compact") },
+    { label: window.isVisible() ? "Hide island" : "Show island", click: () => window.isVisible() ? hideIsland() : setMode("compact") },
     { type: "separator" }, { label: store.timer.running ? "Pause focus timer" : "Start focus timer", click: () => { timerAction(store, "toggle"); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); } },
     { label: "Always on top", type: "checkbox", checked: store.settings.alwaysOnTop, click: item => { store.settings.alwaysOnTop = item.checked; position(); for (const s of stickies.values()) if (!s.isDestroyed()) s.setAlwaysOnTop(item.checked); save(true); emit({ type: "replace", snapshot: snapshot() }); } },
     { type: "separator" }, { label: "Quit Island Desk", click: () => { quitting = true; app.quit(); } },
@@ -199,7 +206,7 @@ function installIpc() {
   handle("open-data", () => shell.openPath(dirname(dataFile)));
   ipcMain.on("mode", (event, next) => { trust(event); if (["compact", "preview", "expanded"].includes(next)) { if (next === "expanded") window.setFocusable(true); setMode(next); } });
   ipcMain.on("geometry", (event, value) => { trust(event); if (value && ["x", "y", "width", "height", "radius"].every(key => typeof value[key] === "number" && Number.isFinite(value[key]) && value[key] >= 0 && value[key] <= 5000)) rect = value; });
-  ipcMain.on("hide", event => { trust(event); window.hide(); trayMenu(); });
+  ipcMain.on("hide", event => { trust(event); hideIsland(); });
   ipcMain.on("quit", event => { trust(event); quitting = true; app.quit(); });
 }
 function openSticky(id: string) {
@@ -274,9 +281,13 @@ function createWindow() {
   window.setIgnoreMouseEvents(true, { forward: true }); position();
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", event => event.preventDefault());
-  window.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
-  window.on("blur", () => { if (mode === "expanded" && !modalDepth) setMode("compact"); });
-  window.on("close", event => { if (!quitting) { event.preventDefault(); window.hide(); trayMenu(); } });
+  window.webContents.session.setPermissionRequestHandler((wc, permission, callback) => callback(permission === "display-capture" && wc === window.webContents));
+  window.webContents.session.setDisplayMediaRequestHandler(async (request, callback) => {
+    if(process.platform !== "win32" || !request.userGesture || request.frame !== window.webContents.mainFrame){callback({});return;}
+    try{const sources=await desktopCapturer.getSources({types:["screen"],thumbnailSize:{width:0,height:0}});if(sources[0])callback({video:sources[0],audio:"loopback"});else callback({});}catch{callback({});}
+  });
+  window.on("blur", () => { if (mode === "expanded" && !modalDepth && !hiding) setMode("compact"); });
+  window.on("close", event => { if (!quitting) { event.preventDefault(); hideIsland(); } });
   window.once("ready-to-show", () => window.showInactive());
   const devUrl = process.env.ISLAND_DESK_DEV_URL;
   if (devUrl === "http://127.0.0.1:5178") void window.loadURL(devUrl); else void window.loadFile(join(here, "../../dist/index.html"));
@@ -292,7 +303,7 @@ function createWindow() {
     if (inside) pendingCollapse = false;
     // Spotlight whatever is under the pointer: the island, or a sticky note on the desktop.
     const hoveredSticky = [...stickies.values()].find(s => { if (s.isDestroyed() || !s.isVisible()) return false; const b = s.getBounds(); return point.x >= b.x && point.x < b.x + b.width && point.y >= b.y && point.y < b.y + b.height; });
-    const lit = store.settings.dimOnHover && modalDepth === 0 && (inside || mode === "expanded" || !!hoveredSticky);
+    const lit = !hiding && store.settings.dimOnHover && modalDepth === 0 && (inside || mode === "expanded" || !!hoveredSticky);
     // Hysteresis: brief edge crossings and resize animations don't flash the dim on and off.
     const now = Date.now();
     if (lit !== dimWanted) { dimWanted = lit; dimChangedAt = now; }
