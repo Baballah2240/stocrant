@@ -65,7 +65,8 @@
     "test:storefront": "npm run build:full && node scripts/verify-storefront.mjs",
     "test:merchandising": "npm run build:full && node scripts/verify-merchandising.mjs",
     "preview:shop": "npm run build:full && node scripts/preview-storefront.mjs",
-    "test:finance-connected": "node --test scripts/test-finance-connected.mjs"
+    "test:finance-connected": "node --test scripts/test-finance-connected.mjs",
+    "test:inventory": "npm run build:frontend && npm run build && node scripts/verify-inventory.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "9.1.2",

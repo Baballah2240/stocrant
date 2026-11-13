@@ -469,3 +469,9 @@ The APK installed locally is a USB development build. Production distribution ne
 ## Employee accounts and permissions
 - Employee creation shows a unique username and one-time temporary password; first sign-in requires a password change. Pending approvals retain secure activation.
 - Super Admin can edit personal-data and salary permissions alongside existing per-user controls. Permission changes take effect on the next authenticated request.
+
+## Inventory workspace
+- Compact stock summary and combined search, company, location and stock-status filters.
+- Photo/placeholder stock list and responsive Overview/Movements detail panel with permission-aware actions.
+- Filters survive opening/closing details; recorded movements refresh the table and selected item from the existing inventory API.
+- Inventory printout retains stock breakdown, audit information and active filters.

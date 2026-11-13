@@ -1,4 +1,5 @@
 export const administrationTranslations:Readonly<Record<string,string>>={
+"View salary":"عرض الراتب",
 "Employee login created":"تم إنشاء حساب الموظف",
 "Save these credentials now. The temporary password is shown only once and must be changed at first sign-in.":"احفظ بيانات الدخول الآن. تظهر كلمة المرور المؤقتة مرة واحدة ويجب تغييرها عند أول تسجيل دخول.",
 "Active after saving":"نشط بعد الحفظ",
