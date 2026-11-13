@@ -29,3 +29,8 @@ Appearance/music controls now sit inside the scrollable Settings content instead
 Removed hard corner ears and exterior audio glow; native hide now fades over 180ms with cancellation on reopen. Music reacts through an interior audio glow and media motion; local file selection/playback announces an event and focus mode breathes gently. Reduced motion disables decorative motion. Float-off no longer unconditionally raises compact/preview windows. Windows installer rebuilt; Windows media sessions react automatically; optional explicit system-audio capture enables audio-energy reactions for other device sound without recording or uploading.
 
 Verification: packaged desktop tests pass for synthetic audio energy/capture stop, local music and focus motion, native fade completion, and float-off/float-on. Actual Windows loopback playback across the user's audio devices was not exercised automatically.
+
+## 2026-11-13 - 0.9.3 iOS-style waveform
+The four small bars rise/fall independently while the island and labels remain stationary. Focus uses smooth staggered waveform motion; local/system audio uses four measured frequency bands. Paused and reduced-motion states stay quiet. Local audio keeps a waveform visible in compact mode even without a Windows media session.
+
+Verified in the packaged app: waveform bar transforms change over time while the island translation stays none. Native Windows topmost mode is reapplied after restacking; float-on and float-off checks pass.

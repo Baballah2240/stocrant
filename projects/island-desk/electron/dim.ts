@@ -41,7 +41,7 @@ export function spotlight(want: boolean, raise: BrowserWindow[], reducedMotion: 
   const front = raise[0];
   if (want === on) {
     // Re-stack only when the spotlight moves to another window, never on every poll.
-    if (on && front && front !== raised && !front.isDestroyed()) { front.moveTop(); raised = front; }
+    if (on && front && front !== raised && !front.isDestroyed()) { const top=front.isAlwaysOnTop();front.moveTop();if(top)front.setAlwaysOnTop(true,process.platform === "win32" ? "screen-saver" : "floating"); raised = front; }
     return;
   }
   on = want; const mine = ++token;
@@ -61,7 +61,7 @@ export function spotlight(want: boolean, raise: BrowserWindow[], reducedMotion: 
         if (token !== mine || overlay.isDestroyed()) return;
         overlay.showInactive(); overlay.moveTop();
         void overlay.webContents.executeJavaScript(`fadeIn(${reducedMotion})`).catch(() => undefined);
-        for (const w of raise) if (!w.isDestroyed()) w.moveTop();
+        for (const w of raise) if (!w.isDestroyed()) {const top=w.isAlwaysOnTop();w.moveTop();if(top)w.setAlwaysOnTop(true,process.platform === "win32" ? "screen-saver" : "floating");}
         raised = front;
       }).catch(() => undefined);
     }

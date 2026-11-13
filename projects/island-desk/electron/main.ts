@@ -16,6 +16,7 @@ import type { ContentPatch, DesktopEvent, PhoneFeed, PhoneItem, Weather } from "
 
 const here = dirname(fileURLToPath(import.meta.url));
 const testing = Boolean(process.env.ISLAND_DESK_TEST_DIR);
+const floatingLevel = process.platform === "win32" ? "screen-saver" : "floating";
 let translationController: AbortController | null = null;
 if (testing) app.setPath("userData", resolve(process.env.ISLAND_DESK_TEST_DIR!));
 app.setAppUserModelId("studio.islanddesk.desktop");
@@ -57,9 +58,9 @@ function position() {
   const area = display.workArea, width = Math.min(1100, area.width), y = area.y; // The island hangs from the top edge like a notch; offsets move it sideways only.
   const x = Math.round(Math.max(area.x, Math.min(area.x + area.width - width, area.x + (area.width - width) / 2 + store.settings.offsetX)));
   window.setBounds({ x, y, width, height: Math.min(820, area.y + area.height - y) });
-  window.setAlwaysOnTop(store.settings.alwaysOnTop, "floating");
+  window.setAlwaysOnTop(store.settings.alwaysOnTop, floatingLevel);
 }
-let hideFade: ReturnType<typeof setInterval> | undefined;let hiding=false;
+let hideFade: ReturnType<typeof setInterval> | undefined;let hiding=false;let restoringTop=false;
 function hideIsland(){
  if(hideFade)return;hiding=true;dimWanted=false;dimShown=false;spotlight(false,[],store.settings.reducedMotion);
  if(store.settings.reducedMotion){window.hide();trayMenu();return;}
@@ -73,7 +74,7 @@ function setMode(next: Mode) {
   if (mode === "expanded") { window.show(); window.focus(); app.focus({ steal: true }); window.webContents.focus(); }
   // The island stays focusable: a click on it activates the window, so typing works immediately.
   // Changing focusability can drop the topmost flag on Windows; restore it and stay above the blur.
-  if (store.settings.alwaysOnTop) window.setAlwaysOnTop(true, "floating"); if (store.settings.alwaysOnTop || mode === "expanded") window.moveTop();
+  if (store.settings.alwaysOnTop || mode === "expanded") window.moveTop(); if (store.settings.alwaysOnTop) window.setAlwaysOnTop(true, floatingLevel);
 }
 function toggle() { if (mode === "expanded" && window.isVisible()) setMode("compact"); else { window.setFocusable(true); setMode("expanded"); } }
 function registerShortcut(accelerator: string) {
@@ -286,6 +287,7 @@ function createWindow() {
     if(process.platform !== "win32" || !request.userGesture || request.frame !== window.webContents.mainFrame){callback({});return;}
     try{const sources=await desktopCapturer.getSources({types:["screen"],thumbnailSize:{width:0,height:0}});if(sources[0])callback({video:sources[0],audio:"loopback"});else callback({});}catch{callback({});}
   });
+  window.on("always-on-top-changed", (_event, onTop) => { if(!onTop && store.settings.alwaysOnTop && !restoringTop){restoringTop=true;setImmediate(()=>{if(!window.isDestroyed() && store.settings.alwaysOnTop && window.isVisible() && !window.isAlwaysOnTop())window.setAlwaysOnTop(true,floatingLevel);restoringTop=false;});} });
   window.on("blur", () => { if (mode === "expanded" && !modalDepth && !hiding) setMode("compact"); });
   window.on("close", event => { if (!quitting) { event.preventDefault(); hideIsland(); } });
   window.once("ready-to-show", () => window.showInactive());

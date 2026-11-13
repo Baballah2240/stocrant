@@ -13,6 +13,8 @@ function ping() { try { const context = new AudioContext(); const oscillator = c
 export default function App() {
   const translation = useTranslation();
   const [store, setStore] = useState<Store>(defaults), [snapshot, setSnapshot] = useState<Snapshot | null>(null), [mode, setMode] = useState<Mode>("compact"), [tab, setTab] = useState<Tab>("notes"), [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [saved, setSaved] = useState(true), [ready, setReady] = useState(false), [media, setMedia] = useState<MediaState>({ active: false }), [phone, setPhone] = useState<PhoneFeed>({ connected: false, device: "", items: [], at: 0 }), [activity, setActivity] = useState<Activity | null>(null), [weather, setWeather] = useState<Weather | null>(null);
+  const [localSound,setLocalSound]=useState(false);
+  useEffect(()=>{const changed=(e:Event)=>setLocalSound(Boolean((e as CustomEvent<{active:boolean}>).detail?.active));window.addEventListener("island-audio-state",changed);return()=>window.removeEventListener("island-audio-state",changed);},[]);
   const activityQueue = useRef<Activity[]>([]), activityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Live island: show one announcement at a time for a few seconds, then the next. */
   function announce(next: Activity) {
@@ -103,7 +105,7 @@ export default function App() {
         {activity.kind === "music" ? <span className="signal music active"><i/><i/><i/><i/></span> : <Icon name="chevron" size={15}/>}
       </button>}
       <button className={`compact-face ${activity && mode === "compact" ? "hidden-face" : ""}`} aria-label="Expand Island Desk" onClick={() => api?.mode("expanded")} tabIndex={mode === "expanded" ? -1 : 0}>
-        {!focused && media.active ? <>{media.art ? <img className="compact-art" src={media.art} alt=""/> : <span className="compact-art blank"><Icon name="music" size={13}/></span>}<span className="compact-label compact-track">{media.title}</span><span className={`signal music ${media.playing ? "active" : "paused"}`}><i/><i/><i/><i/></span></>
+        {!focused && (media.active || localSound) ? <>{media.active && media.art ? <img className="compact-art" src={media.art} alt=""/> : <span className="compact-art blank"><Icon name="music" size={13}/></span>}<span className="compact-label compact-track">{media.active ? media.title : "Device audio"}</span><span className={`signal music ${(media.active && media.playing) || localSound ? "active" : "paused"}`}><i/><i/><i/><i/></span></>
           : focused ? <><span className="signal active"><i/><i/><i/><i/></span><span className="compact-label">{store.timer.phase === "work" ? "In the flow" : "Take a breather"}</span><span className="compact-right"><Rolling text={timeText(timerMs)}/></span></>
           : <span className="pill-idle"><b>{clockLabel}</b>{weather && <><i className="pill-sep"/><span className="pill-weather"><Icon name={weatherIcon(weather)} size={15}/>{weather.temp}°</span></>}<i className={`pill-dot ${phone.connected ? "on" : ""}`} title={phone.connected ? `${phone.device} connected` : "Island Desk"}/></span>}
       </button>
