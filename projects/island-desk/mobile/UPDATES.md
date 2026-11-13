@@ -18,3 +18,6 @@ This is a migration preview. The existing Electron/Capacitor apps remain availab
 Build Android with `npm run flutter:android`, then `npm run mobile:save`; the APK, SHA-256 and build manifest are ignored under `mobile/releases/`. Windows: `npm run flutter:windows`. No physical phone installation is implied.
 
 Verification: Flutter 3.50 analysis passed with no issues; 5 domain/widget tests passed at 360px and 1000px, with Arabic/English direction, preserved drafts, an always-visible Translate action, calculator safety and queued/backup persistence. Both live Dart translation directions succeeded. Windows release and Android debug builds succeeded; mobile:save records the final APK hash. No Android phone was installed.
+
+## 2026-11-13 - Desktop atmosphere
+Shared desktop source adds saved light/dark translucent styling, clock style controls, a user-selected local audio playlist with playback and a real Web Audio energy response. Existing Windows media/event announcements remain. Music stays mounted when changing workspace tabs. No new Android package was built; desktop audio files require explicit file selection.
