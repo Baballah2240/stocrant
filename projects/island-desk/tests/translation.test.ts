@@ -4,6 +4,9 @@ import { translateText, translationSegments, validTranslation } from "../shared/
 
 const controller = () => new AbortController();
 test("translation validates languages, blank text and maximum length before any network request", async () => {
+  assert.equal(validTranslation({ text: "مرحبا", from: "ar", to: "en" }), true);
+  assert.equal(validTranslation({ text: "Hello", from: "en", to: "ar" }), true);
+  assert.equal(validTranslation({ text: "Bonjour", from: "fr", to: "ar" }), false);
   for (const request of [null, {}, { text: " ", from: "en", to: "ar" }, { text: "Hi", from: "en", to: "en" }, { text: "Hi", from: "file:///", to: "ar" }, { text: "x".repeat(3001), from: "en", to: "ar" }]) {
     assert.equal(validTranslation(request), false);
     assert.deepEqual(await translateText(request, controller().signal, async () => { throw Error("Must not request"); }), { ok: false, error: "invalid" });

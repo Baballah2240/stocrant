@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added a desktop Translate section (Ctrl+7) with 14 languages, English/Arabic defaults, language swapping, right-to-left Arabic/Urdu, copy and Ctrl+Enter submission.
+- Added a desktop Translate section (Ctrl+7) for Arabic ↔ English, English-to-Arabic by default, language swapping, right-to-left Arabic, copy and Ctrl+Enter submission. Choosing either language automatically sets the other side.
 - Online translation uses MyMemory only after explicit submission, with a visible provider notice, a 3,000-character input limit, UTF-8-safe request splitting, cancellation, recoverable offline/quota errors and no saved translation history.
 - Drafts and results remain available across workspace tabs. Existing Notes–Shortcuts keyboard shortcuts are preserved.
 

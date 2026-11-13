@@ -25,7 +25,7 @@ export async function translationSmoke(window: BrowserWindow): Promise<Record<st
     await tab("Translate");await waitFor("!!document.querySelector('#translation-source')");
     await input("Hello");
     results.translationIsOptIn = calls === 0;
-    results.translationHasRTL = await js("document.querySelector('#translation-output').dir==='rtl'");
+    results.translationHasRTL = await js("document.querySelector('#translation-from').value==='en'&&document.querySelector('#translation-to').value==='ar'&&document.querySelector('#translation-output').dir==='rtl'&&document.querySelector('#translation-from').options.length===2");
     await js("document.querySelector('.translation button[type=submit]').click()");
     results.translationThroughIPC = await waitFor("document.querySelector('#translation-output').value==='مرحبا & <hello>'");
     results.translationSafeText = await js("!document.querySelector('.translation hello')");

@@ -36,9 +36,9 @@ export function Translation({ state, message }: { state: ReturnType<typeof useTr
   return <form className="translation" onSubmit={event => { event.preventDefault(); void translate(); }}>
     <div className="section-row"><div><span className="eyebrow">A little less lost in translation</span><h2>Find the right words.</h2></div><span className="translation-online"><Icon name="globe" size={14}/>Online tool</span></div>
     <div className="translation-languages">
-      <label htmlFor="translation-from">From<select id="translation-from" value={draft.from} onChange={e => change({ from: e.target.value })}>{options}</select></label>
+      <label htmlFor="translation-from">From<select id="translation-from" value={draft.from} onChange={e => change({ from: e.target.value, to: e.target.value === "en" ? "ar" : "en" })}>{options}</select></label>
       <button type="button" className="translation-swap" aria-label="Swap languages" title="Swap languages" onClick={() => change({ from: draft.to, to: draft.from, text: output || draft.text })}><Icon name="swap" size={20}/></button>
-      <label htmlFor="translation-to">To<select id="translation-to" value={draft.to} onChange={e => change({ to: e.target.value })}>{options}</select></label>
+      <label htmlFor="translation-to">To<select id="translation-to" value={draft.to} onChange={e => change({ to: e.target.value, from: e.target.value === "en" ? "ar" : "en" })}>{options}</select></label>
     </div>
     <div className="translation-panels">
       <div className="translation-panel"><label htmlFor="translation-source">Your text</label><textarea id="translation-source" value={draft.text} dir={direction(draft.from)} lang={draft.from} placeholder="Type or paste something here…" aria-describedby="translation-count translation-privacy" aria-invalid={tooLong} onChange={e => change({ text: e.target.value })} onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); void translate(); } }}/><div className="translation-panel-foot"><span id="translation-count" className={tooLong ? "translation-error" : ""}>{draft.text.length.toLocaleString()} / {translationLimit.toLocaleString()}</span><button type="button" onClick={() => change({ text: "" })} disabled={!draft.text && !busy}>Clear</button></div></div>

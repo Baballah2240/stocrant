@@ -1,11 +1,5 @@
 export const translationLanguages = [
-  { code: "en", label: "English" }, { code: "ar", label: "Arabic", rtl: true },
-  { code: "fr", label: "French" }, { code: "es", label: "Spanish" },
-  { code: "de", label: "German" }, { code: "it", label: "Italian" },
-  { code: "pt", label: "Portuguese" }, { code: "tr", label: "Turkish" },
-  { code: "hi", label: "Hindi" }, { code: "ur", label: "Urdu", rtl: true },
-  { code: "zh-CN", label: "Chinese (simplified)" }, { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" }, { code: "ru", label: "Russian" },
+  { code: "en", label: "English" }, { code: "ar", label: "العربية / Arabic", rtl: true },
 ] as const;
 export const translationLimit = 3000;
 export interface TranslationRequest { text: string; from: string; to: string }
