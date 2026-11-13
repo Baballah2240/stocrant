@@ -1,5 +1,32 @@
 # Decisions
 
+## 2026-11-09 - Online app download and update notice
+
+D60: The owner chooses to make the Baballah2240/Safeer repository public so signed APKs can be attached to public GitHub releases (tag v<versionName>), and asks for a website Download button plus an in-app update notice. npm run mobile:save writes src/app-release.js (version, URLs, SHA-256, size) from the signed website build; APKs stay out of Git. The installed app appends SafeerApp/<versionCode> (<flavor>) to its user agent; the shared page shows an Update notice when that code is older, a Get-the-app notice in Android browsers, and a Download item in the Booking/Driver drawers outside the up-to-date app. The app opens only https://github.com/Baballah2240/Safeer/releases/ links, in the phone browser, so Android installs the update over the same signing key. A pre-publication scan found no keys, tokens or real personal data in tracked Safeer files; the owner-approved support email is already public. Making the repository public and creating the release are owner actions on GitHub.
+
+## 2026-11-09 - Full-screen apps, phone workspace menu and sign-in
+
+D58: The owner asks for true full screen, a side menu for the Safeer workspace on phones, and more reliable, professional sign-in pages. The Android shell draws into the display cutout (short edges) and passes its height to the page as --safe-top; shared header gaps and drawers add it, so websites without the app are unchanged. At 760px and below the Staff and passenger-preview sidebar is an off-canvas panel: closed by default, opened by the menu button from the start side (right in Arabic), modal (inert page, backdrop, Escape, Android Back) and closed after choosing a destination; it is not persisted, while desktop keeps the saved show/hide column. The phone header puts the title beside the menu button with actions on their own row. Staff and Driver sign-in use a shared card with brand, lead text, 52px fields, a show-password control, full-width submit and an access note; the draft lock targets the submit button only. Version 0.16.2/16200.
+
+## 2026-11-09 - Website-connected apps and professional drawer
+
+D57: The owner clarifies that USB is only for installing the Android apps; installed Driver and Booking must connect directly to the website (https://safeer.mohbaba.online) over the internet. The default build is the signed release channel (private upload key outside Git, version 0.16.1/16100); the USB debug channel remains for development as mobile:build:usb/mobile:save:usb. The app shell reconnects automatically when the network returns, Retry reloads the current page, WebView state survives pauses, and static scripts/styles/images are revalidated with ETags (304) while pages stay no-store. Both drawers gain an identity header with app name, labelled menu section, signed-in driver card, highlighted current page, pinned Settings/footer with version, and a reduced-motion-aware slide-in. Shipments (D59, pending) wait for the owner's explicit start: fixed price per item, receiver identified by phone number and name, any customer may send.
+
+## 2026-11-09 - Audit remediation
+
+D56: The owner authorizes fixing the seven audit findings, regression coverage and bringing the reviewed source to the existing online service. Preserve accounts, business records, tenant/financial authority and bounded requests. Publish the explicitly approved support contact, restore above-sidebar navigation, preserve search drafts and newest-request ordering, allow the validated group-booking envelope only on the hold-create endpoint, and distinguish hosted Android recovery from USB. Add reviewed hosted-owner recovery, hosted security checks and complete browser release gating. Physical acceptance and hosting changes must be verified separately; do not claim deployment or installation from a Git push. No MFA/email-delivery service or payment integration is introduced.
+
+
+## 2026-11-09 - Broad quality audit
+
+D55: The owner requests testing Safeer to identify gaps and bugs. Run the existing unit/build/docs, native PostgreSQL and browser workflow checks with isolated fictional fixtures, plus local targeted probes and read-only checks of the published site. Preserve online/local business records and credentials. This authorizes an evidence-backed audit report, not product fixes, password changes, production test bookings, native installation or deployment. Keep generated test databases and receipts out of Git.
+
+
+## 2026-11-08 - Login reliability and local access
+
+D54: The owner requests opening Safeer, fixing login problems and pushing the scoped source changes to GitHub. Preserve the local database, accounts, role/company boundaries and loopback-only service. Fix Staff/Driver form draft loss and startup/in-flight sign-in races; retain the email on failure, clear rejected passwords, and keep pending submission disabled across re-renders. Test with fictional disposable identities. The owner separately approved local owner-password recovery, completed through the existing privileged tool with a private affected-account/session snapshot and mandatory password change;  never commit or archive credentials/runtime. No hosting, permission expansion or native package change.
+
+
 ## 2026-11-05 - Manual ticket-number fallback
 
 D53: The owner approves the new manual-entry fallback from the scanner proposal. Add a separate printed-ticket-number entry in Driver alongside existing QR/keyboard input. This does not implement phone camera scanning. API verify/board accept exactly one QR token or ticketNumber; normalize number case and preserve strict QR validation. Append migration 0015 replacing only driver_verify to resolve ticket numbers inside the authorized company/trip, retaining all assignment/revocation, payment/refund/cancellation, boarding-window, concurrency/idempotency, privacy and audit checks. Confirmation uses the exact checked credential; editing either input invalidates stale results. Checking never boards automatically, and connection failure never reports valid. Test invalid/wrong-trip/company/revoked/refunded/duplicate/racing requests on disposable data and actual fallback UI. Back up/restore-verify local runtime before migration, preserve existing records/accounts, restart and verify. No camera permission, APK change, hosting or private portfolio publication; update docs/mobile notes and archive scoped source.
@@ -179,3 +206,6 @@ D16: The owner explicitly requested a luggage yes/no choice and description for 
 
 ## Mobile header and loading refinement ? 2026-11-11
 Owner requested a minimal Booking/Driver app bar with a centered localized Safeer name and existing menu button. Preserve drawer actions, focus, RTL and safe cutout clearance. Use accessible branded indeterminate loading and reduced-motion support.
+
+## Operations overview layout and booking byte limits - 2026-11-13
+Improve the transport workspace dashboard to an operations overview: date-aware metric cards (Departures today, Passengers booked, Boarded, Needs attention) and a Today's departures section with a Create trip action. Connect the workspace with the booking space: the staff/preview sidebar links to the marketplace and the marketplace drawer links to Staff sign in. Return a specific bilingual JSON error (REQUEST_TOO_LARGE) with HTTP 413 for oversized booking payloads instead of a plain-text message. No schema, financial policy, role grant, or hosting change. Validate with npm test, npm run build and npm run check:docs.

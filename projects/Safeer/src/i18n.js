@@ -117,6 +117,18 @@ export const arabic = {
   "Describe the bags, colour and any identifying details. Maximum 300 characters.": "صف الحقائب ولونها وأي علامات مميزة، بحد أقصى ٣٠٠ حرف.",
   "Choose whether the passenger has luggage.": "حدد ما إذا كان لدى الراكب أمتعة.",
   "Describe the luggage using 1 to 300 characters.": "أدخل وصفاً للأمتعة من حرف واحد إلى ٣٠٠ حرف."
+,
+  "Operations": "العمليات",
+  "Departures today": "المغادرات اليوم",
+  "Passengers booked": "الركاب المحجوزون",
+  "Boarded": "على متن الرحلة",
+  "Needs attention": "يحتاج اهتمام",
+  "Today's departures": "مغادرات اليوم",
+  "Create trip": "إنشاء رحلة",
+  "View": "عرض",
+  "Scheduled": "مجدولة",
+  "trips": "رحلات",
+  "No departures today.": "لا توجد مغادرات اليوم."
 };
 
 export function translate(value, language) {

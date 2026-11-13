@@ -1,5 +1,30 @@
 # Changelog
 
+## Operations overview layout - 2026-11-13
+Transport workspace dashboard improved to an operations overview with date-aware metric cards (Departures today, Passengers booked, Boarded, Needs attention) and a Today's departures section with Create trip action. Booking endpoint returns a specific REQUEST_TOO_LARGE JSON error on HTTP 413 for oversized payloads.
+
+## Online app download - D60, 2026-11-09
+
+Website Download/Get-the-app/Update notices driven by generated src/app-release.js; the app identifies its version in the user agent and opens only Safeer GitHub release links externally.
+
+## Full-screen apps, phone menu and sign-in - D58, 2026-11-09
+
+Android draws into the display cutout and shares --safe-top with the page. Phone Staff/preview navigation becomes an off-canvas modal panel with backdrop, Escape/Back closing and focus return; desktop behaviour is unchanged. Sign-in pages share a professional card with a show-password control. Sidebar browser checks now cover phone open/close, inert background, focus, translation and form preservation.
+
+## Website-connected apps and drawer - D57, 2026-11-09
+
+Android Driver and Booking default to the signed website channel (0.16.1/16100) with automatic reconnect, same-page retry, state restore and ETag asset revalidation. The phone drawers gain an identity header, labelled menu, signed-in driver card, current-page indicator, pinned Settings/footer with version, and a slide-in that respects reduced motion. Menu browser tests finish that animation before measuring; a server test covers 304 revalidation and no-store pages.
+
+## Audit remediation - D56, 2026-11-09
+
+The audit source fixes preserve newest-search ordering and unfinished search fields, restore the above-sidebar toggle with immediate keyboard state and clipped animation overflow, publish the owner-approved support contact, and permit a bounded 64 KiB payload only for creating public group bookings (other endpoints remain 8 KiB). The Android error screen distinguishes hosted HTTPS from USB; local patch .6/16006 is built/linted/saved. Hosted owner recovery now supports a non-superuser migration owner with explicit confirmation, duplicate-email rollback, session revocation and audit. Complete browser release gating and PostgreSQL 16 CI are added. No schema, financial policy, role grants or real account credentials are changed. See [D56 handover](archive/AUDIT_REMEDIATION_2026-11-09.md) for measured results and outstanding deployment/device verification.
+
+
+## Login reliability - D54, 2026-11-08
+
+Staff and Driver preserve entered sign-in fields during language/render changes, keep the email after rejection, clear rejected passwords, and serialize login submissions while startup/session checks or login requests are pending. Credentials stay in ephemeral form state, never browser storage, markup or source. Existing accounts/data, server authorization, password rules and loopback-only access are preserved. The owner separately approved private local owner-password recovery; no credentials are included here. See [D54 handover](archive/LOGIN_RELIABILITY_2026-11-08.md).
+
+
 ## Driver sidebar and mobile fullscreen - D52
 
 Driver now matches Booking with sidebar navigation and appearance/language Settings; operational refresh/logout and assigned-trip rules remain. Both local Android clients remove native toolbars and use immersive fullscreen with swipe-reveal system controls and safe cutout/keyboard insets. USB patch .5/16005 preserves app data. No schema/API, authority, money or hosting change. See [D52 handover](archive/MOBILE_FULLSCREEN_2026-11-05.md); prior evidence is historical.

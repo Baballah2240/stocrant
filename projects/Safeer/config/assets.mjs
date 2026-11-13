@@ -1,5 +1,6 @@
 // One explicit public-asset list for the local server and static build.
 export const publicAssets = {
+  '/src/login-form.js': ['src/login-form.js', 'text/javascript'],
   '/': ['index.html', 'text/html'],
   '/src/app.js': ['src/app.js', 'text/javascript'],
   '/src/i18n.js': ['src/i18n.js', 'text/javascript'],
@@ -24,6 +25,7 @@ export const publicAssets = {
   '/src/fleet.js': ['src/fleet.js', 'text/javascript'],
   '/src/companies.js': ['src/companies.js', 'text/javascript'],
   '/src/theme.js': ['src/theme.js', 'text/javascript'],
+  '/src/app-release.js': ['src/app-release.js', 'text/javascript'],
   '/src/theme.css': ['src/theme.css', 'text/css'],
   '/src/brand.svg': ['src/brand.svg', 'image/svg+xml'],
   '/driver': ['driver.html', 'text/html'],
