@@ -1,0 +1,14 @@
+import {copyFileSync,existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {resolve,join} from 'node:path';
+const root=resolve(import.meta.dirname,'..');
+const source=join(root,'flutter_app','build','app','outputs','flutter-apk','app-debug.apk');
+if(!existsSync(source))throw Error('Build the Flutter Android preview first: npm run flutter:android');
+const version=readFileSync(join(root,'flutter_app','pubspec.yaml'),'utf8').match(/^version:\s*([^\r\n]+)/m)?.[1]?.trim();
+if(!version||!/^\d+\.\d+\.\d+\+\d+$/.test(version))throw Error('Unexpected Flutter version.');
+const bytes=readFileSync(source),sha256=createHash('sha256').update(bytes).digest('hex');
+const dir=join(root,'mobile','releases');mkdirSync(dir,{recursive:true});
+const name=`Island-Desk-Flutter-${version.replace('+','-')}-debug.apk`;
+copyFileSync(source,join(dir,name));writeFileSync(join(dir,name+'.sha256'),sha256+'  '+name+'\n');
+writeFileSync(join(dir,'flutter-latest.json'),JSON.stringify({version,file:name,sha256,bytes:bytes.length,package:'studio.islanddesk.island_desk_flutter',channel:'debug-preview',builtAt:new Date().toISOString()},null,2)+'\n');
+console.log('Saved '+name+' with checksum and build manifest. No phone was installed.');

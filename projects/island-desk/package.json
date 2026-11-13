@@ -18,7 +18,12 @@
     "package:win": "npm run build && electron-builder --win nsis portable",
     "package:dir": "npm run build && electron-builder --dir",
     "icons": "node scripts/make-icons.mjs",
-    "launcher:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-launcher-apk.ps1"
+    "launcher:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-launcher-apk.ps1",
+    "flutter:check": "node scripts/flutter.mjs check",
+    "flutter:windows": "node scripts/flutter.mjs windows",
+    "flutter:android": "node scripts/flutter.mjs android",
+    "flutter:run": "node scripts/flutter.mjs run",
+    "mobile:save": "node scripts/save-mobile.mjs"
   },
   "dependencies": {
     "@capacitor/android": "7.6.9",
@@ -49,7 +54,8 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/@capacitor/**"
     ],
     "asar": true,
     "win": {

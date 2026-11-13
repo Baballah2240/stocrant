@@ -2,6 +2,14 @@
 
 A floating, Dynamic-Island-style workspace for Windows. Built with Electron, React and TypeScript. Notes, tasks and focus tools work offline with no account; the optional Translate section uses an online service.
 
+## Flutter Windows and Android preview
+
+`flutter_app/` now contains a shared Flutter 3.50 workspace for Windows and Android. It opens on Arabic ↔ English translation and includes local Notes, Tasks, Calculator/history, Focus, text tools and shortcuts. Windows uses a wide navigation rail and a foldable, topmost window; narrow Android screens use a drawer with a persistent Translate action.
+
+Run `npm run flutter:check`, `npm run flutter:windows`, or `npm run flutter:android`. After an Android build run `npm run mobile:save` to save the APK, checksum and manifest under the ignored `mobile/releases/`. Complete setup, output paths, data import and remaining native integrations are documented in [flutter_app/MIGRATION.md](flutter_app/MIGRATION.md).
+
+This is a separately runnable migration preview, not yet a replacement for the existing system integrations or Android home-screen launcher. It preserves the original apps and workspace data.
+
 ## Install and run (Windows 10/11)
 
 1. Install **Node.js 20 or newer** (https://nodejs.org).

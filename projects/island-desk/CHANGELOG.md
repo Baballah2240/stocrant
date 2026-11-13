@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added a shared Flutter 3.50 Windows/Android workspace preview, opening on Translate. Includes local notes/tasks, calculator/history, focus, text tools, shortcuts and adaptive rail/drawer layouts.
+- Added small native platform channels for the Windows topmost/foldable window and Android private storage/browser opening. Existing app data is imported as a copy on Windows, and the Android preview uses a separate application ID.
+- Flutter analysis, five domain/widget tests, live sample translations in both directions, and Windows release/Android debug builds verified. Android outputs are saved with checksums/manifests by `mobile:save` and kept out of Git.
+- Desktop packaging excludes Capacitor's Android build directories. The full Electron/Capacitor native integrations remain available during migration; see `flutter_app/MIGRATION.md`.
+
 - Added a desktop Translate section (Ctrl+7) for Arabic ↔ English, English-to-Arabic by default, language swapping, right-to-left Arabic, copy and Ctrl+Enter submission. Choosing either language automatically sets the other side.
 - Online translation uses MyMemory only after explicit submission, with a visible provider notice, a 3,000-character input limit, UTF-8-safe request splitting, cancellation, recoverable offline/quota errors and no saved translation history.
 - Drafts and results remain available across workspace tabs. Existing Notes–Shortcuts keyboard shortcuts are preserved.
