@@ -1,7 +1,9 @@
+import WorkspaceNavigation, { WorkspaceNavLink as NavButton } from "./WorkspaceNavigation";
+import { workspaceNavigationFor, aboutNavItem as aboutItem } from "../workspace-navigation";
 import { isNativeApp } from "../api";
 import AppearanceSelector from "./AppearanceSelector";
 import { UrgentEmployeeBanner } from "./HRMessageDetails";
-import MobileIcon, { type MobileIconName } from "./MobileIcon";
+import MobileIcon from "./MobileIcon";
 import { useMobile } from "../use-mobile";
 import { Suspense, useEffect, useRef, useState } from "react";
 import ProfilePanel from "./ProfilePanel";
@@ -12,52 +14,6 @@ import { NotificationBell } from "./NotificationBell";
 import { useLanguage } from "../language-context";
 import "../dashboard-reference.css";
 import "../workspace-menu.css";
-
-interface NavEntry {
-  to: string;
-  label: string;
-  section?: string;
-  end?: boolean;
-  icon?: MobileIconName;
-}
-
-const navItems: NavEntry[] = [
-  { to: "/", label: "Dashboard", icon: "home", end: true },
-  { to: "/organizations", label: "Organizations", icon: "companies", section: "organizations" },
-  { to: "/locations", label: "Locations", icon: "locations", section: "locations" },
-  { to: "/hr", label: "Workforce & HR", icon: "people", section: "hr" },
-  { to: "/operations", label: "Operations", icon: "work", section: "operations" },
-  { to: "/shops", label: "Shops & orders", icon: "inventory", section: "inventory" },
-  { to: "/customer-service", label: "Customer Service", icon: "work", section: "customerService" },
-  { to: "/warehouse", label: "Inventory", icon: "inventory", section: "inventory" },
-  { to: "/hr/payroll", label: "Payroll", icon: "finance", section: "payroll" },
-  { to: "/me/payroll", label: "My payslips", icon: "finance" },
-  { to: "/finance", label: "Finance", icon: "finance", section: "finance" },
-  { to: "/admin", label: "Access & Settings", icon: "settings", section: "access" },
-  { to: "/security", label: "App lock", icon: "settings" },
-];
-
-const aboutItem: NavEntry = {
-  to: "/about",
-  label: "About", icon: "info",
-};
-
-function NavButton({ item, onNavigate }: { item: NavEntry; onNavigate?: () => void }) {
-  const { t } = useLanguage();
-  const { pathname } = useLocation();
-  const sectionActive = item.to === "/hr" ? pathname === "/hr" || (pathname.startsWith("/hr/") && !pathname.startsWith("/hr/payroll"))
-    : item.to === "/organizations" ? pathname.startsWith("/organization/") || pathname === item.to
-    : item.to === "/warehouse" ? pathname.startsWith("/inventory") || pathname.startsWith("/warehouse")
-    : item.to === "/locations" ? ["/locations", "/stores", "/places", "/people"].includes(pathname)
-    : item.to === "/operations" ? pathname.startsWith("/operations") || pathname.startsWith("/stores/") || pathname === "/store"
-    : item.to === "/admin" ? pathname.startsWith("/admin") || pathname === "/access"
-    : undefined;
-  return (
-    <NavLink to={item.to === "/" && !isNativeApp() ? "/workspace" : item.to} end={item.end ?? item.to === "/hr"} className={({ isActive }) => `nav-item${(sectionActive ?? isActive) ? " active" : ""}`} aria-current={sectionActive ? "page" : undefined} title={t(item.label)} aria-label={t(item.label)} onClick={onNavigate}>
-      {item.icon && <MobileIcon name={item.icon} />}<span className="nav-label">{t(item.label)}</span>
-    </NavLink>
-  );
-}
 
 export default function Layout() {
   const { language, setLanguage, t } = useLanguage();
@@ -76,6 +32,8 @@ export default function Layout() {
     }
   });
   const menuRef = useRef<HTMLDialogElement>(null);
+  const headerRef = useRef<HTMLElement>(null), layoutRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { const header = headerRef.current; if (!header) return; const measure = () => layoutRef.current?.style.setProperty("--workspace-header-height", header.getBoundingClientRect().height + "px"); measure(); const observer = new ResizeObserver(measure); observer.observe(header); return () => observer.disconnect(); }, []);
   useEffect(() => {
     const dialog = menuRef.current;
     if (!dialog) return;
@@ -92,20 +50,17 @@ export default function Layout() {
   const { user, signOut } = useSession();
   const mainAdmin = user?.roleId === "role-main-manager";
   const canSeeSection = (section?: string) => !section || mainAdmin || Boolean(user?.permissions.includes("*") || user?.permissions.includes(`${section}.*`) || user?.permissions.includes(`${section}.view`));
-  const visibleNavItems = navItems.filter(item => canSeeSection(item.section) && (item.to !== "/shops" || canSeeSection("operations")));
+  const visibleNavItems = workspaceNavigationFor(user);
   const atHome = ["/", "/workspace"].includes(location.pathname);
   const mobileTitle = atHome ? "Dashboard" : location.pathname === "/mobile-more" ? "More"
     : [...visibleNavItems, aboutItem].filter(item => item.to !== "/" && (location.pathname === item.to || location.pathname.startsWith(`${item.to}/`))).sort((a,b) => b.to.length-a.to.length)[0]?.label || "Business workspace";
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
-  const closeSidebarAfterNavigation = () => {
-    // Keep the chosen navigation width when moving between sections.
-  };
 
   return (
-    <div className={`ios-app aer-workspace ${["/", "/workspace"].includes(location.pathname) ? "dashboard-shell" : ""} ${mobile ? "mobile-layout" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <a className="skip-link" href="#main-content">{t("Skip to content")}</a><header className="topbar">
+    <div ref={layoutRef} className={`ios-app aer-workspace ${["/", "/workspace"].includes(location.pathname) ? "dashboard-shell" : ""} ${mobile ? "mobile-layout" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <a className="skip-link" href="#main-content">{t("Skip to content")}</a><header ref={headerRef} className="topbar">
         {mobile ? <>{!atHome && <BackButton className="mobile-header-back" fallback={backFallback} />}<button className="mobile-header-control" type="button" aria-label={t("Open account menu")} aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="mobile-account-menu" onClick={() => setMenuOpen(true)}><svg className="mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button><div className="mobile-header-title"><span>{t("STOCRANT")}</span><strong>{t(mobileTitle)}</strong></div><NotificationBell className="mobile-header-notifications" /></> : <><div className="topbar-brand">
-          <button className="workspace-sidebar-toggle" type="button" aria-label={t("Primary navigation")} aria-controls="primary-navigation" aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
+          <button className="workspace-sidebar-toggle" type="button" aria-label={t("Primary navigation")} aria-controls="primary-navigation" aria-expanded={!sidebarCollapsed} title={t(sidebarCollapsed ? "Show sidebar" : "Hide sidebar")} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
           <span className="brand-logo" aria-hidden="true">
@@ -131,11 +86,9 @@ export default function Layout() {
           <header className="mobile-drawer-heading"><div><span className="mobile-drawer-brand">{t("STOCRANT")}</span><h2 id="mobile-menu-title">{t("My account")}</h2></div><button type="button" aria-label={t("Close menu")} onClick={() => setMenuOpen(false)}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
           <button className="mobile-drawer-identity" type="button" aria-label={t("My profile")} onClick={() => { setMenuOpen(false); setProfileOpen(true); }}><span className="mobile-drawer-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : user?.name?.slice(0, 2).toUpperCase() || <MobileIcon name="profile" />}</span><span className="mobile-drawer-user"><strong>{user?.name}</strong><span>{t("My profile")}</span></span><span className="mobile-drawer-chevron" aria-hidden="true">›</span></button>
           <nav className="mobile-drawer-workspace-nav" aria-label={t("Primary navigation")}>
-            <span className="mobile-drawer-nav-label">{t("Business workspace")}</span>
-            {visibleNavItems.map((item) => <NavButton key={item.to} item={item} onNavigate={() => setMenuOpen(false)} />)}
+            {menuOpen && <WorkspaceNavigation key={user?.id} items={visibleNavItems} onNavigate={() => setMenuOpen(false)} />}
           </nav>
           <nav className="mobile-drawer-controls" aria-label={t("Account controls")}>
-            <NavLink to="/security" onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("App lock")}</span></NavLink>
             <section className="language-settings" aria-labelledby="language-heading">
               <h3 id="language-heading">{t("Language")}</h3>
               <div className="language-options" role="group" aria-label={t("App language")}>
@@ -144,7 +97,6 @@ export default function Layout() {
               </div>
               <p>{t("Saved on this device")}</p>
             </section>
-            <NavLink to={canSeeSection("access") ? "/admin" : "/mobile-more"} onClick={() => setMenuOpen(false)}><MobileIcon name="settings" /><span>{t("Settings")}</span></NavLink>
             <AppearanceSelector />
           </nav>
           <footer className="mobile-drawer-footer"><NavLink to="/about" onClick={() => setMenuOpen(false)}><MobileIcon name="info" /><span>{t("About")}</span></NavLink><span>{t("STOCRANT")}</span></footer>
@@ -153,21 +105,13 @@ export default function Layout() {
 
       {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to={isNativeApp() ? "/" : "/workspace"} end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}{mainAdmin && canSeeSection("finance") && <NavLink to="/finance"><MobileIcon name="finance" />{t("Finance")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
       <div className="app">
-        <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} >
+        <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} inert={mobile || sidebarCollapsed} aria-hidden={mobile || sidebarCollapsed ? true : undefined}>
           <nav className="nav" aria-label={t("Main navigation")}>
-            {[
-              { label: "Workspace", paths: ["/", "/organizations", "/locations"] },
-              { label: "People & operations", paths: ["/hr", "/operations", "/shops", "/customer-service", "/warehouse"] },
-              { label: "Finance", paths: ["/hr/payroll", "/me/payroll", "/finance"] },
-              { label: "Settings", paths: ["/admin", "/security"] },
-            ].map(group => {
-              const links = visibleNavItems.filter(item => group.paths.includes(item.to));
-              return links.length ? <div className="workspace-nav-group" key={group.label}><p className="workspace-nav-heading">{t(group.label)}</p>{links.map(item => <NavButton key={item.to} item={item} onNavigate={closeSidebarAfterNavigation}/>)}</div> : null;
-            })}
+            {!mobile && <WorkspaceNavigation key={user?.id} items={visibleNavItems} />}
           </nav>
           <div className="nav-bottom">
-            {["/", "/workspace"].includes(location.pathname) && <button type="button" className="dashboard-sidebar-profile" onClick={() => setProfileOpen(true)}><span className="dashboard-sidebar-avatar">{user?.avatar ? <img src={user.avatar} alt=""/> : user?.name.slice(0, 2).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{t("My profile")}</small></span><span aria-hidden="true">↗</span></button>}
-            <NavButton item={aboutItem} onNavigate={closeSidebarAfterNavigation} />
+            {!mobile && <button type="button" className="dashboard-sidebar-profile" onClick={() => setProfileOpen(true)}><span className="dashboard-sidebar-avatar">{user?.avatar ? <img src={user.avatar} alt=""/> : user?.name.slice(0, 2).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{t("My profile")}</small></span><span aria-hidden="true">↗</span></button>}
+            <NavButton item={aboutItem} />
           </div>
         </aside>
         {profileOpen && <ProfilePanel initialPhoto={profilePhoto} onClose={() => { setProfileOpen(false); setProfilePhoto(undefined); }} />}<main className="main" id="main-content">

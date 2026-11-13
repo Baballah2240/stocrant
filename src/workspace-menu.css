@@ -1,21 +1,63 @@
-.ios-app:not(.mobile-layout) .sidebar .nav { display: flex; flex-direction: column; gap: 17px; padding-block: 2px 16px; overflow-y: auto; scrollbar-width: none; }
-.workspace-nav-group { display: grid; gap: 4px; min-width: 0; }
-.workspace-nav-heading { padding-inline: 12px; margin: 0 0 5px; color: var(--ios-label-2); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
-.ios-app .sidebar .nav-item { min-height: 43px; padding: 7px 11px; gap: 11px; border: 1px solid transparent; border-radius: 11px; color: var(--ios-label-2); font-size: 12px; font-weight: 500; text-decoration: none; }
-.ios-app .sidebar .nav-item > .mobile-icon { width: 19px; height: 19px; flex-shrink: 0; opacity: .85; }
-.ios-app .sidebar .nav-item:hover { background: var(--ios-fill); color: var(--ios-label); }
-.ios-app .sidebar .nav-item.active { background: color-mix(in srgb,var(--brand-link, #2474d0) 12%,var(--ios-cell)); border-color: color-mix(in srgb,var(--brand-link, #2474d0) 22%,transparent); color: var(--brand-link); box-shadow: none; font-weight: 650; }
-.ios-app .sidebar .nav-item.active > .mobile-icon { opacity: 1; }
-.ios-app .sidebar .nav-item:focus-visible { outline: 2px solid var(--brand-link); outline-offset: 2px; }
-.ios-app .sidebar .nav-item::before { left: auto; right: auto; inset-inline-start: 0; }
-html[lang="ar"] .workspace-nav-heading { letter-spacing: 0; }
-@media(min-width:701px) and (max-width:860px) {
-  .ios-app:not(.mobile-layout) .sidebar .nav { flex-direction: row; overflow-x: auto; overflow-y: hidden; gap: 12px; }
-  .workspace-nav-group { display: flex; align-items: center; flex-shrink: 0; }.workspace-nav-heading { display: none; }
-}
 
-/* Keep wheel, touch and keyboard scrolling without visible sidebar tracks. */
-.ios-app:not(.mobile-layout) .sidebar .nav::-webkit-scrollbar { display: none; width: 0; height: 0; }
-@media (min-width: 861px) {
-  .ios-app:not(.mobile-layout) .sidebar .nav { overflow-x: hidden; }
+/* Shared disclosure navigation: current workspace tokens, one layout for every page. */
+.workspace-navigation { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; gap: 16px; }
+.workspace-menu-intro { display: grid; gap: 3px; padding-inline: 10px; }
+.workspace-menu-intro > span { color: var(--ink, var(--ios-label)); font-size: .8125rem; font-weight: 700; }
+.workspace-menu-intro small { color: var(--aer-muted, var(--ios-label-2)); font-size: .6875rem; font-weight: 400; }
+.workspace-nav-search { position: relative; display: flex; align-items: center; min-width: 0; }
+.workspace-nav-search > .mobile-icon { position: absolute; inset-inline-start: 12px; width: 17px; height: 17px; pointer-events: none; color: var(--aer-muted, var(--ios-label-2)); }
+html[data-theme] .ios-app.aer-workspace .workspace-nav-search input { width: 100%; min-width: 0; min-height: 44px; height: auto; line-height: 1.4; padding-inline: 36px; border: 1px solid var(--aer-line, var(--ios-separator)); border-radius: 12px; box-shadow: none; font-size: .75rem; background: var(--aer-field, var(--ios-fill)); }
+.workspace-nav-search input::-webkit-search-cancel-button { display: none; }
+html[data-theme] .ios-app.aer-workspace .workspace-nav-search > button { position: absolute; inset-inline-end: 2px; display: grid; place-items: center; width: 36px; min-height: 36px; height: 36px; padding: 8px; border: 0; background: transparent; box-shadow: none; }
+.workspace-section-list { min-width: 0; min-height: 0; flex: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--aer-line, var(--ios-separator)) transparent; padding: 3px; }
+.workspace-nav-section { margin-bottom: 8px; }
+.workspace-section-heading { font-size: inherit; margin: 0; }
+html[data-theme] .ios-app.aer-workspace .workspace-section-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; min-height: 48px; border: 1px solid transparent; border-radius: 12px; box-shadow: none; background: transparent; color: var(--aer-muted, var(--ios-label-2)); text-align: start; font-size: .8125rem; font-weight: 650; line-height: 1.4; }
+.workspace-section-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.workspace-section-icon { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--aer-line, var(--ios-separator)); border-radius: 9px; }
+.workspace-section-icon .mobile-icon { width: 17px; height: 17px; }
+.workspace-section-toggle > .mobile-icon { width: 14px; height: 14px; flex-shrink: 0; transition: transform 160ms var(--ios-ease); }
+.workspace-section-toggle[aria-expanded="true"] > .mobile-icon { transform: rotate(90deg); }
+html[dir="rtl"] .workspace-section-toggle:not([aria-expanded="true"]) > .mobile-icon { transform: rotate(180deg); }
+html[data-theme] .ios-app.aer-workspace .workspace-section-toggle:hover:not(:disabled) { background: color-mix(in srgb, var(--aer-link, var(--brand-link)) 7%, transparent); color: var(--ink, var(--ios-label)); }
+html[data-theme] .ios-app.aer-workspace .workspace-section-toggle[aria-expanded="true"] { color: var(--ink, var(--ios-label)); }
+html[data-theme] .ios-app.aer-workspace .contains-current .workspace-section-icon { color: var(--aer-link, var(--brand-link)); border-color: color-mix(in srgb, var(--aer-link, var(--brand-link)) 40%, var(--aer-line, var(--ios-separator))); background: var(--color-primary-soft); }
+html[data-theme] .ios-app.aer-workspace .workspace-section-toggle:disabled { opacity: 1; cursor: default; }
+.workspace-current-dot { display: block; width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
+.workspace-group-links { margin: 5px 2px 8px 22px; margin-inline: 22px 2px; padding-inline-start: 10px; border-inline-start: 1px solid var(--aer-line, var(--ios-separator)); }
+.workspace-group-links[hidden] { display: none !important; }
+html[data-theme] .ios-app.aer-workspace :is(.sidebar, .mobile-drawer-workspace-nav) .nav-item { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 9px 10px; margin-block: 3px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--aer-muted, var(--ios-label-2)); font-size: .8125rem; font-weight: 500; text-decoration: none; box-shadow: none; transform: none; }
+html[data-theme] .ios-app.aer-workspace :is(.sidebar, .mobile-drawer-workspace-nav) .nav-item .mobile-icon { width: 19px; height: 19px; opacity: 1; flex-shrink: 0; }
+.workspace-group-links .nav-label { flex: 1; min-width: 0; overflow: visible; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; opacity: 1; }
+html[data-theme] .ios-app.aer-workspace :is(.sidebar, .mobile-drawer-workspace-nav) .nav-item:hover { background: color-mix(in srgb, var(--aer-link, var(--brand-link)) 6%, transparent); color: var(--ink, var(--ios-label)); }
+html[data-theme] .ios-app.aer-workspace :is(.sidebar, .mobile-drawer-workspace-nav) .nav-item.active { color: var(--aer-link, var(--brand-link)); background: color-mix(in srgb, var(--aer-link, var(--brand-link)) 10%, var(--bg, var(--ios-cell))); border-color: color-mix(in srgb, var(--aer-link, var(--brand-link)) 24%, transparent); font-weight: 650; box-shadow: none; }
+html[data-theme] .ios-app.aer-workspace .sidebar .nav-item.active::before { display: none; }
+.workspace-navigation :is(button,input,a):focus-visible { outline: 2px solid var(--aer-link, var(--brand-link)); outline-offset: 2px; }
+.workspace-nav-empty { padding: 12px; color: var(--aer-muted, var(--ios-label-2)); font-size: .75rem; }
+.ios-app .sidebar .nav-bottom { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--aer-line, var(--ios-separator)); flex-shrink: 0; }
+html[data-theme] .ios-app.aer-workspace .dashboard-sidebar-profile { margin-block: 0 8px; padding: 10px; border-radius: 12px; box-shadow: none; }
+@media (min-width: 701px) {
+  html[data-theme] .ios-app.aer-workspace:not(.mobile-layout) .app { flex-direction: row; min-width: 0; }
+  html[data-theme] .ios-app.aer-workspace:not(.mobile-layout) .sidebar { width: 248px; min-width: 0; flex: 0 0 248px; display: flex; flex-direction: column; align-items: stretch; position: sticky; top: var(--workspace-header-height,74px); height: calc(100dvh - var(--workspace-header-height,74px)); max-height: none; overflow: hidden; padding: 22px 12px 14px; opacity: 1; transform: none; box-shadow: none; border-inline-end: 1px solid var(--aer-line, var(--ios-separator)); }
+  html[data-theme] .ios-app.aer-workspace:not(.mobile-layout) .sidebar > .nav { display: flex; flex-direction: column; flex: 1; min-height: 0; width: auto; gap: 0; padding: 0; overflow: hidden; }
+  html[data-theme] .ios-app.aer-workspace:not(.mobile-layout) .sidebar:hover { width: 248px; min-width: 0; box-shadow: none; }
+  html[data-theme] .ios-app.aer-workspace.sidebar-collapsed:not(.mobile-layout) .sidebar { width: 0; flex-basis: 0; padding: 0; border-inline-width: 0; opacity: 0; pointer-events: none; }
+  .ios-app.aer-workspace:not(.mobile-layout) .main { min-width: 0; }
+}
+.mobile-layout .workspace-navigation { display: flex; min-height: auto; gap: 14px; }
+.mobile-layout .workspace-section-list { flex: none; overflow: visible; padding: 3px; }
+.mobile-layout .workspace-group-links { margin-inline-start: 22px; }
+.mobile-layout .mobile-drawer-workspace-nav { margin-top: 18px; padding-block: 18px; }
+html[data-theme] .ios-app.aer-workspace.mobile-layout .workspace-section-toggle { min-height: 48px; font-size: .8125rem; }
+html[data-theme] .ios-app.aer-workspace.mobile-layout .mobile-drawer-workspace-nav .nav-item { min-height: 48px; font-size: .8125rem; }
+html[data-theme] .ios-app.aer-workspace.mobile-layout .workspace-nav-search input { min-height: 44px; }
+@media (prefers-reduced-motion: no-preference) { .workspace-group-links:not([hidden]) { animation: workspace-submenu-enter 140ms ease-out; } @keyframes workspace-submenu-enter { from { opacity: .5; transform: translateY(-3px); } to { opacity: 1; transform: none; } } }
+@media (prefers-reduced-motion: reduce) { .workspace-navigation *, .workspace-section-toggle > .mobile-icon { animation: none !important; transition: none !important; } }
+@media print { .workspace-navigation { display: none !important; } }
+
+@media (min-width: 701px) and (max-height: 650px) {
+  html[data-theme] .ios-app.aer-workspace:not(.mobile-layout) .sidebar { padding-block: 12px; }
+  .sidebar .workspace-menu-intro, .sidebar .dashboard-sidebar-profile { display: none !important; }
+  .sidebar .workspace-navigation { gap: 10px; }
+  .ios-app .sidebar .nav-bottom { margin-top: 8px; padding-top: 8px; }
 }

@@ -480,3 +480,8 @@ The APK installed locally is a USB development build. Production distribution ne
 - Upload, replace and remove private item pictures from Item details and New/Edit item forms.
 - Reuse image optimization and native authenticated image loading; JPEG/PNG/WebP up to 5 MB.
 - Picture changes respect inventory permissions, company/item scope, audit history and approvals.
+
+## Workspace navigation
+- Searchable dropdown sections for Workspace, People & HR, Operations, Finance and Administration in the sidebar and mobile account menu.
+- Distinct store, customer-support, payroll, payslip and app-lock icons with clear active-page indicators.
+- Permission-filtered links, remembered section states, automatic current-section expansion, keyboard controls and reduced-motion support.
