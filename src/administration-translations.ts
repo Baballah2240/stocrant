@@ -1,4 +1,10 @@
 export const administrationTranslations:Readonly<Record<string,string>>={
+"Employee login created":"تم إنشاء حساب الموظف",
+"Save these credentials now. The temporary password is shown only once and must be changed at first sign-in.":"احفظ بيانات الدخول الآن. تظهر كلمة المرور المؤقتة مرة واحدة ويجب تغييرها عند أول تسجيل دخول.",
+"Active after saving":"نشط بعد الحفظ",
+"Temporary password shown after saving":"تظهر كلمة المرور المؤقتة بعد الحفظ",
+"A username and temporary password are generated automatically. Requests needing approval use secure activation after approval.":"يتم إنشاء اسم مستخدم وكلمة مرور مؤقتة تلقائياً. تستخدم الطلبات التي تحتاج إلى موافقة التفعيل الآمن بعد الموافقة.",
+
  "Invitations":"الدعوات",
  "Invite people to one company with a selected role.":"ادعُ المستخدمين إلى شركة واحدة بدور محدد.",
  "Accept your Stocrant invitation":"قبول دعوتك إلى ستوكرانت",

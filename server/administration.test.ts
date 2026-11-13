@@ -88,4 +88,27 @@ describe("Access administration and secure onboarding",()=>{
  it("supports no-login categories and reserves employee identifiers after safe deletion",async()=>{
   await policy({automaticAccounts:false});const rule=rows("approvalRules").find(row=>row.section==="hr"&&row.action==="create")!;rule.active=false;saveStore(getStore());const item=await create("employees",person("No Login","",{loginAccount:false}));assert.ok(!rows("accessUsers").some(row=>row.employeeId===item.id));await json(await req(`/collections/employees/${item.id}`,"DELETE"));await json(await req("/collections/employees","POST",person("Never Reused","",{employeeCode:item.employeeCode,loginAccount:false})),409);await policy();
  });
+ it("creates usable one-time employee credentials without persisting secrets or resetting them on retries",async()=>{
+  const body=person("Instant Employee","instant@administration.test",{provisionCredentials:true,clientRequestId:randomUUID()});
+  const response=await req("/collections/employees","POST",body);const result=await json(response,201);
+  assert.equal(response.headers.get("cache-control"),"no-store");
+  const credentials=result.credentials;assert.ok(credentials.username&&credentials.temporaryPassword.length>=24);
+  const account=rows("accessUsers").find(row=>row.id===credentials.accountId)!;
+  assert.equal(account.status,"active");assert.equal(account.mustChangePassword,true);assert.equal(account.activationRequired,false);
+  assert.ok(!JSON.stringify(getStore()).includes(credentials.temporaryPassword));
+  const retried=await json(await req("/collections/employees","POST",body),201);assert.equal(retried.item.id,result.item.id);assert.equal(retried.credentials,undefined);
+  const login=await req("/auth/login","POST",{email:credentials.username,password:credentials.temporaryPassword},"");await json(login);
+  const session=cookie(login);await json(await req("/collections/employees","GET",undefined,session),403);
+  await json(await req("/auth/password","POST",{currentPassword:credentials.temporaryPassword,newPassword:staffPassword},session));
+  const signedIn=await req("/auth/login","POST",{email:credentials.username,password:staffPassword},"");await json(signedIn);
+  await json(await req("/auth/login","POST",{email:credentials.username,password:credentials.temporaryPassword},""),401);
+  const before=rows("accessUsers").find(row=>row.id===credentials.accountId)!.passwordHash;await json(await req(`/collections/employees/${result.item.id}`,"PATCH",{phone:"123456789"}));assert.equal(rows("accessUsers").find(row=>row.id===credentials.accountId)!.passwordHash,before);
+  await json(await req(`/workspace/access/users/${credentials.accountId}`,"PATCH",{permissions:["hr.view","hr.personal.view","hr.salary.view"]}));
+  await json(await req("/auth/me","GET",undefined,cookie(signedIn)));
+  const changed=rows("accessUsers").find(row=>row.id===credentials.accountId)!;assert.deepEqual(changed.permissions,["hr.view","hr.personal.view","hr.salary.view"]);
+  await json(await req(`/workspace/access/users/${credentials.accountId}`,"PATCH",{permissions:["hr.view","hr.personal.view","hr.salary.view"]},manager),403);
+  const disabled=await json(await req("/collections/employees","POST",person("Inactive Instant","inactive.instant@administration.test",{status:"terminated",provisionCredentials:true})),201);
+  await json(await req("/auth/login","POST",{email:disabled.credentials.username,password:disabled.credentials.temporaryPassword},""),401);
+ });
+
 });

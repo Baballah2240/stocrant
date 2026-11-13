@@ -153,6 +153,7 @@ export type CollectionItem = Record<string, unknown> & {
 };
 
 export interface MutationResult {
+  credentials?: { username: string; temporaryPassword: string; accountId: string };
   pending: boolean;
   item?: CollectionItem;
   request?: CollectionItem;

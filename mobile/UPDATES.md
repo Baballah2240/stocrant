@@ -465,3 +465,7 @@ The APK installed locally is a USB development build. Production distribution ne
 - HR dashboard: compact company scope, quick actions, clearer employee table with result counts and resettable filters. Desktop sidebar keeps module icons when collapsed, with accessible hover labels. Shared mobile layout supports Arabic and scrollable employee records.
 
 - Hide desktop and tablet sidebar scrollbar tracks while preserving navigation scrolling; prevent sideways scrolling in the desktop icon rail.
+
+## Employee accounts and permissions
+- Employee creation shows a unique username and one-time temporary password; first sign-in requires a password change. Pending approvals retain secure activation.
+- Super Admin can edit personal-data and salary permissions alongside existing per-user controls. Permission changes take effect on the next authenticated request.

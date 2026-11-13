@@ -28,7 +28,8 @@ export function canAssignRole(actor: AuthenticatedUser, role: Row) {
   const actions = ["view", "create", "edit", "delete", "approve", "reply", "export", "pay", "configure"] as const;
   return role.status !== "inactive" && grants.every(grant => {
     if (grant === "*" || grant === "customerService.inquiries") return false;
-    const [section, action] = grant.split(".");
+    const [section, ...parts] = grant.split(".");
+    const action = parts.join(".");
     return Boolean(section && action) && (action === "*" ? actions : [action]).every(value => can(actor, section as Parameters<typeof can>[1], value as typeof actions[number]));
   });
 }
@@ -74,7 +75,8 @@ export function validateAccountAssignment(actor: AuthenticatedUser, next: Row, e
     if (grants.includes("customerService.inquiries")) policyError("Only the Main Admin can grant platform website inquiry access.", 403);
     const actions = ["view", "create", "edit", "delete", "approve", "reply", "export", "pay", "configure"] as const;
     for (const grant of grants.map(String)) {
-      const [section, action] = grant.split(".");
+      const [section, ...parts] = grant.split(".");
+      const action = parts.join(".");
       if (grant === "*" || !section || !action) policyError("You do not have permission to grant unrestricted access.", 403);
       if ((action === "*" ? actions : [action]).some(value => !can(actor, section as Parameters<typeof can>[1], value as typeof actions[number]))) policyError("You cannot grant permissions you do not have.", 403);
     }

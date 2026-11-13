@@ -143,7 +143,7 @@ export default function EntityForm() {
       : fields;
   }, [spec, module, collection, user]);
 
-  const [withoutLogin,setWithoutLogin]=useState(false);
+  const [newCredentials, setNewCredentials] = useState<{username:string;temporaryPassword:string;employeeId:string} | null>(null);
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
   const [values, setValues] = useState<Record<string, string | number | null>>({});
   const [error, setError] = useState<string | null>(null);
@@ -227,7 +227,12 @@ export default function EntityForm() {
     try {
       const result = isEdit
         ? await api.collections.update(collection!, id!, values)
-        : await api.collections.create(collection!, { ...values, ...(collection === "employees" ? { clientRequestId, ...(user?.roleId==="role-main-manager"&&withoutLogin?{loginAccount:false}:{}) } : {}) });
+        : await api.collections.create(collection!, { ...values, ...(collection === "employees" ? { clientRequestId, provisionCredentials: true } : {}) });
+      if (result.credentials && result.item) {
+        initialValues.current = JSON.stringify(values);
+        setNewCredentials({ ...result.credentials, employeeId: result.item.id });
+        return;
+      }
       navigate(collection === "employees" && (result.item?.id || isEdit && id) ? `/hr/employees/${result.item?.id || id}${!isEdit?"?section=account":""}` : `/${module}/${collection}`, {
         replace: true,
         state: { success: result.pending ? "Your change was submitted for approval." : "Changes saved." },
@@ -240,6 +245,8 @@ export default function EntityForm() {
       setSubmitting(false);
     }
   }
+
+  if (newCredentials) return <div className="page"><section className="card"><h1>{t("Employee login created")}</h1><p>{t("Save these credentials now. The temporary password is shown only once and must be changed at first sign-in.")}</p><div className="form-grid"><label className="form-field"><span>{t("Username")}</span><input readOnly dir="ltr" value={newCredentials.username} /></label><label className="form-field"><span>{t("Temporary password")}</span><input readOnly dir="ltr" autoComplete="off" value={newCredentials.temporaryPassword} /></label></div><button type="button" className="primary" onClick={() => { const employeeId = newCredentials.employeeId; setNewCredentials(null); navigate(`/hr/employees/${employeeId}?section=account`, {replace:true}); }}>{t("Done")}</button></section></div>;
 
   if (metaError) return <div className="page"><p className="error" role="alert">{t("Could not load workspace metadata. Try again.")}</p><button type="button" onClick={() => window.location.reload()}>{t("Try again")}</button></div>;
   if (!metaLoading && !spec) return <div className="page"><p role="status">{t("This section could not be found.")}</p><button type="button" onClick={() => navigate("/")}>{t("Go to home")}</button></div>;
@@ -280,7 +287,7 @@ export default function EntityForm() {
           const fields = formFields.filter((field) => group.keys.includes(field.key));
           return <section className="card employee-form-section" key={group.title}><div className="employee-form-section-head"><h2>{t(group.title)}</h2><p>{t(group.description)}</p></div><div className="form-grid">{fields.map((field) => field.key === "organizationId" ? <div className="form-field field--full" key={field.key}><label className="field-label" htmlFor="employee-company">{t("Company")} <span className="required" aria-hidden="true">*</span></label><ChoiceSelect id="employee-company" required disabled={companiesLoading || submitting || companies.length === 1 || Boolean(companyId)} value={values.organizationId ?? ""} onChange={(event) => handleChange("organizationId", event.target.value)}><option value="">{companiesLoading ? t("Loading companies…") : t("Choose a company")}</option>{companies.map((company) => <option key={company.id} value={company.id}>{String(company.name)}</option>)}</ChoiceSelect>{values.organizationId && <small>{t("Organization")}: {String(companies.find(company => company.id === values.organizationId)?.organizationName || t("Not provided"))}</small>}{!companiesLoading && !companies.length && <p className="hint">{t("Add a company in Organizations before adding an employee.")}</p>}</div> : <Field key={field.key} field={field} value={values[field.key]} error={fieldErrors[field.key]} onChange={handleChange} />)}</div></section>;
         }) : <section className="card"><div className="form-grid">{formFields.map((field) => <Field key={field.key} field={field} value={values[field.key]} error={fieldErrors[field.key]} onChange={handleChange} />)}</div></section>}
-        {collection === "employees" && !isEdit && <section className="card employee-form-section"><h2>{t("Account information")}</h2>{user?.roleId==="role-main-manager"&&<label className="check-field"><input type="checkbox" checked={withoutLogin} onChange={e=>setWithoutLogin(e.target.checked)}/>{t("Create employee without a login account")}</label>}<div className="form-grid">{[["Username","Assigned automatically when saved"],["Account status","Invited after approval"],["Role","Employee"],["Secure account setup","Private activation invitation"]].map(([label,value])=><label className="form-field" key={label}><span>{t(label)}</span><input readOnly value={t(value)} /></label>)}</div><p className="hint">{t("Account creation and onboarding follow the Main Administrator policy. Delivery status appears after saving.")}</p></section>}
+        {collection === "employees" && !isEdit && <section className="card employee-form-section"><h2>{t("Account information")}</h2><div className="form-grid">{[["Username","Assigned automatically when saved"],["Account status","Active after saving"],["Role","Employee"],["Secure account setup","Temporary password shown after saving"]].map(([label,value])=><label className="form-field" key={label}><span>{t(label)}</span><input readOnly value={t(value)} /></label>)}</div><p className="hint">{t("A username and temporary password are generated automatically. Requests needing approval use secure activation after approval.")}</p></section>}
         <div className="card entity-form-actions-card">
           <div className="form-actions">
             <button type="submit" className="primary" disabled={submitting || (collection === "employees" && (companiesLoading || !companies.length))}>

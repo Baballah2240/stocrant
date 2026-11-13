@@ -114,7 +114,9 @@ export function createCollectionRouter(spec: EntitySpec): Router {
         const company = getCollectionItem("companies", String(input.organizationId ?? ""));
         if (!company || !isWithinScope(req.auth, { ...company, organizationId: company.id })) return res.status(400).json({ error: "Choose a valid company for this employee." });
       }
+      if (spec.collection === "employees" && req.body.provisionCredentials === true) input.provisionCredentials = true;
       const result = mutateCollection(req.auth, spec.collection, "create", input);
+      if (result.credentials) res.set("Cache-Control", "no-store");
       res.status(result.pending ? 202 : 201).json({ ...result, ...(result.item?{item:redactRecord(spec.collection,result.item,req.auth)}:{}), entity: spec.collection });
     } catch (err) {
       sendError(res, err);

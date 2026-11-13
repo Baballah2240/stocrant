@@ -2,7 +2,7 @@ import { applySmartTaskApproval, applyTaskManagementApproval, prepareTaskMutatio
 import { appendFinancialHistory, ledgerSummary, validateFinancialMutation } from "./finance-ledger.js";
 import { protectCommerceStock } from "./commerce-stock.js";
 import { generateEmployeeCode } from "./employee-identity.js";
-import { syncEmployeeAccount } from "./employee-accounts.js";
+import { syncEmployeeAccount, takeEmployeeCredentials, type EmployeeCredentials } from "./employee-accounts.js";
 import type { AuthenticatedUser } from "./auth.js";
 import {applyContractApproval,canReadContractApproval} from "./employment-contracts.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
@@ -139,6 +139,8 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   if (targetId && !existing) throw new Error("Record not found.");
   if (existing && !isWithinScope(user, existing)) throw new Error("Record not found.");
   if (collection === "employees" && !existing && !String(payload.employeeCode || "").trim()) payload = { ...payload, employeeCode: generateEmployeeCode([...rows("employees"),...rows("employeeIdentities")]) };
+  const provisionCredentials = collection === "employees" && !existing && payload.provisionCredentials === true;
+  delete payload.provisionCredentials;
   const item: Row = existing
     ? { ...existing, ...payload, id: existing.id, updatedAt: now, updatedBy: user.id, updatedByName: user.name }
     : {
@@ -164,7 +166,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   }
   saveStore(data);
   revokeTenantSessions(collection, action, payload, existing, targetId);
-  if (collection === "employees") { syncEmployeeAccount(user, item, existing); updateEmployeeHistory(user, item, existing ? "updated" : "hired"); }
+  if (collection === "employees") { syncEmployeeAccount(user, item, existing, provisionCredentials); updateEmployeeHistory(user, item, existing ? "updated" : "hired"); }
   if (collection === "workItems") updateWorkActivity(user, item, String(payload.comments || (existing ? "Work item updated." : "Work item created.")), existing);
   if (["financeTransactions", "financeAccounts"].includes(collection)) appendFinancialHistory(user, `${collection}.${action}`, item, String(item.description || "Financial record saved"));
   audit(user, `${collection}.${action}`, { collection, targetId: item.id, section: sectionForCollection(collection) });
@@ -179,7 +181,7 @@ export function mutateCollection(
   targetId?: string,
   permissionAction: PermissionAction = action,
   shopApprovalCompany?: string,
-): { pending: boolean; item?: Row; request?: ApprovalRequest } {
+): { pending: boolean; item?: Row; request?: ApprovalRequest; credentials?: EmployeeCredentials } {
   if(["contracts","employmentContracts"].includes(collection))throw new Error("Use HR contract management to prepare and approve contracts.");
   if(collection==="returns"&&payload.shopOrderId&&!shopApprovalCompany)throw new Error("Create shop returns through the shop workflow.");
   const shopApproved=Boolean(shopApprovalCompany&&isShopManager(user)&&can(user,"finance","approve")&&["sales","returns","financeTransactions","financeAccounts"].includes(collection)&&payload.organizationId===shopApprovalCompany&&isWithinScope(user,{organizationId:shopApprovalCompany}));
@@ -194,7 +196,7 @@ function protectPayrollMutation(collection: string, action: MutationAction, payl
   if (collection === "financeTransactions" && (payload.payrollRunId || (currentPayrollTransaction(targetId)))) throw new Error("Confirmed payroll ledger entries are immutable. Use an approved later-period payroll adjustment.");
 }
 
-function performMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId: string | undefined, permissionAction: PermissionAction, shopApproved=false): { pending: boolean; item?: Row; request?: ApprovalRequest } {
+function performMutation(user: AuthenticatedUser, collection: string, action: MutationAction, payload: Record<string, unknown>, targetId: string | undefined, permissionAction: PermissionAction, shopApproved=false): { pending: boolean; item?: Row; request?: ApprovalRequest; credentials?: EmployeeCredentials } {
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   const section = sectionForCollection(collection);
   if (!can(user, section, permissionAction)) throw new Error(`You do not have permission to ${action} ${section}.`);
@@ -237,7 +239,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
     const duplicate = rows("employees").find(row => row.createdBy === user.id && row.employeeRequestKey === key);
     if (duplicate) {
       if (!isWithinScope(user, duplicate)) throw new Error("Record not found.");
-      if (Object.entries(payload).some(([name,value]) => !(name === "employeeCode" && !value) && JSON.stringify(duplicate[name]) !== JSON.stringify(value))) throw Object.assign(new Error("This submission was already used. Open the existing employee or start a new form."), {statusCode:409});
+      if (Object.entries(payload).some(([name,value]) => name !== "provisionCredentials" && !(name === "employeeCode" && !value) && JSON.stringify(duplicate[name]) !== JSON.stringify(value))) throw Object.assign(new Error("This submission was already used. Open the existing employee or start a new form."), {statusCode:409});
       return { pending:false, item:duplicate };
     }
     const pending = (rows("approvalRequests") as ApprovalRequest[]).find(row => row.collection === "employees" && row.requestedBy === user.id && row.status === "pending" && row.payload?.employeeRequestKey === key);
@@ -245,6 +247,8 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
     payload.employeeRequestKey = key;
   }
   if (requiresApproval(section, action, user) && !shopApproved) {
+    // Pending employees retain secure activation; no credentials exist before approval.
+    delete payload.provisionCredentials;
     const request: ApprovalRequest = {
       id: rowId("approvalRequests"),
       status: "pending",
@@ -268,7 +272,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
   }
   const item = applyMutation(user, collection, action, payload, targetId);
   fireMutationAlerts(user, collection, action, payload, item);
-  return { pending: false, item };
+  return { pending: false, item, credentials: takeEmployeeCredentials(item) };
 }
 
 function revokeTenantSessions(collection: string, action: MutationAction, payload: Record<string, unknown>, current: Row | undefined, targetId?: string) {

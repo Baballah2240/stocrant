@@ -1,6 +1,6 @@
 import { protectOrganizationAdmin } from "./organization-admin-policy.js";
 import { generateUsername } from "./employee-identity.js";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, scryptSync } from "node:crypto";
 import type { AuthenticatedUser } from "./auth.js";
 import { getCollection, getStore, nextCollectionId, saveStore } from "./storage.js";
 import { audit } from "./workspace.js";
@@ -13,29 +13,42 @@ const rows = (key: string) => getCollection(key) as Row[];
 export const tokenDigest = (value: string) => createHash("sha256").update(value).digest("hex");
 export const employmentInactive = (value: unknown) => ["inactive", "terminated", "suspended"].includes(String(value).toLowerCase());
 
+export interface EmployeeCredentials { username: string; temporaryPassword: string; accountId: string }
+const issuedCredentials = new WeakMap<object, EmployeeCredentials>();
+export function takeEmployeeCredentials(item?: object) {
+  if (!item) return undefined;
+  const credentials = issuedCredentials.get(item);
+  issuedCredentials.delete(item);
+  return credentials;
+}
+
 /** Called inside the employee mutation transaction, including approved mutations. */
-export function syncEmployeeAccount(actor: AuthenticatedUser, employee: Row, previous?: Row) {
+export function syncEmployeeAccount(actor: AuthenticatedUser, employee: Row, previous?: Row, provisionCredentials = false) {
   const data = getStore();
   let account = rows("accessUsers").find(row => row.employeeId === employee.id);
   const email = String(employee.email || "").trim().toLowerCase();
   const collision = email && rows("accessUsers").find(row => row.id !== account?.id && String(row.email).toLowerCase() === email);
   if (collision) throw new Error("This email already belongs to an account. Link it through authorized user management first.");
   if (!account) {
-    if(!administrationPolicy().automaticAccounts||employee.loginAccount===false)return;
+    if(!provisionCredentials && (!administrationPolicy().automaticAccounts||employee.loginAccount===false))return;
     if (ownRecordsRequired(actor)) throw new Error("Own-record access does not permit creating employee login accounts.");
     const role = rows("accessRoles").find(row => row.id === administrationPolicy().defaultRoleId&&row.status!=="inactive");
     if (!role) throw new Error("The Employee role is unavailable. Ask the Main Admin to restore it.");
+    const temporaryPassword = provisionCredentials ? randomBytes(24).toString("base64url") : undefined;
+    const salt = temporaryPassword ? randomBytes(16).toString("base64url") : undefined;
+    const passwordHash = temporaryPassword ? ["scrypt", salt, scryptSync(temporaryPassword, salt!, 64).toString("base64url")].join("$") : "activation-required";
     account = { id: nextCollectionId("accessUsers"), employeeId: employee.id, name: employee.name,
       email: email || `employee-${employee.id}@employee.invalid`, phone: employee.phone || "",
       username: generateUsername(rows("accessUsers"), employee.name, employee.employeeCode),
       roleId: role.id, ...(role.id==="role-employee"?{permissions:["hr.view"]}:{}), ownRecordsOnly: true,
       organizationIds: [employee.organizationId], tenantOrganizationIds: [],
       locationIds: employee.locationId ? [employee.locationId] : [],
-      status: employmentInactive(employee.status) ? "suspended" : "invited",
-      passwordHash: "activation-required", createdAt: new Date().toISOString(), createdBy: actor.id,
-      activationRequired: true, mustChangePassword: false };
+      status: employmentInactive(employee.status) ? "suspended" : temporaryPassword ? "active" : "invited",
+      passwordHash, createdAt: new Date().toISOString(), createdBy: actor.id,
+      activationRequired: !temporaryPassword, mustChangePassword: Boolean(temporaryPassword) };
     data.collections.accessUsers = [...rows("accessUsers"), account];
     employee.accountId = account.id;
+    if (temporaryPassword) issuedCredentials.set(employee, { username: String(account.username), temporaryPassword, accountId: account.id });
     audit(actor, "access.employee-account-created", { targetId: account.id, employeeId: employee.id, organizationId: employee.organizationId,employeeCode:employee.employeeCode,username:account.username,outcome:"success" });
     saveStore(data);
     if(administrationPolicy().automaticEmail)queueOnboarding(actor,employee);
