@@ -43,9 +43,9 @@ describe("Private manager notebook and production organization workflow", () => 
   it("persists account-owned dashboard layouts and rejects stale writes", async () => {
     const initial = await json(await api("/workspace/dashboard-layout")); assert.equal(initial.version, 0);
     const items = [{ id: "notes", hidden: false, wide: false, width: "third", height: 360 }, { id: "profile", hidden: true, wide: true, width: "full", height: null }];
-    const saved = await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items })); assert.equal(saved.version, 1);
-    resetTestCache(); assert.deepEqual((await json(await api("/workspace/dashboard-layout"))).items, items);
-    for (const session of [main, colleague]) assert.deepEqual((await json(await api("/workspace/dashboard-layout", "GET", undefined, session))).items, []);
+    const saved = await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items, density: "compact" })); assert.equal(saved.version, 1); assert.equal(saved.density,"compact");
+    resetTestCache(); assert.equal((await json(await api("/workspace/dashboard-layout"))).density,"compact"); assert.deepEqual((await json(await api("/workspace/dashboard-layout"))).items, items);
+    for (const session of [main, colleague]) { const other=await json(await api("/workspace/dashboard-layout", "GET", undefined, session)); assert.deepEqual(other.items, []); assert.equal(other.density,"comfortable"); }
     await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items: [] }), 409);
     assert.deepEqual((await json(await api("/workspace/dashboard-layout"))).items, items);
     await json(await api("/workspace/dashboard-layout", "PUT", { version: 1, items: [] }));
@@ -55,6 +55,7 @@ describe("Private manager notebook and production organization workflow", () => 
     await json(await api("/workspace/dashboard-layout", "GET", undefined, employee), 403);
     await json(await api("/workspace/dashboard-layout", "PUT", { version: 0, items: [] }, employee), 403);
     for (const payload of [
+      { version: 2, items: [], density: "tiny" },
       { version: 2, items: [], ownerId: "someone-else" },
       { version: 2, items: [{ id: "unknown", hidden: false, wide: false }] },
       { version: 2, items: [{ id: "notes", hidden: false, wide: false }, { id: "notes", hidden: true, wide: false }] },

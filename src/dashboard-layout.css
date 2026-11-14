@@ -35,3 +35,34 @@
 .dashboard-card-controls button[draggable="true"] { cursor: grab; font-size: 20px; }.is-customizing .is-layout-hidden .dashboard-widget-content { display: none; }
 @media(max-width:1000px) { .custom-dashboard-grid { grid-template-columns: 1fr; }.custom-dashboard-grid > .dashboard-widget { grid-column: 1 / -1; } }
 @media(max-width:600px) { .dashboard-customizer { padding: 16px; }.custom-dashboard-grid { gap: 16px; }.dashboard-customizer .inline-actions { flex-wrap: wrap; } }
+
+/* Keep editing tools separate from live card content. */
+.dashboard-customizer{border:1px solid var(--ios-separator);border-radius:20px;margin-block:16px}
+.dashboard-layout-options{flex-basis:100%;display:flex;flex-wrap:wrap;gap:16px;border-top:1px solid var(--ios-separator);padding-top:16px}
+.dashboard-layout-options fieldset{border:0;padding:0;margin:0;min-width:0;flex:1 1 240px}
+.dashboard-layout-options legend{font-weight:600;font-size:13px;margin-bottom:10px}
+.dashboard-layout-options>.hint{flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.dashboard-layout-options button[aria-pressed=true]{background:var(--ios-fill);outline:2px solid var(--brand-link);outline-offset:1px}
+.dashboard-card-controls{display:block;padding:0 4px 10px}
+.dashboard-card-controls summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;min-height:44px;padding:8px;border-radius:10px;list-style:none}
+.dashboard-card-controls summary::-webkit-details-marker{display:none}
+.dashboard-card-controls summary span{color:var(--brand-link);font-size:12px}
+.dashboard-card-controls[open] summary{background:var(--ios-fill);margin-bottom:12px}
+.dashboard-card-controls>div{gap:10px;padding:4px 8px;align-items:center}
+.dashboard-card-controls label{gap:8px;min-width:0;font-size:12px}
+.dashboard-card-controls button,.dashboard-card-controls select{min-height:44px}
+.dashboard-widget{container-type:inline-size}
+.dashboard-widget-content{overflow:visible;min-width:0}
+.dashboard-widget[data-fixed-height=true]>.dashboard-widget-content{overflow:auto;overscroll-behavior:contain}
+.custom-dashboard-grid[data-density=compact]{gap:12px}
+.custom-dashboard-grid[data-density=compact] .dashboard-widget-content>.card{padding:16px}
+.custom-dashboard-grid[data-density=compact] :is(.personal-summary-grid,.dashboard-grid){gap:10px}
+.custom-dashboard-grid[data-density=compact] :is(.personal-summary-card,.metric-card){padding:16px;min-height:100px}
+.personal-dashboard .personal-hero{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;padding-block:8px}
+.personal-dashboard .personal-hero h1{font-size:clamp(26px,3vw,36px);line-height:1.2;margin-block:6px}
+.personal-dashboard .personal-summary-card strong{font-size:clamp(28px,3vw,40px);line-height:1.15;font-variant-numeric:tabular-nums}
+.dashboard-layout-empty{text-align:center;padding:36px}
+@container(max-width:520px){.dashboard-widget-content :is(.personal-summary-grid,.dashboard-grid,.work-activity-kpis){grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-widget-content :is(.management-panels,.today-grid,.activity-dashboard-grid){grid-template-columns:minmax(0,1fr)}.dashboard-widget-content .profile-strip{flex-wrap:wrap;gap:12px}.dashboard-widget-content .login-detail{margin-inline-start:0}.dashboard-widget-content .profile-strip-details{min-width:0;overflow-wrap:anywhere}}
+@media(min-width:701px) and (max-width:1000px){.custom-dashboard-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.custom-dashboard-grid>.dashboard-widget{grid-column:span 3}.custom-dashboard-grid>.dashboard-widget:is(.is-wide,[data-width=two-thirds]){grid-column:1/-1}}
+@media(max-width:700px){.dashboard-layout-options .inline-actions{display:flex;flex-wrap:wrap}.dashboard-layout-options .inline-actions button{flex:1 1 120px}.dashboard-card-controls>div{display:flex;flex-wrap:wrap}.dashboard-card-controls label{flex-basis:100%}.dashboard-customizer>.inline-actions{width:100%}.dashboard-customizer>.inline-actions button{flex:1}.dashboard-widget-content{height:auto}.dashboard-widget[data-fixed-height=true]>.dashboard-widget-content{max-height:var(--widget-height);height:auto}}
+@media(prefers-reduced-motion:reduce){.dashboard-customizer button,.dashboard-card-controls summary{transition:none}}

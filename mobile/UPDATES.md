@@ -507,3 +507,5 @@ The APK installed locally is a USB development build. Production distribution ne
 
 - Finance now assigns references automatically to movements, payroll payments and reversals. Optional bank/external references are stored separately.
 - Company Services adds per-company workspace shortcuts and an optional bilingual public website with separate branding, public contacts and secure publication settings. The shared mobile source includes the new company profile tab; no native package is installed by a source update.
+
+- Dashboard customization now includes ready-made layouts, saved compact/comfortable spacing, collapsible card controls and hidden-card recovery. Tablet and mobile card layouts adapt without changing company permissions.

@@ -40,3 +40,14 @@ The analytics API aggregates only records accepted by existing permissions and s
 - Existing company, complete-workspace, organization-manager, document, payroll and notification-panel browser checks passed. The full 348-case route matrix passed; a further 12-case dashboard matrix checked the final analytics/preference adjustments after that build. See the task log for final commands/results.
 
 There is no configured lint command; TypeScript, translation checks and `git diff --check` cover source checks. Production data is not used by these tests. Native packaging, physical device testing, hosting deployment and phone installation are separate actions and were not performed for this source upgrade.
+# Dashboard layout customization — November 2026
+
+Open **Dashboard → Customize dashboard**. Choose Balanced, Daily focus or Management focus, then select Comfortable or Compact spacing. Presets are previews until **Save layout** is pressed; **Cancel** restores the saved arrangement and spacing.
+
+Each card has an expandable **Edit card** control with keyboard-friendly earlier/later buttons, a drag handle, width and height controls, and visibility. **Show all cards** restores hidden cards in the preview. **Reset layout** restores defaults and still requires saving.
+
+Layouts and spacing belong to the signed-in manager account and survive reloads. Existing saved arrangements are retained. Presets only use cards already available to the user and never grant permissions. Version checks reject stale saves from another session. Older clients can continue saving layouts without a density field.
+
+Tablet layouts use two columns where space permits; phones stack cards and preserve readable summaries. Fixed card heights use contained scrolling, with automatic heights available to remove it. Reduced-motion settings are respected.
+
+Validation: full repository checks passed; `scripts/verify-dashboard-customization.mjs` verified 20 English/Arabic, light/dark desktop/tablet/mobile layouts, saving and reloading, preset visibility, recovering hidden cards, canceling previews and mobile edit controls.
