@@ -190,4 +190,13 @@ describe("Connected financial ledger",()=>{
  });
 
 
+
+ it("automatically numbers movements and reversals without replacing external references",async()=>{
+ const body=movement({reference:"",externalReference:"BANK-EXTERNAL-42",idempotencyKey:"automatic-reference-flow"});
+ const first=await expect(await req("/workspace/finance/transactions",body),201);
+ assert.match(first.item.reference,/^FIN-[A-F0-9]{20}$/);assert.equal(first.item.externalReference,"BANK-EXTERNAL-42");
+ const replay=await expect(await req("/workspace/finance/transactions",body),201);assert.equal(replay.item.reference,first.item.reference);assert.equal(replay.item.id,first.item.id);
+ const input={reason:"Reverse automatic reference",date:body.date,idempotencyKey:"automatic-reversal-flow",externalReference:"BANK-REV-42"};
+ const {reverseFinancialTransaction}=await import("./finance-ledger.js");const reversal=reverseFinancialTransaction(actor(),first.item.id,input);assert.match(reversal.reference,/^REV-[A-F0-9]{20}$/);assert.equal(reversal.externalReference,"BANK-REV-42");assert.equal(reverseFinancialTransaction(actor(),first.item.id,input).id,reversal.id);
+ });
 });

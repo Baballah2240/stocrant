@@ -500,3 +500,5 @@ The APK installed locally is a USB development build. Production distribution ne
 - Existing ledger calculations, source settlements, approval rules and payroll permissions remain enforced.
 - Keyboard tabs respect Arabic direction; changing company clears account/person filters, and refreshing preserves drafts. Account and transaction submissions guard duplicate clicks.
 - Shared source and web build only; no native synchronization, APK build, phone install or hosting deployment requested.
+
+- Finance now assigns references automatically to movements, payroll payments and reversals. Optional bank/external references are stored separately.

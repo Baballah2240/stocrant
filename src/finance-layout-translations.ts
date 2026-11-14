@@ -1,4 +1,5 @@
 export const financeLayoutTranslations: Readonly<Record<string,string>> = {
+ "Bank / external reference (optional)":"\u0645\u0631\u062c\u0639 \u0627\u0644\u0628\u0646\u0643 / \u0627\u0644\u0645\u0631\u062c\u0639 \u0627\u0644\u062e\u0627\u0631\u062c\u064a (\u0627\u062e\u062a\u064a\u0627\u0631\u064a)",
  "Print selected payment":"طباعة الدفعة المحددة",
  "Selected payment":"الدفعة المحددة",
  "Selected salary payment":"دفعة الراتب المحددة",

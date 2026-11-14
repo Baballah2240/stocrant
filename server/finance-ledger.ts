@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import type { AuthenticatedUser } from "./auth.js";
 import { can, isWithinScope, ownRecordsRequired } from "./permissions.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
@@ -7,6 +7,7 @@ import { financialCategory } from "./finance-categories.js";
 
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
+export function automaticFinanceReference(kind: string, company: string, key?: string): string { return `${kind}-${createHash("sha256").update(`${company}:${key || randomUUID()}`).digest("hex").slice(0,20).toUpperCase()}`; }
 export function financialError(message: string, statusCode = 400): never { throw Object.assign(new Error(message), { statusCode }); }
 export const currencies = ["QAR", "USD", "EUR", "GBP", "AED", "SAR", "KWD", "BHD", "OMR", "JPY", "KRW", "INR", "PKR", "BDT", "PHP", "EGP", "SDG"];
 export function companyFinanceDate(companyId:string,instant=new Date()) {
@@ -134,7 +135,7 @@ export function validateFinancialMutation(user: AuthenticatedUser, collection: s
     if (item.status === "paid" && scaled(amount) > scaled(settlement.outstanding)) financialError("The payment exceeds the source outstanding balance.", 409);
     // Freeze explicit source currency on the new movement; historical sources remain untouched.
   }
-  return { ...payload, ledgerVersion:1, currency: account.currency, amount, direction, sourceModule: item.sourceId ? item.sourceCollection : "finance", paymentDate: item.status === "paid" ? item.date : null, method: item.method || account.type };
+  return { ...payload, reference: item.reference?.trim() || automaticFinanceReference("FIN", item.organizationId, item.idempotencyKey), ledgerVersion:1, currency: account.currency, amount, direction, sourceModule: item.sourceId ? item.sourceCollection : "finance", paymentDate: item.status === "paid" ? item.date : null, method: item.method || account.type };
 }
 
 export function payrollEntryPayments(entry: Row) {
@@ -146,7 +147,7 @@ export function payrollEntryPayments(entry: Row) {
     const amount = t.allocations ? t.allocations.find((a: Row) => a.entryId === entry.id)?.amount : t.direction === "out" ? entry.netPay : undefined;
     if (amount === undefined) continue;
     paid += (t.direction === "in" ? -1n : 1n) * scaled(amount, digits);
-    payments.push({ id: t.id, amount, direction: t.direction, date: t.date, method: t.method, reference: t.reference, reversalOf: t.reversalOf });
+    payments.push({ id: t.id, amount, direction: t.direction, date: t.date, method: t.method, reference: t.reference, externalReference: t.externalReference, reversalOf: t.reversalOf });
   }
   const net = scaled(entry.netPay, digits);
   return { paidAmount: money(paid, digits), outstanding: money(net - paid, digits), paymentStatus: paid === net ? "Paid" : paid > 0n ? "Partially Paid" : "Unpaid", payments };
@@ -214,14 +215,15 @@ export function ledgerSummary(user?: AuthenticatedUser) {
   return { accounts: balances, transactions: valid, totals, sources, obligations, issues:issues.map(issue=>{const record=transactions.find(t=>t.id===issue.id)||accounts.find(a=>a.id===issue.id);return {...issue,organizationId:issue.organizationId||record?.organizationId,currency:issue.currency||record?.currency};}), income: single ? Number(single.income) : totals.length ? null : 0, expenses: single ? Number(single.expenses) : totals.length ? null : 0, salaries: single ? Number(single.salaries) : totals.length ? null : 0, net: single ? Number(single.net) : totals.length ? null : 0 };
 }
 
-export function reverseFinancialTransaction(user: AuthenticatedUser, id: string, input: { reason: string; date: string; reference: string; idempotencyKey: string }) {
+export function reverseFinancialTransaction(user: AuthenticatedUser, id: string, input: { reason: string; date: string; reference?: string; externalReference?: string; idempotencyKey: string }) {
   return transaction(() => {
     if (!can(user, "finance", "create") || !can(user, "finance", "approve") || !can(user, "finance", "view") || ownRecordsRequired(user)) financialError("Finance view, create and approval permission is required for reversals.", 403);
     const original = rows("financeTransactions").find(t => t.id === id && isWithinScope(user, t));
     if (!original) financialError("Transaction not found.", 404);
+    const reference = input.reference?.trim() || automaticFinanceReference("REV", original.organizationId, input.idempotencyKey);
     const replay = rows("financeTransactions").find(t => t.idempotencyKey === input.idempotencyKey && t.createdBy === user.id);
     if (replay) {
-      if (replay.reversalOf !== id || replay.reference !== input.reference || replay.date !== input.date || replay.description !== input.reason) financialError("This payment key was used with different details.", 409);
+      if (replay.reversalOf !== id || replay.reference !== reference || (replay.externalReference || "") !== (input.externalReference || "") || replay.date !== input.date || replay.description !== input.reason) financialError("This payment key was used with different details.", 409);
       return replay;
     }
     if (original.status !== "paid" || original.reversalOf || original.transferGroupId) financialError("Only posted non-transfer payments can be reversed. Transfers require a new opposite transfer.");
@@ -230,10 +232,10 @@ export function reverseFinancialTransaction(user: AuthenticatedUser, id: string,
     if (rows("payrollSources").some(s => s.financeTransactionId === id && !["rejected", "superseded"].includes(s.status))) financialError("Resolve the linked payroll recovery before reversing this advance or loan.", 409);
     if (rows("financeTransactions").some(t => t.recoversTransactionId === id && !t.reversalOf && !rows("financeTransactions").some(r => r.reversalOf === t.id))) financialError("Reverse the linked cash repayments before reversing the disbursement.", 409);
     if (!dateSchema.safeParse(input.date).success || input.date < original.date || input.date > companyFinanceDate(String(original.organizationId))) financialError("Use a reversal date between the payment date and today.");
-    if (rows("financeTransactions").some(t => t.organizationId === original.organizationId && String(t.reference).toLowerCase() === input.reference.toLowerCase())) financialError("This company reference is already recorded.", 409);
+    if (rows("financeTransactions").some(t => t.organizationId === original.organizationId && String(t.reference).toLowerCase() === reference.toLowerCase())) financialError("This company reference is already recorded.", 409);
     const currency=String(original.currency||rows("financeAccounts").find(a=>a.id===original.accountId)?.currency||"");
     const allocations=original.allocations||(original.payrollRunId?rows("payrollEntries").filter(e=>e.runId===original.payrollRunId).map(e=>({entryId:e.id,employeeId:e.employeeId,amount:e.netPay})):undefined);
-    const item: Row = { ...original, ledgerVersion:1, currency, amount:cashAmount(original.amount,currency,true), ...(allocations?{allocations}:{}), id: nextCollectionId("financeTransactions"), reversalOf: id, sourceModule: "reversal", direction: original.direction === "out" ? "in" : "out", date: input.date, paymentDate: input.date, reference: input.reference, description: input.reason, idempotencyKey: input.idempotencyKey, createdBy: user.id, submittedBy:user.id, approvedBy: user.id, createdAt: new Date().toISOString() };
+    const item: Row = { ...original, ledgerVersion:1, currency, amount:cashAmount(original.amount,currency,true), ...(allocations?{allocations}:{}), id: nextCollectionId("financeTransactions"), reversalOf: id, sourceModule: "reversal", direction: original.direction === "out" ? "in" : "out", date: input.date, paymentDate: input.date, reference, externalReference: input.externalReference || "", description: input.reason, idempotencyKey: input.idempotencyKey, createdBy: user.id, submittedBy:user.id, approvedBy: user.id, createdAt: new Date().toISOString() };
     const data = getStore(); data.collections.financeTransactions = [...rows("financeTransactions"), item]; saveStore(data);
     if (original.payrollRunId) {
       const run = rows("payrollRuns").find(r => r.id === original.payrollRunId)!;
