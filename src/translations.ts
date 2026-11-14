@@ -19,6 +19,7 @@ import { notificationDetailsTranslations } from "./notification-details-translat
 import { auditTranslations } from "./audit-translations.ts";
 import payrollTranslations from "./payroll-translations.ts";
 import companyProfileTranslations from "./company-profile-translations.ts";
+import { appUpdateTranslations } from "./app-update-translations.ts";
 import hrCommunicationTranslations from "./hr-communication-translations.ts";
 /** Display copy only. Business data and identifiers are never rewritten. */
 import documentTranslations from "./document-translations.ts";
@@ -258,6 +259,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   ...documentTranslations,
   ...hrCommunicationTranslations,
   ...companyProfileTranslations,
+  ...appUpdateTranslations,
   ...payrollTranslations,
   ...redesignTranslations,
   ...auditTranslations,

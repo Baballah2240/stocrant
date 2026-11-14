@@ -21,7 +21,10 @@ export function notificationContext(user: AuthenticatedUser, item: Notification)
     const company = find("companies", String(row.organizationId || row.companyId || ""));
     if (company) details.company = company.name;
   };
-  if(target.startsWith("employment-contract:")){
+  if(target.startsWith("app-release:")){
+    const row=find("appReleases",target.slice(12));
+    if(row?.status==="approved"){add(row,["platform","versionName","buildNumber","notes","approvedAt"]);link={to:"/app-update",label:"View approved app update"};}
+  } else if(target.startsWith("employment-contract:")){
     const row=find("employmentContracts",target.slice(20));
     if(row&&canReadContract(user,row)){link={to:`/hr/contracts?employee=${encodeURIComponent(String(row.employeeId))}`,label:"Open employment contract"};}
   } else if (target.startsWith("shop-order:") && can(user, "operations", "view") && can(user, "inventory", "view")) {

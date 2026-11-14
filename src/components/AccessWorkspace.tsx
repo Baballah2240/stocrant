@@ -18,6 +18,7 @@ import ChoiceSelect from "./ChoiceSelect";
 import LockSettings from "./LockSettings";
 import BackButton from "./BackButton";
 import ServerSettings from "./ServerSettings";
+import AppUpdates from "./AppUpdates";
 import "../access-workspace.css";
 
 type Tab = "Overview" | "Onboarding & Security" | "App lock" | "Manage app" | "Users" | "Invitations" | "Roles" | "Approval rules" | "Approvals" | "Audit" | "Mobile app";
@@ -128,7 +129,7 @@ export default function AccessWorkspace() {
         {tab === "Approval rules" && main && <ApprovalRuleManagement rules={rules} saving={saving} onSave={(id,input)=>perform(()=>id?api.workspace.updateApprovalRule(id,input):api.workspace.saveApprovalRule(input),"Approval rule saved.")}/>}
         {tab === "Approvals" && canApprovals && !loading && <ApprovalRequests items={approvals} busy={saving} refresh={load}/>}
         {tab === "Audit" && canAudit && <AuditPanel entries={audit} />}
-        {tab === "App lock" && <LockSettings />}{tab === "Mobile app" && main && <ServerSettings />}
+        {tab === "App lock" && <LockSettings />}{tab === "Mobile app" && main && <><AppUpdates admin/><ServerSettings /></>}
       </div>
     </section>
   </div>;

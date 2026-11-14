@@ -1,6 +1,7 @@
 const CompanyReport = lazy(() => import("./components/CompanyReport"));
 const PayrollWorkspace = lazy(() => import("./components/PayrollWorkspace"));
 const CompanyProfile = lazy(() => import("./components/CompanyProfile"));
+const AppUpdates = lazy(() => import("./components/AppUpdates"));
 const HRCommunication = lazy(() => import("./components/HRCommunication"));
 const EmployeeInbox = lazy(() => import("./components/EmployeeInbox"));
 import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
@@ -61,6 +62,7 @@ const router = createBrowserRouter([
     errorElement: <PageError />,
     children: [
       { path: "workspace", element: <ResponsiveHome /> },
+      { path: "app-update", element: <main className="page"><AppUpdates /></main> },
 
       // ── Company locations ──
       { path: "me/attendance", element: <MobilePeople /> },

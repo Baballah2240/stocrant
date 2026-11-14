@@ -1,5 +1,9 @@
 # Mobile update history
 
+## 2026-11-14 - Super Admin release approval
+
+Approved mobile releases show their version, build number, notes and download action in the shared mobile app. Super Admin creates drafts under Settings → Mobile app, then explicitly approves a release to notify active users. Drafts never appear to ordinary users. Withdrawn/superseded versions lose their notification action, and each download click rechecks approval. Hosting, signing and approval remain separate from building an APK. Requested S-logo/icon replacement is pending the missing visual reference.
+
 ## 2026-11-14 - Company platform and optional websites
 
 - Company Services adds per-company workspace shortcuts and an optional bilingual public website with separate branding, public contacts and secure publication settings. The shared mobile source includes the new company profile tab; no native package is installed by a source update.
