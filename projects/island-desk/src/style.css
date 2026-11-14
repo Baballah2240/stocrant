@@ -312,3 +312,26 @@ button:active:not(:disabled){transform:scale(.96)}
 html[data-audio-reactive=true] .signal:not(.paused) i{animation:none;transform:scaleY(var(--audio-bar-0,.25));transition:transform 65ms linear}
 html[data-audio-reactive=true] .signal:not(.paused) i:nth-child(2){transform:scaleY(var(--audio-bar-1,.5))}html[data-audio-reactive=true] .signal:not(.paused) i:nth-child(3){transform:scaleY(var(--audio-bar-2,.7))}html[data-audio-reactive=true] .signal:not(.paused) i:nth-child(4){transform:scaleY(var(--audio-bar-3,.3))}
 .signal.music.paused i{animation:none;transform:scaleY(.2)}.reduce-motion .signal i{animation:none!important;transform:scaleY(.4)!important;transition:none!important}@media(prefers-reduced-motion:reduce){.signal i{animation:none!important;transform:scaleY(.4)!important;transition:none!important}}
+
+/* Desktop typography and palette. Fonts are installed locally; no web requests. */
+body{font-family:var(--font-body);line-height:1.5;text-rendering:optimizeLegibility}
+h1,h2,h3,.workspace-intro{font-family:var(--font-heading);letter-spacing:-.025em}
+h2{font-size:20px;font-weight:650;line-height:1.3}
+strong{font-weight:600}
+button,input,select,textarea{font-family:var(--font-body)}
+.tabs button{font-size:12px;font-weight:600;letter-spacing:0}
+.note-card p,.sticky-body,.task-text{line-height:1.65}
+.translation-panel textarea{font-size:16px;line-height:1.75}
+:is(input,textarea,[dir=rtl]):lang(ar),.translation-panel textarea[dir=rtl]{font-family:"Segoe UI",Tahoma,sans-serif;letter-spacing:0;line-height:1.9}
+.time,.today-clock strong,.personal-clock strong,.timer-caption{font-variant-numeric:tabular-nums lining-nums}
+:root{--island-surface:rgba(17,24,33,.94);--island-ink:#edf2f7;--island-muted:#a8b5c5;--island-edge:rgba(180,203,223,.22);--island-field:rgba(180,203,223,.08)}
+:root[data-appearance=light]{--island-surface:rgba(246,249,252,.96);--island-ink:#152039;--island-muted:#4e5f76;--island-edge:rgba(53,76,99,.2);--island-field:rgba(29,51,91,.06);--text:#152039;--muted:#4e5f76;--mint:#226849;--lavender:#6450a5}
+:root:not([data-appearance=light]) .island :is(.workspace,.topbar,.tab-panel){background:transparent}
+:root:not([data-appearance=light]) .translation-bottom{background:var(--surface-base)}
+:root:not([data-appearance=light]) :is(.note-card,.task-row,.tool-card,.translation-panel,.now-playing,.companion-pair,.settings-grid section){background:var(--surface-card);border-color:var(--surface-border)}
+:root:not([data-appearance=light]) .translation-result{background:#192c29;border-color:#395c50}
+:root:not([data-appearance=light]) :is(.translation-languages label,.translation-panel>label,.translation-panel-foot,.translation-bottom p){color:#b6c3d2}
+.island{box-shadow:0 18px 54px #0005,0 2px 8px #0003}
+.island input::placeholder,.island textarea::placeholder{color:var(--island-muted);opacity:.85}
+.island button:disabled{opacity:.5}
+.island :is(button,input,textarea,select):focus-visible{outline-color:var(--mint);outline-offset:3px}

@@ -1,4 +1,7 @@
-:root{--text:#eeeeF2;--muted:#85858f;--mint:#bce8c8;--lavender:#bdb5e6;
+:root{--text:#edf2f7;--muted:#a8b5c5;--mint:#a6e1c5;--lavender:#c8bff0;
+  --font-body:"Segoe UI Variable Text","Segoe UI",Tahoma,system-ui,sans-serif;
+  --font-heading:"Segoe UI Variable Display","Segoe UI",Tahoma,system-ui,sans-serif;
+  --surface-base:#111821;--surface-card:#19232e;--surface-raised:#23303d;--surface-border:#354454;
   /* Motion: reuse these everywhere. */
   --spring:cubic-bezier(.22,1.12,.36,1);   /* soft overshoot for things that open */
   --ease-out:cubic-bezier(.2,.8,.2,1);     /* settling movement */

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refined Windows colors with blue-charcoal surfaces, softer mint/lavender accents, clearer secondary text and a quieter shadow. Light appearance keeps dark readable ink and stronger surface borders.
+- Updated typography to locally installed Windows text/display fonts, clearer headings, Arabic-friendly text spacing and stable numeric timer alignment. No font download or additional dependency is required.
+
 - Added a shared Flutter 3.50 Windows/Android workspace preview, opening on Translate. Includes local notes/tasks, calculator/history, focus, text tools, shortcuts and adaptive rail/drawer layouts.
 - Added small native platform channels for the Windows topmost/foldable window and Android private storage/browser opening. Existing app data is imported as a copy on Windows, and the Android preview uses a separate application ID.
 - Flutter analysis, five domain/widget tests, live sample translations in both directions, and Windows release/Android debug builds verified. Android outputs are saved with checksums/manifests by `mobile:save` and kept out of Git.
