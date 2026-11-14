@@ -485,3 +485,11 @@ The APK installed locally is a USB development build. Production distribution ne
 - Searchable dropdown sections for Workspace, People & HR, Operations, Finance and Administration in the sidebar and mobile account menu.
 - Distinct store, customer-support, payroll, payslip and app-lock icons with clear active-page indicators.
 - Permission-filtered links, remembered section states, automatic current-section expansion, keyboard controls and reduced-motion support.
+
+## 2026-11-14 - Finance workspace
+- Grouped finance tools with clear company, currency, account and period filters retained in navigation.
+- Currency-labelled summary cards, verified-balance warnings, monthly cash flow and clearer unpaid obligations.
+- Responsive ledger rows, loading/retry/empty states, accessible controls and print layout.
+- Existing ledger calculations, source settlements, approval rules and payroll permissions remain enforced.
+- Keyboard tabs respect Arabic direction; changing company clears account/person filters, and refreshing preserves drafts. Account and transaction submissions guard duplicate clicks.
+- Shared source and web build only; no native synchronization, APK build, phone install or hosting deployment requested.

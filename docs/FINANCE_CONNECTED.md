@@ -1,5 +1,15 @@
 # Connected Finance
 
+## Workspace layout — 2026-11-14
+
+Finance tools are grouped into Summary, Money movements, Collections & payments, and Accounts & checks. The active group's tabs support keyboard arrows (mirrored for Arabic), Home and End. Company, currency, account, period, dates, time, person and search context are kept in the URL when changing finance tabs. Changing company clears the previous account/person scope. Payroll tools remain permission-filtered.
+
+Compact, currency-labelled summary cards link to their related tools. Available balances use full paid history and flag unverified accounts; movement totals use the selected filters. Overview shows the latest six months of filtered cash flow, unpaid obligations, connected workflows and cash-basis profit/loss; Reports retains the complete monthly series. Small-screen ledger entries use readable stacked rows, with a separate table layout for printing.
+
+Loading, refresh, retry and empty states distinguish unavailable figures from zero balances. Refresh retains unsubmitted forms. Saving account/transaction forms blocks concurrent submissions. Source settlement, approvals, payroll and tenant authority remain server-controlled. This is shared website/mobile source; no native build, phone installation or hosting deployment is implied.
+
+Validation: frontend typecheck and full website/shop/frontend/API build passed; 49 finance/payroll tests, 3 money/classifier tests and 8 translation tests passed. The isolated connected-finance browser flow passed payment/reversal balances, linked documents, banking and embedded payroll. `node scripts/verify-finance-layout.mjs` passed 16 language/theme/viewport combinations at 1920, 1366, 390 and 320px, with keyboard tabs, retained URL filters, refresh-preserved drafts and print controls. Desktop light and narrow Arabic dark screenshots were inspected. These checks use fictional isolated stores; they do not audit live business records.
+
 ## Integration review — 2026-10-25
 
 The overview shows all-date customer receivables, bills/refunds due and approved unpaid payroll for the selected company and currency. Draft/cancelled documents are excluded. Payroll requires payroll view access. Currencies with obligations remain selectable before an account exists. Unverified sources appear as reconciliation exceptions rather than invented totals.

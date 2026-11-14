@@ -1,0 +1,22 @@
+export const financeLayoutTranslations: Readonly<Record<string,string>> = {
+  "Refresh finance": "تحديث المالية",
+  "Showing the last loaded figures.": "تُعرض آخر الأرقام التي تم تحميلها.",
+  "Finance filters": "عوامل تصفية المالية",
+  "Loading finance…": "جارٍ تحميل المالية…",
+  "Refreshing finance…": "جارٍ تحديث المالية…",
+  "Finance unavailable": "المالية غير متاحة",
+  "{count} movements": "{count} حركة",
+  "Dates, times & people": "التواريخ والأوقات والأشخاص",
+  "Verified balances only": "الأرصدة المتحقق منها فقط",
+  "{count} accounts have unverified balances.": "يوجد {count} حساب بأرصدة غير متحقق منها.",
+  "Review accounts": "مراجعة الحسابات",
+  "No movements match these filters.": "لا توجد حركات تطابق عوامل التصفية.",
+  "No accounts match this company and currency.": "لا توجد حسابات تطابق هذه الشركة والعملة.",
+  "Cash basis": "الأساس النقدي",
+  "Finance sections": "أقسام المالية",
+  "Showing the latest {count} months within these filters.": "تُعرض أحدث {count} أشهر ضمن عوامل التصفية.",
+  "Money movements": "حركات الأموال",
+  "Collections & payments": "التحصيلات والمدفوعات",
+  "Accounts & checks": "الحسابات والمراجعة",
+  "Time not recorded": "الوقت غير مسجل"
+};
