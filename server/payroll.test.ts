@@ -43,7 +43,7 @@ const cookie=(r:Response)=>r.headers.get("set-cookie")!.split(";")[0];
 const path="/workspace/payroll";
 async function makeUser(roleId:string,email:string,employeeId?:string){const password=randomBytes(24).toString("hex"),u=(await expect(await req("/workspace/access/users","POST",{name:email,email,password,roleId,organizationIds:["company-primary"],...(employeeId?{employeeId}:{})}),201)).item;const r=await req("/auth/login","POST",{email,password},"");await expect(r,200);return {id:u.id,cookie:cookie(r)};}
 before(async()=>{server=createApp().listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;const setup=await req("/auth/setup","POST",{name:"Payroll Owner",email:"owner@payroll.test",password:randomBytes(24).toString("hex"),setupKey:"local-setup"},"");await expect(setup,201);main=cookie(setup);
- const h=await makeUser("role-payroll-hr","hr@payroll.test");hr=h.cookie;hrId=h.id;approver=(await makeUser("role-payroll-approver","approve@payroll.test")).cookie;finance=(await makeUser("role-payroll-finance","finance@payroll.test")).cookie;
+ const h=await makeUser("role-payroll-hr","hr@payroll.test");hr=h.cookie;hrId=h.id;approver=(await makeUser("role-general-manager","approve@payroll.test")).cookie;finance=(await makeUser("role-payroll-finance","finance@payroll.test")).cookie;
  const data=getStore();employeeId="payroll-test-worker";data.collections.employees=[...rows("employees"),{...employee,id:employeeId,email:"worker@payroll.test",salary:2200}];saveStore(data);
  const worker=await makeUser("role-employee","worker@payroll.test",employeeId);staff=worker.cookie;const other=await makeUser("role-employee","other@payroll.test");otherStaff=other.cookie;
  const e=rows("employees").find(e=>e.id===employeeId)!;e.accountId=worker.id;saveStore(getStore());
@@ -83,6 +83,25 @@ describe("Controlled payroll API",()=>{
    const own=await expect(await req(path,"GET",undefined,staff),200);assert.ok(own.runs.every((r:Row)=>r.payment===undefined));assert.ok(own.entries.every((e:Row)=>e.employeeId===employeeId));
  });
 
+ it("restricts salary approval to company General Manager or Super Admin and rechecks payment authority",async()=>{
+   const ordinary=await makeUser("role-payroll-approver","ordinary-review@payroll.test");
+   const {payrollCan}=await import("./payroll.js"),{publicUser}=await import("./auth.js"),{canAuthorizeSalary,salaryApprovalAuthorized}=await import("./salary-approval.js");
+   const general=rows("accessUsers").find(a=>a.roleId==="role-general-manager")!;
+   const reviewer=rows("accessUsers").find(a=>a.id===ordinary.id)!;
+   assert.equal(payrollCan(publicUser(reviewer as any),"approve"),false);
+   assert.equal(canAuthorizeSalary(publicUser(general as any),"company-primary"),true);
+   assert.equal(canAuthorizeSalary(publicUser(general as any),"another-company"),false);
+   assert.equal(salaryApprovalAuthorized({organizationId:"company-primary",approvedBy:reviewer.id}),false);
+   assert.equal(salaryApprovalAuthorized({organizationId:"company-primary",approvedBy:general.id}),true);
+   general.status="inactive";saveStore(getStore());
+   assert.equal(salaryApprovalAuthorized({organizationId:"company-primary",approvedBy:general.id}),false);
+   general.status="active";saveStore(getStore());
+   const previous=run.approvedBy;rows("payrollRuns").find(r=>r.id===run.id)!.approvedBy=reviewer.id;saveStore(getStore());
+   const before=JSON.stringify(rows("financeTransactions"));
+   await expect(await req(path+`/runs/${run.id}/payments`,"POST",{version:run.version,amount:"1",accountId:"payroll-bank",paymentDate:"2026-10-01",reference:"DENIED-SALARY",method:"bank",reason:"Unauthorized legacy approval",confirmed:true,idempotencyKey:"denied-salary-authority"},finance),403);
+   assert.equal(JSON.stringify(rows("financeTransactions")),before);
+   rows("payrollRuns").find(r=>r.id===run.id)!.approvedBy=previous;saveStore(getStore());
+ });
  it("lets Main save payroll sources and finalize a run without another approver",async()=>{
    const source=(await expect(await req(path+"/sources","POST",{employeeId,date:"2027-01-04",type:"bonus",amount:"12.25",reference:"MAIN-DIRECT-BONUS",reason:"Main confirms this bonus"}),201)).item;assert.equal(source.status,"approved");assert.equal(source.reviewedBy,source.createdBy);
    const p={companyId:"company-primary",frequency:"monthly",start:"2027-01-01",end:"2027-01-31",employeeIds:[employeeId]};const preview=await expect(await req(path+"/preview","POST",p),200);let direct=(await expect(await req(path+"/runs","POST",{period:p,previewToken:preview.previewToken}),201)).run;

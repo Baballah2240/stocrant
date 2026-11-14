@@ -35,6 +35,8 @@ export function sectionForCollection(collection: string): WorkspaceSection {
 export function can(user: AuthenticatedUser | undefined, section: WorkspaceSection, action: PermissionAction): boolean {
   if (!user) return false;
   if (isMainManager(user)) return true;
+  if(user.roleId==="role-finance-manager"&&(getCollection("accessUsers") as Record<string,unknown>[]).some(a=>a.id===user.id&&a.status==="active"&&a.roleId==="role-finance-manager"&&!Array.isArray(a.permissions))&&section==="finance"&&["view","create","approve"].includes(action))return true;
+  if(user.roleId==="role-finance-manager"&&(getCollection("accessUsers") as Record<string,unknown>[]).some(a=>a.id===user.id&&a.status==="active"&&a.roleId==="role-finance-manager"&&!Array.isArray(a.permissions))&&section==="payroll"&&["view","pay"].includes(action))return true;
   if(section==="organizations"&&!["view","export"].includes(action)&&!isDelegatedAdmin(user))return false;
   if (["access", "audit"].includes(section) && !isDelegatedAdmin(user)) return false;
   const permissions = permissionsFor(user);

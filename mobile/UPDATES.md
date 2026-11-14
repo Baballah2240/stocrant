@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-11-14 - Payment printing and salary authority
+
+Selected payment prints one receipt; employee salary prints one payslip and its own payment history. Print all salaries includes all employees within current report filters, across pagination. Detached print snapshots exclude surrounding Finance and other employees, including embedded/mobile layouts. Salary summaries show net, paid and outstanding amounts with explicit approval guidance.
+
+Finance authorization is required for non-salary ledger payment decisions. Salary approval is restricted to the assigned company General Manager or Super Admin; Finance records payment after that approval. Current approver authority is rechecked before payment, legacy approvals can be reauthorized without rewriting payslips, and manual salary postings cannot bypass payroll. Existing configured review rules, scope, immutable history and exact amounts remain. Shared source only; no native build/install or hosting deployment is claimed.
+
+
 ## 2026-11-07 - Company and role invitations
 
 - Add Invitations under Access & Settings in shared website/mobile source. Authorized admins choose a company, role and optional employee, create a private expiring link, explicitly send/resend email, or revoke a pending invitation. Recipients choose their own password; acceptance rechecks authorization and consumes the token once.

@@ -25,7 +25,7 @@ before(async()=>{
  server=createApp().listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
  const setup=await req("/auth/setup",{name:"Flow admin",email:"flow@example.test",password:randomBytes(24).toString("hex"),setupKey:"local-setup"});await expect(setup,201);cookie=setup.headers.get("set-cookie")!.split(";")[0];
  const data=getStore();data.collections.accessRoles.push({id:"role-flow-fixture",name:"Finance test submitter",permissions:["finance.*","payroll.*"],status:"active"});data.collections.financeAccounts.push(bank);data.collections.employees.push({id:"flow-worker",name:"Flow worker",employeeCode:"FLOW-1",organizationId:"company-primary",status:"active"});
- run={id:"flow-run",organizationId:"company-primary",companyId:"company-primary",start:"2026-01-01",end:"2026-01-31",currency:"QAR",status:"Approved",version:1,approvedBy:"independent-approver",totals:{netPay:"100.30"}};
+ run={id:"flow-run",organizationId:"company-primary",companyId:"company-primary",start:"2026-01-01",end:"2026-01-31",currency:"QAR",status:"Approved",version:1,approvedBy:(data.collections.accessUsers as Row[]).find(a=>a.roleId==="role-main-manager")!.id,totals:{netPay:"100.30"}};
  entry={id:"flow-entry",runId:run.id,employeeId:"flow-worker",employee:"Flow worker",organizationId:"company-primary",currency:"QAR",netPay:"100.30",snapshot:{salary:{base:"100.30"},company:{name:"Company"}},components:[],sourceIds:[]};
  data.collections.payrollRuns.push(run);data.collections.payrollEntries.push(entry);saveStore(data);
 });
@@ -176,4 +176,18 @@ describe("Connected financial ledger",()=>{
    const {createManualAttendance}=await import("./attendance.js");const attendance=createManualAttendance(actor(),{organizationId:"company-primary",employeeId:"flow-worker",date:"2026-01-05",checkIn:"08:00",checkOut:"17:00"});assert.equal(attendance.approvalStatus,"Approved");
    assert.ok(!rows("approvalRequests").some(r=>r.requestedBy===actor().id&&r.payload?.reference==="MAIN-NO-APPROVAL"));
  });
+ it("requires Finance authorization for payment decisions and blocks generic salary bypasses",async()=>{
+   const data=getStore();data.collections.accessRoles.push({id:"role-payment-submit",name:"Payment submitter",permissions:["finance.view","finance.create"]},{id:"role-payment-review",name:"Nonfinance reviewer",permissions:["approvals.view","approvals.approve"]});saveStore(data);
+   const submitter={...actor(),id:"payment-submit-user",roleId:"role-payment-submit",organizationIds:["company-primary"]};
+   const reviewer={...actor(),id:"payment-review-user",roleId:"role-payment-review",organizationIds:["company-primary"]};
+   const result=mutateCollection(submitter,"financeTransactions","create",movement({reference:"MANDATORY-FINANCE-REVIEW",idempotencyKey:"mandatory-finance-review-key"}));
+   assert.equal(result.pending,true);assert.ok(!rows("financeTransactions").some(t=>t.reference==="MANDATORY-FINANCE-REVIEW"));
+   const {approveRequest}=await import("./workspace.js");
+   assert.throws(()=>approveRequest(reviewer,(result as any).request.id,true,"Generic approval must not pay"),/Finance approval/);
+   approveRequest(actor(),(result as any).request.id,true,"Finance authority confirms payment");
+   assert.ok(rows("financeTransactions").some(t=>t.reference==="MANDATORY-FINANCE-REVIEW"));
+   for(const payload of [movement({type:"payroll",reference:"BYPASS-SALARY-1",idempotencyKey:"bypass-salary-one"}),movement({category:"salary",reference:"BYPASS-SALARY-2",idempotencyKey:"bypass-salary-two"})])assert.throws(()=>mutateCollection(actor(),"financeTransactions","create",payload),/Payroll|payroll/);
+ });
+
+
 });

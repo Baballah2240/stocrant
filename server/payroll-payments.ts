@@ -1,4 +1,5 @@
 import type { AuthenticatedUser } from "./auth.js";
+import { salaryApprovalAuthorized } from "./salary-approval.js";
 import { can, isWithinScope, ownRecordsRequired } from "./permissions.js";
 import { getCollection, getStore, nextCollectionId, saveStore, transaction } from "./storage.js";
 import { appendFinancialHistory, cashAmount, companyFinanceDate, financialError, payrollEntryPayments, runPaymentState } from "./finance-ledger.js";
@@ -14,6 +15,7 @@ export function recordPayrollPayment(user: AuthenticatedUser, id: string, input:
     const run = rows("payrollRuns").find(r => r.id === id);
     const entries = rows("payrollEntries").filter(e => e.runId === id).sort((a, b) => String(a.id).localeCompare(String(b.id)));
     if (!run || !entries.length || !entries.every(e => isWithinScope(user, e)) || !isWithinScope(user, { id: run.organizationId, organizationId: run.organizationId })) financialError("Payroll run not found.", 404);
+    if(!salaryApprovalAuthorized(run))financialError("Salary payment requires approval from the assigned company General Manager or Super Admin.",403);
     const fingerprint = JSON.stringify({ runId: id, accountId: input.accountId, date: input.paymentDate, reference: input.reference, method: input.method, amount: input.amount === undefined ? "remaining" : String(input.amount), entryId: input.entryId || "", reason: input.reason, confirmed: input.confirmed });
     const replay = input.idempotencyKey && rows("financeTransactions").find(t => t.idempotencyKey === input.idempotencyKey && t.createdBy === user.id);
     if (replay) {

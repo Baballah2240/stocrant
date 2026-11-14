@@ -98,6 +98,7 @@ export function validateFinancialMutation(user: AuthenticatedUser, collection: s
   if (current?.status === "paid" || current?.payrollRunId || current?.transferGroupId || current?.reversalOf) financialError("Posted ledger entries are immutable. Use an authorized reversal.");
   if (action === "delete") return payload;
   const item = { ...current, ...payload };
+  if (item.type === "payroll" || ["salary","salaries"].includes(String(item.category||"").toLowerCase())) financialError("Use approved payroll for salary payments.");
   if (item.payrollRunId || item.allocations || item.reversalOf) financialError("Use the controlled payroll or reversal operation.");
   const account = rows("financeAccounts").find(a => a.id === item.accountId && isWithinScope(user, a));
   if (!account || account.organizationId !== item.organizationId) financialError("Choose an accessible account in this company.");
@@ -127,7 +128,7 @@ export function validateFinancialMutation(user: AuthenticatedUser, collection: s
     if (!source || !sourceStates[item.sourceCollection]?.includes(source.status)) financialError("Choose an approved source record in this company.");
     const expectedType = item.sourceCollection === "sales" ? "income" : item.sourceCollection === "returns" ? "refund" : "expense";
     if (item.type !== expectedType || direction !== (item.sourceCollection === "sales" ? "in" : "out")) financialError("The payment type must match its source record.");
-    if (item.sourceCollection === "expenses" && source.category === "salaries" && rows("payrollSettings").some(s => s.organizationId === item.organizationId && s.configured)) financialError("Use approved payroll to settle salaries and avoid double counting.");
+    if (item.sourceCollection === "expenses" && source.category === "salaries") financialError("Use approved payroll to settle salaries and avoid double counting.");
     const settlement = settlementRows(item.sourceCollection, source);
     if (settlement.currency !== account.currency || settlement.outstanding === null) financialError("Confirm the source currency before settlement.");
     if (item.status === "paid" && scaled(amount) > scaled(settlement.outstanding)) financialError("The payment exceeds the source outstanding balance.", 409);

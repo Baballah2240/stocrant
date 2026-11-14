@@ -96,7 +96,7 @@ describe("Application audit security and workflow regressions", () => {
   });
 
   async function queuedTransfer() {
-    const reviewer = await account("TransferReviewer");
+    const reviewer = await account("TransferReviewer",["hr.view","approvals.view","approvals.approve","finance.view","finance.approve"]);
     const submitter=await account("TransferSubmitter",["finance.view","finance.create"]);
     const first = (await body(await req("/workspace/finance/accounts", "POST", { name: "Source", type: "bank", currency: "QAR", openingBalance: 500, organizationId: "company-primary" }), 201)).item;
     const second = (await body(await req("/workspace/finance/accounts", "POST", { name: "Destination", type: "bank", currency: "QAR", openingBalance: 0, organizationId: "company-primary" }), 201)).item;

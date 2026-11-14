@@ -194,7 +194,7 @@ function currentPayrollTransaction(id?: string) { return id && rows("financeTran
 
 function protectPayrollMutation(collection: string, action: MutationAction, payload: Record<string, unknown>, targetId?: string) {
   if (["payroll", "payrollEntries", "payrollRuns", "payrollSources", "payrollSettings", "payrollSalaries", "payrollHistory"].includes(collection)) throw new Error("Use the secure Payroll workspace to manage payroll records.");
-  if (collection === "financeTransactions" && action === "create" && payload.type === "payroll" && rows("payrollSettings").some(setting => setting.configured && setting.organizationId === payload.organizationId)) throw new Error("Use Payroll runs to record confirmed salary payments and prevent double counting.");
+  if (collection === "financeTransactions" && action === "create" && payload.type === "payroll") throw new Error("Use Payroll runs to record confirmed salary payments and prevent double counting.");
   if (collection === "financeTransactions" && (payload.payrollRunId || (currentPayrollTransaction(targetId)))) throw new Error("Confirmed payroll ledger entries are immutable. Use an approved later-period payroll adjustment.");
 }
 
@@ -248,7 +248,8 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
     if (pending) return { pending:true, request:pending };
     payload.employeeRequestKey = key;
   }
-  if (requiresApproval(section, action, user) && !shopApproved) {
+  const paymentApproval=collection==="financeTransactions"&&!isMainManager(user)&&!can(user,"finance","approve");
+  if ((paymentApproval||requiresApproval(section, action, user)) && !shopApproved) {
     // Pending employees retain secure activation; no credentials exist before approval.
     delete payload.provisionCredentials;
     const request: ApprovalRequest = {
@@ -388,6 +389,7 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
   const request = list.find((row) => row.id === requestId);
   if (!request) throw new Error("Approval request not found.");
   if (!approvalWithinScope(user, request)) throw new Error("Approval request not found.");
+  if(request.section==="finance"&&!can(user,"finance","approve"))throw new Error("Finance approval permission is required to decide payments.");
   if (request.collection === "documents" && !managesDocuments(user, request.action)) throw new Error("You do not have permission to decide HR document requests.");
   if (request.status !== "pending") throw new Error("This approval request has already been processed.");
   const selfApproved=request.requestedBy===user.id;
