@@ -1,5 +1,9 @@
 # Mobile update history
 
+## 2026-11-14 - Company platform and optional websites
+
+- Company Services adds per-company workspace shortcuts and an optional bilingual public website with separate branding, public contacts and secure publication settings. The shared mobile source includes the new company profile tab; no native package is installed by a source update.
+
 ## 2026-11-14 - Payment printing and salary authority
 
 Selected payment prints one receipt; employee salary prints one payslip and its own payment history. Print all salaries includes all employees within current report filters, across pagination. Detached print snapshots exclude surrounding Finance and other employees, including embedded/mobile layouts. Salary summaries show net, paid and outstanding amounts with explicit approval guidance.
@@ -502,3 +506,4 @@ The APK installed locally is a USB development build. Production distribution ne
 - Shared source and web build only; no native synchronization, APK build, phone install or hosting deployment requested.
 
 - Finance now assigns references automatically to movements, payroll payments and reversals. Optional bank/external references are stored separately.
+- Company Services adds per-company workspace shortcuts and an optional bilingual public website with separate branding, public contacts and secure publication settings. The shared mobile source includes the new company profile tab; no native package is installed by a source update.

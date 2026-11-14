@@ -33,6 +33,7 @@ import { publicWebsiteRouter, websiteInquiryRouter } from "./public-website.js";
 import { personalNotesRouter } from "./personal-notes.js";
 import { dashboardLayoutRouter } from "./dashboard-layout.js";
 import { organizationAdminsRouter } from "./organization-admins.js";
+import { companyServicesRouter, companyWebsiteRouter } from "./company-services.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -86,6 +87,7 @@ export function createApp() {
     next();
   });
   app.use(attachAuth);
+  app.use("/company", companyWebsiteRouter);
   app.use("/api", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 
   app.get("/api/health", (_req, res) => {
@@ -120,6 +122,7 @@ export function createApp() {
   app.use("/api/workspace/attendance", attendanceRouter);
   app.use("/api/workspace/company-work/:companyId", companyWorkRouter);
   app.use("/api/workspace/company-profiles", companyProfileRouter);
+  app.use("/api/workspace/company-services", companyServicesRouter);
   app.use("/api/workspace/hr/communication", hrMessagesRouter);
   app.use("/api/workspace/tasks", tasksRouter);
   app.use("/api/workspace/customer-service/website-inquiries", websiteInquiryRouter);

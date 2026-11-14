@@ -10,6 +10,7 @@ import type { CollectionItem } from "../types";
 export const companySections = [
   ["overview", "Overview", "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"],
   ["information", "Company Information", "M4 3h16v18H4zM8 8h8m-8 4h8m-8 4h5"],
+  ["services", "Company services", "M3 4h18v16H3zM3 9h18M8 9v11M6 6h1m3 0h1"],
   ["employees", "Employees", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6m-3-3h6"],
   ["managers", "Managers", "M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8M4 21v-3a8 8 0 0 1 16 0v3"],
   ["departments", "Departments and sections", "M12 3v6M4 21v-7h16v7M3 3h18v6H3zM1 17h6m10 0h6"],
