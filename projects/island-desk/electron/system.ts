@@ -1,9 +1,24 @@
 // Windows display controls: brightness (WMI, built-in/laptop panels) and Night Light (per-user CloudStore registry blob).
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import type { BatteryState } from "../shared/bridge.js";
 const run = promisify(execFile);
 const NIGHT_KEY = ["HKCU", "Software", "Microsoft", "Windows", "CurrentVersion", "CloudStore", "Store", "DefaultAccount", "Current", "default$windows.data.bluelightreduction.bluelightreductionstate", "windows.data.bluelightreduction.bluelightreductionstate"].join(String.fromCharCode(92));
 const ps = async (script: string) => (await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 8000 })).stdout.trim();
+
+let batteryRead: Promise<BatteryState | null> | null = null;
+/** Read Windows power status without opening a console or changing system settings. */
+export function getBattery(): Promise<BatteryState | null> {
+  if (process.platform !== "win32") return Promise.resolve(null);
+  if (batteryRead) return batteryRead;
+  batteryRead = ps('Add-Type -AssemblyName System.Windows.Forms; $p=[System.Windows.Forms.SystemInformation]::PowerStatus; @{level=[double]$p.BatteryLifePercent; flags=[int]$p.BatteryChargeStatus; ac=[int]$p.PowerLineStatus} | ConvertTo-Json -Compress')
+    .then(raw => {
+      const status = JSON.parse(raw);
+      if (status.flags === 255 || (status.flags & 128) !== 0 || typeof status.level !== "number" || status.level < 0 || status.level > 1) return null;
+      return { level: Math.round(status.level * 100), charging: (status.flags & 8) !== 0, onAC: status.ac === 1 };
+    }).catch(() => null).finally(() => { batteryRead = null; });
+  return batteryRead;
+}
 
 export async function getBrightness(): Promise<number | null> {
   if (process.platform !== "win32") return null;

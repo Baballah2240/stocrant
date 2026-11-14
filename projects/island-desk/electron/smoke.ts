@@ -12,6 +12,15 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.rendered = (await window.webContents.executeJavaScript("document.querySelector('#root')?.children.length > 0")) as boolean;
   const compact = state().rect.width * state().rect.height;
   results.clickThrough = state().ignoring;
+  const battery = await window.webContents.executeJavaScript("window.island.battery()");
+  results.nativeBatteryValid = battery === null || (Number.isInteger(battery.level) && battery.level >= 0 && battery.level <= 100 && typeof battery.charging === "boolean" && typeof battery.onAC === "boolean");
+  window.webContents.send("desktop-event", { type: "battery", battery: { level: 45, charging: true, onAC: true } }); await wait(150);
+  results.batteryChargingVisible = await window.webContents.executeJavaScript("document.querySelector('.compact-face .island-battery')?.getAttribute('aria-label')==='45% · Charging'");
+  window.webContents.send("desktop-event", { type: "battery", battery: { level: 12, charging: false, onAC: false } }); await wait(150);
+  results.batteryLowVisible = await window.webContents.executeJavaScript("Boolean(document.querySelector('.compact-face .island-battery.is-low'))");
+  window.webContents.send("desktop-event", { type: "battery", battery: null }); await wait(150);
+  results.batteryUnavailableHidden = await window.webContents.executeJavaScript("!document.querySelector('.island-battery')");
+  window.webContents.send("desktop-event", { type: "battery", battery });
   setMode("expanded"); await wait(900);
   results.expanded = state().mode === "expanded" && state().rect.width * state().rect.height > compact;
   results.keyboardFocus = window.isFocused() && (await window.webContents.executeJavaScript("document.hasFocus()")) === true;

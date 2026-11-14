@@ -11,7 +11,7 @@ import { watchStats, stopStats } from "./stats.js";
 import { fetchWeather } from "./weather.js";
 import { startMedia, stopMedia, mediaCommand, media } from "./media.js";
 import { spotlight, resetOverlays, prepareOverlays } from "./dim.js";
-import { getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
+import { getBattery, getBrightness, setBrightness, getNightLight, setNightLight } from "./system.js";
 import type { ContentPatch, DesktopEvent, PhoneFeed, PhoneItem, Weather } from "../shared/bridge.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -186,6 +186,7 @@ function installIpc() {
   handle("media-get", () => media);
   handle("phone-get", () => phoneFeed);
   handle("weather-get", () => weather);
+  handle("battery-get", () => getBattery());
   handle("translation", async request => {
     translationController?.abort();
     const controller = new AbortController(); translationController = controller;
@@ -329,6 +330,8 @@ else {
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }
     screen.on("display-added", () => { resetOverlays(); position(); repositionStickies(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-removed", () => { resetOverlays(); position(); repositionStickies(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-metrics-changed", () => { resetOverlays(); position(); repositionStickies(); });
+    const refreshBattery = () => { void getBattery().then(battery => emit({ type: "battery", battery })); };
+    powerMonitor.on("on-ac", refreshBattery); powerMonitor.on("on-battery", refreshBattery); powerMonitor.on("resume", refreshBattery);
     powerMonitor.on("resume", tick); trayTimer = setInterval(tick, 1000); tick();
     app.on("second-instance", () => { window.setFocusable(true); setMode("expanded"); });
     if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, () => { quitting = true; app.quit(); }));

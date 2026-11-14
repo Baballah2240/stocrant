@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows island and expanded header now show the actual battery percentage with charging, plugged-in/full and low-battery states. Battery reads are read-only, run without a console window and hide gracefully when Windows reports no battery.
+
 - Refined Windows colors with blue-charcoal surfaces, softer mint/lavender accents, clearer secondary text and a quieter shadow. Light appearance keeps dark readable ink and stronger surface borders.
 - Updated typography to locally installed Windows text/display fonts, clearer headings, Arabic-friendly text spacing and stable numeric timer alignment. No font download or additional dependency is required.
 

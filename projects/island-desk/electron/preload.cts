@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 const invoke = (name: string, ...args: unknown[]) => ipcRenderer.invoke(name, ...args);
 contextBridge.exposeInMainWorld("island", {
+  battery: () => invoke("battery-get"),
   translate: (request: unknown) => invoke("translation", request), cancelTranslation: () => invoke("translation-cancel"), copyText: (text: string) => invoke("clipboard-write", text),
   snapshot: () => invoke("snapshot"), save: (patch: unknown) => invoke("content", patch), settings: (patch: unknown) => invoke("settings", patch),
   mode: (mode: string) => ipcRenderer.send("mode", mode), geometry: (rect: unknown) => ipcRenderer.send("geometry", rect),

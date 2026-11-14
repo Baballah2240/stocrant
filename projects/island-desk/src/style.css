@@ -335,3 +335,10 @@ button,input,select,textarea{font-family:var(--font-body)}
 .island input::placeholder,.island textarea::placeholder{color:var(--island-muted);opacity:.85}
 .island button:disabled{opacity:.5}
 .island :is(button,input,textarea,select):focus-visible{outline-color:var(--mint);outline-offset:3px}
+.island-battery{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;color:var(--island-ink);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.island-battery.is-charging{color:var(--mint)}.island-battery.is-low{color:#ffb183}
+:root[data-appearance=light] .island-battery.is-low{color:#9c3d14}
+.compact-face>.island-battery{margin-inline-start:auto}.compact-face .pill-idle{min-width:0;gap:7px;justify-content:flex-start}
+.island.compact:has(.island-battery):not(.live){width:280px}
+.compact-face .compact-track{flex:1;min-width:0}
+.top-actions>.island-battery{margin-inline-end:8px}
