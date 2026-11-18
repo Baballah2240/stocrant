@@ -234,4 +234,9 @@ export const ar: Record<string, string> = {
     "أزل الأصناف غير المتاحة أو قلّل الكميات للمتابعة.",
   "Skip to content": "انتقل للمحتوى",
   "Policy information is not available yet.": "معلومات السياسة غير متاحة بعد.",
+  "FAQ": "الأسئلة الشائعة",
+  "Frequently asked questions": "الأسئلة الشائعة",
+  "No questions have been added yet.": "لم تُضف أسئلة بعد.",
+  "Follow us": "تابعنا",
+  "Chat on WhatsApp": "تحدث معنا عبر واتساب",
 };

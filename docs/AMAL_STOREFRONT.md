@@ -86,3 +86,18 @@ No DNS records, Render custom domains or live publication are changed by a GitHu
 - `npm run check`: all existing checks, eight storefront API scenarios, storefront type/build and Arabic-copy tests, and production serving checks for all three frontends.
 - `npm run test:storefront`: a real Chrome journey through manager settings, anonymous catalog/search/categories/sort, product quantities, bag, delivery quote, a deliberately lost checkout response and safe retry, private receipt reload, manager fulfilment and unpaid sale. Verify EN/AR, light/dark and 320/390/768/1440px catalog/product/bag/checkout/policy layouts.
 - `npm run test:commerce`: retain existing Excel, receiving, stock and workspace-order regression checks.
+
+## Design & brand
+
+Storefront settings accept an optional `branding` object, validated in `server/storefront-branding.ts`. Older shops get defaults when read. It has these fields:
+- **Design:** `template` (classic, fashion, electronics, food or minimal), `primaryColor` and `accentColor` (#rrggbb), and `font` (serif, sans or rounded).
+- **Images:** `banner` and `aboutImage`, each an HTTPS link or an uploaded shop image path.
+- **Text:** `heroTitle`, `heroSubtitle` and `aboutTitle`.
+- **Social:** `whatsapp`, `instagram`, `facebook` and `tiktok`.
+- **FAQ:** `faq`, with up to 20 questions and answers.
+- **Search and link previews:** `seoTitle` (up to 70 characters) and `seoDescription` (up to 160).
+- **Domain:** `customDomain`, a bare hostname that each shop must own alone and that can't be the app's own host.
+
+When the server serves the shop page, it fills in the title, description, Open Graph and Twitter tags, theme colour and icon. Draft shops keep `noindex`.
+
+`storefrontForHost` resolves `STOCRANT_SHOP_HOSTS` bindings first, then the saved custom domains of published shops. The operator must still point DNS (a CNAME to the app host) and add the domain at the hosting provider to get HTTPS.

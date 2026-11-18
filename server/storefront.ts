@@ -23,6 +23,7 @@ import { expireShopReservations } from "./commerce-stock.js";
 import { createNotification } from "./notifications.js";
 import { productPhotos } from "./shop-media.js";
 import { shopServiceOpen } from "./shop-clients.js";
+import { brandingSchema, brandingFor, defaultBranding, validateBranding, slugForDomain } from "./storefront-branding.js";
 import { merchandisingSchema, defaultMerchandising, merchandisingFor, validateMerchandising, visibleProduct, offeredPrice, publicMerchandising, nextMerchandisingChange } from "./storefront-merchandising.js";
 
 type Row = Record<string, any>;
@@ -88,6 +89,7 @@ const settingsSchema = z
     manualPaymentsAccepted: z.boolean(),
     reservationHours: z.number().int().min(1).max(168).default(24),
     merchandising: merchandisingSchema.optional(),
+    branding: brandingSchema.optional(),
   })
   .strict();
 const defaults = {
@@ -111,6 +113,7 @@ const defaults = {
   published: false,
   manualPaymentsAccepted: false,
   reservationHours: 24,
+  branding: defaultBranding,
   merchandising: defaultMerchandising,
 };
 function admin(req: Request, companyId: string) {
@@ -122,7 +125,7 @@ function admin(req: Request, companyId: string) {
 }
 function safeSettings(s: Row) {
   const { connectorId, ownerId, ...safe } = s;
-  return safe;
+  return { ...safe, branding: brandingFor(s) };
 }
 function context(s: Row) {
   const connector = rows("shopConnectors").find(
@@ -178,7 +181,7 @@ export function storefrontForHost(hostname: string) {
     ([host, slug]) =>
       host?.toLowerCase() === hostname.toLowerCase() &&
       slugSchema.safeParse(slug).success,
-  )?.[1];
+  )?.[1] || slugForDomain(hostname);
 }
 const cookieName = () =>
   process.env.NODE_ENV === "production"
@@ -409,6 +412,8 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
         fail("Shop settings changed. Reload before saving.", 409);
       const merchandising = b.merchandising ?? merchandisingFor(current || {});
       validateMerchandising(req.auth!, c.id, merchandising);
+      const branding = b.branding ?? brandingFor(current || {});
+      validateBranding(branding, current?.id, req.hostname);
       if (
         current &&
         current.slug !== b.slug &&
@@ -458,6 +463,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
       const item = {
         ...b,
         merchandising,
+        branding,
         deliveryFee,
         id: current?.id || randomUUID(),
         organizationId: c.id,
@@ -516,7 +522,7 @@ storefrontRouter.get("/:slug/catalog", (req, res) => {
     const { connectorId, ownerId, organizationId, id, ...settings } = s;
     const products = catalog(s, user, company.currency), m = merchandisingFor(s);
     res.json({
-      shop: { ...settings, merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
+      shop: { ...settings, branding: brandingFor(s), merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
       products,
       refreshAt: nextMerchandisingChange(m),
     });

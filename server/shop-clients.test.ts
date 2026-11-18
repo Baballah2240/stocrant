@@ -70,4 +70,31 @@ describe("online shop clients", () => {
     assert.equal(effectiveStatus({ status: "active", endsAt: "2020-01-01" }), "expired");
     assert.equal(effectiveStatus({ status: "trial", endsAt: "2999-01-01" }), "trial");
   });
+  it("saves shop design, rejects bad input, and serves link previews and custom domains", async () => {
+    const url = `/workspace/storefronts/${client.companyId}`;
+    const current = (await json(await req(url))).settings as Row;
+    assert.equal(current.branding.template, "classic");
+    const branding = { ...current.branding, template: "fashion", primaryColor: "#1f1a17", accentColor: "#c2185b", heroTitle: "New season", whatsapp: "+249 912345678", instagram: "https://instagram.com/nile", faq: [{ question: "Do you deliver?", answer: "Yes, inside Khartoum." }], seoTitle: "Nile Fashion — dresses", seoDescription: "Dresses <and> abayas", customDomain: "www.nilefashion.test", banner: "https://images.example.test/banner.jpg" };
+    const { version, id: _i, organizationId: _o, updatedAt: _u, ...rest } = current;
+    const body = { ...rest, version, address: "Souq Arabi, Khartoum", manualPaymentsAccepted: true, published: true, branding };
+    await json(await req(url, "PUT", { ...body, branding: { ...branding, primaryColor: "red" } }), 400);
+    await json(await req(url, "PUT", { ...body, branding: { ...branding, customDomain: "https://bad" } }), 400);
+    const saved = (await json(await req(url, "PUT", body))).settings as Row;
+    assert.equal(saved.branding.template, "fashion"); assert.equal(saved.branding.faq.length, 1);
+    const catalog = await json(await req("/storefront/nile-fashion/catalog", "GET", undefined, ""));
+    assert.equal(catalog.shop.branding.heroTitle, "New season");
+    const page = await (await fetch(base + "/shop/nile-fashion")).text();
+    if (page.includes("<html")) {
+      assert.ok(page.includes("<title>Nile Fashion — dresses</title>"));
+      assert.ok(page.includes('og:description" content="Dresses &lt;and&gt; abayas"'));
+      assert.ok(page.includes('og:image" content="https://images.example.test/banner.jpg"'));
+      assert.doesNotMatch(page, /noindex/);
+    }
+    const { storefrontForHost } = await import("./storefront.js");
+    assert.equal(storefrontForHost("WWW.NILEFASHION.TEST"), "nile-fashion");
+    const other = getCollection("shopStorefronts").find((s: any) => s.organizationId !== client.companyId) as Row;
+    const otherCurrent = (await json(await req(`/workspace/storefronts/${other.organizationId}`))).settings as Row;
+    const { version: v2, id: _i2, organizationId: _o2, updatedAt: _u2, ...rest2 } = otherCurrent;
+    await json(await req(`/workspace/storefronts/${other.organizationId}`, "PUT", { ...rest2, version: v2, branding: { ...otherCurrent.branding, customDomain: "www.nilefashion.test" } }), 409);
+  });
 });

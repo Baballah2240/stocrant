@@ -4,12 +4,14 @@ import { invitationsRouter, invitationAcceptanceRouter } from "./invitations.js"
 import { shopImageUploads, shopImageDownloads } from "./routes/shop-images.js";
 import { commerceRouter, shopIntegrationRouter } from "./commerce.js";
 import { shopClientsRouter } from "./shop-clients.js";
+import { shopHead } from "./storefront-branding.js";
+import { getCollection } from "./storage.js";
 import { storefrontAdminRouter, storefrontRouter, storefrontForHost } from "./storefront.js";
 import companyWorkRouter from "./routes/company-work.js";
 import payrollRouter from "./routes/payroll.js";
 import companyProfileRouter from "./routes/company-profile.js";
 import hrMessagesRouter from "./hr-messages.js";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
@@ -160,7 +162,9 @@ export function createApp() {
     if (extname(req.path)) return res.status(404).send("Not found.");
     const file = join(shopDir, "index.html");
     if (!existsSync(file)) return next();
-    res.setHeader("Cache-Control", "no-cache"); res.sendFile(file);
+    const slug = req.path.match(/^\/shop\/([^/]+)/)?.[1] || storefrontForHost(req.hostname);
+    const store = (getCollection("shopStorefronts") as Record<string, any>[]).find(s => s.slug === slug);
+    res.setHeader("Cache-Control", "no-cache"); res.type("html").send(shopHead(readFileSync(file, "utf8"), store, `${req.protocol}://${req.get("host")}`));
   });
   // Mount before the protected workspace shell; retain /website/ as an alias.
   const websiteDir = join(__dirname, "../public-website/dist");

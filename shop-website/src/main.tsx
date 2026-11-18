@@ -5,3 +5,4 @@ import "./style.css";
 import "./browse-design.css";
 import "./store-customization.css";
 createRoot(document.getElementById("root")!).render(<StrictMode><Shop /></StrictMode>);
+import "./templates.css";

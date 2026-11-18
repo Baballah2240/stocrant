@@ -4,6 +4,7 @@ import {
   useState,
   type ReactNode,
   type FormEvent,
+  type CSSProperties,
 } from "react";
 import { ar } from "./language";
 import ShopSupport from "./ShopSupport";
@@ -26,7 +27,12 @@ type Product = {
   available: number;
   category: string;
 };
+type Branding = { template: string; primaryColor: string; accentColor: string; font: string; banner: string; heroTitle: string; heroSubtitle: string; aboutTitle: string; aboutImage: string; whatsapp: string; instagram: string; facebook: string; tiktok: string; faq: { question: string; answer: string }[]; seoTitle: string; seoDescription: string; customDomain: string };
+const defaultBranding: Branding = { template: "classic", primaryColor: "#244c40", accentColor: "#b78d52", font: "serif", banner: "", heroTitle: "", heroSubtitle: "", aboutTitle: "", aboutImage: "", whatsapp: "", instagram: "", facebook: "", tiktok: "", faq: [], seoTitle: "", seoDescription: "", customDomain: "" };
+/** Readable text colour on a brand colour. */
+const onColor = (hex: string) => { const n = parseInt(hex.slice(1), 16), l = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#14221d" : "#fffdf5"; };
 type Settings = {
+  branding?: Branding;
   merchandising?: Merchandising;
   name: string;
   slug: string;
@@ -414,6 +420,10 @@ export default function Shop() {
     };
   }, [path, location, slug, apiBase, refreshReceipt]);
   const merchandising = shop?.merchandising || defaultMerchandising;
+  const brand = { ...defaultBranding, ...(shop?.branding || {}) };
+  const brandStyle = theme === "dark" ? undefined : ({ "--green": brand.primaryColor, "--on-green": onColor(brand.primaryColor), "--accent": brand.accentColor } as CSSProperties);
+  const whatsappLink = brand.whatsapp ? `https://wa.me/${brand.whatsapp.replace(/[^0-9]/g, "")}` : "";
+  const socials = ([["WhatsApp", whatsappLink], ["Instagram", brand.instagram], ["Facebook", brand.facebook], ["TikTok", brand.tiktok]] as const).filter(([, href]) => href);
   const productRank = (id:string) => {const order=merchandising.display.productOrder||[];return order.includes(id)?order.indexOf(id):order.length;};
   const categoryTitle = (key: string) => merchandising.categories.find(c => c.name === key)?.title || t(key);
   const categoryOptions = [ ...merchandising.categories.filter(c => products.some(p => p.category === c.name)).map(c => c.name), ...[...new Set(products.map(p => p.category))].filter(name => !merchandising.categories.some(c => c.name === name)) ];
@@ -717,7 +727,7 @@ export default function Shop() {
                   </article>); }
   function sectionProducts(section: Merchandising["sections"][number]) { const selected = products.filter(p => section.source === "all" || section.source === "category" && p.category === section.category || section.source === "offers" && Boolean(p.offerId) || section.source === "products" && section.productIds.includes(p.id)); return (section.source === "products" ? [...selected].sort((a,b)=>section.productIds.indexOf(a.id)-section.productIds.indexOf(b.id)) : [...selected].sort((a,b)=>productRank(a.id)-productRank(b.id))).slice(0,section.limit); }
   return (
-    <div className="amal" data-card-size={merchandising.display.cardSize || "medium"} data-image-shape={merchandising.display.imageShape || "portrait"} data-spacing={merchandising.display.spacing || "comfortable"} data-text-size={merchandising.display.textSize || "medium"}>
+    <div className="amal" data-template={brand.template} data-font={brand.font} style={brandStyle} data-card-size={merchandising.display.cardSize || "medium"} data-image-shape={merchandising.display.imageShape || "portrait"} data-spacing={merchandising.display.spacing || "comfortable"} data-text-size={merchandising.display.textSize || "medium"}>
       <a className="skip" href="#content">
         {t("Skip to content")}
       </a>
@@ -801,9 +811,9 @@ export default function Shop() {
                   {t("Thoughtfully chosen")} / {shop.name}
                 </p>
                 <h1>
-                  {t("A little more care.")}
+                  {brand.heroTitle || t("A little more care.")}
                   <br />
-                  <em>{t("In everything you choose.")}</em>
+                  <em>{brand.heroSubtitle || (brand.heroTitle ? "" : t("In everything you choose."))}</em>
                 </h1>
                 <p>{shop.description}</p>
                 <a className="primary" href="#collection">
@@ -814,7 +824,7 @@ export default function Shop() {
                   <p>{t("Choose your next everyday favourite.")}</p>
                 </div>
               </div>
-              <div className="hero-art" aria-hidden="true">
+              {brand.banner ? <div className="hero-art hero-banner" aria-hidden="true"><img src={brand.banner} alt="" /></div> : <div className="hero-art" aria-hidden="true">
                 <div className="art-disc" />
                 <svg viewBox="0 0 420 460" fill="none">
                   <ellipse
@@ -849,7 +859,7 @@ export default function Shop() {
                   {shop.name}
                   <small>{t("Built for your everyday.")}</small>
                 </span>
-              </div>
+              </div>}
             </section>}
             {merchandising.display.showOffers && merchandising.offers.length > 0 && <section className="store-offers" aria-label={t("Current offers")}>{merchandising.offers.map(offer => <article key={offer.id}><span className="offer-percentage">{offer.percent}% {t("off")}</span><div><h2>{offer.title}</h2>{offer.description && <p>{offer.description}</p>}</div><button type="button" onClick={() => { setCategory(offer.target === "category" ? offer.category : "All"); setOnlyOffers(true); setOfferFilter(offer.id); setSearch(""); document.getElementById("collection")?.scrollIntoView({behavior:"smooth"}); }}>{t("Shop offers")} <span aria-hidden="true">&#8599;</span></button></article>)}</section>}
             {merchandising.sections.map(section => { const items = sectionProducts(section); return items.length ? <section className="store-curated-section" key={section.id} data-store-section={section.id}><header className="section-heading"><div><h2>{section.title}</h2>{section.description && <p>{section.description}</p>}</div><span>{items.length} {t("Products")}</span></header><div className={`product-grid section-products ${section.layout === "row" ? "is-scroll-row" : ""}`}>{items.map(renderProduct)}</div></section> : null; })}
@@ -1383,12 +1393,19 @@ export default function Shop() {
             <p className="eyebrow">
               {shop.name} / {t("Our story")}
             </p>
-            <h1>{t("Built for your everyday.")}</h1>
-            <p>{shop.description}</p>
+            <h1>{brand.aboutTitle || t("Built for your everyday.")}</h1>
+            {shop.description.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}
             <div className="story-illustration">
-              <Placeholder />
+              {brand.aboutImage ? <img src={brand.aboutImage} alt="" /> : <Placeholder />}
             </div>
             {link("/", t("Browse products"), "primary")}
+          </section>
+        ) : path === "/faq" ? (
+          <section className="text-page faq-page">
+            <p className="eyebrow">{shop.name} / {t("FAQ")}</p>
+            <h1>{t("Frequently asked questions")}</h1>
+            {brand.faq.length ? brand.faq.map((item, i) => <details key={i} className="faq-item"><summary>{item.question}</summary><p>{item.answer}</p></details>) : <p>{t("No questions have been added yet.")}</p>}
+            <p>{link("/support", t("Contact shop customer service"), "primary")}</p>
           </section>
         ) : path === "/support" ? <ShopSupport key={slug} apiBase={apiBase} t={t} preview={shop.preview}/> : path === "/contact" ? (
           <section className="text-page">
@@ -1419,6 +1436,7 @@ export default function Shop() {
                 <h2>{t("Visit or collect")}</h2>
                 <p>{shop.address}</p>
               </article>
+              {socials.length > 0 && <article><h2>{t("Follow us")}</h2><p className="social-links">{socials.map(([name, href]) => <a key={name} href={href} target="_blank" rel="noopener noreferrer">{name}</a>)}</p></article>}
             </div>
           </section>
         ) : path.startsWith("/policies/") ? (
@@ -1471,7 +1489,9 @@ export default function Shop() {
           {link("/", t("Browse products"))}
           {link("/about", t("About"))}
           {link("/contact", t("Contact"))}
+          {brand.faq.length > 0 && link("/faq", t("FAQ"))}
           {link("/support", t("Customer service"))}
+          {socials.length > 0 && <p className="social-links">{socials.map(([name, href]) => <a key={name} href={href} target="_blank" rel="noopener noreferrer">{name}</a>)}</p>}
         </div>
         <div>
           <p className="eyebrow">{t("Our policies")}</p>
@@ -1491,6 +1511,7 @@ export default function Shop() {
           <span>{t("Thoughtfully chosen")} ↗</span>
         </div>
       </footer>
+      {whatsappLink && <a className="whatsapp-float" href={whatsappLink} target="_blank" rel="noopener noreferrer" aria-label={t("Chat on WhatsApp")}><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg></a>}
     </div>
   );
 }

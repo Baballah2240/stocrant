@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { request, serverUrl } from "../api";
 import { useLanguage } from "../language-context";
 import StorefrontMerchandising from "./StorefrontMerchandising";
+import StorefrontBranding, { defaultBranding, type Branding } from "./StorefrontBranding";
 import { defaultMerchandising, type MerchProduct } from "../storefront-merchandising";
 const initial = {
   version: 0,
@@ -25,6 +26,7 @@ const initial = {
   manualPaymentsAccepted: false,
   reservationHours: 24,
   merchandising: defaultMerchandising,
+  branding: defaultBranding as Branding,
 };
 type Settings = typeof initial;
 export default function StorefrontSettings({
@@ -52,7 +54,7 @@ export default function StorefrontSettings({
     )
       .then((r) => {
         if (active) {
-          setSettings({ ...initial, ...r.settings });
+          setSettings({ ...initial, ...r.settings, branding: { ...defaultBranding, ...(r.settings.branding || {}) } });
           setUrl(r.url);
         }
       })
@@ -79,6 +81,7 @@ export default function StorefrontSettings({
           ]),
         ),
         published,
+        branding: { ...defaultBranding, ...settings.branding, faq: (settings.branding?.faq || []).filter(item => item.question.trim() && item.answer.trim()) },
       };
       const r = await request<{ settings: Settings; url: string }>(
         `/workspace/storefronts/${companyId}`,
@@ -190,6 +193,7 @@ export default function StorefrontSettings({
                 {field("Collection address", "address")}
               </section>
             </div>
+            <StorefrontBranding value={settings.branding} shop={settings} onChange={branding => setSettings({ ...settings, branding })} />
             <StorefrontMerchandising value={settings.merchandising} products={products} onChange={merchandising => setSettings({...settings, merchandising})} />
             <section className="shop-form">
               <h3>{t("Delivery & payment")}</h3>

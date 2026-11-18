@@ -1,5 +1,17 @@
 # Mobile update history
 
+## 2026-11-18 - Shop design and branding
+
+Shops & orders > Customer storefront has a new **Design & brand** section with a live preview:
+- **Ready-made designs:** Classic, Fashion, Electronics, Food and Minimal. Each sets its own colours, font, corner style and header look.
+- **Brand look:** brand and accent colours (light mode; dark mode keeps readable defaults), heading font (elegant, modern or friendly), and a banner photo that replaces the illustration.
+- **Shop text:** own home headline and sub-headline, plus an About page title and photo. The About text keeps paragraph breaks.
+- **Social and help pages:** WhatsApp, Instagram, Facebook and TikTok links, with a WhatsApp chat button on every page. Up to 20 FAQ entries appear on a new /faq page, linked from the footer.
+- **Google and link previews:** search title and description with a result preview. The server writes the shop's own title, description, preview picture (banner or logo), theme colour and icon into the page. Draft shops stay out of search engines.
+- **Custom domain:** each domain can belong to one shop only, and Stocrant's own address is refused. Once the shop is published and DNS points to the app, the domain opens the shop directly. The setup steps are shown in the editor.
+
+DNS and the HTTPS certificate must still be set up at the domain provider and hosting service. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Online shop as a service
 
 The platform owner gets **Administration > Online shop clients**:

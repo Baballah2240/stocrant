@@ -1,0 +1,50 @@
+/* Ready-made shop designs (data-template) and brand fonts (data-font). Brand colours arrive as --green/--accent. */
+.amal { --display-font: Georgia, "Times New Roman", serif; --radius: 6px; --hero-radius: 140px 140px 5px 5px; }
+.amal[data-font="sans"] { --display-font: Inter, "Segoe UI", Tahoma, Arial, sans-serif; }
+.amal[data-font="rounded"] { --display-font: "Nunito", "Varela Round", "Segoe UI Rounded", "Arial Rounded MT Bold", "Segoe UI", sans-serif; }
+.amal h1, .amal h2, .amal .wordmark, .amal .art-caption { font-family: var(--display-font); }
+.amal button, .amal .primary, .amal .product-image { border-radius: var(--radius); }
+.amal .hero-art { border-radius: var(--hero-radius); }
+.amal :focus-visible { outline-color: var(--accent); }
+
+/* Fashion: editorial, sharp corners, spaced capitals. */
+.amal[data-template="fashion"] { --radius: 0; --hero-radius: 0; }
+.amal[data-template="fashion"] .eyebrow, .amal[data-template="fashion"] .shop-header nav a { letter-spacing: .16em; text-transform: uppercase; font-size: .78rem; }
+.amal[data-template="fashion"] h1 { font-weight: 400; letter-spacing: -.02em; }
+.amal[data-template="fashion"] .announcement { background: var(--green); color: var(--on-green); }
+
+/* Electronics: clean, cool, rounded cards with a soft surface. */
+.amal[data-template="electronics"] { --radius: 12px; --hero-radius: 24px; }
+.amal[data-template="electronics"] .product-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px; }
+.amal[data-template="electronics"] h1 { font-weight: 800; letter-spacing: -.03em; }
+.amal[data-template="electronics"] .announcement { background: var(--green); color: var(--on-green); }
+
+/* Food: warm and friendly, generous rounding. */
+.amal[data-template="food"] { --radius: 999px; --hero-radius: 32px; }
+.amal[data-template="food"] .product-image { border-radius: 22px; }
+.amal[data-template="food"] h1 { font-weight: 800; }
+.amal[data-template="food"] .announcement { background: var(--accent); color: #1f1300; }
+
+/* Minimal: black and white, no ornament. */
+.amal[data-template="minimal"] { --radius: 4px; --hero-radius: 4px; }
+.amal[data-template="minimal"] .hero-art:not(.hero-banner) .art-disc { display: none; }
+.amal[data-template="minimal"] h1 { font-weight: 600; }
+
+/* Banner photo replaces the illustration. */
+.hero-banner { background: var(--wash); }
+.hero-banner > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.story-illustration > img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius, 6px); }
+
+.faq-page { max-width: 760px; }
+.faq-item { border-bottom: 1px solid var(--line); padding: 14px 0; }
+.faq-item summary { cursor: pointer; font-weight: 600; font-size: 1.05rem; }
+.faq-item p { margin: 10px 0 0; color: var(--muted); white-space: pre-line; }
+.social-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 0; }
+.whatsapp-float { position: fixed; inset-block-end: max(18px, env(safe-area-inset-bottom)); inset-inline-end: max(18px, env(safe-area-inset-right)); z-index: 60; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #25d366; color: #fff; box-shadow: 0 6px 20px rgb(0 0 0 / 22%); }
+.whatsapp-float:hover { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .whatsapp-float:hover { transform: none; } }
+/* Brand colour reaches the search button and the default illustration. */
+.amal .header-store-search button { background: var(--green); color: var(--on-green); }
+.amal .hero-art svg [fill="#244c40"] { fill: var(--green); }
+.amal .hero-art svg [stroke="#244c40"] { stroke: var(--green); }
+.amal .hero-art svg [fill="#e5bd82"], .amal .hero-art svg [fill="#b78d52"] { fill: var(--accent); }

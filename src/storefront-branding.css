@@ -1,0 +1,40 @@
+.storefront-branding h4 { margin: 18px 0 8px; }
+.branding-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .branding-layout { grid-template-columns: minmax(0, 1fr); } }
+.branding-templates { border: 0; padding: 0; margin: 0 0 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.branding-templates legend { font-weight: 600; margin-bottom: 6px; }
+.branding-templates label { position: relative; display: grid; gap: 4px; padding: 10px; border: 1px solid rgba(127,127,127,.3); border-radius: 12px; cursor: pointer; }
+.branding-templates label[data-selected="true"] { border-color: var(--brand-cyan, #60d6ef); box-shadow: 0 0 0 2px var(--brand-cyan, #60d6ef) inset; }
+.branding-templates label:focus-within { outline: 2px solid var(--brand-cyan, #60d6ef); outline-offset: 2px; }
+.branding-templates input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.branding-templates small { opacity: .75; }
+.branding-swatch { height: 28px; border-radius: 8px; }
+.branding-color { display: flex; gap: 6px; align-items: center; }
+.branding-color input[type="color"] { width: 44px; height: 40px; padding: 2px; flex: none; }
+.branding-color input:not([type="color"]) { flex: 1; min-width: 0; }
+.branding-preview { position: sticky; top: 12px; display: grid; gap: 6px; }
+.branding-preview-frame { --p: #244c40; --a: #b78d52; --on: #fff; --r: 6px; --f: Georgia, serif; background: #f9f8f3; color: #263c33; border-radius: 14px; overflow: hidden; border: 1px solid rgba(127,127,127,.35); font-size: 12px; }
+.bp-bar { background: var(--p); color: var(--on); text-align: center; padding: 4px 8px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bp-header { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #dce1d5; }
+.bp-header img { width: 20px; height: 20px; object-fit: contain; }
+.bp-header strong { font-family: var(--f); font-size: 14px; }
+.bp-header span { margin-inline-start: auto; opacity: .7; font-size: 10px; }
+.bp-hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; padding: 12px 10px; align-items: center; }
+.bp-hero h4 { font-family: var(--f); font-size: 17px; margin: 0 0 4px; line-height: 1.15; overflow-wrap: anywhere; }
+.bp-hero p { margin: 0 0 8px; opacity: .75; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.bp-button { display: inline-block; background: var(--p); color: var(--on); padding: 5px 10px; border-radius: var(--r); font-size: 11px; }
+.bp-art { aspect-ratio: 1; border-radius: var(--r); background: radial-gradient(circle at 60% 40%, var(--a) 0 28%, transparent 29%), #eeede1; background-size: cover; background-position: center; }
+.branding-preview-frame[data-template="classic"] .bp-art { border-radius: 60px 60px 4px 4px; }
+.branding-preview-frame[data-template="food"] .bp-art { border-radius: 18px; }
+.branding-preview-frame[data-template="fashion"] .bp-header span { text-transform: uppercase; letter-spacing: .12em; }
+.bp-products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0 10px 12px; }
+.bp-products div { display: grid; gap: 2px; }
+.bp-products span { aspect-ratio: 4/5; background: #edeee4; border-radius: min(var(--r), 14px); }
+.branding-preview-frame[data-template="electronics"] .bp-products div { background: #fff; border: 1px solid #dce1d5; border-radius: 10px; padding: 4px; }
+.bp-products small { color: var(--p); font-weight: 600; }
+.branding-faq { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+@media (max-width: 700px) { .branding-faq { grid-template-columns: minmax(0, 1fr); } }
+.branding-seo-preview { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: rgba(127,127,127,.08); max-width: 620px; }
+.branding-seo-preview strong { color: #3b82f6; font-size: 1.05rem; }
+.branding-seo-preview p { margin: 0; opacity: .8; }
+.branding-dns { display: grid; gap: 4px; padding-inline-start: 20px; }
