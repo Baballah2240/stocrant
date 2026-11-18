@@ -1,4 +1,5 @@
-import { Router, type Request, type Response } from "express";
+import express, { Router, type Request, type Response } from "express";
+import { paymentsSchema, paymentsFor, defaultPayments, applyCheckoutPayment, receiptPayment, saveTransferProof, PROOF_LIMIT } from "./storefront-payments.js";
 import {
   createHash,
   createHmac,
@@ -90,6 +91,7 @@ const settingsSchema = z
     reservationHours: z.number().int().min(1).max(168).default(24),
     merchandising: merchandisingSchema.optional(),
     branding: brandingSchema.optional(),
+    payments: paymentsSchema.optional(),
   })
   .strict();
 const defaults = {
@@ -114,6 +116,7 @@ const defaults = {
   manualPaymentsAccepted: false,
   reservationHours: 24,
   branding: defaultBranding,
+  payments: defaultPayments,
   merchandising: defaultMerchandising,
 };
 function admin(req: Request, companyId: string) {
@@ -125,7 +128,7 @@ function admin(req: Request, companyId: string) {
 }
 function safeSettings(s: Row) {
   const { connectorId, ownerId, ...safe } = s;
-  return { ...safe, branding: brandingFor(s) };
+  return { ...safe, branding: brandingFor(s), payments: paymentsFor(s) };
 }
 function context(s: Row) {
   const connector = rows("shopConnectors").find(
@@ -325,7 +328,7 @@ function quoteToken(
   const content = JSON.stringify({ q, guestHash, shopId, expires });
   return `${expires}.${sign(content)}`;
 }
-function receipt(order: Row) {
+function receipt(order: Row, s?: Row) {
   return {
     id: order.id,
     orderNumber:order.orderNumber,
@@ -346,6 +349,7 @@ function receipt(order: Row) {
     reservationExpiresAt: order.reservationExpiresAt,
     events: order.events.map((e: Row) => ({ status: e.status, at: e.at })),
     payment: "not-collected-online",
+    transfer: s ? receiptPayment(s, order) : undefined,
   };
 }
 
@@ -414,6 +418,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
       validateMerchandising(req.auth!, c.id, merchandising);
       const branding = b.branding ?? brandingFor(current || {});
       validateBranding(branding, current?.id, req.hostname);
+      const payments = b.payments ?? paymentsFor(current || {});
       if (
         current &&
         current.slug !== b.slug &&
@@ -464,6 +469,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
         ...b,
         merchandising,
         branding,
+        payments,
         deliveryFee,
         id: current?.id || randomUUID(),
         organizationId: c.id,
@@ -522,7 +528,7 @@ storefrontRouter.get("/:slug/catalog", (req, res) => {
     const { connectorId, ownerId, organizationId, id, ...settings } = s;
     const products = catalog(s, user, company.currency), m = merchandisingFor(s);
     res.json({
-      shop: { ...settings, branding: brandingFor(s), merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
+      shop: { ...settings, payments: { cashEnabled: paymentsFor(s).cashEnabled, transferEnabled: paymentsFor(s).transferEnabled }, branding: brandingFor(s), merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
       products,
       refreshAt: nextMerchandisingChange(m),
     });
@@ -603,6 +609,7 @@ const checkoutSchema = z
     quoteToken: z.string().max(100),
     lines: z.array(lineSchema).min(1).max(50),
     method: z.enum(["pickup", "delivery"]),
+    payment: z.enum(["cash", "transfer"]).default("cash"),
   })
   .strict();
 storefrontRouter.post("/:slug/checkout", (req, res) => {
@@ -623,9 +630,10 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
           409,
         );
       const order = rows("shopOrders").find((o) => o.id === prior.orderId);
-      return res.json({ order: receipt(order!), replay: true });
+      return res.json({ order: receipt(order!, s), replay: true });
     }
     rate(req, "shop-checkout", 5, 600000);
+    applyCheckoutPayment(s, {}, b.payment);
     if (b.method === "delivery" && b.address.length < 8)
       fail("Enter your complete delivery address.");
     const regions = String(s.deliveryRegions)
@@ -678,6 +686,7 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
       ).toISOString();
       order.paymentMethod =
         b.method === "pickup" ? "pay-on-collection" : "pay-on-delivery";
+      applyCheckoutPayment(s, order, b.payment);
       rows("storefrontCheckouts").push({
         id: randomUUID(),
         storefrontId: s.id,
@@ -700,7 +709,7 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
       saveStore(getStore());
       return order;
     });
-    res.status(201).json({ order: receipt(order) });
+    res.status(201).json({ order: receipt(order, s) });
   } catch (e) {
     error(res, e);
   }
@@ -732,7 +741,27 @@ storefrontRouter.post("/:slug/receipt", (req, res) => {
         "Order confirmation not found. Use your private tracking link.",
         404,
       );
-    res.json({ order: receipt(order) });
+    res.json({ order: receipt(order, s) });
+  } catch (e) {
+    error(res, e);
+  }
+});
+
+/** Customer uploads a transfer screenshot for their own order, proven by the private receipt secret. */
+storefrontRouter.post("/:slug/orders/:orderId/transfer-proof", express.raw({ type: ["image/jpeg", "image/png", "image/webp", "application/octet-stream"], limit: PROOF_LIMIT }), (req, res) => {
+  try {
+    const s = storefront(req), { user } = context(s);
+    rate(req, "shop-transfer-proof", 6, 600000);
+    const secret = String(req.get("x-receipt-secret") || "");
+    let reference = "";
+    try { reference = decodeURIComponent(String(req.get("x-transfer-reference") || "")).trim().slice(0, 80); } catch { reference = ""; }
+    if (!/^[a-f0-9]{64}$/.test(secret)) fail("Order confirmation not found. Use your private tracking link.", 404);
+    const r = rows("storefrontCheckouts").find((r) => r.storefrontId === s.id && r.orderId === req.params.orderId && equal(r.receiptHash, hash(secret)));
+    const order = rows("shopOrders").find((o) => o.id === r?.orderId && o.organizationId === s.organizationId);
+    if (!order) fail("Order confirmation not found. Use your private tracking link.", 404);
+    if (!Buffer.isBuffer(req.body) || !req.body.length) fail("Choose a photo of the transfer receipt.");
+    saveTransferProof(s, order, req.body, reference, user);
+    res.status(201).json({ order: receipt(order, s) });
   } catch (e) {
     error(res, e);
   }

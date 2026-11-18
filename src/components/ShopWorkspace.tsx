@@ -1,5 +1,6 @@
 import ShopOperationsSettings, {type ShopOperationSettings,type ShopPaymentAccount} from "./ShopOperationsSettings";
 import ShopOrderPayment, {type ShopPayment} from "./ShopOrderPayment";
+import ShopTransferReview, {type TransferOrder} from "./ShopTransferReview";
 import ShopStaffSettings from "./ShopStaffSettings";
 import ShopOrderProgress from "./ShopOrderProgress";
 import ShopSalesDashboard,{type ShopReport} from "./ShopSalesDashboard";
@@ -36,7 +37,7 @@ type Product = {
   version: number;
   unitCost?:string;
 };
-type Order = {
+type Order = TransferOrder & {
   id: string;
   orderNumber?:string;
   customer: string;
@@ -935,7 +936,8 @@ export default function ShopWorkspace() {
                         {t("Outstanding")}: {selected.settlement.outstanding}
                       </p>
                     )}
-                    {selected.saleId&&<ShopOrderPayment key={companyId+selected.id} companyId={companyId} orderId={selected.id} saleId={selected.saleId} currency={selected.currency} outstanding={selected.settlement?.outstanding} accounts={data.paymentAccounts||[]} settings={data.settings} payments={data.payments||[]} date={data.financeDate||""} canRecord={Boolean(permits("finance","create")&&canEdit)} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);window.dispatchEvent(new Event("stocrant:finance-changed"));}}/>}
+                    <ShopTransferReview companyId={companyId} order={selected} canReview={Boolean(canEdit)} onChanged={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}}/>
+                    {selected.saleId&&<ShopOrderPayment transferReference={selected.transferStatus==="verified"?(selected.transferProofs||[]).slice(-1)[0]?.reference||"":undefined} key={companyId+selected.id} companyId={companyId} orderId={selected.id} saleId={selected.saleId} currency={selected.currency} outstanding={selected.settlement?.outstanding} accounts={data.paymentAccounts||[]} settings={data.settings} payments={data.payments||[]} date={data.financeDate||""} canRecord={Boolean(permits("finance","create")&&canEdit)} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);window.dispatchEvent(new Event("stocrant:finance-changed"));}}/>}
                     {canEdit && (
                       <div className="shop-order-actions">
                         {selected.status === "preparing" &&

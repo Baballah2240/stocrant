@@ -5,6 +5,7 @@ import { shopImageUploads, shopImageDownloads } from "./routes/shop-images.js";
 import { commerceRouter, shopIntegrationRouter } from "./commerce.js";
 import { shopClientsRouter } from "./shop-clients.js";
 import { shopHead } from "./storefront-branding.js";
+import { transferReviewRouter } from "./storefront-payments.js";
 import { getCollection } from "./storage.js";
 import { storefrontAdminRouter, storefrontRouter, storefrontForHost } from "./storefront.js";
 import companyWorkRouter from "./routes/company-work.js";
@@ -136,6 +137,7 @@ export function createApp() {
   app.use("/api/workspace/personal-notes", personalNotesRouter);
   app.use("/api/workspace/dashboard-layout", dashboardLayoutRouter);
   app.use("/api/workspace/organization-admins", organizationAdminsRouter);
+  app.use("/api/workspace/shops", transferReviewRouter);
   app.use("/api/workspace/shops", commerceRouter);
   app.use("/api/workspace/shops", shopImageUploads);
   app.use("/api/workspace/storefronts", storefrontAdminRouter);

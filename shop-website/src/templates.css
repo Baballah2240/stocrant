@@ -48,3 +48,19 @@
 .amal .hero-art svg [fill="#244c40"] { fill: var(--green); }
 .amal .hero-art svg [stroke="#244c40"] { stroke: var(--green); }
 .amal .hero-art svg [fill="#e5bd82"], .amal .hero-art svg [fill="#b78d52"] { fill: var(--accent); }
+.payment-choice { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 12px 0; display: grid; gap: 8px; }
+.payment-choice legend { padding: 0 4px; font-weight: 600; }
+.payment-choice small { color: var(--muted); }
+.transfer-panel { margin: 28px 0; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); display: grid; gap: 12px; }
+.transfer-panel h2 { margin: 0; }
+.transfer-status { margin: 0; font-weight: 600; padding: 8px 12px; border-radius: 8px; background: var(--wash); }
+.transfer-status[data-status="verified"] { background: color-mix(in srgb, #16a34a 16%, var(--surface)); }
+.transfer-status[data-status="rejected"] { background: color-mix(in srgb, #dc2626 14%, var(--surface)); }
+.transfer-accounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; }
+.transfer-accounts article { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.transfer-accounts h3 { margin: 0 0 4px; font-size: 1rem; }
+.transfer-accounts p { margin: 2px 0; }
+.transfer-number { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 1.1rem; font-weight: 600; }
+.transfer-number button { padding: 4px 10px; font-size: .85rem; }
+.transfer-upload { display: grid; gap: 10px; max-width: 460px; }
+.transfer-upload label { display: grid; gap: 4px; }

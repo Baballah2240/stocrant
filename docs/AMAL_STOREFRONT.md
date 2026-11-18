@@ -101,3 +101,13 @@ Storefront settings accept an optional `branding` object, validated in `server/s
 When the server serves the shop page, it fills in the title, description, Open Graph and Twitter tags, theme colour and icon. Draft shops keep `noindex`.
 
 `storefrontForHost` resolves `STOCRANT_SHOP_HOSTS` bindings first, then the saved custom domains of published shops. The operator must still point DNS (a CNAME to the app host) and add the domain at the hosting provider to get HTTPS.
+
+## Transfer payments
+
+`payments` in storefront settings is `{ cashEnabled, transferEnabled, accounts[] }` (see `server/storefront-payments.ts`). At least one option must be on, and transfer needs at least one account. The public catalog exposes only the two flags.
+
+Checkout accepts `payment: "cash" | "transfer"`. A transfer order gets `paymentMethod: "bank-transfer"` and `transferStatus`, which moves through `awaiting-proof` → `proof-submitted` → `verified` or `rejected`.
+- **Customer receipt:** the receipt response includes `transfer` with the accounts and upload state.
+- **Upload:** `POST /api/storefront/:slug/orders/:orderId/transfer-proof` takes the raw image bytes, `X-Receipt-Secret` and an optional URI-encoded `X-Transfer-Reference`. It is same-origin only, rate limited, accepts up to 3 proofs and checks the file signature. Files go to `<STOCRANT_DATA_DIR>/data/payment-proofs/`; include it in backups.
+- **Staff:** `GET /api/workspace/shops/:companyId/orders/:id/transfer-proofs/:proofId` serves a proof image. `POST .../transfer-review` takes `{ decision: verify | reject, note }`, and a rejection requires a note.
+- **Finance:** verification records only the check. The Finance receipt is still recorded through the existing order payment flow after dispatch.

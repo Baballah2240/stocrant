@@ -32,6 +32,7 @@ const defaultBranding: Branding = { template: "classic", primaryColor: "#244c40"
 /** Readable text colour on a brand colour. */
 const onColor = (hex: string) => { const n = parseInt(hex.slice(1), 16), l = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#14221d" : "#fffdf5"; };
 type Settings = {
+  payments?: { cashEnabled: boolean; transferEnabled: boolean };
   branding?: Branding;
   merchandising?: Merchandising;
   name: string;
@@ -82,6 +83,7 @@ type Receipt = {
   tracking: string;
   reservationExpiresAt: string;
   events: { status: string; at: string }[];
+  transfer?: { method: string; status?: string; note?: string; proofs?: number; canUpload?: boolean; accounts?: { label: string; accountName: string; accountNumber: string; instructions: string }[] };
 };
 class HttpError extends Error {
   constructor(
@@ -228,6 +230,7 @@ export default function Shop() {
     [cartReady, setCartReady] = useState(false),
     [quantity, setQuantity] = useState(1),
     [method, setMethod] = useState("pickup"),
+    [payment, setPayment] = useState<"cash" | "transfer">("cash"),
     [quote, setQuote] = useState<Quote | null>(null),
     [quoteBusy, setQuoteBusy] = useState(false),
     [busy, setBusy] = useState(false);
@@ -321,6 +324,7 @@ export default function Shop() {
         setSort(r.shop.merchandising?.display.defaultSort || "featured");
         setRefreshAt(r.refreshAt || Date.now() + 60000);
         setMethod(r.shop.pickupEnabled ? "pickup" : "delivery");
+        setPayment(r.shop.payments && !r.shop.payments.cashEnabled ? "transfer" : "cash");
         const stored = load<unknown>(`amal.cart.${slug}`, []);
         setCart(
           Array.isArray(stored)
@@ -573,6 +577,7 @@ export default function Shop() {
       quoteToken: quote.quoteToken,
       lines: cart,
       method,
+      payment,
     };
     pending.current = { ...attempt, body };
     save(
@@ -1246,14 +1251,12 @@ export default function Shop() {
                   ) : (
                     <p role="status">{t("Reviewing availability…")}</p>
                   )}
-                  <p className="payment-method">
-                    ◌{" "}
-                    {t(
-                      method === "pickup"
-                        ? "Pay on collection"
-                        : "Pay on delivery",
-                    )}
-                  </p>
+                  <fieldset className="payment-choice">
+                    <legend>{t("Payment")}</legend>
+                    {shop.payments?.cashEnabled !== false && <label><input type="radio" name="payment" checked={payment === "cash"} onChange={() => setPayment("cash")} /> {t(method === "pickup" ? "Pay on collection" : "Pay on delivery")}</label>}
+                    {shop.payments?.transferEnabled && <label><input type="radio" name="payment" checked={payment === "transfer"} onChange={() => setPayment("transfer")} /> {t("Bank or mobile money transfer")}</label>}
+                    {payment === "transfer" && <small>{t("After placing the order you will see the account details. Send a photo of the transfer receipt from your order page.")}</small>}
+                  </fieldset>
                   <button
                     type="submit"
                     className="primary"
@@ -1353,7 +1356,7 @@ export default function Shop() {
                       <dd>{moneyLabel(order.total)}</dd>
                     </div>
                   </dl>
-                  <p>
+                  {order.transfer?.method === "bank-transfer" ? <p>{t("Bank or mobile money transfer")}</p> : <><p>
                     {t(
                       order.method === "pickup"
                         ? "Pay on collection"
@@ -1364,8 +1367,9 @@ export default function Shop() {
                     {t(
                       "No payment was collected online. Arrange payment with the shop.",
                     )}
-                  </p>
+                  </p></>}
                 </div>
+                {order.transfer?.method === "bank-transfer" && <TransferPanel order={order} apiBase={apiBase} secret={location.split("#")[1] || ""} t={t} money={moneyLabel} onUpdated={setOrder} />}
                 {order.tracking && (
                   <p>
                     {t("Shipment reference")}: {order.tracking}
@@ -1525,3 +1529,37 @@ function ProductGallery({ product, t }: { product: Product; t: (text: string) =>
 function WarrantyBadge({details,t}:{details?:string;t:(text:string)=>string}) { return <span className="product-warranty" title={details || t("Warranty included")}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z"/><path d="m8 12 3 3 5-6"/></svg><span>{t("Warranty included")}</span></span>; }
 
 function Heart({filled=false}:{filled?:boolean}) { return <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>; }
+
+type TransferInfo = NonNullable<Receipt["transfer"]>;
+/** Customer-facing transfer instructions and receipt upload on the private order page. */
+function TransferPanel({ order, apiBase, secret, t, money, onUpdated }: { order: Receipt; apiBase: string; secret: string; t: (text: string) => string; money: (value: string) => ReactNode; onUpdated: (order: Receipt) => void }) {
+  const info = order.transfer as TransferInfo, [file, setFile] = useState<File | null>(null), [reference, setReference] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState(""), [copied, setCopied] = useState("");
+  const status: Record<string, string> = { "awaiting-proof": "Waiting for your transfer receipt", "proof-submitted": "Receipt sent. The shop is checking your transfer.", verified: "Transfer confirmed by the shop.", rejected: "The shop could not confirm this transfer." };
+  async function upload(event: FormEvent) {
+    event.preventDefault(); if (!file || busy) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { setError(t("Choose a JPEG, PNG or WebP photo.")); return; }
+    if (file.size > 4 * 1024 * 1024) { setError(t("The photo must be 4 MB or smaller.")); return; }
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`${apiBase}/orders/${encodeURIComponent(order.id)}/transfer-proof`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": file.type, "X-Receipt-Secret": secret, "X-Transfer-Reference": encodeURIComponent(reference) }, body: file });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || t("Upload failed. Try again."));
+      onUpdated(data.order); setFile(null); setReference("");
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  return <section className="transfer-panel" aria-labelledby="transfer-title">
+    <h2 id="transfer-title">{t("Pay by transfer")}</h2>
+    <p className="transfer-status" data-status={info.status}>{t(status[info.status || ""] || "")}</p>
+    {info.status === "rejected" && info.note && <p className="transfer-note">{t("Shop note")}: {info.note}</p>}
+    {info.status !== "verified" && <>
+      <p>{t("Transfer exactly")} <strong>{money(order.total)}</strong> {t("to one of these accounts. Write your order number in the transfer note.")} <strong dir="ltr">{order.orderNumber || order.id.slice(0, 8)}</strong></p>
+      <div className="transfer-accounts">{(info.accounts || []).map(a => <article key={a.label + a.accountNumber}><h3>{a.label}</h3><p>{a.accountName}</p><p className="transfer-number"><span dir="ltr">{a.accountNumber}</span> <button type="button" onClick={() => void navigator.clipboard?.writeText(a.accountNumber).then(() => setCopied(a.accountNumber))}>{t(copied === a.accountNumber ? "Copied" : "Copy")}</button></p>{a.instructions && <small>{a.instructions}</small>}</article>)}</div>
+    </>}
+    {info.canUpload && <form className="transfer-upload" onSubmit={upload}>
+      <label>{t("Photo of the transfer receipt")}<input type="file" accept="image/jpeg,image/png,image/webp" required onChange={e => setFile(e.target.files?.[0] || null)} /></label>
+      <label>{t("Transaction number (optional)")}<input dir="ltr" maxLength={80} value={reference} onChange={e => setReference(e.target.value)} /></label>
+      {error && <p className="error" role="alert">{error}</p>}
+      <button type="submit" className="primary" disabled={busy || !file}>{t(busy ? "Sending…" : "Send transfer receipt")}</button>
+    </form>}
+  </section>;
+}

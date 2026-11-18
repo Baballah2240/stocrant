@@ -1,5 +1,15 @@
 # Mobile update history
 
+## 2026-11-18 - Shop payment by bank or mobile-money transfer
+
+- **Shop settings:** Shops & orders > Customer storefront has **Customer payment options**. Allow cash on delivery or collection, transfer, or both. Transfer needs up to 6 accounts, each with provider, account name, account or phone number and instructions. Bankak, Fawry, O-Cash and MyCashi are offered as names.
+- **Checkout:** customers choose how to pay. Account numbers are not in the public catalog. They appear only on the customer's private order page after ordering, with the exact amount, order number and copy buttons.
+- **Customer upload:** the customer uploads a photo of the transfer receipt (JPEG, PNG or WebP up to 4 MB, file content checked), with an optional transaction number. Up to 3 attempts are allowed, one at a time. Staff get a notification.
+- **Staff check:** the order shows the receipt photos (staff access only) with **Transfer received** or **Not received**. Rejecting requires a note to the customer, who can then send a new receipt.
+- **Finance:** verifying does not create a Finance entry. After dispatch, staff record the payment in the order's payment form. It opens with method bank and the customer's transaction number already filled in.
+
+Receipt photos are stored in the persistent data folder under payment-proofs/, not in Git. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Shop design and branding
 
 Shops & orders > Customer storefront has a new **Design & brand** section with a live preview:

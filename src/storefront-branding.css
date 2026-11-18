@@ -38,3 +38,16 @@
 .branding-seo-preview strong { color: #3b82f6; font-size: 1.05rem; }
 .branding-seo-preview p { margin: 0; opacity: .8; }
 .branding-dns { display: grid; gap: 4px; padding-inline-start: 20px; }
+.storefront-payments { display: grid; gap: 8px; }
+.storefront-transfer-account { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)) auto; gap: 8px; align-items: end; padding: 10px; border: 1px solid rgba(127,127,127,.25); border-radius: 10px; }
+.shop-transfer-review { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid rgba(127,127,127,.3); margin: 12px 0; }
+.shop-transfer-review[data-status="proof-submitted"] { border-color: #d97706; }
+.shop-transfer-review[data-status="verified"] { border-color: #16a34a; }
+.shop-transfer-review[data-status="rejected"] { border-color: #dc2626; }
+.shop-transfer-review h3, .shop-transfer-status { margin: 0; }
+.shop-transfer-status { font-weight: 600; }
+.transfer-proofs { display: flex; gap: 10px; flex-wrap: wrap; }
+.transfer-proof { margin: 0; display: grid; gap: 4px; max-width: 220px; }
+.transfer-proof img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background: rgba(127,127,127,.1); }
+.transfer-proof figcaption { font-size: .8rem; opacity: .75; }
+.shop-transfer-actions { display: grid; gap: 8px; }

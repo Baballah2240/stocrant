@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { request, serverUrl } from "../api";
 import { useLanguage } from "../language-context";
 import StorefrontMerchandising from "./StorefrontMerchandising";
+import StorefrontPayments, { defaultPayments, type ShopPayments } from "./StorefrontPayments";
 import StorefrontBranding, { defaultBranding, type Branding } from "./StorefrontBranding";
 import { defaultMerchandising, type MerchProduct } from "../storefront-merchandising";
 const initial = {
@@ -27,6 +28,7 @@ const initial = {
   reservationHours: 24,
   merchandising: defaultMerchandising,
   branding: defaultBranding as Branding,
+  payments: defaultPayments as ShopPayments,
 };
 type Settings = typeof initial;
 export default function StorefrontSettings({
@@ -54,7 +56,7 @@ export default function StorefrontSettings({
     )
       .then((r) => {
         if (active) {
-          setSettings({ ...initial, ...r.settings, branding: { ...defaultBranding, ...(r.settings.branding || {}) } });
+          setSettings({ ...initial, ...r.settings, branding: { ...defaultBranding, ...(r.settings.branding || {}) }, payments: { ...defaultPayments, ...(r.settings.payments || {}) } });
           setUrl(r.url);
         }
       })
@@ -263,6 +265,7 @@ export default function StorefrontSettings({
                 )}
               </label>
             </section>
+            <StorefrontPayments value={settings.payments} onChange={payments => setSettings({ ...settings, payments })} />
             <section className="shop-form">
               <h3>{t("Shop policies")}</h3>
               <p className="hint">
