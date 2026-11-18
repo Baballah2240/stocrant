@@ -1,7 +1,7 @@
 import type { AuthUser } from "./types";
 import type { MobileIconName } from "./components/MobileIcon";
 
-export interface WorkspaceNavEntry { to: string; label: string; section?: string; icon: MobileIconName; group: string; personalOnly?: boolean }
+export interface WorkspaceNavEntry { to: string; label: string; section?: string; icon: MobileIconName; group: string; personalOnly?: boolean; mainOnly?: boolean }
 export const workspaceNavGroups: { id: string; label: string; icon: MobileIconName }[] = [
   { id: "workspace", label: "Workspace", icon: "home" },
   { id: "people", label: "People & HR", icon: "people" },
@@ -25,6 +25,7 @@ const entries: WorkspaceNavEntry[] = [
   { to: "/hr/payroll", label: "Payroll", icon: "payroll", section: "payroll", group: "finance" },
   { to: "/hr/end-of-service", label: "End-of-service benefits", icon: "payslip", section: "payroll", group: "finance" },
   { to: "/me/payroll", label: "My payslips", icon: "payslip", group: "finance" },
+  { to: "/shop-clients", label: "Online shop clients", icon: "shop", group: "administration", mainOnly: true },
   { to: "/admin", label: "Access & Settings", icon: "settings", section: "access", group: "administration" },
   { to: "/security", label: "App lock", icon: "lock", group: "administration" },
 ];
@@ -32,7 +33,8 @@ export const aboutNavItem: WorkspaceNavEntry = { to: "/about", label: "About", i
 export function workspaceNavigationFor(user: Pick<AuthUser, "roleId" | "permissions"> | null | undefined) {
   const main = user?.roleId === "role-main-manager";
   const can = (section?: string) => !section || main || Boolean(user?.permissions.some(permission => ["*", section + ".*", section + ".view"].includes(permission)));
-  return entries.filter(item => (!item.personalOnly || !main) && can(item.section) && (item.to !== "/shops" || can("operations")));
+  const shopOwner = user?.roleId === "role-shop-manager";
+  return entries.filter(item => (!item.personalOnly || !main) && (!item.mainOnly || main) && !(shopOwner && item.to === "/") && can(item.section) && (item.to !== "/shops" || can("operations")));
 }
 export function workspaceEntryActive(item: WorkspaceNavEntry, path: string): boolean {
   if (item.to === "/") return path === "/" || path === "/workspace";

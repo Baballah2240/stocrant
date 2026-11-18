@@ -1,4 +1,5 @@
 import CompanyKpis from "./CompanyKpis";
+import CompanyWebsite from "./CompanyWebsite";
 import CompanySetup from "./CompanySetup";
 import { CompanyTypeTools } from "./CompanyTypePicker";
 import AnalyticsWorkspace from "./AnalyticsWorkspace";
@@ -58,6 +59,7 @@ export default function CompanyProfile(){
     <nav className="company-workspace-nav" aria-label={t("Company sections")}>{allowed.map(([key,label,path])=><Link key={key} to={key==="settings"?base+"?section=settings":base+"?section="+key} aria-current={section===key?"page":undefined}><CompanySectionIcon path={path}/><span>{t(label)}</span></Link>)}</nav>
     {section==="overview"&&<CompanyKpis companyId={company.id}/>}
     {section==="overview"&&<CompanySetup companyId={company.id}/>}
+    {section==="overview"&&<CompanyWebsite companyId={company.id}/>}
     {section==="overview"&&<CompanyTypeTools company={company as {id:string;organizationType?:unknown;serviceCategory?:unknown}}/>}
     {section==="overview"&&<><div className="company-summary-grid">{permissions.viewEmployees&&[["Employees",employees.length],["Active employees",employees.filter(item=>item.status==="active").length],["Present today",new Set((data.records.attendance??[]).filter(item=>item.date===new Date().toISOString().slice(0,10)&&["present","late","remote","half-day"].includes(String(item.status))).map(item=>item.employeeId||item.employee).filter(Boolean)).size],["Pending leave",(data.records.leaveRequests??[]).filter(item=>String(item.status).toLowerCase()==="pending").length]].map(([label,count])=><Link className="card" key={label} to={base+"?section="+(label==="Pending leave"?"leave":label==="Present today"?"hr":"employees")}><span>{t(String(label))}</span><strong>{count}</strong></Link>)}{permissions.viewPayroll&&<Link className="card" to={base+"?section=payroll"}><span>{t("Payroll periods")}</span><strong>{data.payroll.length}</strong></Link>}</div></>}
     {section==="overview"&&permissions.viewWork&&<div className="company-summary-grid">{[["Open tasks",data.tasks.filter(item=>!["Completed","Cancelled"].includes(String(item.status))).length],["Overdue tasks",data.tasks.filter(item=>item.dueDate&&String(item.dueDate)<new Date().toISOString().slice(0,10)&&!["Completed","Cancelled"].includes(String(item.status))).length]].map(([label,count])=><Link className="card" key={label} to={base+"?section=tasks"}><span>{t(String(label))}</span><strong>{count}</strong></Link>)}</div>}

@@ -22,6 +22,7 @@ import { money, precision, scaled } from "./payroll-model.js";
 import { expireShopReservations } from "./commerce-stock.js";
 import { createNotification } from "./notifications.js";
 import { productPhotos } from "./shop-media.js";
+import { shopServiceOpen } from "./shop-clients.js";
 import { merchandisingSchema, defaultMerchandising, merchandisingFor, validateMerchandising, visibleProduct, offeredPrice, publicMerchandising, nextMerchandisingChange } from "./storefront-merchandising.js";
 
 type Row = Record<string, any>;
@@ -165,6 +166,8 @@ function storefront(req: Request, preview = false) {
       ))
   )
     fail("Shop not found.", 404);
+  const staffPreview = Boolean(preview && req.auth && isWithinScope(req.auth, { organizationId: s.organizationId }) && can(req.auth, "inventory", "view"));
+  if (!shopServiceOpen(s.organizationId) && !staffPreview) fail("This shop is temporarily closed.", 503);
   return s;
 }
 export function storefrontForHost(hostname: string) {

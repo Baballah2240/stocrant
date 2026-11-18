@@ -1,5 +1,15 @@
 # Mobile update history
 
+## 2026-11-18 - Online shop as a service
+
+The platform owner gets **Administration > Online shop clients**:
+- **One-step setup:** for a new client business, it creates the organization and company (type shop), a draft shop at /shop/<address> with starter delivery, returns, privacy and terms text, and a one-time invitation link for the owner (copy it or share it on WhatsApp). An existing company can add the same service from its overview's **Website & online shop** card.
+- **Shop-only owner access:** the owner activates the link with their own password and gets the Shop Manager role for that one company. They open straight into Shops & orders, with no HR, payroll or other companies.
+- **Plans and subscriptions:** each client has a plan (starter, business, pro), monthly fee, trial or active status and paid-until date (trials default to 14 days). The register shows shop address, published or draft, owner activation, products and orders.
+- **Suspend unpaid shops:** suspending, cancelling or passing the paid-until date closes the public shop and its website connection key with "temporarily closed". Staff can still preview it and no data is removed. Activating or adding a month reopens it.
+
+Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Today at a glance on the company overview
 
 The company overview shows key figures for its type. Each card opens the related list or report:

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { shopServiceOpen } from "./shop-clients.js";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { AuthenticatedUser } from "./auth.js";
@@ -778,6 +779,8 @@ shopIntegrationRouter.use((req, res, next) => {
     );
     if (!connector || !account)
       fail("Invalid or revoked shop connection.", 401);
+    if (!shopServiceOpen(connector.organizationId))
+      fail("This shop service is suspended.", 403);
     const now = Date.now();
     for (const [id, rate] of integrationRates)
       if (now - rate.at > 60000) integrationRates.delete(id);

@@ -48,6 +48,7 @@ import ForcedPasswordChange from "./components/ForcedPasswordChange";
 import { useLanguage } from "./language-context";
 import { MetaProvider } from "./meta-context";
 import { isNativeApp } from "./api";
+import ShopClients from "./components/ShopClients";
 
 const router = createBrowserRouter([
   { path: "/welcome", element: <Navigate to={isNativeApp() ? "/" : "/workspace"} replace /> },
@@ -108,6 +109,7 @@ const router = createBrowserRouter([
       { path: "warehouse", element: <InventoryWorkspace /> },
       { path: "inventory", element: <InventoryWorkspace /> },
       { path: "shops", element: <ShopWorkspace /> },
+      { path: "shop-clients", element: <ShopClients /> },
       { path: "admin", element: <AccessWorkspace /> },
       { path: "access", element: <AccessWorkspace /> },
       { path: "finance", element: <FinanceWorkspace /> },

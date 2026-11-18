@@ -1,3 +1,4 @@
+import { shopClientTranslations } from "./shop-client-translations.ts";
 import { companyTypeTranslations } from "./company-type-translations.ts";
 import { erpTranslations } from "./erp-translations.ts";
 import { financeLayoutTranslations } from "./finance-layout-translations.ts";
@@ -241,6 +242,7 @@ const existingArabic: Readonly<Record<string, string>> = {
 export const arabicTranslations: Readonly<Record<string, string>> = {
   // New feature copy first: existing entries below keep priority over any shared words.
   ...companyTypeTranslations,
+  ...shopClientTranslations,
   ...erpTranslations,
   ...contractTranslations,
   "This account is already signed in elsewhere. Sign out there or close the previous session to continue.": "هذا الحساب مسجل دخوله في مكان آخر. سجل الخروج هناك أو أغلق الجلسة السابقة للمتابعة.",

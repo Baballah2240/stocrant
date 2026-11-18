@@ -66,3 +66,11 @@ The Amal implementation now includes catalog/search/filtering, product pages, ca
 - `npm run test:commerce` builds all assets and runs real Chrome checks: manual product creation, an actual XLSX preview/import, shipment receipt, order preparation/dispatch/delivery, unpaid sale linking, one-time key display, persisted data and responsive English/Arabic light/dark layouts at 320–1440px.
 - API tests cover atomic imports, currency precision, shipment and order retries, simultaneous oversell attempts, cancellation release, signed stock adjustments, stale versions, linked-sale settlement, excess/duplicate cash, isolated connections, revocation, browser rejection, tenant scope and Finance approval blocking.
 - No live company/customer records or real payments are created by these tests.
+
+## Online shop clients (shop as a service)
+
+The Super Admin manages clients at `/shop-clients` (API `/api/workspace/shop-clients`, Super Admin only).
+- `POST /` with `businessName` and `currency` for a new client, or `existingCompanyId`, plus owner name and email, shop address (`slug`), `plan`, optional `status` (trial or active), `endsAt` and `monthlyFee`. In one transaction it creates the organization and company if needed, a draft storefront with starter policies and its hosted connector, a `shopClients` record, and a one-time `role-shop-manager` invitation for that company. The response carries the invitation link. Only the token's digest is stored.
+- `PATCH /:id` changes plan, status (trial, active, suspended, cancelled), `endsAt`, fee or notes, with version checks. `POST /:id/invite` issues a fresh link until the owner activates.
+- While a client is suspended, cancelled or past `endsAt`, the public storefront returns 503 "temporarily closed" (staff preview still works) and connection keys for that company return 403. Companies without a client record are unaffected.
+- Shop managers open on `/shops` instead of the dashboard. Billing is tracked as a register only: no automatic charging or invoices.

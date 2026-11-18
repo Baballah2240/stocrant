@@ -3,6 +3,7 @@ import tasksRouter from "./routes/tasks.js";
 import { invitationsRouter, invitationAcceptanceRouter } from "./invitations.js";
 import { shopImageUploads, shopImageDownloads } from "./routes/shop-images.js";
 import { commerceRouter, shopIntegrationRouter } from "./commerce.js";
+import { shopClientsRouter } from "./shop-clients.js";
 import { storefrontAdminRouter, storefrontRouter, storefrontForHost } from "./storefront.js";
 import companyWorkRouter from "./routes/company-work.js";
 import payrollRouter from "./routes/payroll.js";
@@ -136,6 +137,7 @@ export function createApp() {
   app.use("/api/workspace/shops", commerceRouter);
   app.use("/api/workspace/shops", shopImageUploads);
   app.use("/api/workspace/storefronts", storefrontAdminRouter);
+  app.use("/api/workspace/shop-clients", shopClientsRouter);
   app.use("/api/workspace", workspaceRouter);
   app.use("/api/workspace/access/invitations", invitationsRouter);
   app.use("/api/notifications", notificationRouter);
