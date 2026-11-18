@@ -1,5 +1,17 @@
 /** Arabic copy for the balance sheet, income statement, fixed assets and HR financial custody. */
 export const erpTranslations: Readonly<Record<string, string>> = {
+  "Salary counting": "طريقة احتساب الراتب",
+  "from payroll period start": "من بداية فترة الرواتب",
+  "from assignment date": "من تاريخ التعيين",
+  "from last salary paid": "من آخر راتب مدفوع",
+  "Fiscal year starts in": "تبدأ السنة المالية في",
+  "Default payment terms": "شروط الدفع الافتراضية",
+  "VAT rate %": "نسبة ضريبة القيمة المضافة %",
+  "VAT registration number": "رقم التسجيل الضريبي",
+  "VAT included in revenue (estimate at {rate}%)": "ضريبة القيمة المضافة ضمن الإيرادات (تقدير بنسبة {rate}%)",
+  "This fiscal year": "السنة المالية الحالية",
+  "January": "يناير", "February": "فبراير", "March": "مارس", "April": "أبريل", "May": "مايو", "June": "يونيو",
+  "July": "يوليو", "August": "أغسطس", "September": "سبتمبر", "October": "أكتوبر", "November": "نوفمبر", "December": "ديسمبر",
   "Fixed assets": "الأصول الثابتة",
   "Fixed asset": "أصل ثابت",
   "Asset name": "اسم الأصل",

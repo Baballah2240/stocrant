@@ -45,7 +45,7 @@ export function BalanceSheet({ accounts, sources, obligations, transactions, ass
   </section>;
 }
 
-export function IncomeStatement({ transactions, assets, currency, periodStart, periodEnd, periodLabel }: { transactions: CollectionItem[]; assets: CollectionItem[]; currency: string; periodStart: string; periodEnd: string; periodLabel: string }) {
+export function IncomeStatement({ transactions, assets, currency, periodStart, periodEnd, periodLabel, vatRate = 0 }: { vatRate?: number; transactions: CollectionItem[]; assets: CollectionItem[]; currency: string; periodStart: string; periodEnd: string; periodLabel: string }) {
   const { t } = useLanguage(), format = useMoney(currency);
   const report = incomeStatement(transactions, assets, currency, periodStart, periodEnd || today());
   return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("Income statement")}</h2><span className="finance-basis-label">{t(periodLabel)}</span></div>
@@ -58,14 +58,15 @@ export function IncomeStatement({ transactions, assets, currency, periodStart, p
       <Line label={t("Operating result before depreciation")} value={format(report.operating)} strong />
       <Line label={t("Depreciation of machinery & equipment")} value={format(-Number(report.depreciation))} indent />
       <Line label={Number(report.surplus) < 0 ? t("Deficit for the period") : t("Surplus for the period")} value={format(report.surplus)} strong />
+    {vatRate > 0 && <Line label={t("VAT included in revenue (estimate at {rate}%)", { rate: vatRate })} value={format(Number(report.revenue) * vatRate / (100 + vatRate))} indent />}
     </tbody></table></div>
     <p className="hint">{t("Cash basis for revenue and expenses; depreciation is the straight-line charge for the same period. Capital, loans, transfers, advances and fixed-asset purchases are not income or expenses.")}</p>
   </section>;
 }
 
-export function FixedAssetRegister({ assets, currency, asOf, canCreate }: { assets: CollectionItem[]; currency: string; asOf: string; canCreate: boolean }) {
-  const { t } = useLanguage(), format = useMoney(currency), date = asOf || today(), year = date.slice(0, 4);
-  const rows = assets.filter(a => (a.currency || currency) === currency).map(asset => ({ asset, value: assetValuation(asset, currency, date, `${year}-01-01`) }));
+export function FixedAssetRegister({ assets, currency, asOf, yearStart, canCreate }: { assets: CollectionItem[]; currency: string; asOf: string; yearStart?: string; canCreate: boolean }) {
+  const { t } = useLanguage(), format = useMoney(currency), date = asOf || today(), start = yearStart && yearStart <= date ? yearStart : `${date.slice(0, 4)}-01-01`, year = start.slice(5) === "01-01" ? start.slice(0, 4) : `${start.slice(0, 4)}/${Number(start.slice(0, 4)) + 1}`;
+  const rows = assets.filter(a => (a.currency || currency) === currency).map(asset => ({ asset, value: assetValuation(asset, currency, date, start) }));
   const total = (key: "cost" | "annual" | "accumulated" | "period" | "bookValue") => decimal(rows.filter(r => !r.value.disposed).reduce((n, r) => n + r.value[key], 0n), currency);
   return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("Fixed assets & depreciation")}</h2><div className="inline-actions">{canCreate && <Link className="primary-link" to="/stores/fixedAssets/new">{t("Register fixed asset")}</Link>}<Link to="/stores/fixedAssets">{t("Manage fixed assets")}</Link></div></div>
     <p className="hint">{t("Straight-line depreciation: (cost − salvage value) ÷ useful life, charged daily from the purchase date. Disposed assets are excluded from totals.")}</p>

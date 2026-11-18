@@ -1,5 +1,18 @@
 # Mobile update history
 
+## 2026-11-18 - Company accounting & finance settings, salary counting basis
+
+The company create/edit form adds accounting and finance settings:
+- **Salary counting:** from payroll period start (the default, same as before), from assignment date, or from last salary paid.
+  - From assignment date: an employee's first salary is counted from the assignment (hire) date, even if that is before the run start.
+  - From last salary paid: each salary continues from the day after the last counted salary period. Unpaid gaps are included, and a period already counted is refused rather than paid twice.
+  - Each payslip stores its own period start.
+- **Fiscal year starts in:** adds a This fiscal year period in Finance and sets the fixed-asset depreciation year.
+- **Default payment terms:** used for the due dates of documents without their own terms.
+- **VAT rate and VAT registration number:** an estimated VAT line on the income statement, and the VAT number on printed reports.
+
+Also adds SAR, KWD, BHD, OMR and EGP as company currencies. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - ERP financial statements and HR financial custody
 
 Finance adds a Financial statements group:

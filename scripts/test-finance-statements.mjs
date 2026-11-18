@@ -57,3 +57,22 @@ test('custody summary groups outstanding items per employee and ignores settled 
   ]);
   assert.deepEqual(rows.map(r => [r.employee, r.items, r.outstanding]), [['Ali', 2, 3300]]);
 });
+
+import { salaryBasis, salaryWindowStart } from '../server/salary-basis.ts';
+test('salary counting basis: period start, assignment date or day after last salary paid', () => {
+  const base = { periodStart: '2026-11-01', periodEnd: '2026-11-30' };
+  assert.equal(salaryBasis({}), 'from payroll period start');
+  assert.equal(salaryBasis({ salaryCountingBasis: 'bogus' }), 'from payroll period start');
+  // Period start: hired before the period → counted from the period start; hired inside → from hire date.
+  assert.equal(salaryWindowStart({ ...base, basis: 'from payroll period start', hireDate: '2026-09-10' }), '2026-11-01');
+  assert.equal(salaryWindowStart({ ...base, basis: 'from payroll period start', hireDate: '2026-11-12' }), '2026-11-12');
+  // Assignment date: first salary goes back to the assignment date; later salaries use the period start.
+  assert.equal(salaryWindowStart({ ...base, basis: 'from assignment date', hireDate: '2026-10-15' }), '2026-10-15');
+  assert.equal(salaryWindowStart({ ...base, basis: 'from assignment date', hireDate: '2026-10-15', lastPaidEnd: '2026-10-31' }), '2026-11-01');
+  // Last salary paid: continue the day after the last counted period, including unpaid gaps.
+  assert.equal(salaryWindowStart({ ...base, basis: 'from last salary paid', hireDate: '2026-01-01', lastPaidEnd: '2026-09-30' }), '2026-10-01');
+  assert.equal(salaryWindowStart({ ...base, basis: 'from last salary paid', hireDate: '2026-01-01', lastPaidEnd: '2026-11-10' }), '2026-11-11');
+  assert.equal(salaryWindowStart({ ...base, basis: 'from last salary paid', hireDate: '2026-10-20' }), '2026-10-20');
+  assert.throws(() => salaryWindowStart({ ...base, basis: 'from last salary paid', lastPaidEnd: '2026-11-30' }), /already counted through 2026-11-30/);
+  assert.throws(() => salaryWindowStart({ ...base, basis: 'from last salary paid', hireDate: '2024-01-01' }), /longer than 400 days/);
+});
