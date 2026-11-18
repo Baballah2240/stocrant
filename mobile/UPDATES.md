@@ -1,5 +1,19 @@
 # Mobile update history
 
+## 2026-11-18 - Company types with tailored tools
+
+Creating or editing a company now shows a type picker: Restaurant & café, Hotel & accommodation, Shop & retail, Services (with a category: clinic, salon, workshop, office, school, transport, construction or other) and Mixed / other. A live preview shows the tools that type opens with.
+
+The company profile shows a Business tools section for its type:
+- **Restaurant:** menu items, tables, kitchen stock, daily sales.
+- **Hotel:** rooms, bookings, housekeeping, room revenue.
+- **Shop:** products and stock, shop orders, suppliers and purchases, sales.
+- **Services:** service catalogue, appointments and customers, jobs, invoices.
+
+Every type also gets employees and payroll, plus finance. Other tools stay available.
+
+New registers: menu items, dining tables, hotel rooms, room bookings and service catalogue. Earlier types are kept: store becomes Shop & retail and office becomes Services (office), both on load and on save. New labels have Arabic copy, and existing Arabic text keeps priority over shared words. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Multi-currency reporting (SDG and USD)
 
 - **Exchange rates register:** Finance → Exchange rates, entered as 1 unit of one currency in another (for example 1 USD = 600 SDG), with a date and source: central bank, commercial bank, market or manual. Rates are validated as positive, two different currencies, up to 12 decimals. Each company chooses which rate source its reports use, keeping official and market rates apart.

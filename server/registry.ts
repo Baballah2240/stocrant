@@ -68,7 +68,8 @@ registry.push({
     { key: "parentOrganizationId", label: "Organization", type: "select", required: true },
     { key: "tradeName", label: "Trading name", type: "text" },
     { key: "logo", label: "Company logo URL", type: "text", placeholder: "https://example.com/logo.png" },
-    { key: "organizationType", label: "Organization type", type: "select", options: ["shop", "store", "office", "restaurant", "mixed"], required: true },
+    { key: "organizationType", label: "Company type", type: "select", options: ["restaurant", "hotel", "shop", "services", "mixed"], required: true },
+    { key: "serviceCategory", label: "Service category", type: "select", options: ["clinic", "salon", "workshop", "office", "school", "transport", "construction", "other"] },
     { key: "industry", label: "Industry", type: "select", options: ["restaurant", "retail", "hospitality", "services", "mixed"], required: true },
     { key: "taxId", label: "Tax / registration ID", type: "text" },
     { key: "contactName", label: "Primary contact", type: "text" },
@@ -607,3 +608,78 @@ registry.push({
   ],
   columns: ["date", "fromCurrency", "toCurrency", "rate", "rateSource", "status"],
 });
+
+// Business-type registers: restaurant (menu, tables), hotel (rooms, bookings) and services (catalogue).
+registry.push(
+  {
+    collection: "menuItems", label: "Menu items", singular: "Menu item",
+    module: "stores", permission: "stores.menuItems.read",
+    fields: [
+      { key: "name", label: "Item name", type: "text", required: true },
+      { key: "nameAr", label: "Arabic name", type: "text" },
+      { key: "category", label: "Category", type: "select", options: ["breakfast", "starters", "main dishes", "grills", "sandwiches", "desserts", "hot drinks", "cold drinks", "juices", "other"], required: true },
+      { key: "price", label: "Selling price", type: "currency", min: 0, required: true },
+      { key: "cost", label: "Ingredient cost", type: "currency", min: 0 },
+      { key: "preparationMinutes", label: "Preparation time (minutes)", type: "number", min: 0, max: 600 },
+      { key: "status", label: "Status", type: "select", options: ["available", "sold out", "hidden"], required: true },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    columns: ["name", "category", "price", "cost", "status"],
+  },
+  {
+    collection: "diningTables", label: "Tables", singular: "Table",
+    module: "stores", permission: "stores.diningTables.read",
+    fields: [
+      { key: "name", label: "Table number / name", type: "text", required: true },
+      { key: "seats", label: "Seats", type: "number", min: 1, max: 100, required: true },
+      { key: "area", label: "Area", type: "select", options: ["indoor", "outdoor", "family section", "private room", "terrace"] },
+      { key: "status", label: "Status", type: "select", options: ["free", "occupied", "reserved", "out of service"], required: true },
+      { key: "notes", label: "Notes", type: "textarea" },
+    ],
+    columns: ["name", "seats", "area", "status"],
+  },
+  {
+    collection: "hotelRooms", label: "Rooms", singular: "Room",
+    module: "stores", permission: "stores.hotelRooms.read",
+    fields: [
+      { key: "roomNumber", label: "Room number", type: "text", required: true },
+      { key: "roomType", label: "Room type", type: "select", options: ["single", "double", "twin", "family", "suite", "apartment"], required: true },
+      { key: "floor", label: "Floor", type: "text" },
+      { key: "capacity", label: "Guests", type: "number", min: 1, max: 20 },
+      { key: "nightlyRate", label: "Nightly rate", type: "currency", min: 0, required: true },
+      { key: "status", label: "Status", type: "select", options: ["available", "occupied", "reserved", "cleaning", "maintenance"], required: true },
+      { key: "notes", label: "Notes", type: "textarea" },
+    ],
+    columns: ["roomNumber", "roomType", "floor", "nightlyRate", "status"],
+  },
+  {
+    collection: "roomBookings", label: "Room bookings", singular: "Booking",
+    module: "stores", permission: "stores.roomBookings.read",
+    fields: [
+      { key: "guestName", label: "Guest name", type: "text", required: true },
+      { key: "guestPhone", label: "Guest phone", type: "tel" },
+      { key: "roomNumber", label: "Room number", type: "text", required: true },
+      { key: "checkIn", label: "Check-in", type: "date", required: true },
+      { key: "checkOut", label: "Check-out", type: "date", required: true },
+      { key: "guests", label: "Guests", type: "number", min: 1, max: 20 },
+      { key: "nightlyRate", label: "Nightly rate", type: "currency", min: 0, required: true },
+      { key: "status", label: "Status", type: "select", options: ["reserved", "checked in", "checked out", "cancelled", "no show"], required: true },
+      { key: "notes", label: "Notes", type: "textarea" },
+    ],
+    columns: ["guestName", "roomNumber", "checkIn", "checkOut", "nightlyRate", "status"],
+  },
+  {
+    collection: "serviceCatalog", label: "Service catalogue", singular: "Service",
+    module: "stores", permission: "stores.serviceCatalog.read",
+    fields: [
+      { key: "name", label: "Service name", type: "text", required: true },
+      { key: "nameAr", label: "Arabic name", type: "text" },
+      { key: "category", label: "Category", type: "text" },
+      { key: "durationMinutes", label: "Duration (minutes)", type: "number", min: 0, max: 10080 },
+      { key: "price", label: "Price", type: "currency", min: 0, required: true },
+      { key: "status", label: "Status", type: "select", options: ["active", "inactive"], required: true },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    columns: ["name", "category", "durationMinutes", "price", "status"],
+  },
+);

@@ -286,8 +286,14 @@ function migrateSecureWorkspace(data: StoreData): boolean {
   for (const company of collectionRows(data, "companies")) {
     if (!company.organizationType) {
       company.organizationType = typeof company.industry === "string" && ["restaurant", "retail"].includes(company.industry)
-        ? company.industry === "retail" ? "store" : "restaurant"
-        : "mixed";
+        ? company.industry === "retail" ? "shop" : "restaurant"
+        : company.industry === "hospitality" ? "hotel" : company.industry === "services" ? "services" : "mixed";
+      changed = true;
+    }
+    // Earlier company types: "store" is now Shop & retail and "office" is now Services.
+    if (company.organizationType === "store" || company.organizationType === "office") {
+      if (company.organizationType === "office" && !company.serviceCategory) company.serviceCategory = "office";
+      company.organizationType = company.organizationType === "store" ? "shop" : "services";
       changed = true;
     }
   }

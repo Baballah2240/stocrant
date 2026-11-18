@@ -91,3 +91,18 @@ it("salary transfer file lists bank and mobile-money details, and the end-of-ser
   assert.equal(report.companies[0].configured, true);
   assert.ok(line.years > 0.2 && Number(line.liability) > 0, JSON.stringify(line));
 });
+
+it("company types: new types save, earlier types map to their current equivalents, and type registers work", async () => {
+  const org = (await expect(await call("/collections/organizations", { name: "Types organization", status: "active" }), 201)).item;
+  const make = async (organizationType: string, extra: Row = {}) => (await expect(await call("/collections/companies", { name: "Type " + organizationType + Math.random(), parentOrganizationId: org.id, status: "active", organizationType, industry: "mixed", currency: "SDG", ...extra }), 201)).item;
+  const hotel = await make("hotel");
+  assert.equal(hotel.organizationType, "hotel");
+  assert.equal((await make("services", { serviceCategory: "clinic" })).serviceCategory, "clinic");
+  const office = await make("office");
+  assert.equal(office.organizationType, "services"); assert.equal(office.serviceCategory, "office");
+  assert.equal((await make("store")).organizationType, "shop");
+  assert.equal((await call("/collections/companies", { name: "Bad type", parentOrganizationId: org.id, status: "active", organizationType: "spaceship", industry: "mixed", currency: "SDG" })).status, 400);
+  const booking = (await expect(await call("/collections/roomBookings", { organizationId: hotel.id, guestName: "Guest", roomNumber: "101", checkIn: "2026-12-01", checkOut: "2026-12-03", nightlyRate: 15000, status: "reserved" }), 201)).item;
+  assert.equal(booking.organizationId, hotel.id);
+  assert.equal((await call("/collections/menuItems", { organizationId: hotel.id, name: "Ful medames", category: "breakfast", price: 2500, status: "available" })).status, 201);
+});

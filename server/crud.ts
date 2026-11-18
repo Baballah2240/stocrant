@@ -61,6 +61,8 @@ export function buildSchema(fields: FieldSpec[], existing: Record<string, unknow
 }
 
 export function validateEntity(spec: EntitySpec, body: unknown, existing?: Record<string, unknown>) {
+  // Earlier company types are accepted and saved as their current equivalents.
+  if (spec.collection === "companies" && body && typeof body === "object") { const input = body as Record<string, unknown>; if (input.organizationType === "store") body = { ...input, organizationType: "shop" }; else if (input.organizationType === "office") body = { ...input, organizationType: "services", serviceCategory: input.serviceCategory || "office" }; }
   const schema = buildSchema(spec.fields, existing);
   const result = schema.safeParse(body);
   if (!result.success) {
