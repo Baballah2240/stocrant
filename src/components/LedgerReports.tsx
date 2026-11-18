@@ -84,3 +84,21 @@ export function GeneralLedger({ filter, periodLabel, account, onAccount }: { fil
     </tbody></table></div><Issues data={data} />
   </section>;
 }
+
+/** VAT return for the period from the ledger: VAT charged on sales less VAT paid on purchases and expenses. */
+export function VatReturn({ filter, periodLabel, vatNumber = "" }: { filter: Filter; periodLabel: string; vatNumber?: string }) {
+  const { t } = useLanguage(), format = useMoney(filter.currency), { data, error } = useLedger(filter);
+  if (!data) return <State error={error} loading />;
+  const row = (code: string) => data.trialBalance.rows.find(r => r.code === code);
+  const output = Number(row("2400")?.credit || 0), input = Number(row("1400")?.debit || 0), paid = Number(row("2400")?.debit || 0), net = output - input;
+  return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("VAT return")}</h2><span className="finance-basis-label">{t(periodLabel)}</span></div>
+    <p className="hint">{t("VAT charged on sales less VAT paid on purchases and expenses, from the Tax and VAT / input tax fields of each document. Record payments to the tax authority as a Tax movement with the category VAT.")}</p>
+    {vatNumber && <p>{t("VAT registration number")}: <strong dir="ltr">{vatNumber}</strong></p>}
+    <div className="table-wrap"><table className="table"><tbody>
+      <Row label={t("Output VAT on sales")} value={format(output)} />
+      <Row label={t("Input VAT on purchases & expenses")} value={format(-input)} />
+      <Row label={net >= 0 ? t("VAT payable for the period") : t("VAT refundable for the period")} value={format(net)} strong />
+      <Row label={t("VAT paid to the tax authority in the period")} value={format(-paid)} indent />
+    </tbody></table></div><Issues data={data} />
+  </section>;
+}

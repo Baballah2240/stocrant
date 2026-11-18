@@ -15,22 +15,28 @@ export const chartOfAccounts: LedgerAccount[] = [
   { code: "1090", name: "Transfers in transit", type: "asset" },
   { code: "1100", name: "Accounts receivable", type: "asset" },
   { code: "1200", name: "Employee advances & custody", type: "asset" },
+  { code: "1400", name: "VAT recoverable", type: "asset" },
   { code: "1500", name: "Fixed assets at cost", type: "asset" },
   { code: "1590", name: "Accumulated depreciation", type: "asset" },
   { code: "1600", name: "Fixed asset purchases clearing", type: "asset" },
   { code: "2000", name: "Accounts payable", type: "liability" },
   { code: "2100", name: "Salaries payable", type: "liability" },
   { code: "2200", name: "Loans payable", type: "liability" },
+  { code: "2300", name: "End-of-service provision", type: "liability" },
+  { code: "2400", name: "VAT payable", type: "liability" },
   { code: "3000", name: "Paid-in capital", type: "equity" },
   { code: "3100", name: "Opening balance equity", type: "equity" },
   { code: "4000", name: "Sales revenue", type: "revenue" },
   { code: "4100", name: "Sales returns & refunds", type: "revenue" },
+  { code: "4800", name: "Gain on asset disposal", type: "revenue" },
   { code: "4900", name: "Other income", type: "revenue" },
   { code: "5000", name: "Purchases", type: "expense" },
   { code: "6000", name: "Operating expenses", type: "expense" },
   { code: "6100", name: "Taxes", type: "expense" },
   { code: "6200", name: "Salaries & wages", type: "expense" },
+  { code: "6300", name: "End-of-service benefits", type: "expense" },
   { code: "6500", name: "Depreciation expense", type: "expense" },
+  { code: "6800", name: "Loss on asset disposal", type: "expense" },
   { code: "6900", name: "Other expenses", type: "expense" },
 ];
 const accountType = new Map(chartOfAccounts.map(a => [a.code, a.type]));
@@ -57,7 +63,20 @@ function depreciationTo(asset: Row, currency: string, date: string): bigint {
   return days >= life ? cost - salvage : (cost - salvage) * days / life;
 }
 
-export interface LedgerInput { companies: Row[]; accounts: Row[]; transactions: Row[]; sources: Record<string, Row[]>; payrollEntries: Row[]; payrollRuns: Row[]; fixedAssets: Row[]; asOf: string }
+export interface LedgerInput { companies: Row[]; accounts: Row[]; transactions: Row[]; sources: Record<string, Row[]>; payrollEntries: Row[]; payrollRuns: Row[]; fixedAssets: Row[]; asOf: string; custody?: Row[]; employees?: Row[]; salaries?: Row[] }
+
+/** End-of-service benefit owed on a date under the company's configured rule (days of monthly salary per year of service). */
+export function gratuityLiability(employee: Row, company: Row, monthlyBase: bigint, date: string): bigint {
+  const perYear = Number(company.gratuityDaysPerYear || 0), after = Number(company.gratuityDaysAfterFiveYears ?? perYear), minimum = Number(company.gratuityMinimumYears || 0);
+  const hire = Date.parse(String(employee.hireDate || "") + "T00:00:00Z"), leave = employee.terminationDate && String(employee.terminationDate) < date ? String(employee.terminationDate) : date, end = Date.parse(leave + "T00:00:00Z");
+  if (!(perYear > 0) || !Number.isFinite(hire) || !Number.isFinite(end) || end < hire || monthlyBase <= 0n) return 0n;
+  const days = BigInt(Math.floor((end - hire) / 86_400_000) + 1), yearDays = 365n;
+  if (days < BigInt(Math.round(minimum * 365))) return 0n;
+  const first = days < 5n * yearDays ? days : 5n * yearDays, rest = days > 5n * yearDays ? days - 5n * yearDays : 0n;
+  // monthlyBase / 30 per day of entitlement; entitlement days accrue pro rata within each year.
+  const scale = 100n, entitlement = BigInt(Math.round(perYear * 100)) * first + BigInt(Math.round(after * 100)) * rest; // in (days×100)×serviceDays
+  return monthlyBase * entitlement / (30n * yearDays * scale);
+}
 
 /** Build balanced journal entries. Records that cannot be posted exactly are returned as issues, never guessed. */
 export function buildJournal(input: LedgerInput) {
@@ -87,9 +106,11 @@ export function buildJournal(input: LedgerInput) {
     const currency = String(doc.currency || companyCurrency(doc.organizationId)), amount = minorUnits(doc[sourceAmountKey(collection)], currency);
     if (!currency || amount === null) { issues.push({ id: String(doc.id), reason: `Unverified ${collection} amount or currency` }); continue; }
     const meta = { id: `${collection}:${doc.id}`, date: String(doc.date || "").slice(0, 10), organizationId: String(doc.organizationId || ""), currency, source: collection, sourceId: String(doc.id) };
-    if (collection === "sales") post({ ...meta, memo: `Sale ${doc.invoiceNo || doc.id}${doc.customer ? " · " + doc.customer : ""}` }, [["1100", "4000", amount]]);
-    else if (collection === "purchases") post({ ...meta, memo: `Purchase ${doc.poNumber || doc.id}${doc.supplier ? " · " + doc.supplier : ""}` }, [["5000", "2000", amount]]);
-    else if (collection === "expenses") post({ ...meta, memo: `Expense ${doc.title || doc.id}` }, [["6000", "2000", amount]]);
+    const vat = doc.tax === undefined || doc.tax === "" || doc.tax === null ? 0n : minorUnits(doc.tax, currency);
+    if (vat === null || vat < 0n || vat > amount) { issues.push({ id: String(doc.id), reason: "VAT amount is invalid or larger than the total" }); continue; }
+    if (collection === "sales") post({ ...meta, memo: `Sale ${doc.invoiceNo || doc.id}${doc.customer ? " · " + doc.customer : ""}` }, [["1100", "4000", amount - vat], ["1100", "2400", vat]]);
+    else if (collection === "purchases") post({ ...meta, memo: `Purchase ${doc.poNumber || doc.id}${doc.supplier ? " · " + doc.supplier : ""}` }, [["5000", "2000", amount - vat], ["1400", "2000", vat]]);
+    else if (collection === "expenses") post({ ...meta, memo: `Expense ${doc.title || doc.id}` }, [["6000", "2000", amount - vat], ["1400", "2000", vat]]);
     else post({ ...meta, memo: `Return ${doc.rmaNumber || doc.id}` }, [["4100", "2000", amount]]);
   }
   // Payroll: approved payslips are an expense owed to employees until paid.
@@ -98,7 +119,8 @@ export function buildJournal(input: LedgerInput) {
     if (!run || !PAID_RUNS.includes(String(run.status))) continue;
     const currency = String(line.currency), amount = minorUnits(line.netPay, currency);
     if (amount === null) { issues.push({ id: String(line.id), reason: "Invalid payslip amount" }); continue; }
-    post({ id: `payroll:${line.id}`, date: String(line.periodEnd || run.end || "").slice(0, 10), organizationId: String(line.organizationId || run.organizationId || ""), currency, memo: `Salary · ${line.employee || line.employeeId}`, source: "payrollEntries", sourceId: String(line.id) }, [["6200", "2100", amount]]);
+    const recovery = minorUnits(line.advanceRecovery || 0, currency) ?? 0n;
+    post({ id: `payroll:${line.id}`, date: String(line.periodEnd || run.end || "").slice(0, 10), organizationId: String(line.organizationId || run.organizationId || ""), currency, memo: `Salary · ${line.employee || line.employeeId}`, source: "payrollEntries", sourceId: String(line.id) }, [["6200", "2100", amount], ["6200", "1200", recovery]]);
   }
   // Cash movements.
   for (const t of input.transactions) {
@@ -113,7 +135,8 @@ export function buildJournal(input: LedgerInput) {
     else if (t.type === "payroll") other = "2100";
     else if (t.type === "income") other = "4000";
     else if (t.type === "expense" || t.type === "reimbursement") other = "6000";
-    else if (t.type === "tax") other = "6100";
+    else if (t.type === "tax") other = /\b(vat|ضريبة القيمة)/i.test(String(t.category || "")) ? "2400" : "6100";
+    else if (t.type === "gratuity") other = "2300";
     else if (t.type === "capital") other = "3000";
     else if (t.type === "asset") other = "1600";
     else if (t.employeeId && ["advance", "loan", "repayment"].includes(t.type)) other = "1200";
@@ -123,16 +146,43 @@ export function buildJournal(input: LedgerInput) {
   }
   // Fixed assets: capitalised at cost (against the purchases clearing account) and depreciated monthly.
   for (const asset of input.fixedAssets) {
-    if (asset.status === "disposed") continue;
+    const disposal = asset.status === "disposed" && /^\d{4}-\d{2}-\d{2}$/.test(String(asset.disposalDate || "")) ? String(asset.disposalDate) : "";
+    if (asset.status === "disposed" && !disposal) { issues.push({ id: String(asset.id), reason: "Disposed asset needs a disposal date" }); continue; }
     const currency = String(asset.currency || companyCurrency(asset.organizationId)), cost = minorUnits(asset.cost, currency), date = String(asset.purchaseDate || "").slice(0, 10);
     if (!currency || cost === null || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { issues.push({ id: String(asset.id), reason: "Fixed asset needs a valid cost, currency and purchase date" }); continue; }
     const meta = { organizationId: String(asset.organizationId || ""), currency, source: "fixedAssets", sourceId: String(asset.id) };
     post({ ...meta, id: `asset:${asset.id}`, date, memo: `Fixed asset · ${asset.name}` }, [["1500", "1600", cost]]);
     if (date > input.asOf) continue;
     let previous = 0n;
-    for (const end of monthEnds(date, input.asOf)) {
+    const depreciateTo = disposal && disposal < input.asOf ? disposal : input.asOf;
+    for (const end of monthEnds(date, depreciateTo)) {
       const total = depreciationTo(asset, currency, end);
       post({ ...meta, id: `dep:${asset.id}:${end}`, date: end, memo: `Depreciation · ${asset.name}` }, [["6500", "1590", total - previous]]);
+      previous = total;
+    }
+    if (disposal && disposal <= input.asOf) {
+      const proceeds = minorUnits(asset.disposalProceeds || 0, currency) ?? 0n, gain = proceeds - (cost - previous);
+      post({ ...meta, id: `disposal:${asset.id}`, date: disposal, memo: `Disposal · ${asset.name}` }, [["1590", "1500", previous], ["1600", "1500", proceeds], [gain < 0n ? "6800" : "1500", gain < 0n ? "1500" : "4800", gain < 0n ? -gain : gain]]);
+    }
+  }
+  // HR custody settled with expense receipts turns the employee advance into an expense.
+  for (const item of input.custody || []) {
+    if (item.custodyType !== "cash" || item.settlementMethod !== "expense receipts") continue;
+    const currency = String(item.currency || companyCurrency(item.organizationId)), settled = minorUnits(item.settledAmount || 0, currency);
+    if (!currency || settled === null) { issues.push({ id: String(item.id), reason: "Custody settlement amount is invalid" }); continue; }
+    post({ id: `custody:${item.id}`, date: String(item.settlementDate || "").slice(0, 10), organizationId: String(item.organizationId || ""), currency, memo: `Custody settled with receipts · ${item.employee || ""}`, source: "employeeCustody", sourceId: String(item.id) }, [["6000", "1200", settled]]);
+  }
+  // End-of-service provision builds monthly from each employee's service and current monthly salary.
+  for (const employee of input.employees || []) {
+    const company = input.companies.find(c => c.id === employee.organizationId);
+    if (!company || !(Number(company.gratuityDaysPerYear) > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(String(employee.hireDate || ""))) continue;
+    const salary = (input.salaries || []).filter(v => v.employeeId === employee.id && v.frequency === "monthly").sort((a, b) => String(a.effectiveFrom).localeCompare(String(b.effectiveFrom))).at(-1);
+    const currency = String(salary?.currency || company.currency || ""), base = minorUnits(salary?.base ?? employee.salary ?? 0, currency);
+    if (!currency || base === null || base <= 0n) continue;
+    let previous = 0n;
+    for (const end of monthEnds(String(employee.hireDate), input.asOf)) {
+      const total = gratuityLiability(employee, company, base, end);
+      post({ id: `eos:${employee.id}:${end}`, date: end, organizationId: String(employee.organizationId), currency, memo: `End-of-service provision · ${employee.name || employee.id}`, source: "employees", sourceId: String(employee.id) }, [["6300", "2300", total - previous]]);
       previous = total;
     }
   }

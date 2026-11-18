@@ -23,6 +23,7 @@ const entries: WorkspaceNavEntry[] = [
   { to: "/customer-service", label: "Customer Service", icon: "support", section: "customerService", group: "operations" },
   { to: "/finance", label: "Finance", icon: "finance", section: "finance", group: "finance" },
   { to: "/hr/payroll", label: "Payroll", icon: "payroll", section: "payroll", group: "finance" },
+  { to: "/hr/end-of-service", label: "End-of-service benefits", icon: "payslip", section: "payroll", group: "finance" },
   { to: "/me/payroll", label: "My payslips", icon: "payslip", group: "finance" },
   { to: "/admin", label: "Access & Settings", icon: "settings", section: "access", group: "administration" },
   { to: "/security", label: "App lock", icon: "lock", group: "administration" },
@@ -35,7 +36,7 @@ export function workspaceNavigationFor(user: Pick<AuthUser, "roleId" | "permissi
 }
 export function workspaceEntryActive(item: WorkspaceNavEntry, path: string): boolean {
   if (item.to === "/") return path === "/" || path === "/workspace";
-  if (item.to === "/hr") return (path === "/hr" || path.startsWith("/hr/")) && !path.startsWith("/hr/payroll") && !path.startsWith("/hr/custody") && !path.startsWith("/hr/employeeCustody");
+  if (item.to === "/hr") return (path === "/hr" || path.startsWith("/hr/")) && !path.startsWith("/hr/payroll") && !path.startsWith("/hr/custody") && !path.startsWith("/hr/end-of-service") && !path.startsWith("/hr/employeeCustody");
   if (item.to === "/hr/custody") return path.startsWith("/hr/custody") || path.startsWith("/hr/employeeCustody");
   if (item.to === "/organizations") return path === "/organizations" || path.startsWith("/organizations/") || path.startsWith("/organization/");
   if (item.to === "/warehouse") return ["/inventory", "/warehouse"].some(prefix => path === prefix || path.startsWith(prefix + "/"));

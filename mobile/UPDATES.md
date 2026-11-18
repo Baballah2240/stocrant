@@ -1,5 +1,18 @@
 # Mobile update history
 
+## 2026-11-18 - VAT, end-of-service, salary transfers and mobile money (Sudan and Africa ready)
+
+- **VAT:** sales Tax and the new VAT / input tax field on purchases and expenses post to VAT payable and VAT recoverable. A new Finance VAT return tab shows output VAT less input VAT and VAT paid in the period; record payments to the tax authority as a Tax movement with the category VAT.
+- **End-of-service benefit (مكافأة نهاية الخدمة):** configured per company (days of salary per year for the first 5 years and after, plus minimum service). Labour laws differ between Sudan, Qatar, Saudi Arabia and others, so nothing is hard-coded. A provision builds monthly in the ledger, and a new End-of-service benefits page shows each employee's service and benefit owed (payroll access only). Pay it through the new End-of-service movement type.
+- **Ledger links:**
+  - Salary deductions that repay advances clear the employee advance, and salary expense is gross.
+  - HR cash custody settled with expense receipts becomes an expense.
+  - Disposed fixed assets stop depreciating and record a gain or loss against the sale proceeds.
+- **Salary transfer file:** a CSV per approved payroll run, for any bank's bulk upload. Employees gain bank, IBAN, mobile wallet (Bankak, Fawry, M-Pesa…) and salary payment method fields, and missing details are flagged.
+- **Mobile money:** now a payment method across Finance, Payroll and documents.
+
+Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Double-entry general ledger and closed periods
 
 Finance now runs on a double-entry general ledger generated from existing records. There is no data migration, and every entry balances by construction.

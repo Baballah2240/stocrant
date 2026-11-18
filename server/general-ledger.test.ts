@@ -95,3 +95,45 @@ it("ledger endpoint is balanced, and closed books reject back-dated finance reco
   assert.equal((await post("2026-07-01", "after")).status, 201);
   assert.equal((await call(`/workspace/finance/ledger?currency=bad`)).status, 400);
 });
+
+it("VAT, salary advance recovery, custody receipts, asset disposal and end-of-service all post balanced entries", async () => {
+  const { gratuityLiability } = await import("./general-ledger.js");
+  const sdg = { id: "sd", currency: "SDG", gratuityDaysPerYear: 30, gratuityDaysAfterFiveYears: 45, gratuityMinimumYears: 1 };
+  const { entries, issues } = buildJournal({
+    asOf: "2026-12-31", companies: [sdg],
+    accounts: [{ id: "b", organizationId: "sd", currency: "SDG", openingBalance: "0" }],
+    transactions: [
+      { id: "vat-pay", accountId: "b", organizationId: "sd", type: "tax", category: "VAT", direction: "out", amount: "100.00", currency: "SDG", status: "paid", date: "2026-07-15" },
+      { id: "buy-asset", accountId: "b", organizationId: "sd", type: "asset", direction: "out", amount: "12000.00", currency: "SDG", status: "paid", date: "2026-01-01" },
+      { id: "sale-asset", accountId: "b", organizationId: "sd", type: "asset", direction: "in", amount: "7000.00", currency: "SDG", status: "paid", date: "2026-06-30" },
+      { id: "eos-pay", accountId: "b", organizationId: "sd", type: "gratuity", direction: "out", amount: "50.00", currency: "SDG", status: "paid", date: "2026-12-01" },
+    ],
+    sources: { sales: [{ id: "s", organizationId: "sd", total: 1170, tax: 170, date: "2026-03-01", status: "completed" }], purchases: [{ id: "p", organizationId: "sd", total: 585, tax: 85, date: "2026-03-02", status: "received" }], expenses: [{ id: "bad-vat", organizationId: "sd", amount: 10, tax: 20, date: "2026-03-03", status: "approved" }] },
+    payrollEntries: [{ id: "pe", runId: "r", organizationId: "sd", currency: "SDG", netPay: "900.00", advanceRecovery: "100.00", periodEnd: "2026-03-31" }],
+    payrollRuns: [{ id: "r", status: "Approved" }],
+    fixedAssets: [{ id: "truck", organizationId: "sd", name: "Truck", cost: 12000, salvageValue: 0, usefulLifeYears: 4, purchaseDate: "2026-01-01", status: "disposed", disposalDate: "2026-06-30", disposalProceeds: 7000 }],
+    custody: [{ id: "cu", organizationId: "sd", employee: "Ali", custodyType: "cash", settlementMethod: "expense receipts", settledAmount: "40.00", settlementDate: "2026-04-01", status: "settled" }],
+    employees: [{ id: "e", organizationId: "sd", name: "Ali", hireDate: "2020-01-01" }],
+    salaries: [{ employeeId: "e", frequency: "monthly", base: "3000.00", currency: "SDG", effectiveFrom: "2020-01-01" }],
+  });
+  assert.deepEqual(issues.map(i => i.id), ["bad-vat"]);
+  for (const entry of entries) assert.equal(entry.lines.reduce((n, l) => n + l.debit - l.credit, 0n), 0n, entry.id);
+  const tb = trialBalance(entries, { currency: "SDG" }), closing = (code: string) => tb.rows.find(r => r.code === code)?.closing ?? 0n;
+  assert.equal(tb.balanced, true);
+  assert.equal(closing("4000"), -100000n);          // revenue excludes the 170 output VAT
+  assert.equal(closing("2400"), -17000n + 10000n);  // output VAT less the 100 paid
+  assert.equal(closing("1400"), 8500n);             // input VAT recoverable
+  assert.equal(closing("6200"), 100000n);           // salary expense is gross (900 net + 100 advance recovered)
+  assert.equal(closing("1200"), -10000n + -4000n);  // advance reduced by salary recovery and custody receipts
+  assert.equal(closing("1500"), 0n);                // disposed truck leaves the books
+  assert.equal(closing("1590"), 0n);
+  assert.equal(closing("1600"), 0n);                // purchase and sale clearing both settled
+  const depreciation = closing("6500");             // half a year of 3,000 a year, charged daily
+  assert.ok(depreciation > 148000n && depreciation < 150000n);
+  assert.equal(closing("6800") + closing("4800"), 1200000n - depreciation - 700000n); // loss = book value − proceeds
+  // End-of-service: 7 years at 3,000 a month: 5 × 30 days + 2 × 45 days = 240 days = 24,000.
+  const owed = gratuityLiability({ hireDate: "2020-01-01" }, sdg, 300000n, "2026-12-31");
+  assert.ok(owed > 2400000n && owed < 2403000n, String(owed)); // 2,557 days incl. two leap days ≈ 7.005 years
+  assert.equal(-closing("2300"), owed - 5000n);
+  assert.equal(gratuityLiability({ hireDate: "2026-06-01" }, sdg, 300000n, "2026-12-31"), 0n); // under the 1-year minimum
+});

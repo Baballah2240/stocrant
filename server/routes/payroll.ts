@@ -2,11 +2,12 @@ import { recordPayrollPayment } from "../payroll-payments.js";
 import { Router } from "express";
 import { z } from "zod";
 import { dateSchema, amountSchema } from "../payroll-model.js";
-import { createPayrollSource, decidePayrollSource, generatePayroll, payrollCsv, payrollDashboard, payrollDetail, payrollRules, previewPayroll, recalculatePayroll, revisePayrollSource, salaryProfiles, savePayrollRules, saveSalary, transitionPayroll } from "../payroll.js";
+import { createPayrollSource, decidePayrollSource, generatePayroll, endOfServiceReport, payrollBankFile, payrollCsv, payrollDashboard, payrollDetail, payrollRules, previewPayroll, recalculatePayroll, revisePayrollSource, salaryProfiles, savePayrollRules, saveSalary, transitionPayroll } from "../payroll.js";
 const router=Router();
 function endpoint(fn:(req:import("express").Request,res:import("express").Response)=>unknown){return (req:import("express").Request,res:import("express").Response)=>{try{return fn(req,res);}catch(error){if(error instanceof z.ZodError)return res.status(400).json({error:error.issues.map(i=>i.message).join("; ")});return res.status((error as {statusCode?:number}).statusCode??400).json({error:error instanceof Error?error.message:"Payroll request failed."});}};}
 const reason=z.string().trim().min(5).max(1000);
 router.get("/",endpoint((req,res)=>res.json(payrollDashboard(req.auth!))));
+router.get("/end-of-service",endpoint((req,res)=>res.json(endOfServiceReport(req.auth!,typeof req.query.company==="string"?req.query.company:undefined))));
 router.get("/rules/:companyId",endpoint((req,res)=>res.json({rules:payrollRules(req.auth!,String(req.params.companyId))})));
 router.put("/rules/:companyId",endpoint((req,res)=>res.json({rules:savePayrollRules(req.auth!,String(req.params.companyId),req.body)})));
 router.get("/salaries/:companyId",endpoint((req,res)=>res.json({items:salaryProfiles(req.auth!,String(req.params.companyId))})));
@@ -23,5 +24,6 @@ router.post("/runs/:id/payments",endpoint((req,res)=>{
  return res.json(recordPayrollPayment(req.auth!,String(req.params.id),input));
 }));
 router.get("/runs/:id/export",endpoint((req,res)=>res.type("text/csv").attachment("stocrant-payroll.csv").send(payrollCsv(req.auth!,String(req.params.id)))));
+router.get("/runs/:id/bank-file",endpoint((req,res)=>res.type("text/csv").attachment("stocrant-salary-transfers.csv").send(payrollBankFile(req.auth!,String(req.params.id)))));
 router.get("/entries/:id",endpoint((req,res)=>res.json(payrollDetail(req.auth!,String(req.params.id)))));
 export default router;

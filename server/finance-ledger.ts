@@ -117,8 +117,8 @@ export function validateFinancialMutation(user: AuthenticatedUser, collection: s
   if (!dateSchema.safeParse(item.date).success) financialError("Choose a valid transaction date.");
   if (!["draft", "pending", "paid", "cancelled"].includes(item.status)) financialError("Choose a valid transaction status.");
   if (item.status === "paid" && item.date > companyFinanceDate(String(account.organizationId))) financialError("A confirmed payment cannot be in the future.");
-  const direction = item.type === "income" ? "in" : ["expense", "payroll", "advance", "reimbursement", "tax", "asset"].includes(item.type) ? "out" : item.direction;
-  if (!["income", "expense", "payroll", "transfer", "advance", "reimbursement", "loan", "repayment", "refund", "tax", "capital", "asset", "other"].includes(item.type) || !["in", "out"].includes(direction)) financialError("Choose a valid movement type and direction.");
+  const direction = item.type === "income" ? "in" : ["expense", "payroll", "advance", "reimbursement", "tax", "gratuity"].includes(item.type) ? "out" : item.direction;
+  if (!["income", "expense", "payroll", "transfer", "advance", "reimbursement", "loan", "repayment", "refund", "tax", "capital", "asset", "gratuity", "other"].includes(item.type) || !["in", "out"].includes(direction)) financialError("Choose a valid movement type and direction.");
   if (item.type === "transfer") {
     const other = rows("financeAccounts").find(a => a.id === item.destinationAccountId && isWithinScope(user, a));
     if (!item.transferGroupId || !other || other.id === account.id || other.currency !== account.currency) financialError("Transfers require a matching pair of accounts in the same currency.");

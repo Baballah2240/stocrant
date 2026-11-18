@@ -24,7 +24,7 @@ export function recordPayrollPayment(user: AuthenticatedUser, id: string, input:
     }
     if (!["Approved", "Partially Paid"].includes(run.status) || run.version !== input.version) financialError("Only the current approved payroll balance can be paid.", 409);
     if (rows("approvalRules").some(r => r.section === "finance" && r.action === "create" && r.active) && !can(user, "finance", "approve")) financialError("Finance approval permission is required before posting this payment.", 403);
-    if (!input.confirmed || !input.paymentDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.paymentDate) || Number.isNaN(Date.parse(input.paymentDate)) || new Date(input.paymentDate).toISOString().slice(0, 10) !== input.paymentDate || !["cash", "bank", "cheque", "other"].includes(input.method || "")) financialError("Confirm payment and enter a valid date, reference and method.");
+    if (!input.confirmed || !input.paymentDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.paymentDate) || Number.isNaN(Date.parse(input.paymentDate)) || new Date(input.paymentDate).toISOString().slice(0, 10) !== input.paymentDate || !["cash", "bank", "cheque", "mobile money", "other"].includes(input.method || "")) financialError("Confirm payment and enter a valid date, reference and method.");
     assertBooksOpen(run!.organizationId, input.paymentDate);
     if (input.paymentDate > companyFinanceDate(String(run.organizationId))) financialError("A confirmed payment cannot be in the future.");
     const account = rows("financeAccounts").find(a => a.id === input.accountId && a.organizationId === run.organizationId && a.currency === run.currency && isWithinScope(user, a));

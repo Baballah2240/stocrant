@@ -72,3 +72,22 @@ it("company default payment terms set the due date of documents without their ow
   const finance = await expect(await call("/workspace/finance"));
   assert.equal(finance.sources.find((s: Row) => s.id === "terms-sale").dueDate, "2026-12-01");
 });
+
+it("salary transfer file lists bank and mobile-money details, and the end-of-service report follows the company rule", async () => {
+  const data = getStore(), runs = data.collections.payrollRuns as Row[], entries = data.collections.payrollEntries as Row[], employees = data.collections.employees as Row[], companies = data.collections.companies as Row[];
+  const company = companies.find(c => c.name === "Period company")!, employee = employees.find(e => e.organizationId === company.id)!;
+  Object.assign(employee, { salaryPaymentMethod: "mobile money", mobileWalletProvider: "Bankak", mobileWalletNumber: "0912345678" });
+  Object.assign(company, { gratuityDaysPerYear: 30, gratuityDaysAfterFiveYears: 30, gratuityMinimumYears: 0 });
+  const run = runs.find(r => entries.some(e => e.runId === r.id && e.employeeId === employee.id))!;
+  saveStore(data);
+  assert.equal((await call(`/workspace/payroll/runs/${run.id}/bank-file`)).status, 409); // draft runs cannot be paid
+  run.status = "Approved"; saveStore(getStore());
+  const file = await call(`/workspace/payroll/runs/${run.id}/bank-file`);
+  assert.equal(file.status, 200);
+  const csv = await file.text();
+  assert.match(csv, /"mobile money","","","Bankak","0912345678","3000\.00","QAR","SAL-2026-09-[^"]+",""/);
+  const report = await expect(await call(`/workspace/payroll/end-of-service?company=${company.id}`));
+  const line = report.employees.find((e: Row) => e.employeeId === employee.id);
+  assert.equal(report.companies[0].configured, true);
+  assert.ok(line.years > 0.2 && Number(line.liability) > 0, JSON.stringify(line));
+});
