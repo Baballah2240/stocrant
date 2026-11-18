@@ -40,6 +40,7 @@ if (isNativeApp()) {
   document.documentElement.setAttribute("data-native", "true");
   const platform = (window as unknown as { Capacitor?: { getPlatform?: () => string } }).Capacitor?.getPlatform?.();
   if (platform) document.documentElement.setAttribute("data-native-platform", platform);
+  void import("./native-keyboard").then(({ setupNativeKeyboard }) => setupNativeKeyboard()).catch(() => {});
 }
 
 const employeeActivation = (new URLSearchParams(location.hash.slice(1)).has("activate") || new URLSearchParams(location.hash.slice(1)).has("invite"));

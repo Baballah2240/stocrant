@@ -56,6 +56,8 @@ const config: CapacitorConfig = {
       backgroundColor: "#0b1220",
     },
     PushNotifications: { presentationOptions: ["badge", "sound", "alert"] },
+    // Native keyboard: resize the web view so fields stay above the keyboard, also in edge-to-edge mode.
+    Keyboard: { resize: "native", resizeOnFullScreen: true },
   },
 };
 

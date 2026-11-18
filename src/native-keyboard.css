@@ -1,0 +1,6 @@
+/* While the native keyboard is open, fixed bottom bars would sit on top of it and hide the field. */
+html.keyboard-open .mobile-bottom-nav { display: none !important; }
+html.keyboard-open .ios-app.mobile-layout { --mobile-nav-height: 0px; }
+html.keyboard-open main, html.keyboard-open .page { scroll-padding-bottom: 24px; }
+/* Fields scrolled into view keep clear of the sticky mobile header. */
+html[data-native] :is(input, textarea, select, [contenteditable="true"]) { scroll-margin-top: 96px; scroll-margin-bottom: 24px; }

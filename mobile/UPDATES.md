@@ -1,5 +1,9 @@
 # Mobile update history
 
+## 2026-11-18 - Native keyboard handling
+
+The mobile app uses the Capacitor Keyboard plugin (@capacitor/keyboard 7.0.6). The app is built with Capacitor, not React Native, so this is its native-keyboard equivalent. The web view resizes with the keyboard (Android adjustResize, resizeOnFullScreen for edge-to-edge), the focused field scrolls into view clear of the header, and the bottom navigation hides while typing. Tapping outside a field closes the keyboard, and iOS shows the accessory bar. The browser website is unchanged. This native change needs a new APK; existing installs get it through Install update once a release is approved.
+
 ## 2026-11-18 - Logo layout fix
 
 The Stocrant logo images now stay inside their 180×36 box. Before, they grew to 180×180 and drew about 72px low, so the header logo appeared inside the sidebar and the sidebar logo covered the Workspace menu heading. The duplicate sidebar logo is removed; the header logo remains, and the collapsed-sidebar icon is unchanged. The sign-in and loading screen logos use the same fix. The branding browser test now checks image bounds against the logo box. Shared source only; the installed APK picks this up only in a new build.
