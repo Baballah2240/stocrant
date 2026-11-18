@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { useLanguage } from "../language-context";
 import MobileIcon, { type MobileIconName } from "./MobileIcon";
 export const financeToolGroups: { id: string; label: string; icon: MobileIconName; tabs: string[] }[] = [
-  { id: "summary", label: "Summary", icon: "home", tabs: ["Overview", "Profit & loss", "Reports"] },
+  { id: "summary", label: "Summary", icon: "home", tabs: ["Overview", "Profit & loss", "Reports", "Aged balances", "Partner ledger"] },
   { id: "movements", label: "Money movements", icon: "finance", tabs: ["All movements", "Income", "Expenses", "Transfers", "Other movements"] },
   { id: "settlements", label: "Collections & payments", icon: "shop", tabs: ["Sales", "Purchases", "Salaries & payroll"] },
   { id: "accounts", label: "Accounts & checks", icon: "shield", tabs: ["Banking", "Reconciliation"] },

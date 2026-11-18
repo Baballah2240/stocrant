@@ -146,3 +146,27 @@ html[dir=rtl] .finance-page :is(.finance-metric-label>svg,.finance-shortcuts but
  .finance-movement-table [data-label]::before { display:none; }
  .finance-status { color:black !important;background:white !important; }
 }
+
+/* Accounting analysis: journal cards, aged balances, category spend */
+.finance-journals{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:16px}
+.finance-journal{display:flex;flex-direction:column;gap:10px;margin:0}
+.finance-journal header{display:flex;gap:10px;align-items:center}
+.finance-journal h3{margin:0;font-size:1rem}
+.finance-journal-balance{font-size:1.5rem;font-variant-numeric:tabular-nums}
+.finance-journal dl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0}
+.finance-journal dt{font-size:.75rem;opacity:.7}
+.finance-journal dd{margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.finance-journal .inline-actions{margin-top:auto}
+.finance-segmented{display:inline-flex;gap:4px;flex-wrap:wrap}
+.finance-segmented button[aria-pressed="true"]{font-weight:700;outline:2px solid currentColor;outline-offset:-2px}
+.finance-aging-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0}
+.finance-aging-summary article{display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:10px;border:1px solid rgba(127,127,127,.25)}
+.finance-aging-summary article[data-bucket="61-90"]{border-color:#d97706}
+.finance-aging-summary article[data-bucket="90+"]{border-color:#dc2626}
+.finance-aging-summary span{font-size:.8rem;opacity:.75}
+.finance-overdue,.finance-negative{color:#dc2626}
+.finance-category-row{display:flex;flex-direction:column;gap:4px;margin:10px 0}
+.finance-category-row>div{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.finance-category-bar{display:block;height:8px;border-radius:4px;background:rgba(127,127,127,.18);overflow:hidden}
+.finance-category-bar span{display:block;height:100%;background:#3b82f6}
+@media print{.finance-journal .inline-actions,.finance-segmented{display:none}}
