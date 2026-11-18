@@ -111,3 +111,17 @@ Checkout accepts `payment: "cash" | "transfer"`. A transfer order gets `paymentM
 - **Upload:** `POST /api/storefront/:slug/orders/:orderId/transfer-proof` takes the raw image bytes, `X-Receipt-Secret` and an optional URI-encoded `X-Transfer-Reference`. It is same-origin only, rate limited, accepts up to 3 proofs and checks the file signature. Files go to `<STOCRANT_DATA_DIR>/data/payment-proofs/`; include it in backups.
 - **Staff:** `GET /api/workspace/shops/:companyId/orders/:id/transfer-proofs/:proofId` serves a proof image. `POST .../transfer-review` takes `{ decision: verify | reject, note }`, and a rejection requires a note.
 - **Finance:** verification records only the check. The Finance receipt is still recorded through the existing order payment flow after dispatch.
+
+## Order messages (Twilio SMS / WhatsApp)
+
+`alerts` in storefront settings is `{ customerChannel, notifyOn[], language, staffChannel, staffPhone }` (see `server/shop-alerts.ts`). Checkout accepts `updates: boolean` as the customer's opt-in.
+- **When messages are queued:** with the change that causes them, in the `shopMessages` collection. That covers checkout (reserved), staff status changes, transfer review, and staff alerts for new orders and transfer receipts.
+- **Sending:** a background dispatcher sends them through Twilio's Messages API, runs at startup and every 5 minutes, and retries up to 3 times. Twilio 4xx errors (except 429) count as permanent failures.
+- **No keys:** messages are marked `not-configured`.
+
+Configure these on the server, never in source control:
+- `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN`;
+- `TWILIO_SMS_FROM` (a Twilio number) or `TWILIO_MESSAGING_SERVICE_SID`, for SMS;
+- `TWILIO_WHATSAPP_FROM` (an approved WhatsApp sender, e.g. +14155238886 for the Twilio sandbox), for WhatsApp.
+
+WhatsApp messages outside a 24-hour customer conversation need Twilio-approved templates in production, and the sandbox only reaches numbers that joined it. Check Twilio's SMS coverage and sender rules for Sudan before relying on SMS there.

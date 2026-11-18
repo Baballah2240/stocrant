@@ -73,3 +73,44 @@ describe("shop transfer payments", () => {
     assert.equal((await upload(secret)).status, 409);
   });
 });
+
+describe("shop order messages through Twilio", () => {
+  const sent: Record<string, string>[] = [];
+  let fake: import("node:http").Server;
+  const wait = async (count: number) => { for (let i = 0; i < 50 && sent.length < count; i++) await new Promise(r => setTimeout(r, 40)); };
+  before(async () => {
+    const http = await import("node:http");
+    fake = http.createServer((rq, rs) => { let body = ""; rq.on("data", c => body += c); rq.on("end", () => { sent.push({ ...Object.fromEntries(new URLSearchParams(body)), path: String(rq.url), auth: String(rq.headers.authorization) }); rs.writeHead(201, { "Content-Type": "application/json" }); rs.end(JSON.stringify({ sid: "SM" + sent.length })); }); }).listen(0, "127.0.0.1");
+    await new Promise<void>(r => fake.once("listening", () => r()));
+    Object.assign(process.env, { TWILIO_ACCOUNT_SID: "ACtest", TWILIO_AUTH_TOKEN: "secret", TWILIO_SMS_FROM: "+15550001111", TWILIO_WHATSAPP_FROM: "+15550002222", STOCRANT_TWILIO_TEST_ENDPOINT: `http://127.0.0.1:${(fake.address() as { port: number }).port}`, NODE_TEST_CONTEXT: process.env.NODE_TEST_CONTEXT || "child" });
+  });
+  after(() => { for (const k of ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_SMS_FROM", "TWILIO_WHATSAPP_FROM", "STOCRANT_TWILIO_TEST_ENDPOINT"]) delete process.env[k]; fake.close(); });
+  it("normalises Sudanese numbers", async () => {
+    const { e164 } = await import("./shop-alerts.js");
+    assert.equal(e164("0912 345 678"), "+249912345678"); assert.equal(e164("00249912345678"), "+249912345678"); assert.equal(e164("٠٩١٢٣٤٥٦٧٨"), "+249912345678"); assert.equal(e164("12"), "");
+  });
+  it("texts opted-in customers on WhatsApp and staff by SMS, and stays quiet without opt-in", async () => {
+    const current = (await json(await req(config()))).settings as Row, view = await json(await req(config()));
+    assert.deepEqual(view.messaging, { sms: true, whatsapp: true });
+    await json(await req(config(), "PUT", { ...payload(current), alerts: { customerChannel: "whatsapp", notifyOn: ["reserved", "dispatched"], language: "ar", staffChannel: "sms", staffPhone: "" } }), 400);
+    await json(await req(config(), "PUT", { ...payload(current), payments: { ...current.payments, cashEnabled: true }, alerts: { customerChannel: "whatsapp", notifyOn: ["reserved", "dispatched"], language: "ar", staffChannel: "sms", staffPhone: "+249 900 111 222" } }));
+    const q = await json(await req(api + "/quote", "POST", { lines: [{ productId: product.id, quantity: 1 }], method: "pickup" }, guest));
+    const body = { receiptSecret: hex(), customer: "Amna", email: "", phone: "0912 345 678", address: "", region: "", notes: "", consent: true, website: "", method: "pickup", lines: [{ productId: product.id, quantity: 1 }], quoteToken: q.quoteToken, payment: "cash" };
+    const optedIn = (await json(await req(api + "/checkout", "POST", { ...body, requestId: randomUUID(), updates: true }, guest), 201)).order;
+    await wait(2);
+    const customer = sent.find(m => m.To === "whatsapp:+249912345678")!, staff = sent.find(m => m.To === "+249900111222")!;
+    assert.ok(customer, JSON.stringify(sent)); assert.equal(customer.From, "whatsapp:+15550002222"); assert.match(customer.Body, /استلمنا طلبك/);
+    assert.equal(customer.path, "/2010-04-01/Accounts/ACtest/Messages.json"); assert.equal(customer.auth, "Basic " + Buffer.from("ACtest:secret").toString("base64"));
+    assert.ok(staff); assert.equal(staff.From, "+15550001111"); assert.match(staff.Body, /Amna/);
+    const before = sent.length;
+    await json(await req(api + "/checkout", "POST", { ...body, receiptSecret: hex(), requestId: randomUUID(), updates: false }, guest), 201);
+    await wait(before + 1);
+    assert.equal(sent.filter(m => m.To.startsWith("whatsapp:")).length, 1, "no customer message without opt-in");
+    const snapshot = await json(await req(`/workspace/shops/${company.id}`));
+    const staffView = snapshot.orders.find((o: Row) => o.id === optedIn.id);
+    assert.ok(staffView.messages.some((m: Row) => m.audience === "customer" && m.status === "sent"));
+    await json(await req(`/workspace/shops/${company.id}/orders/${optedIn.id}/status`, "POST", { version: staffView.version, status: "preparing" }));
+    await new Promise(r => setTimeout(r, 200));
+    assert.equal(sent.filter(m => m.To.startsWith("whatsapp:")).length, 1, "preparing is not in notifyOn");
+  });
+});

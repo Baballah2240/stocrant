@@ -258,4 +258,6 @@ export const ar: Record<string, string> = {
   "Photo of the transfer receipt": "صورة إشعار التحويل",
   "Transaction number (optional)": "رقم العملية (اختياري)",
   "Send transfer receipt": "إرسال إشعار التحويل",
+  "Send me order updates on WhatsApp": "أرسلوا لي تحديثات الطلب عبر واتساب",
+  "Send me order updates by SMS": "أرسلوا لي تحديثات الطلب برسالة نصية",
 };

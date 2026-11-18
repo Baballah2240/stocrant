@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { createApp } from "./app.js";
 import { generateDocumentExpiryAlerts } from "./documents.js";
 import { generateLicenseExpiryAlerts } from "./company-setup.js";
+import { dispatchShopMessages } from "./shop-alerts.js";
 
 const port = Number(process.env.PORT) || 3000;
 const app = createApp();
@@ -43,3 +44,8 @@ server.listen(port, "0.0.0.0", () => {
   console.log(`STOCRANT API listening on http://0.0.0.0:${port}`);
   console.log(`Data stored in ${join(dataDir, "stocrant.json")}`);
 });
+
+// Retry queued shop SMS/WhatsApp messages (also after a restart).
+const messageTimer = setInterval(() => { void dispatchShopMessages().catch(() => console.error("Shop message dispatch failed.")); }, 5 * 60 * 1000);
+messageTimer.unref?.();
+void dispatchShopMessages().catch(() => console.error("Shop message dispatch failed."));

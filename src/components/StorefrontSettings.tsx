@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { request, serverUrl } from "../api";
 import { useLanguage } from "../language-context";
 import StorefrontMerchandising from "./StorefrontMerchandising";
+import StorefrontAlerts, { defaultAlerts, type ShopAlerts, type Messaging } from "./StorefrontAlerts";
 import StorefrontPayments, { defaultPayments, type ShopPayments } from "./StorefrontPayments";
 import StorefrontBranding, { defaultBranding, type Branding } from "./StorefrontBranding";
 import { defaultMerchandising, type MerchProduct } from "../storefront-merchandising";
@@ -29,6 +30,7 @@ const initial = {
   merchandising: defaultMerchandising,
   branding: defaultBranding as Branding,
   payments: defaultPayments as ShopPayments,
+  alerts: defaultAlerts as ShopAlerts,
 };
 type Settings = typeof initial;
 export default function StorefrontSettings({
@@ -46,17 +48,19 @@ export default function StorefrontSettings({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [url, setUrl] = useState<string | null>(null);
+    [url, setUrl] = useState<string | null>(null),
+    [messaging, setMessaging] = useState<Messaging | undefined>();
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
-    request<{ settings: Settings; url: string | null }>(
+    request<{ settings: Settings; url: string | null; messaging?: Messaging }>(
       `/workspace/storefronts/${companyId}`,
     )
       .then((r) => {
         if (active) {
-          setSettings({ ...initial, ...r.settings, branding: { ...defaultBranding, ...(r.settings.branding || {}) }, payments: { ...defaultPayments, ...(r.settings.payments || {}) } });
+          setSettings({ ...initial, ...r.settings, branding: { ...defaultBranding, ...(r.settings.branding || {}) }, payments: { ...defaultPayments, ...(r.settings.payments || {}) }, alerts: { ...defaultAlerts, ...(r.settings.alerts || {}) } });
+          setMessaging(r.messaging);
           setUrl(r.url);
         }
       })
@@ -265,6 +269,7 @@ export default function StorefrontSettings({
                 )}
               </label>
             </section>
+            <StorefrontAlerts value={settings.alerts} messaging={messaging} onChange={alerts => setSettings({ ...settings, alerts })} />
             <StorefrontPayments value={settings.payments} onChange={payments => setSettings({ ...settings, payments })} />
             <section className="shop-form">
               <h3>{t("Shop policies")}</h3>

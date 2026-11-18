@@ -1,5 +1,15 @@
 # Mobile update history
 
+## 2026-11-18 - Shop order messages by SMS and WhatsApp (Twilio)
+
+Shops & orders > Customer storefront has **Order messages (SMS / WhatsApp)**:
+- **Customer updates:** choose WhatsApp, SMS or off, and the message language (Arabic or English). Choose which events send a message: order received, being prepared, on its way (with the shipment reference), delivered, cancelled, transfer confirmed, and transfer not confirmed (with the staff note). Customers only get messages when they tick "Send me order updates" at checkout. Sudanese local numbers (0912…, 00249…, Arabic digits) are converted to +249….
+- **Staff alert:** a text to one staff phone for every new order and every transfer receipt. Staff also always get the in-app and push notifications.
+- **Message log:** each order shows its messages with status sent, sending, failed (with Twilio's reason) or "not sent — Twilio not connected". Failed sends retry up to 3 times, including after a restart.
+- **Connection status:** the settings show whether the server has Twilio keys. Without them, messages are logged but not sent.
+
+Server keys: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, plus TWILIO_SMS_FROM (or TWILIO_MESSAGING_SERVICE_SID) for SMS and TWILIO_WHATSAPP_FROM for WhatsApp. They are not set by this change. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Shop payment by bank or mobile-money transfer
 
 - **Shop settings:** Shops & orders > Customer storefront has **Customer payment options**. Allow cash on delivery or collection, transfer, or both. Transfer needs up to 6 accounts, each with provider, account name, account or phone number and instructions. Bankak, Fawry, O-Cash and MyCashi are offered as names.

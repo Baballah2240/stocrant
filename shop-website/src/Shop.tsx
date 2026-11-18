@@ -32,6 +32,7 @@ const defaultBranding: Branding = { template: "classic", primaryColor: "#244c40"
 /** Readable text colour on a brand colour. */
 const onColor = (hex: string) => { const n = parseInt(hex.slice(1), 16), l = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#14221d" : "#fffdf5"; };
 type Settings = {
+  alerts?: { customerChannel: "none" | "sms" | "whatsapp" };
   payments?: { cashEnabled: boolean; transferEnabled: boolean };
   branding?: Branding;
   merchandising?: Merchandising;
@@ -264,6 +265,7 @@ export default function Shop() {
     region: "",
     notes: "",
     consent: false,
+    updates: false,
     website: "",
   });
   const [order, setOrder] = useState<Receipt | null>(null),
@@ -1218,6 +1220,10 @@ export default function Shop() {
                       {link("/policies/privacy", t("Privacy"))}
                     </span>
                   </label>
+                  {shop.alerts && shop.alerts.customerChannel !== "none" && <label className="consent">
+                    <input type="checkbox" checked={form.updates} onChange={(e) => setForm({ ...form, updates: e.target.checked })} />
+                    <span>{t(shop.alerts.customerChannel === "whatsapp" ? "Send me order updates on WhatsApp" : "Send me order updates by SMS")}</span>
+                  </label>}
                 </fieldset>
                 <aside className="order-summary">
                   <h2>{t("Order summary")}</h2>

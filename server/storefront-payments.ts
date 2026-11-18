@@ -11,6 +11,7 @@ import { photoType } from "./shop-media.js";
 import { getCollection, getDataDirectory, getStore, saveStore, transaction } from "./storage.js";
 import { audit } from "./workspace.js";
 import { createNotification } from "./notifications.js";
+import { queueOrderUpdate, queueStaffAlert } from "./shop-alerts.js";
 
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
@@ -51,6 +52,7 @@ export function saveTransferProof(s: Row, order: Row, bytes: Buffer, reference: 
     transaction(() => {
       order.transferProofs = [...(order.transferProofs || []), { id, mime, size: bytes.length, reference, at: new Date().toISOString() }];
       order.transferStatus = "proof-submitted"; delete order.transferNote;
+      queueStaffAlert(order, "staffProof");
       audit(undefined, "storefront.transfer-proof", { organizationId: order.organizationId, targetId: order.id, section: "operations" });
       createNotification({ userId: owner.id, user: owner.name, type: "message", severity: "info", message: `Transfer proof received for order ${order.orderNumber || order.id.slice(0, 8)}.`, messageKey: "Transfer proof received for order {reference}.", messageValues: { reference: order.orderNumber || order.id.slice(0, 8) }, target: `shop-order:${order.id}` });
       saveStore(getStore());
@@ -81,6 +83,7 @@ transferReviewRouter.post("/:companyId/orders/:id/transfer-review", (req, res) =
       if (order.transferStatus !== "proof-submitted") throw Object.assign(new Error("There is no transfer proof waiting for review."), { statusCode: 409 });
       if (b.decision === "reject" && !b.note) throw Object.assign(new Error("Tell the customer why the transfer was not accepted."), { statusCode: 400 });
       order.transferStatus = b.decision === "verify" ? "verified" : "rejected";
+      queueOrderUpdate(order, b.decision === "verify" ? "transfer-verified" : "transfer-rejected", { note: b.note });
       order.transferNote = b.note; order.transferReviewedBy = req.auth!.id; order.transferReviewedAt = new Date().toISOString();
       audit(req.auth, b.decision === "verify" ? "shop.transfer-verified" : "shop.transfer-rejected", { organizationId: order.organizationId, targetId: order.id, section: "operations" });
       saveStore(getStore());

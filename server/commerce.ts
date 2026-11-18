@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { shopServiceOpen } from "./shop-clients.js";
+import { queueOrderUpdate, orderMessages } from "./shop-alerts.js";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { AuthenticatedUser } from "./auth.js";
@@ -378,6 +379,7 @@ commerceRouter.get("/:companyId", (req, res) => {
       )
       .map((o) => ({
         ...publicOrder(o),
+        messages: orderMessages(o.id),
         settlement:
           o.saleId && can(req.auth, "finance", "view")
             ? settlementRows(
@@ -693,6 +695,7 @@ commerceRouter.post("/:companyId/orders/:id/status", (req, res) => {
             at: new Date().toISOString(),
             actor: req.auth!.name,
           });
+          queueOrderUpdate(o, b.status);
           return o;
         }),
       ),

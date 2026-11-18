@@ -1,4 +1,5 @@
 import express, { Router, type Request, type Response } from "express";
+import { alertsSchema, alertsFor, defaultAlerts, alertProvider, queueOrderUpdate, queueStaffAlert } from "./shop-alerts.js";
 import { paymentsSchema, paymentsFor, defaultPayments, applyCheckoutPayment, receiptPayment, saveTransferProof, PROOF_LIMIT } from "./storefront-payments.js";
 import {
   createHash,
@@ -92,6 +93,7 @@ const settingsSchema = z
     merchandising: merchandisingSchema.optional(),
     branding: brandingSchema.optional(),
     payments: paymentsSchema.optional(),
+    alerts: alertsSchema.optional(),
   })
   .strict();
 const defaults = {
@@ -117,6 +119,7 @@ const defaults = {
   reservationHours: 24,
   branding: defaultBranding,
   payments: defaultPayments,
+  alerts: defaultAlerts,
   merchandising: defaultMerchandising,
 };
 function admin(req: Request, companyId: string) {
@@ -128,7 +131,7 @@ function admin(req: Request, companyId: string) {
 }
 function safeSettings(s: Row) {
   const { connectorId, ownerId, ...safe } = s;
-  return { ...safe, branding: brandingFor(s), payments: paymentsFor(s) };
+  return { ...safe, branding: brandingFor(s), payments: paymentsFor(s), alerts: alertsFor(s) };
 }
 function context(s: Row) {
   const connector = rows("shopConnectors").find(
@@ -398,6 +401,7 @@ storefrontAdminRouter.get("/:companyId", (req, res) => {
     res.json({
       settings: current ? safeSettings(current) : defaults,
       url: current ? `/shop/${current.slug}` : null,
+      messaging: alertProvider(),
     });
   } catch (e) {
     error(res, e);
@@ -419,6 +423,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
       const branding = b.branding ?? brandingFor(current || {});
       validateBranding(branding, current?.id, req.hostname);
       const payments = b.payments ?? paymentsFor(current || {});
+      const alerts = b.alerts ?? alertsFor(current || {});
       if (
         current &&
         current.slug !== b.slug &&
@@ -470,6 +475,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
         merchandising,
         branding,
         payments,
+        alerts,
         deliveryFee,
         id: current?.id || randomUUID(),
         organizationId: c.id,
@@ -528,7 +534,7 @@ storefrontRouter.get("/:slug/catalog", (req, res) => {
     const { connectorId, ownerId, organizationId, id, ...settings } = s;
     const products = catalog(s, user, company.currency), m = merchandisingFor(s);
     res.json({
-      shop: { ...settings, payments: { cashEnabled: paymentsFor(s).cashEnabled, transferEnabled: paymentsFor(s).transferEnabled }, branding: brandingFor(s), merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
+      shop: { ...settings, alerts: { customerChannel: alertsFor(s).customerChannel }, payments: { cashEnabled: paymentsFor(s).cashEnabled, transferEnabled: paymentsFor(s).transferEnabled }, branding: brandingFor(s), merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
       products,
       refreshAt: nextMerchandisingChange(m),
     });
@@ -610,6 +616,7 @@ const checkoutSchema = z
     lines: z.array(lineSchema).min(1).max(50),
     method: z.enum(["pickup", "delivery"]),
     payment: z.enum(["cash", "transfer"]).default("cash"),
+    updates: z.boolean().default(false),
   })
   .strict();
 storefrontRouter.post("/:slug/checkout", (req, res) => {
@@ -687,6 +694,9 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
       order.paymentMethod =
         b.method === "pickup" ? "pay-on-collection" : "pay-on-delivery";
       applyCheckoutPayment(s, order, b.payment);
+      order.customerUpdates = b.updates && alertsFor(s).customerChannel !== "none";
+      queueOrderUpdate(order, "reserved");
+      queueStaffAlert(order, "staffOrder");
       rows("storefrontCheckouts").push({
         id: randomUUID(),
         storefrontId: s.id,
