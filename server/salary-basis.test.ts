@@ -135,3 +135,29 @@ it("hotel bookings: nights and total are calculated, check-out creates one sale,
   await expect(await patch(other.id, { status: "cancelled" }));
   assert.equal((getStore().collections.sales as Row[]).find(s => s.id === otherSale.id)!.status, "cancelled");
 });
+
+it("company setup checklist and licence expiry reminders", async () => {
+  const { generateLicenseExpiryAlerts } = await import("./company-setup.js");
+  const org = (await expect(await call("/collections/organizations", { name: "Setup organization", status: "active" }), 201)).item;
+  const company = (await expect(await call("/collections/companies", { name: "Setup Co", parentOrganizationId: org.id, status: "active", organizationType: "shop", industry: "retail", currency: "SDG" }), 201)).item;
+  let setup = await expect(await call(`/workspace/companies/${company.id}/setup`));
+  const item = (id: string) => setup.items.find((i: Row) => i.id === id);
+  assert.equal(item("type").done, true); assert.equal(item("eos").done, false); assert.equal(item("registration").done, false);
+  assert.ok(setup.done < setup.total);
+  // Saving from the company page with optional settings left empty must work; VAT 17% without a number is not done.
+  await expect(await call(`/collections/companies/${company.id}`, { fiscalYearStart: "January", vatRate: "17", vatNumber: "", exchangeRateSource: "", salaryCountingBasis: "from last salary paid", gratuityDaysPerYear: "30", gratuityDaysAfterFiveYears: "", booksLockedUntil: "" }, "PATCH"));
+  setup = await expect(await call(`/workspace/companies/${company.id}/setup`));
+  assert.equal(item("fiscal").done, true); assert.equal(item("eos").done, true); assert.equal(item("vat").done, false);
+  // Licences: an expired commercial registration is flagged and notifies once per stage.
+  const soon = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+  await expect(await call("/collections/companyLicenses", { organizationId: company.id, licenseType: "commercial registration", number: "CR-1", expiryDate: "2025-01-01", status: "active" }), 201);
+  await expect(await call("/collections/companyLicenses", { organizationId: company.id, licenseType: "municipality licence", number: "ML-9", expiryDate: soon, status: "active" }), 201);
+  setup = await expect(await call(`/workspace/companies/${company.id}/setup`));
+  assert.equal(item("registration").done, true); assert.equal(item("licensesCurrent").done, false);
+  assert.deepEqual(setup.licenses.map((l: Row) => l.status), ["expired", "expiring"]);
+  const first = generateLicenseExpiryAlerts(), again = generateLicenseExpiryAlerts();
+  assert.ok(first >= 2); assert.equal(again, 0);
+  const notes = (getStore().collections.notifications as Row[]).filter(n => n.type === "license_expiry");
+  assert.ok(notes.some(n => n.messageKey === "A company licence has expired: {type} for {company}." && n.severity === "critical"));
+  assert.ok(notes.some(n => n.messageKey === "A company licence expires in {days} days: {type} for {company}."));
+});

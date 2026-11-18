@@ -685,3 +685,21 @@ registry.push(
     columns: ["name", "category", "durationMinutes", "price", "status"],
   },
 );
+
+// Company licences and official documents, with expiry reminders.
+registry.push({
+  collection: "companyLicenses", label: "Company licences", singular: "Licence",
+  module: "organization", permission: "organization.companyLicenses.read",
+  fields: [
+    { key: "licenseType", label: "Licence / document", type: "select", options: ["commercial registration", "tax registration", "VAT certificate", "municipality licence", "health licence", "civil defence certificate", "chamber of commerce", "import / export licence", "trade licence", "insurance policy", "lease contract", "other"], required: true },
+    { key: "number", label: "Number", type: "text", required: true },
+    { key: "issuingAuthority", label: "Issuing authority", type: "text" },
+    { key: "issueDate", label: "Issue date", type: "date" },
+    { key: "expiryDate", label: "Expiry date", type: "date" },
+    { key: "reminderDays", label: "Remind days before expiry", type: "number", min: 0, max: 365 },
+    { key: "status", label: "Status", type: "select", options: ["active", "renewal in progress", "expired", "cancelled"], required: true },
+    { key: "documentLink", label: "Document link", type: "text", placeholder: "https://…" },
+    { key: "notes", label: "Notes", type: "textarea" },
+  ],
+  columns: ["licenseType", "number", "issuingAuthority", "expiryDate", "status"],
+});

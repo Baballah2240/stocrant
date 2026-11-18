@@ -7,7 +7,7 @@ export type WorkspaceSection = "organizations" | "locations" | "hr" | "operation
 
 const COLLECTION_SECTIONS: Record<string, WorkspaceSection> = {
   organizations: "organizations",
-  companies: "organizations",
+  companies: "organizations", companyLicenses: "organizations",
   departments: "hr", employees: "hr", attendance: "hr", shifts: "hr", leaveRequests: "hr", employeeCustody: "hr", documents: "hr", contracts:"hr",employmentContracts:"hr",employeeHistory: "hr", performanceReviews: "hr",
   companyNotes: "operations", menuItems: "operations", diningTables: "operations", hotelRooms: "operations", roomBookings: "operations", serviceCatalog: "operations", tasks: "operations", workFiles:"operations", taskNotificationEvents:"operations", workItems: "operations", workActivity: "operations", suppliers: "operations", customers: "operations", products: "operations",
   customerAppointments: "customerService", customerQuestions: "customerService", customerReplies: "customerService",

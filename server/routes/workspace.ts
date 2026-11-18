@@ -1,3 +1,4 @@
+import { companySetup } from "../company-setup.js";
 import { inventoryImage, validateInventoryImage } from "./inventory-photos.js";
 import { taskOverdue, taskToday } from "../operations.js";
 import { reverseFinancialTransaction } from "../finance-ledger.js";
@@ -428,6 +429,9 @@ router.get("/finance", requirePermission("finance", "view"), (req, res) => {
   const summary = financeSummary(req.auth);
   res.json({ ...summary, companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), people: scoped(req, rows("employees"), "employees").map((person) => ({ id: person.id, name: person.name, organizationId: person.organizationId })), accounts: scoped(req, summary.accounts, "financeAccounts"), transactions: scoped(req, summary.transactions, "financeTransactions") });
 });
+
+/** Company setup checklist and licence status. */
+router.get("/companies/:id/setup", requirePermission("organizations", "view"), (req, res) => { try { return res.json(companySetup(req.auth!, String(req.params.id))); } catch (error) { return sendError(res, error); } });
 
 /** Double-entry general ledger derived from the records this user may see. */
 router.get("/finance/ledger", requirePermission("finance", "view"), (req, res) => {

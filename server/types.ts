@@ -96,7 +96,8 @@ export type NotificationType =
   | "pending_approval"
   | "unauthorized_access"
   | "password_reset"
-  | "leave_request";
+  | "leave_request"
+  | "license_expiry";
 
 export type NotificationSeverity = "info" | "warning" | "critical";
 

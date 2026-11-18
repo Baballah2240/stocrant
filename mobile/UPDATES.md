@@ -1,5 +1,14 @@
 # Mobile update history
 
+## 2026-11-18 - Company setup checklist and licence reminders
+
+- **Setup checklist:** the company overview shows a checklist across company, finance, people & payroll and licences. Each open item links to where it is set. Items: contact details, type, currency, fiscal year, payment terms, VAT, accounts, exchange rate source (only for companies with several currencies), employees, payroll rules, salary counting, end-of-service rule, employee payment details, commercial registration, and no expired licences.
+- **Company licences & official documents:** commercial registration, tax and VAT certificates, municipality, health and civil defence licences, chamber of commerce, import/export and trade licences, insurance and lease. Each has a number, issuing authority, dates, a reminder window, status and a document link.
+- **Reminders:** the company page warns about expired and expiring licences. Company managers are notified at the reminder window, 30 days, 7 days and on expiry, once per stage.
+- **Company page settings:** now includes Accounting & finance (fiscal year, payment terms, VAT, rate source, books closed through) and Payroll & end of service.
+
+Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Hotel bookings become sales; company filter on record lists
 
 - **Booking amounts:** the server calculates nights and total (nights × nightly rate) and ignores client totals. Check-out must be after check-in.

@@ -21,6 +21,7 @@ function typeLabel(type: NotificationType): string {
   if (type === "registration_request") return "Registration";
   if (type === "message") return "Message";
   if (type === "leave_request") return "Leave request";
+  if (type === "license_expiry") return "Company licence";
   if (type === "password_reset") return "Password reset";
   if (type === "overdue_work") return "Overdue";
   if (type === "low_stock") return "Low stock";

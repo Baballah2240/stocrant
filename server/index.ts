@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createApp } from "./app.js";
 import { generateDocumentExpiryAlerts } from "./documents.js";
+import { generateLicenseExpiryAlerts } from "./company-setup.js";
 
 const port = Number(process.env.PORT) || 3000;
 const app = createApp();
@@ -15,8 +16,9 @@ const hrTimer = setInterval(() => { try { dispatchHrMessages(); } catch { consol
 hrTimer.unref();
 const onboardingTimer=setInterval(()=>{void dispatchOnboardingEmails().catch(()=>console.error("Onboarding delivery scan failed."));},15000);
 onboardingTimer.unref();
-const expiryTimer = setInterval(() => { try { generateDocumentExpiryAlerts(); } catch { console.error("HR document expiry scan failed; no file details logged."); } }, 6 * 60 * 60 * 1000);
+const expiryTimer = setInterval(() => { try { generateLicenseExpiryAlerts(); } catch { console.error("Company licence expiry scan failed."); } try { generateDocumentExpiryAlerts(); } catch { console.error("HR document expiry scan failed; no file details logged."); } }, 6 * 60 * 60 * 1000);
 expiryTimer.unref();
+try { generateLicenseExpiryAlerts(); } catch { console.error("Company licence expiry scan failed."); }
 try { generateDocumentExpiryAlerts(); } catch { console.error("HR document expiry scan failed; no file details logged."); }
 const server = createServer(app);
 void import("./mobile-push.js").then(({dispatchMobilePush}) => {
