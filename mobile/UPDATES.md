@@ -1,5 +1,9 @@
 # Mobile update history
 
+## 2026-11-18 - Logo layout fix
+
+The Stocrant logo images now stay inside their 180×36 box. Before, they grew to 180×180 and drew about 72px low, so the header logo appeared inside the sidebar and the sidebar logo covered the Workspace menu heading. The duplicate sidebar logo is removed; the header logo remains, and the collapsed-sidebar icon is unchanged. The sign-in and loading screen logos use the same fix. The branding browser test now checks image bounds against the logo box. Shared source only; the installed APK picks this up only in a new build.
+
 ## 2026-11-18 - In-app update install (Android)
 
 On Android, approved releases now show an Install update button, or Up to date when the release is not newer than the installed build. The app downloads the APK over HTTPS (redirects must stay HTTPS, 200 MB limit), verifies it against the release SHA-256 approved by Super Admin, and hands it to the Android package installer. A file that does not match is deleted, not installed. The first time, Android asks the user to allow Stocrant to install apps; adds REQUEST_INSTALL_PACKAGES. The Android build number now defaults to the git commit count (STOCRANT_VERSION_CODE still overrides it), so each build is newer than the last. Android still requires the same signing key for updates; this APK is a debug build. Shared source plus native change: installed apps must be updated manually once to get this feature.

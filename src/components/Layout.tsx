@@ -104,7 +104,7 @@ export default function Layout() {
       {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to={isNativeApp() ? "/" : "/workspace"} end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}{mainAdmin && canSeeSection("finance") && <NavLink to="/finance"><MobileIcon name="finance" />{t("Finance")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
       <div className="app">
         <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} inert={mobile || sidebarCollapsed} aria-hidden={mobile || sidebarCollapsed ? true : undefined}>
-          <div className="sidebar-brand"><BrandLogo/></div><nav className="nav" aria-label={t("Main navigation")}>
+          <nav className="nav" aria-label={t("Main navigation")}>
             {!mobile && <WorkspaceNavigation key={user?.id} items={visibleNavItems} />}
           </nav>
           <div className="nav-bottom">
