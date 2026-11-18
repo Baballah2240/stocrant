@@ -161,3 +161,33 @@ it("company setup checklist and licence expiry reminders", async () => {
   assert.ok(notes.some(n => n.messageKey === "A company licence has expired: {type} for {company}." && n.severity === "critical"));
   assert.ok(notes.some(n => n.messageKey === "A company licence expires in {days} days: {type} for {company}."));
 });
+
+it("company overview figures follow the company type", async () => {
+  const { companyKpis } = await import("./company-kpis.js");
+  const org = (await expect(await call("/collections/organizations", { name: "KPI organization", status: "active" }), 201)).item;
+  const make = async (organizationType: string) => (await expect(await call("/collections/companies", { name: "KPI " + organizationType, parentOrganizationId: org.id, status: "active", organizationType, industry: "mixed", currency: "SDG" }), 201)).item;
+  const now = new Date("2026-12-15T09:00:00Z"), today = "2026-12-15";
+  const hotel = await make("hotel"), restaurant = await make("restaurant");
+  const data = getStore(), c = data.collections as Record<string, Row[]>;
+  (c.hotelRooms ||= []).push(...["101", "102", "103", "104"].map((roomNumber, i) => ({ id: `kpi-room-${i}`, organizationId: hotel.id, roomNumber, roomType: "double", nightlyRate: 100, status: i === 3 ? "maintenance" : i === 2 ? "cleaning" : "available" })));
+  (c.roomBookings ||= []).push(
+    { id: "kpi-b1", organizationId: hotel.id, guestName: "A", roomNumber: "101", checkIn: "2026-12-14", checkOut: "2026-12-16", status: "checked in", nightlyRate: 100 },
+    { id: "kpi-b2", organizationId: hotel.id, guestName: "B", roomNumber: "102", checkIn: today, checkOut: "2026-12-17", status: "reserved", nightlyRate: 100 },
+    { id: "kpi-b3", organizationId: hotel.id, guestName: "C", roomNumber: "103", checkIn: "2026-12-13", checkOut: today, status: "checked in", nightlyRate: 100 },
+    { id: "kpi-b4", organizationId: hotel.id, guestName: "D", roomNumber: "103", checkIn: today, checkOut: "2026-12-16", status: "cancelled", nightlyRate: 100 });
+  c.sales.push({ id: "kpi-s1", organizationId: hotel.id, invoiceNo: "K1", date: today, total: "300.00", status: "completed" }, { id: "kpi-s2", organizationId: hotel.id, invoiceNo: "K2", date: "2026-12-01", total: "200.00", status: "completed" }, { id: "kpi-s3", organizationId: hotel.id, invoiceNo: "K3", date: today, total: "999.00", status: "cancelled" });
+  (c.diningTables ||= []).push({ id: "kpi-t1", organizationId: restaurant.id, name: "1", seats: 4, status: "occupied" }, { id: "kpi-t2", organizationId: restaurant.id, name: "2", seats: 2, status: "free" });
+  (c.menuItems ||= []).push({ id: "kpi-m1", organizationId: restaurant.id, name: "Ful", category: "breakfast", price: 10, status: "sold out" }, { id: "kpi-m2", organizationId: restaurant.id, name: "Tea", category: "hot drinks", price: 2, status: "available" });
+  saveStore(data);
+  const admin = { ...(c.accessUsers.find(a => a.roleId === "role-main-manager")), organizationIds: [], locationIds: [], permissions: ["*"], ownRecordsOnly: false } as any;
+  const value = (result: Row, id: string) => result.kpis.find((k: Row) => k.id === id)?.value;
+  const h = companyKpis(admin, hotel.id, now);
+  assert.equal(h.type, "hotel");
+  assert.equal(value(h, "occupancy"), "67");   // 2 guests in house tonight out of 3 usable rooms
+  assert.equal(value(h, "arrivals"), "1"); assert.equal(value(h, "departures"), "1"); assert.equal(value(h, "cleaning"), "1");
+  assert.equal(value(h, "salesToday"), "300.00"); assert.equal(value(h, "salesMonth"), "500.00");
+  assert.equal(value(h, "receivable"), "500.00");
+  const r = companyKpis(admin, restaurant.id, now);
+  assert.equal(value(r, "tables"), "1"); assert.equal(value(r, "soldOut"), "1"); assert.equal(value(r, "occupancy"), undefined);
+  assert.equal((await call(`/workspace/companies/${hotel.id}/kpis`)).status, 200);
+});

@@ -1,5 +1,16 @@
 # Mobile update history
 
+## 2026-11-18 - Today at a glance on the company overview
+
+The company overview shows key figures for its type. Each card opens the related list or report:
+- **Hotel:** occupancy tonight (rooms in use out of usable rooms, maintenance excluded), arrivals, departures, rooms to clean.
+- **Restaurant:** tables in use (free and reserved shown below), menu items sold out, kitchen stock to reorder.
+- **Shop:** products to reorder, orders waiting.
+- **Services:** appointments today and how many are still to come.
+- **Every type:** sales today, sales this month and unpaid invoices.
+
+Figures only show for areas the user may view (finance, operations, inventory, customer service), and cancelled sales and bookings are excluded. Restaurant top-selling dishes are not shown, because sales are not itemised by dish yet. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Company setup checklist and licence reminders
 
 - **Setup checklist:** the company overview shows a checklist across company, finance, people & payroll and licences. Each open item links to where it is set. Items: contact details, type, currency, fiscal year, payment terms, VAT, accounts, exchange rate source (only for companies with several currencies), employees, payroll rules, salary counting, end-of-service rule, employee payment details, commercial registration, and no expired licences.

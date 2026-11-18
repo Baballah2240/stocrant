@@ -1,3 +1,4 @@
+import CompanyKpis from "./CompanyKpis";
 import CompanySetup from "./CompanySetup";
 import { CompanyTypeTools } from "./CompanyTypePicker";
 import AnalyticsWorkspace from "./AnalyticsWorkspace";
@@ -55,6 +56,7 @@ export default function CompanyProfile(){
     <details className="technical-details card"><summary>{t("Technical identifiers")}</summary><p>{t("Company ID")}: <b dir="ltr">{company.id}</b></p><p>{t("Organization ID")}: <b dir="ltr">{organization?.id||String(company.parentOrganizationId||"")}</b></p><p>{t("Created")}: {date(company.createdAt)} · {t("Last updated")}: {date(company.updatedAt)}</p></details>
     <div className="company-workspace-toolbar"><label>{t("Switch company")}<ChoiceSelect searchable value={company.id} onChange={event=>navigate('/organization/companies/'+encodeURIComponent(event.target.value))}>{data.companies.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</ChoiceSelect></label><span className="hint">{organization?.name}</span></div>
     <nav className="company-workspace-nav" aria-label={t("Company sections")}>{allowed.map(([key,label,path])=><Link key={key} to={key==="settings"?base+"?section=settings":base+"?section="+key} aria-current={section===key?"page":undefined}><CompanySectionIcon path={path}/><span>{t(label)}</span></Link>)}</nav>
+    {section==="overview"&&<CompanyKpis companyId={company.id}/>}
     {section==="overview"&&<CompanySetup companyId={company.id}/>}
     {section==="overview"&&<CompanyTypeTools company={company as {id:string;organizationType?:unknown;serviceCategory?:unknown}}/>}
     {section==="overview"&&<><div className="company-summary-grid">{permissions.viewEmployees&&[["Employees",employees.length],["Active employees",employees.filter(item=>item.status==="active").length],["Present today",new Set((data.records.attendance??[]).filter(item=>item.date===new Date().toISOString().slice(0,10)&&["present","late","remote","half-day"].includes(String(item.status))).map(item=>item.employeeId||item.employee).filter(Boolean)).size],["Pending leave",(data.records.leaveRequests??[]).filter(item=>String(item.status).toLowerCase()==="pending").length]].map(([label,count])=><Link className="card" key={label} to={base+"?section="+(label==="Pending leave"?"leave":label==="Present today"?"hr":"employees")}><span>{t(String(label))}</span><strong>{count}</strong></Link>)}{permissions.viewPayroll&&<Link className="card" to={base+"?section=payroll"}><span>{t("Payroll periods")}</span><strong>{data.payroll.length}</strong></Link>}</div></>}

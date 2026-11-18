@@ -1,3 +1,4 @@
+import { companyKpis } from "../company-kpis.js";
 import { companySetup } from "../company-setup.js";
 import { inventoryImage, validateInventoryImage } from "./inventory-photos.js";
 import { taskOverdue, taskToday } from "../operations.js";
@@ -429,6 +430,9 @@ router.get("/finance", requirePermission("finance", "view"), (req, res) => {
   const summary = financeSummary(req.auth);
   res.json({ ...summary, companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), people: scoped(req, rows("employees"), "employees").map((person) => ({ id: person.id, name: person.name, organizationId: person.organizationId })), accounts: scoped(req, summary.accounts, "financeAccounts"), transactions: scoped(req, summary.transactions, "financeTransactions") });
 });
+
+/** Key figures for a company overview, chosen by business type. */
+router.get("/companies/:id/kpis", requirePermission("organizations", "view"), (req, res) => { try { return res.json(companyKpis(req.auth!, String(req.params.id))); } catch (error) { return sendError(res, error); } });
 
 /** Company setup checklist and licence status. */
 router.get("/companies/:id/setup", requirePermission("organizations", "view"), (req, res) => { try { return res.json(companySetup(req.auth!, String(req.params.id))); } catch (error) { return sendError(res, error); } });
