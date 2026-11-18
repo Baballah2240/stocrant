@@ -69,8 +69,16 @@ export function settlementRows(name: string, source: Row) {
 }
 
 /** Runs both on submission and approval, including generic collection APIs. */
+/** Closed periods: no finance record dated on or before a company's "Books closed through" date may be added, changed or removed. */
+const lockedDateFields: Record<string,string> = { financeTransactions: "date", sales: "date", purchases: "date", expenses: "date", returns: "date", fixedAssets: "purchaseDate" };
+export function assertBooksOpen(organizationId: unknown, date: unknown) {
+  const lock = String(rows("companies").find(c => c.id === organizationId)?.booksLockedUntil || "");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(lock) && date && String(date).slice(0, 10) <= lock) financialError(`The books are closed through ${lock}. Record a correction in an open period instead.`, 409);
+}
 export function validateFinancialMutation(user: AuthenticatedUser, collection: string, action: string, payload: Row, current?: Row): Row {
   if (collection === "financeHistory") financialError("Financial audit history is immutable.");
+  const lockedField = lockedDateFields[collection];
+  if (lockedField) for (const record of [current, action === "delete" ? undefined : { ...current, ...payload }]) if (record) assertBooksOpen(record.organizationId, record[lockedField]);
   if (sourceCollections.includes(collection)) {
     if(collection==="returns"&&current?.shopOrderId)financialError("Shop returns are immutable. Record a correction through Finance.");
     if(collection==="purchases"&&current&&rows("shopReceipts").some(r=>r.purchaseId===current.id)){
@@ -233,6 +241,7 @@ export function reverseFinancialTransaction(user: AuthenticatedUser, id: string,
     if (rows("payrollSources").some(s => s.financeTransactionId === id && !["rejected", "superseded"].includes(s.status))) financialError("Resolve the linked payroll recovery before reversing this advance or loan.", 409);
     if (rows("financeTransactions").some(t => t.recoversTransactionId === id && !t.reversalOf && !rows("financeTransactions").some(r => r.reversalOf === t.id))) financialError("Reverse the linked cash repayments before reversing the disbursement.", 409);
     if (!dateSchema.safeParse(input.date).success || input.date < original.date || input.date > companyFinanceDate(String(original.organizationId))) financialError("Use a reversal date between the payment date and today.");
+    assertBooksOpen(original.organizationId, input.date);
     if (rows("financeTransactions").some(t => t.organizationId === original.organizationId && String(t.reference).toLowerCase() === reference.toLowerCase())) financialError("This company reference is already recorded.", 409);
     const currency=String(original.currency||rows("financeAccounts").find(a=>a.id===original.accountId)?.currency||"");
     const allocations=original.allocations||(original.payrollRunId?rows("payrollEntries").filter(e=>e.runId===original.payrollRunId).map(e=>({entryId:e.id,employeeId:e.employeeId,amount:e.netPay})):undefined);

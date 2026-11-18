@@ -82,6 +82,7 @@ registry.push({
     { key: "defaultPaymentTerms", label: "Default payment terms", type: "select", options: ["immediate", "net7", "net15", "net30", "net45", "net60", "net90"] },
     { key: "vatRate", label: "VAT rate %", type: "percent", min: 0, max: 100 },
     { key: "vatNumber", label: "VAT registration number", type: "text" },
+    { key: "booksLockedUntil", label: "Books closed through", type: "date" },
     { key: "status", label: "Status", type: "select", options: ["active", "inactive"], required: true },
     { key: "linkedLocations", label: "Linked locations", type: "text", placeholder: "Location IDs or names" },
     { key: "notes", label: "Notes", type: "textarea" },

@@ -1,5 +1,21 @@
 # Mobile update history
 
+## 2026-11-18 - Double-entry general ledger and closed periods
+
+Finance now runs on a double-entry general ledger generated from existing records. There is no data migration, and every entry balances by construction.
+
+**Chart of accounts:** cash and bank, receivables, employee advances, fixed assets and accumulated depreciation, payables, salaries payable, loans, capital, opening balance equity, revenue, returns, purchases, operating expenses, taxes, salaries and depreciation.
+
+**Postings:**
+- Approved sales, purchases, expenses and returns post as receivables and payables when issued.
+- Approved payslips post as salary expense owed until paid.
+- Cash movements settle them.
+- Fixed assets are capitalised against a purchases clearing account and depreciated monthly.
+
+**New tabs:** Trial balance, with drill-down into a General ledger of journal entries per account. Balance sheet and Income statement are now accrual-based and read from the ledger; the cash-basis Profit & loss remains. Records that cannot be posted exactly are listed, not guessed. Without payroll access, salaries post per payroll run, so individual pay stays private.
+
+**Closed periods:** a new company setting, Books closed through. Once set, finance movements, sales, purchases, expenses, returns, fixed assets, reversals and payroll payments dated on or before it are refused. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Company accounting & finance settings, salary counting basis
 
 The company create/edit form adds accounting and finance settings:

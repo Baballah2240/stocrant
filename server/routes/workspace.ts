@@ -1,6 +1,7 @@
 import { inventoryImage, validateInventoryImage } from "./inventory-photos.js";
 import { taskOverdue, taskToday } from "../operations.js";
 import { reverseFinancialTransaction } from "../finance-ledger.js";
+import { buildJournal, chartOfAccounts, formatUnits, ledgerStatements, trialBalance } from "../general-ledger.js";
 import { attendanceDate as dateStamp, attendanceDate, settingsFor } from "../attendance.js";
 import { payrollCan } from "../payroll.js";
 import analyticsRouter from "./analytics.js";
@@ -425,6 +426,32 @@ router.post("/inventory/movements", requirePermission("inventory", "create"), (r
 router.get("/finance", requirePermission("finance", "view"), (req, res) => {
   const summary = financeSummary(req.auth);
   res.json({ ...summary, companies: rows("companies").filter((company) => isWithinScope(req.auth!, { ...company, organizationId: company.id })), people: scoped(req, rows("employees"), "employees").map((person) => ({ id: person.id, name: person.name, organizationId: person.organizationId })), accounts: scoped(req, summary.accounts, "financeAccounts"), transactions: scoped(req, summary.transactions, "financeTransactions") });
+});
+
+/** Double-entry general ledger derived from the records this user may see. */
+router.get("/finance/ledger", requirePermission("finance", "view"), (req, res) => {
+  const query = z.object({ currency: z.string().regex(/^[A-Z]{3}$/), company: z.string().max(120).optional(), from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")), account: z.string().regex(/^\d{4}$/).optional() }).safeParse(req.query);
+  if (!query.success) return res.status(400).json({ error: "Choose a currency and valid dates." });
+  const user = req.auth!, today = new Date().toISOString().slice(0, 10), to = query.data.to || today, from = query.data.from || undefined;
+  const inScope = (list: Row[]) => list.filter(row => isWithinScope(user, row));
+  const runs = inScope(rows("payrollRuns")), payrollVisible = can(user, "payroll", "view") || payrollCan(user, "view");
+  let payrollEntries = inScope(rows("payrollEntries"));
+  // Without payroll access, salaries are posted per run so no individual pay is disclosed.
+  if (!payrollVisible) payrollEntries = runs.map(run => { const lines = payrollEntries.filter(e => e.runId === run.id); return lines.length ? { id: `run-${run.id}`, runId: run.id, employee: "Payroll run", organizationId: run.organizationId, currency: lines[0].currency, periodEnd: run.end, netPay: lines.reduce((n, e) => n + Number(e.netPay || 0), 0).toFixed(Number(lines[0].precision ?? 2)) } : null; }).filter(Boolean) as Row[];
+  const summary = financeSummary(user);
+  const { entries, issues } = buildJournal({ companies: rows("companies"), accounts: scoped(req, summary.accounts, "financeAccounts"), transactions: scoped(req, summary.transactions, "financeTransactions"), sources: Object.fromEntries(["sales", "purchases", "expenses", "returns"].map(name => [name, inScope(rows(name))])), payrollEntries, payrollRuns: runs, fixedAssets: inScope(rows("fixedAssets")), asOf: to });
+  const filter = { currency: query.data.currency, organizationId: query.data.company || undefined, from, to };
+  const tb = trialBalance(entries, filter), statements = ledgerStatements(entries, filter), money = (value: bigint) => formatUnits(value, filter.currency);
+  const visible = entries.filter(e => e.currency === filter.currency && (!filter.organizationId || e.organizationId === filter.organizationId) && (!from || e.date >= from) && e.date <= to && (!query.data.account || e.lines.some(l => l.account === query.data.account)));
+  res.json({
+    chart: chartOfAccounts, currency: filter.currency, from: from || "", to,
+    trialBalance: { balanced: tb.balanced, debit: money(tb.debit), credit: money(tb.credit), rows: tb.rows.map(r => ({ code: r.code, name: r.name, type: r.type, opening: money(r.opening), debit: money(r.debit), credit: money(r.credit), closing: money(r.closing) })) },
+    income: { ...statements.income, revenue: money(statements.income.revenue), expenses: money(statements.income.expenses), surplus: money(statements.income.surplus), lines: statements.income.lines.map(l => ({ ...l, amount: money(l.amount) })) },
+    balance: { ...statements.balance, totalAssets: money(statements.balance.totalAssets), totalLiabilities: money(statements.balance.totalLiabilities), totalEquity: money(statements.balance.totalEquity), assets: statements.balance.assets.map(l => ({ ...l, amount: money(l.amount) })), liabilities: statements.balance.liabilities.map(l => ({ ...l, amount: money(l.amount) })), equity: statements.balance.equity.map(l => ({ ...l, amount: money(l.amount) })) },
+    entryCount: visible.length,
+    entries: visible.slice(-500).reverse().map(e => ({ id: e.id, date: e.date, memo: e.memo, source: e.source, sourceId: e.sourceId, organizationId: e.organizationId, lines: e.lines.map(l => ({ account: l.account, debit: money(l.debit), credit: money(l.credit) })) })),
+    issues,
+  });
 });
 
 router.post("/finance/transactions/:id/reverse", requirePermission("finance", "create"), (req,res) => {

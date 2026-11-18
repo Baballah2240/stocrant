@@ -179,3 +179,10 @@ html[dir=rtl] .finance-page :is(.finance-metric-label>svg,.finance-shortcuts but
 .finance-statement-indent{padding-inline-start:24px!important}
 .finance-statement-total th,.finance-statement-total td{font-weight:700;border-top:2px solid rgba(127,127,127,.4)}
 .finance-muted{opacity:.6}
+.finance-basis-label[data-balanced="true"]{color:#15803d}
+.finance-basis-label[data-balanced="false"]{color:#dc2626}
+.finance-link-button{background:none;border:0;padding:0;font:inherit;color:inherit;text-align:start;cursor:pointer;text-decoration:underline dotted}
+.finance-trial td,.finance-journal-table td:nth-child(n+4){text-align:end;font-variant-numeric:tabular-nums;white-space:nowrap}
+.finance-journal-table tr.finance-journal-first td,.finance-journal-table tr.finance-journal-first th{border-top:2px solid rgba(127,127,127,.35)}
+.finance-journal-match{font-weight:700}
+.finance-ledger-issues{margin-top:12px}
