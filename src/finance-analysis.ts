@@ -1,21 +1,22 @@
 import { decimal, minor } from './money.ts';
 
 type Row = { [key: string]: unknown };
-export const agingBuckets = ['0-30', '31-60', '61-90', '90+'] as const;
+export const agingBuckets = ['current', '1-30', '31-60', '61-90', '90+'] as const;
 export type AgingBucket = typeof agingBuckets[number];
 
-function daysBetween(from: string, to: string) {
-  const start = Date.parse(from + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z');
-  return Number.isFinite(start) && Number.isFinite(end) ? Math.max(0, Math.floor((end - start) / 86_400_000)) : 0;
+/** Days past the due date (0 or negative means not yet due). */
+export function daysOverdue(dueDate: unknown, today: string) {
+  const start = Date.parse(String(dueDate || today).slice(0, 10) + 'T00:00:00Z'), end = Date.parse(today + 'T00:00:00Z');
+  return Number.isFinite(start) && Number.isFinite(end) ? Math.floor((end - start) / 86_400_000) : 0;
 }
-export function agingBucket(date: unknown, today: string): AgingBucket {
-  const days = daysBetween(String(date || today).slice(0, 10), today);
-  return days <= 30 ? '0-30' : days <= 60 ? '31-60' : days <= 90 ? '61-90' : '90+';
+export function agingBucket(dueDate: unknown, today: string): AgingBucket {
+  const days = daysOverdue(dueDate, today);
+  return days <= 0 ? 'current' : days <= 30 ? '1-30' : days <= 60 ? '31-60' : days <= 90 ? '61-90' : '90+';
 }
 
-/** Aged receivables (sales) or payables (purchases, expenses, returns) grouped by partner, like an accounting aged balance report. */
+/** Aged receivables (sales) or payables (purchases, expenses, returns) grouped by partner and aged by due date (falling back to document date). */
 export function agedBalances(sources: Row[], currency: string, kind: 'receivable' | 'payable', today: string) {
-  const partners = new Map<string, { party: string; buckets: Record<AgingBucket, bigint>; total: bigint; documents: number; oldest: string }>();
+  const partners = new Map<string, { party: string; buckets: Record<AgingBucket, bigint>; total: bigint; documents: number; oldest: string; overdueDocuments: number }>();
   const totals = Object.fromEntries(agingBuckets.map(bucket => [bucket, 0n])) as Record<AgingBucket, bigint>;
   let total = 0n;
   for (const source of sources) {
@@ -23,18 +24,19 @@ export function agedBalances(sources: Row[], currency: string, kind: 'receivable
     if ((kind === 'receivable') !== (source.collection === 'sales')) continue;
     const amount = minor(source.outstanding, currency);
     if (amount <= 0n) continue;
-    const party = String(source.party || '').trim() || 'Unnamed partner', bucket = agingBucket(source.date, today), date = String(source.date || '');
-    const entry = partners.get(party) || { party, buckets: Object.fromEntries(agingBuckets.map(b => [b, 0n])) as Record<AgingBucket, bigint>, total: 0n, documents: 0, oldest: date };
-    entry.buckets[bucket] += amount; entry.total += amount; entry.documents += 1;
+    const party = String(source.party || '').trim() || 'Unnamed partner', due = String(source.dueDate || source.date || ''), bucket = agingBucket(due, today), date = due;
+    const entry = partners.get(party) || { party, buckets: Object.fromEntries(agingBuckets.map(b => [b, 0n])) as Record<AgingBucket, bigint>, total: 0n, documents: 0, oldest: date, overdueDocuments: 0 };
+    entry.buckets[bucket] += amount; entry.total += amount; entry.documents += 1; if (bucket !== 'current') entry.overdueDocuments += 1;
     if (date && (!entry.oldest || date < entry.oldest)) entry.oldest = date;
     partners.set(party, entry); totals[bucket] += amount; total += amount;
   }
   const money = (value: bigint) => decimal(value, currency);
   return {
     rows: [...partners.values()].sort((a, b) => (b.total > a.total ? 1 : b.total < a.total ? -1 : a.party.localeCompare(b.party)))
-      .map(row => ({ party: row.party, documents: row.documents, oldest: row.oldest, total: money(row.total), buckets: Object.fromEntries(agingBuckets.map(b => [b, money(row.buckets[b])])) as Record<AgingBucket, string> })),
+      .map(row => ({ party: row.party, documents: row.documents, overdueDocuments: row.overdueDocuments, oldestDue: row.oldest, total: money(row.total), buckets: Object.fromEntries(agingBuckets.map(b => [b, money(row.buckets[b])])) as Record<AgingBucket, string> })),
     totals: Object.fromEntries(agingBuckets.map(b => [b, money(totals[b])])) as Record<AgingBucket, string>,
     total: money(total),
+    overdue: money(total - totals.current),
   };
 }
 

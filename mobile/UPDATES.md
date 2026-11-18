@@ -1,5 +1,9 @@
 # Mobile update history
 
+## 2026-11-18 - Payment terms and due dates
+
+Sales, purchases and expenses gain optional Payment terms (immediate, or net 7/15/30/45/60/90 days) and an optional Due date. The server calculates each document's due date: an explicit due date first, then the document date plus the term. Aged balances now age by days overdue (Not due yet, 1–30, 31–60, 61–90, 90+), show the overdue total and overdue document count per partner, and Sales/Purchases show the due date on unpaid documents. Existing records without terms are due on their document date. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Accounting reports (Odoo-style)
 
 Finance adds accounting-style reports shared by the website and mobile app: Aged balances (receivables and payables per partner, in 0–30, 31–60, 61–90 and 90+ day buckets), a Partner ledger (paid money in and out per customer, supplier or employee), Spending by category under Reports, and journal cards in Banking. Each card shows an account's balance, money in and out for the period, its last movement and how many payments are pending, with shortcuts to view the account's movements or record a new one. These are calculated from existing ledger data with no server or schema change. Shared source only; no native build, install or hosting deployment is claimed.

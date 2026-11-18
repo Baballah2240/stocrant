@@ -14,14 +14,15 @@ const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 export function AgedBalances({ sources, currency, companyId }: { sources: CollectionItem[]; currency: string; companyId: string }) {
   const { t } = useLanguage(), format = useMoney(currency);
   const [kind, setKind] = useState<"receivable" | "payable">("receivable");
+  const bucketLabel = (bucket: string) => t(bucket === "current" ? "Not due yet" : "{range} days overdue", { range: bucket });
   const report = agedBalances(sources.filter(s => !companyId || s.organizationId === companyId), currency, kind, todayIso());
   return <section className="card finance-aged">
     <div className="finance-card-heading"><h2>{t(kind === "receivable" ? "Aged receivables" : "Aged payables")}</h2>
       <div className="finance-segmented" role="group" aria-label={t("Report type")}>{(["receivable", "payable"] as const).map(value => <button type="button" key={value} aria-pressed={kind === value} onClick={() => setKind(value)}>{t(value === "receivable" ? "Receivables" : "Payables")}</button>)}</div></div>
-    <p className="hint">{t("Unpaid balances by partner, aged by document date. Use this to chase customers and plan supplier payments.")}</p>
-    <div className="finance-aging-summary">{agingBuckets.map(bucket => <article key={bucket} data-bucket={bucket}><span>{t("{range} days", { range: bucket })}</span><strong>{format(report.totals[bucket])}</strong></article>)}<article data-bucket="total"><span>{t("Total due")}</span><strong>{format(report.total)}</strong></article></div>
-    <div className="table-wrap"><table className="table"><thead><tr><th>{t("Partner")}</th>{agingBuckets.map(b => <th key={b}>{t("{range} days", { range: b })}</th>)}<th>{t("Total")}</th></tr></thead>
-      <tbody>{report.rows.map(row => <tr key={row.party}><td><strong>{t(row.party)}</strong><span className="cell-sub">{t("{count} documents", { count: row.documents })}{row.oldest && <> · {t("Oldest")} {formatDate(row.oldest)}</>}</span></td>{agingBuckets.map(b => <td key={b} className={b === "90+" && Number(row.buckets[b]) > 0 ? "finance-overdue" : ""}>{Number(row.buckets[b]) ? format(row.buckets[b]) : "—"}</td>)}<td><strong>{format(row.total)}</strong></td></tr>)}
+    <p className="hint">{t("Unpaid balances by partner, aged by due date. Documents without payment terms or a due date are due on their document date.")}</p>
+    <div className="finance-aging-summary">{agingBuckets.map(bucket => <article key={bucket} data-bucket={bucket}><span>{bucketLabel(bucket)}</span><strong>{format(report.totals[bucket])}</strong></article>)}<article data-bucket="total"><span>{t("Total due")}</span><strong>{format(report.total)}</strong><small>{t("Overdue")}: {format(report.overdue)}</small></article></div>
+    <div className="table-wrap"><table className="table"><thead><tr><th>{t("Partner")}</th>{agingBuckets.map(b => <th key={b}>{bucketLabel(b)}</th>)}<th>{t("Total")}</th></tr></thead>
+      <tbody>{report.rows.map(row => <tr key={row.party}><td><strong>{t(row.party)}</strong><span className="cell-sub">{t("{count} documents", { count: row.documents })}{row.overdueDocuments > 0 && <> · {t("{count} overdue", { count: row.overdueDocuments })}</>}{row.oldestDue && <> · {t("Earliest due")} {formatDate(row.oldestDue)}</>}</span></td>{agingBuckets.map(b => <td key={b} className={b === "90+" && Number(row.buckets[b]) > 0 ? "finance-overdue" : ""}>{Number(row.buckets[b]) ? format(row.buckets[b]) : "—"}</td>)}<td><strong>{format(row.total)}</strong></td></tr>)}
         {!report.rows.length && <tr><td colSpan={agingBuckets.length + 2}>{t("Nothing outstanding in this currency.")}</td></tr>}</tbody></table></div>
   </section>;
 }
