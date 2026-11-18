@@ -18,6 +18,8 @@ export const alertsSchema = z.object({
   language: z.enum(["en", "ar"]).default("ar"),
   staffChannel: channel.default("none"),
   staffPhone: phone.default(""),
+  /** Calling code used for customer numbers typed without one (e.g. 249, 974, 20). Empty = from the company country. */
+  countryCode: z.union([z.literal(""), z.string().trim().regex(/^[1-9]\d{0,3}$/, "Enter the country calling code as digits, like 974.")]).default(""),
 }).strict().refine(a => a.staffChannel === "none" || Boolean(a.staffPhone), "Enter the staff phone number for new-order messages.");
 export type ShopAlerts = z.infer<typeof alertsSchema>;
 export const defaultAlerts: ShopAlerts = alertsSchema.parse({});
@@ -56,12 +58,15 @@ const text: Record<"en" | "ar", Record<string, string>> = {
   },
 };
 const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "").replace(/\s+/g, " ").trim();
-/** Normalises a customer phone to E.164; Sudanese local numbers (0912…) become +249912…. */
-export function e164(raw: string, defaultCountry = "249") {
+/** Calling codes for company countries (name or ISO code). Unknown countries require numbers with a + prefix. */
+const CALLING: Record<string, string> = { sudan: "249", sd: "249", qatar: "974", qa: "974", egypt: "20", eg: "20", "saudi arabia": "966", sa: "966", "united arab emirates": "971", uae: "971", ae: "971", kuwait: "965", kw: "965", bahrain: "973", bh: "973", oman: "968", om: "968", jordan: "962", jo: "962", lebanon: "961", lb: "961", iraq: "964", iq: "964", morocco: "212", ma: "212", algeria: "213", dz: "213", tunisia: "216", tn: "216", libya: "218", ly: "218", "south sudan": "211", ss: "211", ethiopia: "251", et: "251", eritrea: "291", er: "291", kenya: "254", ke: "254", uganda: "256", ug: "256", tanzania: "255", tz: "255", rwanda: "250", rw: "250", nigeria: "234", ng: "234", ghana: "233", gh: "233", "south africa": "27", za: "27", chad: "235", td: "235", somalia: "252", so: "252", djibouti: "253", dj: "253", turkey: "90", tr: "90", "united kingdom": "44", uk: "44", gb: "44", "united states": "1", usa: "1", us: "1", canada: "1", ca: "1", germany: "49", de: "49", france: "33", fr: "33", india: "91", in: "91", pakistan: "92", pk: "92", "south korea": "82", korea: "82", kr: "82" };
+export function callingCode(country: unknown) { return CALLING[String(country || "").trim().toLowerCase()] || ""; }
+/** Normalises a phone to E.164. Numbers without + use the given country calling code (local leading 0 dropped); without a code they are rejected. */
+export function e164(raw: string, defaultCountry = "") {
   const western = String(raw || "").replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
   let digits = western.replace(/[^\d+]/g, "");
   if (digits.startsWith("00")) digits = "+" + digits.slice(2);
-  if (!digits.startsWith("+")) digits = "+" + defaultCountry + digits.replace(/^0+/, "");
+  if (!digits.startsWith("+")) { if (!defaultCountry) return ""; digits = "+" + defaultCountry + digits.replace(/^0+/, ""); }
   return /^\+[1-9]\d{7,14}$/.test(digits) ? digits : "";
 }
 
@@ -76,7 +81,8 @@ export function queueOrderUpdate(order: Row, event: AlertStatus, extra: { note?:
   if (!s) return;
   const a = alertsFor(s);
   if (a.customerChannel === "none" || !a.notifyOn.includes(event)) return;
-  const to = e164(order.phone);
+  const company = rows("companies").find(c => c.id === order.organizationId);
+  const to = e164(order.phone, a.countryCode || callingCode(company?.country));
   if (!to) return;
   const t = text[a.language];
   const v = values(s, order, { tracking: event === "dispatched" && order.tracking && !String(order.tracking).startsWith("SHOP-") ? fill(t.tracking, { tracking: order.tracking }) : "", note: extra.note || "" });

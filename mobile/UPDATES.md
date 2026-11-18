@@ -1,5 +1,9 @@
 # Mobile update history
 
+## 2026-11-19 - Order messages work for any country
+
+Customer numbers typed without + now use the shop's country calling code. It comes from the company country (about 60 countries known), or from a new **Country calling code for local numbers** setting, for example 974 for Qatar or 254 for Kenya. With no code, only numbers that start with + receive messages. Nothing is assumed to be Sudanese any more. The suggested transfer providers also include M-Pesa, MTN MoMo, Airtel Money, Orange Money, Vodafone Cash, STC Pay, Ooredoo Money, Wise and PayPal. Shared source only.
+
 ## 2026-11-18 - Shop order messages by SMS and WhatsApp (Twilio)
 
 Shops & orders > Customer storefront has **Order messages (SMS / WhatsApp)**:

@@ -1,9 +1,9 @@
 import { useLanguage } from "../language-context";
 import "../storefront-branding.css";
 
-export type ShopAlerts = { customerChannel: string; notifyOn: string[]; language: string; staffChannel: string; staffPhone: string };
+export type ShopAlerts = { customerChannel: string; notifyOn: string[]; language: string; staffChannel: string; staffPhone: string; countryCode: string };
 export type Messaging = { sms: boolean; whatsapp: boolean };
-export const defaultAlerts: ShopAlerts = { customerChannel: "none", notifyOn: ["reserved", "dispatched", "delivered", "cancelled", "transfer-verified", "transfer-rejected"], language: "ar", staffChannel: "none", staffPhone: "" };
+export const defaultAlerts: ShopAlerts = { customerChannel: "none", notifyOn: ["reserved", "dispatched", "delivered", "cancelled", "transfer-verified", "transfer-rejected"], language: "ar", staffChannel: "none", staffPhone: "", countryCode: "" };
 const events: [string, string][] = [["reserved", "Order received"], ["preparing", "Being prepared"], ["dispatched", "On its way"], ["delivered", "Delivered"], ["cancelled", "Cancelled"], ["transfer-verified", "Transfer confirmed"], ["transfer-rejected", "Transfer not confirmed"]];
 
 /** Order messages to customers (opt-in at checkout) and to staff, sent by SMS or WhatsApp through Twilio. */
@@ -18,6 +18,7 @@ export default function StorefrontAlerts({ value, onChange, messaging }: { value
       <label className="form-field"><span>{t("Customer updates")}</span>{channelSelect("customerChannel")}</label>
       <label className="form-field"><span>{t("Message language")}</span><select value={a.language} onChange={e => set({ language: e.target.value })}><option value="ar">العربية</option><option value="en">English</option></select></label>
     </div>
+    {a.customerChannel !== "none" && <label className="form-field"><span>{t("Country calling code for local numbers")}</span><input inputMode="numeric" dir="ltr" maxLength={4} placeholder={t("From the company country")} value={a.countryCode} onChange={e => set({ countryCode: e.target.value.replace(/[^0-9]/g, "") })} /><small className="hint">{t("Used when a customer types a number without +, e.g. 974 for Qatar or 254 for Kenya.")}</small></label>}
     {!ready(a.customerChannel) && <p className="hint">{t("This channel is not set up on the server yet.")}</p>}
     {a.customerChannel !== "none" && <fieldset className="storefront-alert-events"><legend>{t("Send a message when the order is…")}</legend>
       {events.map(([id, label]) => <label key={id}><input type="checkbox" checked={a.notifyOn.includes(id)} onChange={e => set({ notifyOn: e.target.checked ? [...a.notifyOn, id] : a.notifyOn.filter(x => x !== id) })} /> {t(label)}</label>)}

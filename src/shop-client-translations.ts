@@ -176,4 +176,7 @@ export const shopClientTranslations: Readonly<Record<string, string>> = {
   "New order (staff)": "طلب جديد (للموظفين)",
   "Transfer receipt (staff)": "إشعار تحويل (للموظفين)",
   "Messages": "الرسائل",
+  "Country calling code for local numbers": "رمز الدولة للأرقام المحلية",
+  "From the company country": "من دولة الشركة",
+  "Used when a customer types a number without +, e.g. 974 for Qatar or 254 for Kenya.": "يُستخدم عندما يكتب العميل رقماً بدون +، مثل 974 لقطر أو 254 لكينيا.",
 };

@@ -87,13 +87,16 @@ describe("shop order messages through Twilio", () => {
   after(() => { for (const k of ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_SMS_FROM", "TWILIO_WHATSAPP_FROM", "STOCRANT_TWILIO_TEST_ENDPOINT"]) delete process.env[k]; fake.close(); });
   it("normalises Sudanese numbers", async () => {
     const { e164 } = await import("./shop-alerts.js");
-    assert.equal(e164("0912 345 678"), "+249912345678"); assert.equal(e164("00249912345678"), "+249912345678"); assert.equal(e164("٠٩١٢٣٤٥٦٧٨"), "+249912345678"); assert.equal(e164("12"), "");
+    const { callingCode } = await import("./shop-alerts.js");
+    assert.equal(e164("0912 345 678", "249"), "+249912345678"); assert.equal(e164("00249912345678"), "+249912345678"); assert.equal(e164("٠٩١٢٣٤٥٦٧٨", "249"), "+249912345678"); assert.equal(e164("12", "249"), "");
+    assert.equal(e164("5551 2345", "974"), "+97455512345"); assert.equal(e164("0912 345 678"), "", "no country, no guess"); assert.equal(e164("+44 7700 900123"), "+447700900123");
+    assert.equal(callingCode("Qatar"), "974"); assert.equal(callingCode("KE"), "254"); assert.equal(callingCode("Atlantis"), "");
   });
   it("texts opted-in customers on WhatsApp and staff by SMS, and stays quiet without opt-in", async () => {
     const current = (await json(await req(config()))).settings as Row, view = await json(await req(config()));
     assert.deepEqual(view.messaging, { sms: true, whatsapp: true });
     await json(await req(config(), "PUT", { ...payload(current), alerts: { customerChannel: "whatsapp", notifyOn: ["reserved", "dispatched"], language: "ar", staffChannel: "sms", staffPhone: "" } }), 400);
-    await json(await req(config(), "PUT", { ...payload(current), payments: { ...current.payments, cashEnabled: true }, alerts: { customerChannel: "whatsapp", notifyOn: ["reserved", "dispatched"], language: "ar", staffChannel: "sms", staffPhone: "+249 900 111 222" } }));
+    await json(await req(config(), "PUT", { ...payload(current), payments: { ...current.payments, cashEnabled: true }, alerts: { customerChannel: "whatsapp", notifyOn: ["reserved", "dispatched"], language: "ar", staffChannel: "sms", staffPhone: "+249 900 111 222", countryCode: "249" } }));
     const q = await json(await req(api + "/quote", "POST", { lines: [{ productId: product.id, quantity: 1 }], method: "pickup" }, guest));
     const body = { receiptSecret: hex(), customer: "Amna", email: "", phone: "0912 345 678", address: "", region: "", notes: "", consent: true, website: "", method: "pickup", lines: [{ productId: product.id, quantity: 1 }], quoteToken: q.quoteToken, payment: "cash" };
     const optedIn = (await json(await req(api + "/checkout", "POST", { ...body, requestId: randomUUID(), updates: true }, guest), 201)).order;

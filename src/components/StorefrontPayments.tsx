@@ -4,7 +4,7 @@ import "../storefront-branding.css";
 export type TransferAccount = { id: string; label: string; accountName: string; accountNumber: string; instructions: string };
 export type ShopPayments = { cashEnabled: boolean; transferEnabled: boolean; accounts: TransferAccount[] };
 export const defaultPayments: ShopPayments = { cashEnabled: true, transferEnabled: false, accounts: [] };
-const suggestions = ["Bankak", "Fawry", "O-Cash", "MyCashi", "Bank transfer"];
+const suggestions = ["Bank transfer", "Bankak", "Fawry", "Vodafone Cash", "M-Pesa", "MTN MoMo", "Airtel Money", "Orange Money", "STC Pay", "Ooredoo Money", "Wise", "PayPal"];
 
 /** Storefront payment options: cash on delivery/collection and bank or mobile-money transfer accounts shown to customers after ordering. */
 export default function StorefrontPayments({ value, onChange }: { value: ShopPayments; onChange: (value: ShopPayments) => void }) {
