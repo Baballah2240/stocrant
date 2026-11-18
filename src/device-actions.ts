@@ -4,6 +4,7 @@ const device = registerPlugin<{
   saveFile(input: { name: string; type: string; data: string }): Promise<{ cancelled: boolean }>;
   openWebsite(input: { url: string }): Promise<void>;
   pushReady(): Promise<{ configured: boolean }>;
+  installUpdate(input: { url: string; sha256: string }): Promise<void>;
   printPage(): Promise<void>;
   setAppearance(input: { dark: boolean }): Promise<void>;
 }>("StocrantDevice");
@@ -36,6 +37,7 @@ export async function printPage(): Promise<void> {
 }
 
 export const openDeviceWebsite = (url: string) => device.openWebsite({ url });
+export const installAndroidUpdate = (url: string, sha256: string) => device.installUpdate({ url, sha256 });
 export const hasNativePushSetup = async () => isAndroidDevice() && (await device.pushReady()).configured;
 
 export async function syncDeviceAppearance(theme: "light" | "dark"): Promise<void> {

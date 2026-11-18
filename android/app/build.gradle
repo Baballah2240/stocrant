@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 def releaseSigningValues = ['STOCRANT_KEYSTORE_FILE', 'STOCRANT_KEYSTORE_PASSWORD', 'STOCRANT_KEY_ALIAS', 'STOCRANT_KEY_PASSWORD'].collectEntries { name -> [(name): System.getenv(name)] }
+// Build number defaults to the git commit count so every new build is a newer Android version.
+def gitBuildNumber = { try { def out = 'git rev-list --count HEAD'.execute(null, rootProject.projectDir).text.trim(); out.isInteger() ? out : '1' } catch (ignored) { '1' } }
+def stocrantVersionCode = System.getenv('STOCRANT_VERSION_CODE') ?: gitBuildNumber()
 def releaseSigningReady = releaseSigningValues.values().every { it != null && !it.trim().isEmpty() }
 
 android {
@@ -9,8 +12,8 @@ android {
         applicationId "com.stocrant.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode Integer.parseInt(System.getenv('STOCRANT_VERSION_CODE') ?: '1')
-        versionName System.getenv('STOCRANT_VERSION_NAME') ?: '1.0'
+        versionCode Integer.parseInt(stocrantVersionCode)
+        versionName System.getenv('STOCRANT_VERSION_NAME') ?: ('1.0.' + stocrantVersionCode)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

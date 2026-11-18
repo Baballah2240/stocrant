@@ -1,5 +1,9 @@
 # Mobile update history
 
+## 2026-11-18 - In-app update install (Android)
+
+On Android, approved releases now show an Install update button, or Up to date when the release is not newer than the installed build. The app downloads the APK over HTTPS (redirects must stay HTTPS, 200 MB limit), verifies it against the release SHA-256 approved by Super Admin, and hands it to the Android package installer. A file that does not match is deleted, not installed. The first time, Android asks the user to allow Stocrant to install apps; adds REQUEST_INSTALL_PACKAGES. The Android build number now defaults to the git commit count (STOCRANT_VERSION_CODE still overrides it), so each build is newer than the last. Android still requires the same signing key for updates; this APK is a debug build. Shared source plus native change: installed apps must be updated manually once to get this feature.
+
 ## 2026-11-18 - Android push notifications and S-logo branding
 
 Android push notifications: users turn them on from Notifications, and each device is registered with its signed-in session. The server keeps a durable outbox holding only IDs and sends a generic alert through Firebase Cloud Messaging, retrying with backoff. Message text stays in the inbox. Pushes stop after logout, account deactivation, or once the message is read. Tapping a push opens the full message on the new Notifications history page; the employee inbox moves to /employee-inbox. Delivery needs a Firebase google-services.json for com.stocrant.app in android/app (not committed) and STOCRANT_FCM_SERVICE_ACCOUNT_FILE on the server. Neither is configured yet, so no live push has been verified. iOS needs separate APNs setup.

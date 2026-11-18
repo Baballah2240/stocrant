@@ -17,6 +17,15 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.OutputStream;
+import android.os.Build;
+import android.provider.Settings;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.MessageDigest;
 
 /** Device actions for authenticated downloads. Never pass session tokens to external apps. */
 @CapacitorPlugin(name = "StocrantDevice")
@@ -73,6 +82,62 @@ public class StocrantDevicePlugin extends Plugin {
         }
         try { getActivity().startActivity(new Intent(Intent.ACTION_VIEW, uri)); call.resolve(); }
         catch (Exception error) { call.reject("Could not open the website.", error); }
+    }
+
+    private static final long MAX_APK_BYTES = 200L * 1024 * 1024;
+    private volatile boolean installingUpdate;
+
+    /** Downloads an approved HTTPS APK, verifies its SHA-256 checksum and opens the Android package installer. */
+    @PluginMethod
+    public void installUpdate(PluginCall call) {
+        String address = call.getString("url"), expected = call.getString("sha256", "");
+        if (address == null || !address.startsWith("https://") || !expected.matches("(?i)^[0-9a-f]{64}$")) { call.reject("This update link or checksum is not valid."); return; }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getContext().getPackageManager().canRequestPackageInstalls()) {
+            Intent settings = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getContext().getPackageName()));
+            settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try { getContext().startActivity(settings); } catch (Exception ignored) {}
+            call.reject("Allow Stocrant to install updates, then tap Install update again.", "INSTALL_PERMISSION");
+            return;
+        }
+        if (installingUpdate) { call.reject("An update download is already in progress."); return; }
+        installingUpdate = true;
+        new Thread(() -> {
+            File folder = new File(getContext().getCacheDir(), "updates");
+            File target = new File(folder, "stocrant-update.apk");
+            HttpURLConnection connection = null;
+            try {
+                if (!folder.exists() && !folder.mkdirs()) throw new Exception("Could not prepare the update folder.");
+                connection = (HttpURLConnection) new URL(address).openConnection();
+                connection.setConnectTimeout(15000); connection.setReadTimeout(30000); connection.setInstanceFollowRedirects(true);
+                if (connection.getResponseCode() != 200) throw new Exception("The update could not be downloaded.");
+                if (!"https".equals(connection.getURL().getProtocol())) throw new Exception("The update link must stay on HTTPS.");
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                long total = 0;
+                try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(target)) {
+                    byte[] buffer = new byte[64 * 1024]; int read;
+                    while ((read = input.read(buffer)) != -1) {
+                        total += read; if (total > MAX_APK_BYTES) throw new Exception("The update file is too large.");
+                        digest.update(buffer, 0, read); output.write(buffer, 0, read);
+                    }
+                }
+                StringBuilder actual = new StringBuilder();
+                for (byte value : digest.digest()) actual.append(String.format("%02x", value));
+                if (!actual.toString().equalsIgnoreCase(expected)) { target.delete(); throw new Exception("The downloaded update does not match its approved checksum. It was not installed."); }
+                Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", target);
+                Intent install = new Intent(Intent.ACTION_VIEW);
+                install.setDataAndType(uri, "application/vnd.android.package-archive");
+                install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(install);
+                call.resolve();
+            } catch (Exception error) {
+                target.delete();
+                String message = error.getMessage();
+                call.reject(message != null && message.startsWith("The ") ? message : "The update could not be downloaded.");
+            } finally {
+                if (connection != null) connection.disconnect();
+                installingUpdate = false;
+            }
+        }).start();
     }
 
     @PluginMethod
