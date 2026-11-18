@@ -55,13 +55,16 @@ export function validateBranding(b: Branding, storefrontId: string | undefined, 
 /** Published shop whose saved custom domain matches the request host. */
 export function slugForDomain(hostname: string) {
   const host = hostname.toLowerCase();
-  return (getCollection("shopStorefronts") as Row[]).find(s => s.published && brandingFor(s).customDomain === host)?.slug as string | undefined;
+  // Runs on every page request: compare the stored (already validated) value instead of re-parsing every shop.
+  return (getCollection("shopStorefronts") as Row[]).find(s => s.published && s.branding?.customDomain === host)?.slug as string | undefined;
 }
 
 const escape = (v: string) => v.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 /** Rewrites the shop page head so search engines and WhatsApp/Facebook link previews show the shop's own name, text and image. */
 export function shopHead(html: string, s: Row | undefined, origin: string) {
   if (!s) return html;
+  // Draft shops keep the generic page head so their unpublished name and text are not exposed.
+  if (!s.published) return html.replace(/<meta name="robots"[^>]*>/g, "").replace("</head>", `<meta name="robots" content="noindex"/></head>`);
   const b = brandingFor(s), title = b.seoTitle || [s.name, s.tagline].filter(Boolean).join(" — "), description = b.seoDescription || s.description || s.tagline || s.name;
   const abs = (v: string) => !v ? "" : v.startsWith("/") ? origin + v : v;
   const picture = abs(b.banner || s.logo || ""), icon = abs(s.logo || "");

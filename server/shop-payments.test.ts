@@ -71,6 +71,14 @@ describe("shop transfer payments", () => {
     const verified = await json(await req(`/workspace/shops/${company.id}/orders/${order.id}/transfer-review`, "POST", { decision: "verify" }));
     assert.equal(verified.transferStatus, "verified");
     assert.equal((await upload(secret)).status, 409);
+    // Regression: an order whose transfer was sent or accepted must survive the reservation timeout.
+    const { getCollection } = await import("./storage.js"), { expireShopReservations } = await import("./commerce-stock.js");
+    const stored = getCollection("shopOrders").find((o: any) => o.id === order.id) as Row;
+    stored.reservationExpiresAt = new Date(Date.now() - 60000).toISOString();
+    expireShopReservations();
+    assert.equal(stored.status, "reserved");
+    stored.transferStatus = "awaiting-proof"; expireShopReservations();
+    assert.equal(stored.status, "cancelled", "unpaid transfer orders still expire");
   });
 });
 

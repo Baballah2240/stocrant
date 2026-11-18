@@ -90,6 +90,9 @@ describe("online shop clients", () => {
       assert.ok(page.includes('og:image" content="https://images.example.test/banner.jpg"'));
       assert.doesNotMatch(page, /noindex/);
     }
+    const draft = getCollection("shopStorefronts").find((x: any) => x.slug === "existing-shop") as Row;
+    const draftPage = await (await fetch(base + "/shop/existing-shop")).text();
+    if (draftPage.includes("<html")) { assert.ok(!draftPage.includes("og:title") && Boolean(draft), "draft shop details stay out of the page head"); assert.ok(draftPage.includes('name="robots" content="noindex"')); }
     const { storefrontForHost } = await import("./storefront.js");
     assert.equal(storefrontForHost("WWW.NILEFASHION.TEST"), "nile-fashion");
     const other = getCollection("shopStorefronts").find((s: any) => s.organizationId !== client.companyId) as Row;

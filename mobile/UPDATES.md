@@ -1,5 +1,14 @@
 # Mobile update history
 
+## 2026-11-19 - Shop fixes from full testing
+
+- **Paid orders kept:** online transfer orders whose customer already sent a receipt, or whose transfer was accepted, are no longer cancelled automatically when the reservation time runs out. Unpaid orders still expire, and the customer now gets a "cancelled" message if they opted in.
+- **Draft shops hidden:** a draft shop's page no longer shows its unpublished name or description in link previews, and stays out of search engines.
+- **Faster page loads:** custom-domain lookup no longer re-validates every shop's settings on every page request.
+- **Connection API:** the website connection catalog now includes product group, size and colour.
+
+Shared source only.
+
 ## 2026-11-19 - Shop figures
 
 Shops & orders > Dashboard now opens with **Shop figures** for 7, 30 or 90 days:

@@ -1,4 +1,5 @@
 import { getCollection, getStore, saveStore, transaction } from "./storage.js";
+import { queueOrderUpdate } from "./shop-alerts.js";
 type Row = Record<string, any>;
 const rows = (name: string) => getCollection(name) as Row[];
 export function expireShopReservations(now = Date.now()) {
@@ -6,6 +7,8 @@ export function expireShopReservations(now = Date.now()) {
     (o) =>
       o.source === "storefront" &&
       o.status === "reserved" &&
+      // A customer who already sent (or had accepted) a transfer receipt must not lose the order while staff review it.
+      !["proof-submitted", "verified"].includes(String(o.transferStatus)) &&
       Date.parse(o.reservationExpiresAt) <= now,
   );
   if (!expired.length) return;
@@ -19,6 +22,7 @@ export function expireShopReservations(now = Date.now()) {
         actor: "STOCRANT",
         reason: "Reservation expired",
       });
+      queueOrderUpdate(order, "cancelled");
     }
     saveStore(getStore());
   });
