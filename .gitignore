@@ -79,6 +79,9 @@ ios/App/App/capacitor.plugins.json
 xcuserdata/
 *.mobileprovision
 *.p8
+android/app/google-services.json
+**/firebase-service-account*.json
+**/GoogleService-Info.plist
 
 # Customer storefront build output
 shop-website/dist/

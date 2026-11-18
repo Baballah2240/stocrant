@@ -22,6 +22,7 @@ import { z } from "zod";
 import { approveRequest, audit } from "./workspace.js";
 import { getCollection } from "./storage.js";
 import { notificationContext } from "./notification-context.js";
+import { queueMobilePush } from "./mobile-push.js";
 
 const NOTIFICATIONS_COLLECTION = "notifications" as const;
 
@@ -68,6 +69,7 @@ export function createNotification(input: {
   };
 
   saveNotificationStore([...getNotificationStore(), notification]);
+  queueMobilePush(notification);
   return notification;
 }
 

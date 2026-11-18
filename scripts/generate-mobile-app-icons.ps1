@@ -1,82 +1,31 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
+﻿Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
-$projectRoot = Split-Path -Parent $PSScriptRoot
-$branding = Join-Path $projectRoot 'mobile\branding'
-$design = Get-Content -LiteralPath (Join-Path $branding 'icon-design.json') -Raw | ConvertFrom-Json
-$androidRes = Join-Path $projectRoot 'android\app\src\main\res'
-$iosIcon = Join-Path $projectRoot 'ios\App\App\Assets.xcassets\AppIcon.appiconset\AppIcon-512@2x.png'
-function Color([string]$value) { return [System.Drawing.ColorTranslator]::FromHtml($value) }
-function Rounded([single]$x,[single]$y,[single]$width,[single]$height,[single]$radius) {
-    $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
-    $d = $radius * 2
-    $path.AddArc($x,$y,$d,$d,180,90)
-    $path.AddArc($x+$width-$d,$y,$d,$d,270,90)
-    $path.AddArc($x+$width-$d,$y+$height-$d,$d,$d,0,90)
-    $path.AddArc($x,$y+$height-$d,$d,$d,90,90)
-    $path.CloseFigure()
-    return $path
+$root=Split-Path -Parent $PSScriptRoot
+$branding=Join-Path $root 'mobile\branding'
+$android=Join-Path $root 'android\app\src\main\res'
+function Resize-Png([string]$source,[string]$destination,[int]$width,[int]$height,[bool]$splash=$false) {
+ $image=[Drawing.Image]::FromFile($source);$bitmap=[Drawing.Bitmap]::new($width,$height);$g=[Drawing.Graphics]::FromImage($bitmap)
+ try {
+  $g.Clear($(if($splash){[Drawing.ColorTranslator]::FromHtml('#102532')}else{[Drawing.Color]::Transparent}))
+  $g.InterpolationMode=[Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic;$g.PixelOffsetMode=[Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+  if($splash){$w=[math]::Min($width*.66,$height*1.6);$h=$w*$image.Height/$image.Width;$g.DrawImage($image,[single](($width-$w)/2),[single](($height-$h)/2),[single]$w,[single]$h)}else{$g.DrawImage($image,0,0,$width,$height)}
+  [IO.Directory]::CreateDirectory((Split-Path -Parent $destination))|Out-Null
+  $bitmap.Save($destination,[Drawing.Imaging.ImageFormat]::Png)
+ }finally{$g.Dispose();$bitmap.Dispose();$image.Dispose()}
 }
-function Render-Icon([int]$size,[string]$destination,[string]$kind='square') {
-    $bitmap = [System.Drawing.Bitmap]::new($size,$size,[System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-    $g = [System.Drawing.Graphics]::FromImage($bitmap)
-    try {
-        $g.Clear([System.Drawing.Color]::Transparent)
-        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-        $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-        $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
-        if ($kind -ne 'foreground') {
-            $brush = [System.Drawing.Drawing2D.LinearGradientBrush]::new([System.Drawing.Rectangle]::new(0,0,$size,$size),(Color $design.backgroundStart),(Color $design.backgroundEnd),[single]45)
-            try {
-                if ($kind -eq 'round') { $g.FillEllipse($brush,[single]($size*.025),[single]($size*.025),[single]($size*.95),[single]($size*.95)) }
-                elseif ($kind -eq 'legacy') { $background = Rounded ($size*.025) ($size*.025) ($size*.95) ($size*.95) ($size*.215); try { $g.FillPath($brush,$background) } finally { $background.Dispose() } }
-                else { $g.FillRectangle($brush,0,0,$size,$size) }
-            } finally { $brush.Dispose() }
-        }
-        # Keep the mark centered inside the adaptive icon's safe region.
-        $scale = if ($kind -eq 'foreground') { .85 } else { 1.0 }
-        $offset = $size * (1-$scale)/2
-        $g.TranslateTransform([single]$offset,[single]$offset)
-        $g.ScaleTransform([single]$scale,[single]$scale)
-        $tile = Rounded ($size*$design.tile.x) ($size*$design.tile.y) ($size*$design.tile.width) ($size*$design.tile.height) ($size*$design.tile.radius)
-        try {
-            $paper = [System.Drawing.Drawing2D.LinearGradientBrush]::new([System.Drawing.RectangleF]::new([single]($size*$design.tile.x),[single]($size*$design.tile.y),[single]($size*$design.tile.width),[single]($size*$design.tile.height)),(Color $design.paperStart),(Color $design.paperEnd),[single]65)
-            try { $g.FillPath($paper,$tile) } finally { $paper.Dispose() }
-            $rim = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(75,255,255,255),[single]($size*.004))
-            try { $g.DrawPath($rim,$tile) } finally { $rim.Dispose() }
-        } finally { $tile.Dispose() }
-        $pen = [System.Drawing.Pen]::new((Color $design.ink),[single]($size*$design.line.width))
-        try {
-            $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-            $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-            for ($i=0;$i -lt $design.line.rows.Count;$i++) {
-                $right = if ($i -eq 1) { $design.line.shortRight } else { $design.line.right }
-                $g.DrawLine($pen,[single]($size*$design.line.left),[single]($size*$design.line.rows[$i]),[single]($size*$right),[single]($size*$design.line.rows[$i]))
-            }
-        } finally { $pen.Dispose() }
-        [System.IO.Directory]::CreateDirectory((Split-Path -Parent $destination)) | Out-Null
-        $bitmap.Save($destination,[System.Drawing.Imaging.ImageFormat]::Png)
-    } finally { $g.Dispose(); $bitmap.Dispose() }
+$master=Join-Path $branding 'stocrant-app-icon.png';$foreground=Join-Path $branding 'stocrant-adaptive-foreground.png'
+foreach($entry in @{'mdpi'=48;'hdpi'=72;'xhdpi'=96;'xxhdpi'=144;'xxxhdpi'=192}.GetEnumerator()){
+ $folder=Join-Path $android ('mipmap-'+$entry.Key)
+ foreach($name in @('ic_launcher','ic_launcher_round')){Resize-Png $master (Join-Path $folder ($name+'.png')) $entry.Value $entry.Value}
+ $size=[int]($entry.Value*9/4);Resize-Png $foreground (Join-Path $folder 'ic_launcher_foreground.png') $size $size
 }
-$densities = @{'mdpi'=48;'hdpi'=72;'xhdpi'=96;'xxhdpi'=144;'xxxhdpi'=192}
-foreach ($density in $densities.GetEnumerator()) {
-    $directory = Join-Path $androidRes ('mipmap-'+$density.Key)
-    Render-Icon $density.Value (Join-Path $directory 'ic_launcher.png') 'legacy'
-    Render-Icon $density.Value (Join-Path $directory 'ic_launcher_round.png') 'round'
-    Render-Icon ([int]($density.Value*9/4)) (Join-Path $directory 'ic_launcher_foreground.png') 'foreground'
-}
-Render-Icon 1024 $iosIcon 'square'
-Render-Icon 1024 (Join-Path $branding 'stocrant-app-icon.png') 'square'
-Render-Icon 512 (Join-Path $branding 'stocrant-app-icon-preview.png') 'legacy'
-# Export the same geometry as an editable SVG master.
-$ci = [System.Globalization.CultureInfo]::InvariantCulture
-function N([double]$v) { return ($v*1024).ToString('0.###',$ci) }
-$rows = for($i=0;$i -lt $design.line.rows.Count;$i++) {
-    $right = if($i -eq 1){$design.line.shortRight}else{$design.line.right}
-    '<path d="M '+(N $design.line.left)+' '+(N $design.line.rows[$i])+' H '+(N $right)+'" />'
-}
-$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Stocrant app icon"><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="'+$design.backgroundStart+'"/><stop offset="1" stop-color="'+$design.backgroundEnd+'"/></linearGradient><linearGradient id="paper" x2=".45" y2="1"><stop stop-color="'+$design.paperStart+'"/><stop offset="1" stop-color="'+$design.paperEnd+'"/></linearGradient></defs><path fill="url(#bg)" d="M0 0h1024v1024H0z"/><rect x="'+(N $design.tile.x)+'" y="'+(N $design.tile.y)+'" width="'+(N $design.tile.width)+'" height="'+(N $design.tile.height)+'" rx="'+(N $design.tile.radius)+'" fill="url(#paper)" stroke="#ffffff" stroke-opacity=".29" stroke-width="4"/><g fill="none" stroke="'+$design.ink+'" stroke-width="'+(N $design.line.width)+'" stroke-linecap="round">'+($rows -join '')+'</g></svg>'
-[System.IO.File]::WriteAllText((Join-Path $branding 'stocrant-app-icon.svg'),$svg,[System.Text.UTF8Encoding]::new($false))
-$colors = '<?xml version="1.0" encoding="utf-8"?><resources><color name="ic_launcher_background">'+$design.backgroundEnd+'</color></resources>'
-[System.IO.File]::WriteAllText((Join-Path $androidRes 'values\ic_launcher_background.xml'),$colors,[System.Text.UTF8Encoding]::new($false))
-Write-Output 'Generated Stocrant blue/mint master, Android launcher sizes and iOS app icon.'
+Resize-Png $master (Join-Path $root 'ios\App\App\Assets.xcassets\AppIcon.appiconset\AppIcon-512@2x.png') 1024 1024
+Resize-Png $master (Join-Path $branding 'stocrant-app-icon-preview.png') 512 512
+Resize-Png $master (Join-Path $root 'public\branding\stocrant-app-icon.png') 180 180
+$wordmark=Join-Path $branding 'stocrant-logo-dark.png'
+$sizes=@{'mdpi'=@(480,320);'hdpi'=@(800,480);'xhdpi'=@(1280,720);'xxhdpi'=@(1600,960);'xxxhdpi'=@(1920,1280)}
+foreach($file in Get-ChildItem -LiteralPath $android -Filter 'splash.png' -Recurse){$parts=$file.Directory.Name.Split('-');$pair=if($parts.Length -gt 2){$sizes[$parts[2]]}else{@(480,320)};$w=$pair[0];$h=$pair[1];if($parts -contains 'port'){$w=$pair[1];$h=$pair[0]};Resize-Png $wordmark $file.FullName $w $h $true}
+foreach($file in Get-ChildItem -LiteralPath (Join-Path $root 'ios\App\App\Assets.xcassets\Splash.imageset') -Filter '*.png'){Resize-Png $wordmark $file.FullName 2732 2732 $true}
+[IO.File]::WriteAllText((Join-Path $android 'values\ic_launcher_background.xml'),'<?xml version="1.0" encoding="utf-8"?><resources><color name="ic_launcher_background">#102532</color></resources>')
+Write-Output 'Generated flat navy/cyan launcher, adaptive-safe foreground, iOS icon and full-wordmark splash images.'

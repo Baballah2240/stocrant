@@ -1,0 +1,37 @@
+import { TEST_DATA_DIR } from "./test-env.js";
+import { after, before, it } from "node:test";
+import assert from "node:assert/strict";
+import { generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
+import { rmSync, writeFileSync } from "node:fs";
+import { resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
+import type { Server } from "node:http";
+import { createApp } from "./app.js";
+import { getStore, getCollection, saveStore } from "./storage.js";
+import { createNotification } from "./notifications.js";
+import { dispatchMobilePush, queueMobilePush } from "./mobile-push.js";
+let server:Server,base="",cookie="",userId="";
+const rows=(name:string)=>getCollection(name) as Record<string,any>[];
+const call=(path:string,body?:unknown,auth=cookie,method=body?"POST":"GET")=>fetch(base+"/api"+path,{method,headers:{Cookie:auth,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})});
+before(async()=>{server=createApp().listen(0,"127.0.0.1");await new Promise<void>(done=>server.once("listening",done));base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;const response=await call("/auth/setup",{name:"Push QA",email:"push@qa.test",password:randomBytes(24).toString("hex"),setupKey:"local-setup"},"");assert.equal(response.status,201);cookie=response.headers.get("set-cookie")!.split(";")[0];userId=rows("accessUsers")[0].id;});
+after(async()=>{delete process.env.STOCRANT_FCM_SERVICE_ACCOUNT_FILE;server.closeAllConnections();await new Promise<void>(done=>server.close(()=>done()));const target=resolve(TEST_DATA_DIR);assert.ok(target.startsWith(resolve(tmpdir())+sep)&&target.includes("stocrant-test-data-"));rmSync(target,{recursive:true,force:true});});
+it("gates registration, deduplicates delivery, retries safely and stops after logout",async()=>{
+ const path="/workspace/mobile-push";assert.equal((await call(path+"/status",undefined,"")).status,401);
+ const device={deviceId:randomUUID(),token:"test-fcm-token-for-local-tests-only",platform:"android"};
+ assert.equal((await call(path+"/devices",device)).status,503);
+ process.env.STOCRANT_FCM_SERVICE_ACCOUNT_FILE="test-provider-not-read-by-injected-transport";
+ assert.equal((await call(path+"/devices",{...device,userId:"foreign"})).status,400);
+ assert.equal((await call(path+"/devices",device)).status,200);
+ assert.equal((await call(path+"/devices",device)).status,200);assert.equal(rows("pushDevices").length,1);
+ const make=()=>createNotification({userId,user:"Push QA",type:"message",severity:"info",message:"PRIVATE SALARY DATA MUST STAY IN THE INBOX",target:null});
+ const notice=make();queueMobilePush(notice);assert.equal(rows("pushOutbox").length,1);assert.ok(!JSON.stringify(rows("pushOutbox")).includes("PRIVATE SALARY"));
+ let sent=0;await dispatchMobilePush(async(d,n)=>{assert.equal(d.userId,userId);assert.equal(n.id,notice.id);sent++;});await dispatchMobilePush(async()=>{sent++;});assert.equal(sent,1);
+ make();await dispatchMobilePush(async()=>{throw Error("temporary failure");});const retry=rows("pushOutbox").find(row=>row.status==="pending")!;assert.equal(retry.attempts,1);retry.nextAt=0;saveStore(getStore());await dispatchMobilePush(async()=>{sent++;});assert.equal(sent,2);
+ const secret=generateKeyPairSync("rsa",{modulusLength:2048,privateKeyEncoding:{type:"pkcs8",format:"pem"},publicKeyEncoding:{type:"spki",format:"pem"}}).privateKey;
+ const provider=resolve(TEST_DATA_DIR,"test-provider.json");writeFileSync(provider,JSON.stringify({project_id:"test-project",client_email:"test@test-project.iam.gserviceaccount.com",private_key:secret}));process.env.STOCRANT_FCM_SERVICE_ACCOUNT_FILE=provider;
+ const realFetch=globalThis.fetch;const payloads:string[]=[];
+ try{globalThis.fetch=(async(url,init)=>{assert.ok(String(url).startsWith("https://oauth2.googleapis.com/")||String(url).startsWith("https://fcm.googleapis.com/"));payloads.push(String(init?.body));return new Response(JSON.stringify(String(url).includes("oauth2")?{access_token:"test-token",expires_in:3600}:{name:"projects/test/messages/id"}),{status:200});}) as typeof fetch;make();await dispatchMobilePush();}finally{globalThis.fetch=realFetch;}
+ assert.equal(payloads.length,2);assert.ok(!payloads.some(body=>body.includes("PRIVATE SALARY")));assert.ok(payloads[1].includes("notificationId"));assert.ok(payloads[1].includes("stocrant_updates"));
+ const read=make();read.read=true;saveStore(getStore());await dispatchMobilePush(async()=>{throw Error("Read messages must not be pushed");});assert.equal(rows("pushOutbox").at(-1)?.status,"skipped");
+ make();assert.equal((await call("/auth/logout",{})).status,200);await dispatchMobilePush(async()=>{throw Error("Logged-out device must not receive pushes");});assert.equal(rows("pushOutbox").at(-1)?.status,"skipped");
+});

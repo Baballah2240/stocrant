@@ -1,3 +1,5 @@
+import { listenMobilePush } from "../mobile-push";
+import BrandLogo from "./BrandLogo";
 import WorkspaceNavigation, { WorkspaceNavLink as NavButton } from "./WorkspaceNavigation";
 import { workspaceNavigationFor, aboutNavItem as aboutItem } from "../workspace-navigation";
 import { isNativeApp } from "../api";
@@ -7,7 +9,7 @@ import MobileIcon from "./MobileIcon";
 import { useMobile } from "../use-mobile";
 import { Suspense, useEffect, useRef, useState } from "react";
 import ProfilePanel from "./ProfilePanel";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import BackButton from "./BackButton";
 import { useSession } from "../session-context";
 import { NotificationBell } from "./NotificationBell";
@@ -19,6 +21,7 @@ export default function Layout() {
   const { language, setLanguage, t } = useLanguage();
   const mobile = useMobile();
   const location = useLocation();
+  const navigate = useNavigate();
   const parentPath = location.pathname.split("/").filter(Boolean).slice(0, -1).join("/");
   const backFallback = parentPath === "me" ? "/" : parentPath === "organization" ? "/organizations" : parentPath ? `/${parentPath}` : "/";
   const [profileOpen, setProfileOpen] = useState(false);
@@ -48,6 +51,7 @@ export default function Layout() {
     }
   }, [sidebarCollapsed]);
   const { user, signOut } = useSession();
+  useEffect(()=>{let active=true;let cleanup:(()=>void)|undefined;void listenMobilePush(id=>navigate("/notifications?open="+encodeURIComponent(id)),message=>window.dispatchEvent(new CustomEvent("stocrant:push-error",{detail:message}))).then(dispose=>{if(active)cleanup=dispose;else dispose();}).catch(()=>{});return()=>{active=false;cleanup?.();};},[user?.id,navigate]);
   const mainAdmin = user?.roleId === "role-main-manager";
   const canSeeSection = (section?: string) => !section || mainAdmin || Boolean(user?.permissions.includes("*") || user?.permissions.includes(`${section}.*`) || user?.permissions.includes(`${section}.view`));
   const visibleNavItems = workspaceNavigationFor(user);
@@ -63,13 +67,7 @@ export default function Layout() {
           <button className="workspace-sidebar-toggle" type="button" aria-label={t("Primary navigation")} aria-controls="primary-navigation" aria-expanded={!sidebarCollapsed} title={t(sidebarCollapsed ? "Show sidebar" : "Hide sidebar")} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <span className="brand-logo" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <rect x="1" y="1" width="22" height="22" rx="6.5" />
-              <path d="M7 7.5h10M7 12h7M7 16.5h10" />
-            </svg>
-          </span>
-          <span className="brand-name">{t("STOCRANT")}</span>
+          <BrandLogo/>
           <span className="workspace-label">{t("Business workspace")}</span>
         </div>
         <div className="topbar-spacer" />
@@ -106,7 +104,7 @@ export default function Layout() {
       {mobile && <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}><NavLink to={isNativeApp() ? "/" : "/workspace"} end><MobileIcon name="home" />{t("Home")}</NavLink>{user?.roleId !== "role-main-manager" && <><NavLink to="/me/attendance"><MobileIcon name="attendance" />{t("Attendance")}</NavLink><NavLink to="/me/leave"><MobileIcon name="leave" />{t("Leave")}</NavLink></>}{visibleNavItems.some((item) => item.section === "operations") && <NavLink to="/operations?view=mine"><MobileIcon name="work" />{t("Work")}</NavLink>}{mainAdmin && canSeeSection("finance") && <NavLink to="/finance"><MobileIcon name="finance" />{t("Finance")}</NavLink>}<NavLink to="/mobile-more"><MobileIcon name="more" />{t("More")}</NavLink></nav>}
       <div className="app">
         <aside id="primary-navigation" className="sidebar" aria-label={t("Primary navigation")} inert={mobile || sidebarCollapsed} aria-hidden={mobile || sidebarCollapsed ? true : undefined}>
-          <nav className="nav" aria-label={t("Main navigation")}>
+          <div className="sidebar-brand"><BrandLogo/></div><nav className="nav" aria-label={t("Main navigation")}>
             {!mobile && <WorkspaceNavigation key={user?.id} items={visibleNavItems} />}
           </nav>
           <div className="nav-bottom">

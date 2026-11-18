@@ -1,3 +1,4 @@
+import { disableMobilePush } from "./mobile-push";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { api, mobileSession } from "./api";
@@ -96,6 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const operation = ++authOperation.current;
     revision.current++;
     try {
+      await disableMobilePush();
       await api.auth.logout();
     } finally {
       if (operation !== authOperation.current) return;

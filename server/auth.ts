@@ -166,6 +166,10 @@ export function accountScopeActive(account: Record<string, unknown>): boolean {
   });
 }
 
+export function authenticatedSessionId(req: Request): string | undefined {
+  const token = verifiedSessionToken(sessionTokenFromRequest(req));
+  return token ? sessionRows().find(row => row.tokenHash === hashToken(token) && Date.parse(String(row.expiresAt)) > Date.now())?.id as string | undefined : undefined;
+}
 export function authenticatedUser(req: Request): AuthenticatedUser | undefined {
   const token = verifiedSessionToken(sessionTokenFromRequest(req));
   if (!token) return undefined;

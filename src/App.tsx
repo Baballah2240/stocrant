@@ -1,6 +1,8 @@
+import BrandLogo from "./components/BrandLogo";
 const CompanyReport = lazy(() => import("./components/CompanyReport"));
 const PayrollWorkspace = lazy(() => import("./components/PayrollWorkspace"));
 const CompanyProfile = lazy(() => import("./components/CompanyProfile"));
+const NotificationHistory = lazy(() => import("./components/NotificationHistory"));
 const AppUpdates = lazy(() => import("./components/AppUpdates"));
 const HRCommunication = lazy(() => import("./components/HRCommunication"));
 const EmployeeInbox = lazy(() => import("./components/EmployeeInbox"));
@@ -62,6 +64,7 @@ const router = createBrowserRouter([
     errorElement: <PageError />,
     children: [
       { path: "workspace", element: <ResponsiveHome /> },
+      { path: "notifications", element: <NotificationHistory /> },
       { path: "app-update", element: <main className="page"><AppUpdates /></main> },
 
       // ── Company locations ──
@@ -88,7 +91,7 @@ const router = createBrowserRouter([
       { path: "hr", element: <HRWorkspace /> },
       { path: "hr/attendance", element: <AttendanceWorkspace /> },
       { path: "hr/communication", element: <HRCommunication /> },
-      { path: "notifications", element: <EmployeeInbox /> },
+      { path: "employee-inbox", element: <EmployeeInbox /> },
       { path: "hr/documents", element: <DocumentsWorkspace /> },
       { path: "hr/contracts", element: <ContractsWorkspace /> },
       { path: "hr/documents/new", element: <DocumentForm /> },
@@ -120,7 +123,7 @@ export default function App() {
   const { user, loading } = useSession();
   const { t } = useLanguage();
 
-  if (loading) return <main className="auth-page"><p className="hint">{t("Loading secure workspace…")}</p></main>;
+  if (loading) return <main className="stocrant-splash"><BrandLogo/><p role="status">{t("Loading secure workspace…")}</p></main>;
   if (!user) {
     const publicLanding = !isNativeApp() && ["/", "/aer"].includes(window.location.pathname);
     return publicLanding ? <LandingPage /> : <AuthPage />;

@@ -8,9 +8,10 @@ export function NotificationInformation({item,formatDate,compact=false}:{item:No
  const priority=item.priority||(item.severity==="critical"?"Urgent":item.severity==="warning"?"Important":"Normal");
  if(compact)return <div className="notification-summary-facts"><span className={`notification-priority priority-${item.severity}`}>{t(priority)}</span><span>{t(item.read?"Read":"Unread")}</span>{item.senderName&&<span>{t("From")}: <bdi>{item.senderName}</bdi></span>}{item.decision&&<span>{t("Status")}: {t(item.decision)}</span>}{item.readAt&&<span>{t("Read at")}: {formatDate(item.readAt)}</span>}{item.acknowledgmentRequired&&<span>{t(item.acknowledgedAt?"Acknowledged":"Acknowledgment required")}</span>}{item.effectiveAt&&<span>{t("Effective date")}: {formatDate(item.effectiveAt)}</span>}{item.shiftTime&&<span>{t("Shift time")}: <bdi>{item.shiftTime}</bdi></span>}{item.location&&<span>{t("Location")}: <bdi>{item.location}</bdi></span>}</div>;
  return <dl className="notification-facts" aria-label={t("Notification information")}>
+  <div><dt>{t("Message ID")}</dt><dd dir="ltr">{item.id}</dd></div>
   <div><dt>{t("Priority")}</dt><dd className={`notification-priority priority-${item.severity}`}>{t(priority)}</dd></div>
   <div><dt>{t("Status")}</dt><dd>{t(item.read?"Read":"Unread")}{item.decision&&<> · {t(item.decision)}</>}</dd></div>
-  {item.senderName&&<div><dt>{t("Sender")}</dt><dd dir="auto">{item.senderName}</dd></div>}
+  <div><dt>{t("Sender")}</dt><dd dir="auto">{item.senderName||t("System")}</dd></div>
   <div><dt>{t("Received at")}</dt><dd><time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time></dd></div>
   {item.effectiveAt&&<div><dt>{t("Effective date")}</dt><dd>{formatDate(item.effectiveAt)}</dd></div>}
   {item.shiftTime&&<div><dt>{t("Shift time")}</dt><dd dir="auto">{item.shiftTime}</dd></div>}

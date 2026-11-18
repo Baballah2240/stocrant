@@ -3,6 +3,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 const device = registerPlugin<{
   saveFile(input: { name: string; type: string; data: string }): Promise<{ cancelled: boolean }>;
   openWebsite(input: { url: string }): Promise<void>;
+  pushReady(): Promise<{ configured: boolean }>;
   printPage(): Promise<void>;
   setAppearance(input: { dark: boolean }): Promise<void>;
 }>("StocrantDevice");
@@ -35,6 +36,7 @@ export async function printPage(): Promise<void> {
 }
 
 export const openDeviceWebsite = (url: string) => device.openWebsite({ url });
+export const hasNativePushSetup = async () => isAndroidDevice() && (await device.pushReady()).configured;
 
 export async function syncDeviceAppearance(theme: "light" | "dark"): Promise<void> {
   if (isAndroidDevice()) await device.setAppearance({ dark: theme === "dark" });

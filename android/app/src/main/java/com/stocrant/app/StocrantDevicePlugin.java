@@ -76,6 +76,12 @@ public class StocrantDevicePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void pushReady(PluginCall call) {
+        int resource = getContext().getResources().getIdentifier("google_app_id", "string", getContext().getPackageName());
+        JSObject result = new JSObject(); result.put("configured", resource != 0); call.resolve(result);
+    }
+
+    @PluginMethod
     public void printPage(PluginCall call) {
         getBridge().executeOnMainThread(() -> {
             try {

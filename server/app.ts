@@ -35,6 +35,7 @@ import { dashboardLayoutRouter } from "./dashboard-layout.js";
 import { organizationAdminsRouter } from "./organization-admins.js";
 import { companyServicesRouter, companyWebsiteRouter } from "./company-services.js";
 import { appReleasesRouter } from "./app-releases.js";
+import { mobilePushRouter } from "./mobile-push.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -125,6 +126,7 @@ export function createApp() {
   app.use("/api/workspace/company-profiles", companyProfileRouter);
   app.use("/api/workspace/company-services", companyServicesRouter);
   app.use("/api/workspace/app-releases", appReleasesRouter);
+  app.use("/api/workspace/mobile-push", mobilePushRouter);
   app.use("/api/workspace/hr/communication", hrMessagesRouter);
   app.use("/api/workspace/tasks", tasksRouter);
   app.use("/api/workspace/customer-service/website-inquiries", websiteInquiryRouter);

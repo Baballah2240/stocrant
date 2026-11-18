@@ -1,3 +1,4 @@
+import BrandLogo from "./BrandLogo";
 import { isAndroidDevice, openDeviceWebsite } from "../device-actions";
 import AppearanceSelector from "./AppearanceSelector";
 import ConstellationBackground from "../../public-website/src/components/ConstellationBackground";
@@ -43,10 +44,10 @@ export default function AuthPage() {
   const submitLabel = busy ? "Please wait…" : setupRequired ? "Create Main Admin" : registering ? "Send registration request" : forgot ? "Send reset request" : "Sign in";
   return <div className="auth-experience auth-refined auth-connected">
     <ConstellationBackground />
-    <header className="auth-page-nav"><div className="auth-brand-links"><a href="/" className="auth-home-link">{t("STOCRANT")}</a><a className="auth-website-link" href={websiteUrl} onClick={event => { if (isAndroidDevice()) { event.preventDefault(); void openDeviceWebsite(websiteUrl).catch(err => setError((err as Error).message)); } }} target="_blank" rel="noopener noreferrer"><MobileIcon name="info" /><span>{t("STOCRANT website")}</span><span aria-hidden="true">&#8599;</span></a></div><div className="auth-appearance"><button type="button" lang={language === "en" ? "ar" : "en"} dir={language === "en" ? "rtl" : "ltr"} aria-label={t(language === "en" ? "Switch to Arabic" : "Switch to English")} onClick={() => setLanguage(language === "en" ? "ar" : "en")}>{language === "en" ? "العربية" : t("English")}</button><AppearanceSelector /></div></header>
+    <header className="auth-page-nav"><div className="auth-brand-links"><a href="/" className="auth-home-link" aria-label="Stocrant"><BrandLogo/></a><a className="auth-website-link" href={websiteUrl} onClick={event => { if (isAndroidDevice()) { event.preventDefault(); void openDeviceWebsite(websiteUrl).catch(err => setError((err as Error).message)); } }} target="_blank" rel="noopener noreferrer"><MobileIcon name="info" /><span>{t("STOCRANT website")}</span><span aria-hidden="true">&#8599;</span></a></div><div className="auth-appearance"><button type="button" lang={language === "en" ? "ar" : "en"} dir={language === "en" ? "rtl" : "ltr"} aria-label={t(language === "en" ? "Switch to Arabic" : "Switch to English")} onClick={() => setLanguage(language === "en" ? "ar" : "en")}>{language === "en" ? "العربية" : t("English")}</button><AppearanceSelector /></div></header>
     <main className="auth-page"><aside className="auth-welcome"><p className="eyebrow">{t("STOCRANT")}</p><h2>{t("Your workday starts here.")}</h2><p className="auth-welcome-intro">{t("A shared home for your team, daily work and company records.")}</p></aside>
       <section className="auth-card" aria-labelledby="auth-heading">
-        <div className="auth-brand"><span className="brand-logo" aria-hidden="true"><MobileIcon name="work" /></span><div><strong>{t("STOCRANT")}</strong><span>{t("Your workspace")}</span></div></div>
+        <div className="auth-brand"><BrandLogo/><span>{t("Your workspace")}</span></div>
         {!setupRequired && <div className="auth-entry-tabs" role="group" aria-label={t("Account access")}><button type="button" disabled={busy} aria-pressed={mode !== "register"} onClick={() => changeMode("login")}>{t("Sign in")}</button><button type="button" disabled={busy} aria-pressed={registering} onClick={() => changeMode("register")}>{t("Register")}</button></div>}
         <h1 id="auth-heading">{t(heading)}</h1><p className="hint">{t(description)}</p>
         {error && <p id="auth-error" className="error" role="alert">{t(error)}</p>}{notice && <p className="alert alert--good" role="status">{t(notice)}</p>}

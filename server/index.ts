@@ -19,6 +19,10 @@ const expiryTimer = setInterval(() => { try { generateDocumentExpiryAlerts(); } 
 expiryTimer.unref();
 try { generateDocumentExpiryAlerts(); } catch { console.error("HR document expiry scan failed; no file details logged."); }
 const server = createServer(app);
+void import("./mobile-push.js").then(({dispatchMobilePush}) => {
+  const pushTimer=setInterval(()=>void dispatchMobilePush().catch(()=>console.error("Push delivery worker failed; no private details logged.")),15000);
+  pushTimer.unref();
+});
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
 for (const signal of ["SIGTERM", "SIGINT"] as const) {

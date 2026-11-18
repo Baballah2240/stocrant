@@ -1,5 +1,11 @@
 # Mobile update history
 
+## 2026-11-18 - Android push notifications and S-logo branding
+
+Android push notifications: users turn them on from Notifications, and each device is registered with its signed-in session. The server keeps a durable outbox holding only IDs and sends a generic alert through Firebase Cloud Messaging, retrying with backoff. Message text stays in the inbox. Pushes stop after logout, account deactivation, or once the message is read. Tapping a push opens the full message on the new Notifications history page; the employee inbox moves to /employee-inbox. Delivery needs a Firebase google-services.json for com.stocrant.app in android/app (not committed) and STOCRANT_FCM_SERVICE_ACCOUNT_FILE on the server. Neither is configured yet, so no live push has been verified. iOS needs separate APNs setup.
+
+Branding: a new Stocrant S logo, app icons, adaptive icon, splash screens and notification icon, with a branded loading screen. Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Payment terms and due dates
 
 Sales, purchases and expenses gain optional Payment terms (immediate, or net 7/15/30/45/60/90 days) and an optional Due date. The server calculates each document's due date: an explicit due date first, then the document date plus the term. Aged balances now age by days overdue (Not due yet, 1–30, 31–60, 61–90, 90+), show the overdue total and overdue document count per partner, and Sales/Purchases show the due date on unpaid documents. Existing records without terms are due on their document date. Shared source only; no native build, install or hosting deployment is claimed.
