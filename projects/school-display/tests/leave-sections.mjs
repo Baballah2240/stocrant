@@ -24,6 +24,9 @@ try{
   await go('health');assert.equal(await active(),'health');
   await type('#install-update-form [name=password]','browser-filled');
   await go('timetable');assert.equal(await active(),'timetable',width+': a filled password does not block leaving System & recovery');
+  // The Windows screen link form: the browser fills both its email and password.
+  await go('health');if(await evaluate('Boolean(document.querySelector("#remote-form"))')){for(const f of await evaluate('[...document.querySelectorAll("#remote-form input:not([type=hidden])")].map(i=>i.name)'))await type(`#remote-form [name=${f}]`,'autofilled@school.test');}
+  await go('timetable');assert.equal(await active(),'timetable',width+': an auto-filled screen link form does not block leaving');
   assert.equal(await evaluate('__asked'),0,'no question for a password');
   // A real change asks; staying keeps it, leaving discards it.
   await go('settings');await type('[name=schoolEn]','Unsaved school');
