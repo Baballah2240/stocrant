@@ -64,3 +64,17 @@
 .transfer-number button { padding: 4px 10px; font-size: .85rem; }
 .transfer-upload { display: grid; gap: 10px; max-width: 460px; }
 .transfer-upload label { display: grid; gap: 4px; }
+
+.variant-count { display: block; color: var(--muted); font-size: .8rem; }
+.variant-picker { display: grid; gap: 12px; margin: 14px 0; }
+.variant-picker fieldset { border: 0; padding: 0; margin: 0; }
+.variant-picker legend { margin-bottom: 6px; color: var(--muted); }
+.variant-picker legend b { color: var(--ink); }
+.variant-picker div { display: flex; flex-wrap: wrap; gap: 6px; }
+.variant-picker button { min-width: 44px; min-height: 40px; padding: 6px 12px; }
+.variant-picker button[aria-pressed="true"] { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; font-weight: 600; }
+.variant-picker button[data-unavailable="true"] { opacity: .45; text-decoration: line-through; }
+.coupon-box { display: grid; gap: 6px; margin: 10px 0; }
+.coupon-box label { display: grid; gap: 4px; }
+.coupon-box > button { justify-self: start; }
+.summary-discount dd { color: #15803d; }

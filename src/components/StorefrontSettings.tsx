@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { request, serverUrl } from "../api";
 import { useLanguage } from "../language-context";
 import StorefrontMerchandising from "./StorefrontMerchandising";
+import StorefrontCoupons, { type Coupon } from "./StorefrontCoupons";
 import StorefrontAlerts, { defaultAlerts, type ShopAlerts, type Messaging } from "./StorefrontAlerts";
 import StorefrontPayments, { defaultPayments, type ShopPayments } from "./StorefrontPayments";
 import StorefrontBranding, { defaultBranding, type Branding } from "./StorefrontBranding";
@@ -31,6 +32,7 @@ const initial = {
   branding: defaultBranding as Branding,
   payments: defaultPayments as ShopPayments,
   alerts: defaultAlerts as ShopAlerts,
+  coupons: [] as Coupon[],
 };
 type Settings = typeof initial;
 export default function StorefrontSettings({
@@ -87,6 +89,7 @@ export default function StorefrontSettings({
           ]),
         ),
         published,
+        coupons: (settings.coupons || []).map(({ uses: _uses, ...c }) => c),
         branding: { ...defaultBranding, ...settings.branding, faq: (settings.branding?.faq || []).filter(item => item.question.trim() && item.answer.trim()) },
       };
       const r = await request<{ settings: Settings; url: string }>(
@@ -269,6 +272,7 @@ export default function StorefrontSettings({
                 )}
               </label>
             </section>
+            <StorefrontCoupons value={settings.coupons} onChange={coupons => setSettings({ ...settings, coupons })} />
             <StorefrontAlerts value={settings.alerts} messaging={messaging} onChange={alerts => setSettings({ ...settings, alerts })} />
             <StorefrontPayments value={settings.payments} onChange={payments => setSettings({ ...settings, payments })} />
             <section className="shop-form">

@@ -26,12 +26,16 @@ type Product = {
   currency: string;
   available: number;
   category: string;
+  variantGroup?: string;
+  size?: string;
+  color?: string;
 };
 type Branding = { template: string; primaryColor: string; accentColor: string; font: string; banner: string; heroTitle: string; heroSubtitle: string; aboutTitle: string; aboutImage: string; whatsapp: string; instagram: string; facebook: string; tiktok: string; faq: { question: string; answer: string }[]; seoTitle: string; seoDescription: string; customDomain: string };
 const defaultBranding: Branding = { template: "classic", primaryColor: "#244c40", accentColor: "#b78d52", font: "serif", banner: "", heroTitle: "", heroSubtitle: "", aboutTitle: "", aboutImage: "", whatsapp: "", instagram: "", facebook: "", tiktok: "", faq: [], seoTitle: "", seoDescription: "", customDomain: "" };
 /** Readable text colour on a brand colour. */
 const onColor = (hex: string) => { const n = parseInt(hex.slice(1), 16), l = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; return l > 0.6 ? "#14221d" : "#fffdf5"; };
 type Settings = {
+  hasCoupons?: boolean;
   alerts?: { customerChannel: "none" | "sms" | "whatsapp" };
   payments?: { cashEnabled: boolean; transferEnabled: boolean };
   branding?: Branding;
@@ -67,6 +71,8 @@ type Quote = {
   }[];
   subtotal: string;
   delivery: string;
+  discount?: string;
+  coupon?: { code: string; label: string } | null;
   total: string;
   currency: string;
   quoteToken: string;
@@ -79,6 +85,8 @@ type Receipt = {
   subtotal: string;
   delivery: string;
   total: string;
+  discount?: string;
+  coupon?: string;
   lines: { name: string; quantity: number; price: string; total: string }[];
   method: string;
   tracking: string;
@@ -232,6 +240,9 @@ export default function Shop() {
     [quantity, setQuantity] = useState(1),
     [method, setMethod] = useState("pickup"),
     [payment, setPayment] = useState<"cash" | "transfer">("cash"),
+    [couponInput, setCouponInput] = useState(""),
+    [coupon, setCoupon] = useState(""),
+    [couponError, setCouponError] = useState(""),
     [quote, setQuote] = useState<Quote | null>(null),
     [quoteBusy, setQuoteBusy] = useState(false),
     [busy, setBusy] = useState(false);
@@ -388,16 +399,17 @@ export default function Shop() {
     const controller = new AbortController();
     setQuoteBusy(true);
     setQuote(null);
-    api<Quote>(apiBase + "/quote", { lines: cart, method }, controller.signal)
-      .then(setQuote)
+    api<Quote>(apiBase + "/quote", { lines: cart, method, coupon }, controller.signal)
+      .then((q) => { setQuote(q); setCouponError(""); })
       .catch((e) => {
-        if (e.name !== "AbortError") setError(e.message);
+        if (e.name === "AbortError") return;
+        if (coupon) { setCouponError(e.message); setCoupon(""); } else setError(e.message);
       })
       .finally(() => {
         if (!controller.signal.aborted) setQuoteBusy(false);
       });
     return () => controller.abort();
-  }, [path, apiBase, cart, method, refreshQuote, shop]);
+  }, [path, apiBase, cart, method, refreshQuote, shop, coupon]);
   useEffect(() => {
     if (!path.startsWith("/order/") || !slug) return;
     const token = location.split("#")[1];
@@ -435,8 +447,10 @@ export default function Shop() {
   const categoryOptions = [ ...merchandising.categories.filter(c => products.some(p => p.category === c.name)).map(c => c.name), ...[...new Set(products.map(p => p.category))].filter(name => !merchandising.categories.some(c => c.name === name)) ];
   const normalizeSearch = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, "").toLocaleLowerCase().trim();
   const terms = normalizeSearch(merchandising.display.showSearch ? search : "").split(/\s+/).filter(Boolean);
+  const groupOf = (p: Product) => p.variantGroup ? products.filter(x => x.variantGroup === p.variantGroup) : [p];
+  const isLead = (p: Product) => { if (!p.variantGroup) return true; const group = groupOf(p); return (group.find(x => x.available > 0) || group[0]).id === p.id; };
   const count = cart.reduce((n, l) => n + l.quantity, 0),
-    visible = products.filter(p => (!onlyLiked || liked.includes(p.id)) && (!merchandising.display.showCategories || category === "All" || p.category === category) && (!onlyOffers || Boolean(p.offerId)) && (!offerFilter || p.offerId === offerFilter) && terms.every(term => normalizeSearch(`${p.name} ${p.sku} ${p.description} ${p.category} ${categoryTitle(p.category)} ${p.offerTitle || ""}`).includes(term))).sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "low" ? Number(a.price)-Number(b.price) : sort === "high" ? Number(b.price)-Number(a.price) : productRank(a.id)-productRank(b.id));
+    visible = products.filter(p => isLead(p) && (!onlyLiked || liked.includes(p.id)) && (!merchandising.display.showCategories || category === "All" || p.category === category) && (!onlyOffers || Boolean(p.offerId)) && (!offerFilter || p.offerId === offerFilter) && terms.every(term => normalizeSearch(`${p.name} ${p.sku} ${p.description} ${p.category} ${categoryTitle(p.category)} ${p.offerTitle || ""}`).includes(term))).sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "low" ? Number(a.price)-Number(b.price) : sort === "high" ? Number(b.price)-Number(a.price) : productRank(a.id)-productRank(b.id));
   const invalidCart = cart.some(
     (l) =>
       !products.some((p) => p.id === l.productId && p.available >= l.quantity),
@@ -580,6 +594,7 @@ export default function Shop() {
       lines: cart,
       method,
       payment,
+      coupon: quote.coupon?.code || "",
     };
     pending.current = { ...attempt, body };
     save(
@@ -686,11 +701,16 @@ export default function Shop() {
     ? products.find((p) => p.id === path.split("/")[2])
     : null;
   const relatedProducts = product
-    ? products.filter(p => p.id !== product.id)
+    ? products.filter(p => p.id !== product.id && isLead(p) && (!product.variantGroup || p.variantGroup !== product.variantGroup))
         .sort((a, b) => Number(b.category === product.category) - Number(a.category === product.category))
         .slice(0, 4)
     : [];
-  function priceLabel(p: Product) { return <span className="store-price">{p.originalPrice && <del>{moneyLabel(p.originalPrice)}</del>}<span>{moneyLabel(p.price)}</span>{p.offerTitle && <small>{p.offerTitle}</small>}</span>; }
+  function priceLabel(p: Product, detail = false) { const group = groupOf(p), options = group.length; const prices = new Set(group.map(x => x.price)); return <span className="store-price">{p.originalPrice && <del>{moneyLabel(p.originalPrice)}</del>}<span>{!detail && prices.size > 1 && t("From") + " "}{moneyLabel(!detail && prices.size > 1 ? [...prices].sort((a, b) => Number(a) - Number(b))[0] : p.price)}</span>{p.offerTitle && <small>{p.offerTitle}</small>}{!detail && options > 1 && <small className="variant-count">{options} {t("options")}</small>}</span>; }
+  function variantPicker(p: Product) {
+    const group = groupOf(p); if (group.length < 2) return null;
+    const pick = (key: "size" | "color", value: string) => { const match = group.find(x => x[key] === value && (key === "size" ? x.color === p.color : x.size === p.size)) || group.find(x => x[key] === value && x.available > 0) || group.find(x => x[key] === value); if (match && match.id !== p.id) { setQuantity(1); navigate(`/product/${match.id}`); } };
+    return <div className="variant-picker">{(["size", "color"] as const).map(key => { const values = [...new Set(group.map(x => x[key] || "").filter(Boolean))]; if (!values.length) return null; return <fieldset key={key}><legend>{t(key === "size" ? "Size" : "Colour")}: <b>{p[key]}</b></legend><div>{values.map(v => { const option = group.find(x => x[key] === v && (key === "size" ? x.color === p.color : x.size === p.size)); return <button type="button" key={v} aria-pressed={p[key] === v} data-unavailable={!option || option.available < 1} onClick={() => pick(key, v)}>{v}</button>; })}</div></fieldset>; })}</div>;
+  }
   function likeButton(p: Product, detail = false) { const selected = liked.includes(p.id); return <button type="button" className={detail ? "product-like-detail" : "product-like"} aria-label={t(selected ? "Unlike product" : "Like product") + ": " + p.name} aria-pressed={selected} title={t(selected ? "Unlike product" : "Like product")} disabled={likesShop !== slug} onClick={() => setLiked(current => current.includes(p.id) ? current.filter(id => id !== p.id) : [...current,p.id].slice(-1000))}><Heart filled={selected} />{detail && <span>{t(selected ? "Liked" : "Like")}</span>}</button>; }
   function renderProduct(p: Product, i: number) { return (<article className="product-card" data-motion={merchandising.display.productMotion?.find(row=>row.productId===p.id)?.motion} key={p.id} data-product-id={p.id}>
                     {likeButton(p)}
@@ -732,7 +752,7 @@ export default function Shop() {
                       </button>
                     </div>
                   </article>); }
-  function sectionProducts(section: Merchandising["sections"][number]) { const selected = products.filter(p => section.source === "all" || section.source === "category" && p.category === section.category || section.source === "offers" && Boolean(p.offerId) || section.source === "products" && section.productIds.includes(p.id)); return (section.source === "products" ? [...selected].sort((a,b)=>section.productIds.indexOf(a.id)-section.productIds.indexOf(b.id)) : [...selected].sort((a,b)=>productRank(a.id)-productRank(b.id))).slice(0,section.limit); }
+  function sectionProducts(section: Merchandising["sections"][number]) { const selected = products.filter(p => isLead(p) && (section.source === "all" || section.source === "category" && p.category === section.category || section.source === "offers" && Boolean(p.offerId) || section.source === "products" && section.productIds.includes(p.id))); return (section.source === "products" ? [...selected].sort((a,b)=>section.productIds.indexOf(a.id)-section.productIds.indexOf(b.id)) : [...selected].sort((a,b)=>productRank(a.id)-productRank(b.id))).slice(0,section.limit); }
   return (
     <div className="amal" data-template={brand.template} data-font={brand.font} style={brandStyle} data-card-size={merchandising.display.cardSize || "medium"} data-image-shape={merchandising.display.imageShape || "portrait"} data-spacing={merchandising.display.spacing || "comfortable"} data-text-size={merchandising.display.textSize || "medium"}>
       <a className="skip" href="#content">
@@ -952,7 +972,8 @@ export default function Shop() {
                 {product.sku} / {categoryTitle(product.category)}
               </p>
               <h1>{product.name}</h1>
-              <div className="detail-price">{priceLabel(product)}</div>
+              <div className="detail-price">{priceLabel(product, true)}</div>
+              {variantPicker(product)}
               {likeButton(product,true)}
               {product.warranty && <><WarrantyBadge details={product.warrantyDetails} t={t} />{product.warrantyDetails && <p className="warranty-details" dir="auto">{product.warrantyDetails}</p>}</>}
               <p>{product.description}</p>
@@ -1248,11 +1269,22 @@ export default function Shop() {
                           <dt>{t("Delivery")}</dt>
                           <dd>{moneyLabel(quote.delivery)}</dd>
                         </div>
+                        {quote.coupon && <div className="summary-discount">
+                          <dt>{t("Discount")} <span dir="ltr">{quote.coupon.code}</span> ({quote.coupon.label})</dt>
+                          <dd>−{moneyLabel(quote.discount || "0")}</dd>
+                        </div>}
                         <div className="summary-total">
                           <dt>{t("Total")}</dt>
                           <dd>{moneyLabel(quote.total)}</dd>
                         </div>
                       </dl>
+                      {shop.hasCoupons && <div className="coupon-box">
+                        {quote.coupon ? <p>{t("Code applied")}: <b dir="ltr">{quote.coupon.code}</b> <button type="button" className="text-link" onClick={() => { setCoupon(""); setCouponInput(""); }}>{t("Remove")}</button></p> : <>
+                          <label><span>{t("Discount code")}</span><input dir="ltr" maxLength={24} value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (couponInput.trim()) setCoupon(couponInput.trim()); } }} /></label>
+                          <button type="button" disabled={!couponInput.trim() || quoteBusy} onClick={() => setCoupon(couponInput.trim())}>{t("Apply")}</button>
+                        </>}
+                        {couponError && <p className="error" role="alert">{t(couponError)}</p>}
+                      </div>}
                     </>
                   ) : (
                     <p role="status">{t("Reviewing availability…")}</p>
@@ -1357,6 +1389,10 @@ export default function Shop() {
                       <dt>{t("Delivery")}</dt>
                       <dd>{moneyLabel(order.delivery)}</dd>
                     </div>
+                    {order.coupon && Number(order.discount) > 0 && <div className="summary-discount">
+                      <dt>{t("Discount")} <span dir="ltr">{order.coupon}</span></dt>
+                      <dd>−{moneyLabel(order.discount || "0")}</dd>
+                    </div>}
                     <div className="summary-total">
                       <dt>{t("Total")}</dt>
                       <dd>{moneyLabel(order.total)}</dd>

@@ -63,3 +63,13 @@
 .shop-order-messages li[data-status="sent"] strong { color: #16a34a; }
 .shop-order-messages li[data-status="failed"] strong { color: #dc2626; }
 .shop-order-messages li small { flex-basis: 100%; opacity: .75; }
+
+.storefront-coupons { display: grid; gap: 8px; }
+.storefront-coupon { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 8px; padding: 10px; border: 1px solid rgba(127,127,127,.25); border-radius: 10px; }
+.storefront-coupon[data-enabled="false"] { opacity: .65; }
+.storefront-coupon-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.storefront-coupon-foot button { margin-inline-start: auto; }
+.shop-variant-fields { border: 1px solid rgba(127,127,127,.25); border-radius: 10px; padding: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.shop-variant-fields legend { font-weight: 600; padding: 0 4px; }
+.shop-variant-fields label { display: grid; gap: 4px; }
+.shop-variant-fields small { grid-column: 1 / -1; }

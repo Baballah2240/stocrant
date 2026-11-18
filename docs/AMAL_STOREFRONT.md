@@ -125,3 +125,12 @@ Configure these on the server, never in source control:
 - `TWILIO_WHATSAPP_FROM` (an approved WhatsApp sender, e.g. +14155238886 for the Twilio sandbox), for WhatsApp.
 
 WhatsApp messages outside a 24-hour customer conversation need Twilio-approved templates in production, and the sandbox only reaches numbers that joined it. Check Twilio's SMS coverage and sender rules for Sudan before relying on SMS there.
+
+## Sizes, colours and discount codes
+
+**Sizes and colours.** Products accept optional `variantGroup`, `size` and `color`. Each variant stays its own product and stock item. The shop groups products by `variantGroup` (the lead is the first in-stock variant), and the order line name gets size and colour appended.
+
+**Discount codes.** `coupons` in storefront settings holds up to 50 entries: `{ id, code, kind: percent | amount, value, minSubtotal, startsAt, endsAt, maxUses, enabled }` (see `server/storefront-coupons.ts`).
+- **Quote and checkout:** both accept `coupon`. The quote returns `discount` and `coupon`, and the checkout stores `discount` and `couponCode` on the order.
+- **Use limit:** a use is an order with that code that is not cancelled or expired. The limit is rechecked inside the checkout transaction.
+- **Public catalog:** exposes only `hasCoupons`.

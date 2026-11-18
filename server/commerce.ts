@@ -40,6 +40,9 @@ const productInput = z
     category: z.string().trim().min(1).max(80).default("Collection"),
     warranty: z.boolean().default(false),
     warrantyDetails: z.string().trim().max(240).default(""),
+    variantGroup: z.string().trim().max(100).default(""),
+    size: z.string().trim().max(40).default(""),
+    color: z.string().trim().max(40).default(""),
     image: photoUrl.default(""),
     images: photoList.optional(),
     stockLocation: text.default("Main stock"),
@@ -291,7 +294,7 @@ export function createShopOrder(
       ...line,
       inventoryItemId: p.inventoryItemId,
       sku: p.sku,
-      name: p.name,
+      name: [p.name, p.size, p.color].filter(Boolean).join(" · "),
       ...(offered?.offerId ? { originalPrice: p.price, offerId: offered.offerId, offerTitle: offered.offerTitle } : {}),
       price,
       total: money(scaled(price, digits) * BigInt(line.quantity), digits),
@@ -456,6 +459,9 @@ commerceRouter.patch("/:companyId/products/:id", (req, res) => {
         images: photoList.optional(),
         warranty: z.boolean().optional(),
         warrantyDetails: z.string().trim().max(240).optional(),
+        variantGroup: z.string().trim().max(100).optional(),
+        size: z.string().trim().max(40).optional(),
+        color: z.string().trim().max(40).optional(),
       })
       .strict()
       .parse(req.body);

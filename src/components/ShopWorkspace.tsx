@@ -29,6 +29,9 @@ type Product = {
   images?: string[];
   warranty?: boolean;
   warrantyDetails?: string;
+  variantGroup?: string;
+  size?: string;
+  color?: string;
   price: string;
   currency: string;
   onHand: number;
@@ -107,6 +110,9 @@ const newProduct = () => ({
   category: "Collection",
   warranty: false,
   warrantyDetails: "",
+  variantGroup: "",
+  size: "",
+  color: "",
 });
 
 export default function ShopWorkspace() {
@@ -286,6 +292,7 @@ export default function ShopWorkspace() {
     event.preventDefault();
     void action(fn);
   };
+  function variantFields(value: { variantGroup?: string; size?: string; color?: string }, update: (changes: { variantGroup?: string; size?: string; color?: string }) => void) { return <fieldset className="shop-variant-fields"><legend>{t("Size & colour (optional)")}</legend><label>{t("Product group")}<input list="shop-variant-groups" maxLength={100} value={value.variantGroup || ""} onChange={event => update({ variantGroup: event.target.value })} placeholder={t("e.g. Summer dress")} /></label><label>{t("Size")}<input maxLength={40} value={value.size || ""} onChange={event => update({ size: event.target.value })} placeholder="S, M, 42…" /></label><label>{t("Colour")}<input maxLength={40} value={value.color || ""} onChange={event => update({ color: event.target.value })} placeholder={t("e.g. Blue")} /></label><datalist id="shop-variant-groups">{[...new Set(data?.products.map(p => p.variantGroup).filter(Boolean))].map(g => <option key={g} value={g} />)}</datalist><small className="hint">{t("Products with the same group show as one product in the shop, with size and colour choices. Each keeps its own SKU, price and stock.")}</small></fieldset>; }
   function warrantyFields(enabled: boolean, details: string, update: (warranty: boolean, warrantyDetails: string) => void) { return <div className="shop-warranty-fields"><label className="merch-check"><input type="checkbox" checked={enabled} onChange={event=>update(event.target.checked,event.target.checked ? details : "")} />{t("Product has a warranty")}</label>{enabled && field("Warranty details (optional)",details,value=>update(true,value),"text",false)}</div>; }
   const selected = data.orders.find((o) => o.id === selectedOrder);
   const visibleProducts = data.products.filter(p => (`${p.name} ${p.sku} ${p.category || ""}`).toLowerCase().includes(search.toLowerCase()) && (productFilter === "all" || productFilter === "active" && p.active || productFilter === "paused" && !p.active || productFilter === "out" && p.available === 0));
@@ -608,6 +615,9 @@ export default function ShopWorkspace() {
                             category: editingProduct.category || "Collection",
                             warranty: editingProduct.warranty === true,
                             warrantyDetails: editingProduct.warrantyDetails || "",
+                            variantGroup: editingProduct.variantGroup || "",
+                            size: editingProduct.size || "",
+                            color: editingProduct.color || "",
                           },
                           "PATCH",
                         );
@@ -647,6 +657,7 @@ export default function ShopWorkspace() {
                         "text",
                         false,
                       )}
+                      {variantFields(editingProduct, changes => setEditingProduct({ ...editingProduct, ...changes }))}
                       {warrantyFields(editingProduct.warranty === true,editingProduct.warrantyDetails || "",(warranty,warrantyDetails)=>setEditingProduct({...editingProduct,warranty,warrantyDetails}))}
                       <ProductPhotos key={companyId + editingProduct.id} companyId={companyId} value={editingProduct.images || (editingProduct.image ? [editingProduct.image] : [])} onBusy={setPhotoBusy} onChange={images => setEditingProduct({ ...editingProduct, images, image: images[0] || "" })} />
                       <button className="btn primary">
@@ -690,6 +701,7 @@ export default function ShopWorkspace() {
                         {field("Stock location", product.stockLocation, (v) =>
                           setProduct({ ...product, stockLocation: v }),
                         )}
+                        {variantFields(product, changes => setProduct({ ...product, ...changes }))}
                         {warrantyFields(product.warranty,product.warrantyDetails,(warranty,warrantyDetails)=>setProduct({...product,warranty,warrantyDetails}))}
                         <ProductPhotos key={companyId} companyId={companyId} value={product.images} onBusy={setPhotoBusy} onChange={images => setProduct({ ...product, images, image: images[0] || "" })} />
                         <label className="form-field">

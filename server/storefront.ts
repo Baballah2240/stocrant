@@ -1,5 +1,6 @@
 import express, { Router, type Request, type Response } from "express";
 import { alertsSchema, alertsFor, defaultAlerts, alertProvider, queueOrderUpdate, queueStaffAlert } from "./shop-alerts.js";
+import { couponsSchema, couponsFor, couponDiscount, couponUses } from "./storefront-coupons.js";
 import { paymentsSchema, paymentsFor, defaultPayments, applyCheckoutPayment, receiptPayment, saveTransferProof, PROOF_LIMIT } from "./storefront-payments.js";
 import {
   createHash,
@@ -94,6 +95,7 @@ const settingsSchema = z
     branding: brandingSchema.optional(),
     payments: paymentsSchema.optional(),
     alerts: alertsSchema.optional(),
+    coupons: couponsSchema.optional(),
   })
   .strict();
 const defaults = {
@@ -120,6 +122,7 @@ const defaults = {
   branding: defaultBranding,
   payments: defaultPayments,
   alerts: defaultAlerts,
+  coupons: [],
   merchandising: defaultMerchandising,
 };
 function admin(req: Request, companyId: string) {
@@ -131,7 +134,7 @@ function admin(req: Request, companyId: string) {
 }
 function safeSettings(s: Row) {
   const { connectorId, ownerId, ...safe } = s;
-  return { ...safe, branding: brandingFor(s), payments: paymentsFor(s), alerts: alertsFor(s) };
+  return { ...safe, branding: brandingFor(s), payments: paymentsFor(s), alerts: alertsFor(s), coupons: couponsFor(s).map(c => ({ ...c, uses: s.id ? couponUses(s.id, c.code) : 0 })) };
 }
 function context(s: Row) {
   const connector = rows("shopConnectors").find(
@@ -245,6 +248,7 @@ const cartSchema = z
   .object({
     lines: z.array(lineSchema).min(1).max(50),
     method: z.enum(["delivery", "pickup"]),
+    coupon: z.string().trim().max(24).default(""),
   })
   .strict();
 function catalog(s: Row, user: AuthenticatedUser, currency: string) {
@@ -274,6 +278,9 @@ function catalog(s: Row, user: AuthenticatedUser, currency: string) {
       currency: p.currency,
       available: shopStock(p).available,
       category: p.category || "Collection",
+      variantGroup: p.variantGroup || "",
+      size: p.size || "",
+      color: p.color || "",
     }));
 }
 function quote(
@@ -301,7 +308,7 @@ function quote(
       fail("Some items are no longer available. Review your bag.", 409);
     return {
       ...l,
-      name: p.name,
+      name: [p.name, p.size, p.color].filter(Boolean).join(" · "),
       price: p.price,
       total: money(scaled(p.price, digits) * BigInt(l.quantity), digits),
       originalPrice: p.originalPrice,
@@ -312,11 +319,15 @@ function quote(
   const subtotal = lines.reduce((n, l) => n + scaled(l.total, digits), 0n),
     delivery =
       input.method === "delivery" ? s.deliveryFee : cashAmount("0", currency);
+  const applied = input.coupon ? couponDiscount(s, input.coupon, subtotal, digits) : null;
+  const discount = applied?.discount ?? 0n;
   return {
     lines,
     subtotal: money(subtotal, digits),
     delivery,
-    total: money(subtotal + scaled(delivery, digits), digits),
+    discount: money(discount, digits),
+    coupon: applied ? { code: applied.code, label: applied.label } : null,
+    total: money(subtotal + scaled(delivery, digits) - discount, digits),
     currency,
     method: input.method,
     version: s.version,
@@ -339,6 +350,8 @@ function receipt(order: Row, s?: Row) {
     currency: order.currency,
     subtotal: order.subtotal,
     delivery: order.delivery,
+    discount: order.discount || "0",
+    coupon: order.couponCode || "",
     total: order.total,
     lines: order.lines.map((l: Row) => ({
       name: l.name,
@@ -424,6 +437,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
       validateBranding(branding, current?.id, req.hostname);
       const payments = b.payments ?? paymentsFor(current || {});
       const alerts = b.alerts ?? alertsFor(current || {});
+      const coupons = b.coupons ?? couponsFor(current || {});
       if (
         current &&
         current.slug !== b.slug &&
@@ -476,6 +490,7 @@ storefrontAdminRouter.put("/:companyId", (req, res) => {
         branding,
         payments,
         alerts,
+        coupons,
         deliveryFee,
         id: current?.id || randomUUID(),
         organizationId: c.id,
@@ -534,7 +549,7 @@ storefrontRouter.get("/:slug/catalog", (req, res) => {
     const { connectorId, ownerId, organizationId, id, ...settings } = s;
     const products = catalog(s, user, company.currency), m = merchandisingFor(s);
     res.json({
-      shop: { ...settings, alerts: { customerChannel: alertsFor(s).customerChannel }, payments: { cashEnabled: paymentsFor(s).cashEnabled, transferEnabled: paymentsFor(s).transferEnabled }, branding: brandingFor(s), merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
+      shop: { ...settings, coupons: undefined, hasCoupons: couponsFor(s).some(c => c.enabled), alerts: { customerChannel: alertsFor(s).customerChannel }, payments: { cashEnabled: paymentsFor(s).cashEnabled, transferEnabled: paymentsFor(s).transferEnabled }, branding: brandingFor(s), merchandising: publicMerchandising(m, products), currency: company.currency, preview: !s.published },
       products,
       refreshAt: nextMerchandisingChange(m),
     });
@@ -616,6 +631,7 @@ const checkoutSchema = z
     lines: z.array(lineSchema).min(1).max(50),
     method: z.enum(["pickup", "delivery"]),
     payment: z.enum(["cash", "transfer"]).default("cash"),
+    coupon: z.string().trim().max(24).default(""),
     updates: z.boolean().default(false),
   })
   .strict();
@@ -652,6 +668,7 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
     const q = quote(s, user, company.currency, {
       lines: b.lines,
       method: b.method,
+      coupon: b.coupon,
     });
     const expires = Number(b.quoteToken.split(".")[0]);
     if (
@@ -665,6 +682,8 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
         409,
       );
     const order = transaction(() => {
+      // Recheck the code inside the write so a use limit cannot be exceeded by parallel checkouts.
+      if (q.coupon) couponDiscount(s, q.coupon.code, scaled(q.subtotal, precision(company.currency)), precision(company.currency));
       const order = createShopOrder(
         user,
         company,
@@ -680,13 +699,14 @@ storefrontRouter.post("/:slug/checkout", (req, res) => {
           notes: b.notes,
           lines: b.lines,
           delivery: q.delivery,
-          discount: "0",
+          discount: q.discount,
         },
         connector.id,
         new Map(q.lines.map(line => [line.productId, { price: line.price, originalPrice: line.originalPrice, offerId: line.offerId, offerTitle: line.offerTitle }])),
       );
       order.source = "storefront";
       order.storefrontId = s.id;
+      if (q.coupon) order.couponCode = q.coupon.code;
       order.fulfilmentMethod = b.method;
       order.reservationExpiresAt = new Date(
         Date.now() + s.reservationHours * 3600000,

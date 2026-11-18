@@ -1,5 +1,12 @@
 # Mobile update history
 
+## 2026-11-19 - Product sizes and colours, and discount codes
+
+- **Sizes and colours:** products have optional **Product group**, **Size** and **Colour** fields. Products in the same group show as one card in the shop, with "From" the lowest price and the number of options. The product page has size and colour buttons, and combinations that don't exist or are sold out are crossed out. Each size or colour keeps its own SKU, price and stock, so stock, orders and Finance work as before. Order lines read like "Linen shirt · M · Red".
+- **Discount codes:** Customer storefront > **Discount codes** sets a percentage (1–90) or fixed amount, with minimum order, start and end time, use limit (0 = unlimited), active switch and a use count. Customers enter the code at checkout. The server checks it and applies it to the product subtotal, not delivery, after any offers, and rechecks the use limit when the order is placed. Codes are never shown in the public shop. The order and the customer's order page show the code and discount.
+
+Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-19 - Order messages work for any country
 
 Customer numbers typed without + now use the shop's country calling code. It comes from the company country (about 60 countries known), or from a new **Country calling code for local numbers** setting, for example 974 for Qatar or 254 for Kenya. With no code, only numbers that start with + receive messages. Nothing is assumed to be Sudanese any more. The suggested transfer providers also include M-Pesa, MTN MoMo, Airtel Money, Orange Money, Vodafone Cash, STC Pay, Ooredoo Money, Wise and PayPal. Shared source only.
