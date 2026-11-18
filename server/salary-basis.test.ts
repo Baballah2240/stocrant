@@ -106,3 +106,32 @@ it("company types: new types save, earlier types map to their current equivalent
   assert.equal(booking.organizationId, hotel.id);
   assert.equal((await call("/collections/menuItems", { organizationId: hotel.id, name: "Ful medames", category: "breakfast", price: 2500, status: "available" })).status, 201);
 });
+
+it("hotel bookings: nights and total are calculated, check-out creates one sale, and paid sales are protected", async () => {
+  const org = (await expect(await call("/collections/organizations", { name: "Hotel organization", status: "active" }), 201)).item;
+  const hotel = (await expect(await call("/collections/companies", { name: "Nile Hotel", parentOrganizationId: org.id, status: "active", organizationType: "hotel", industry: "hospitality", currency: "SDG", vatRate: 17 }), 201)).item;
+  const booking = (await expect(await call("/collections/roomBookings", { organizationId: hotel.id, guestName: "Amna", roomNumber: "204", checkIn: "2026-12-01", checkOut: "2026-12-03", nightlyRate: 15000, total: 1, status: "reserved" }), 201)).item;
+  assert.equal(booking.nights, 2); assert.equal(booking.total, "30000.00"); // client total is ignored
+  assert.equal(booking.saleId, undefined);
+  assert.equal((await call("/collections/roomBookings", { organizationId: hotel.id, guestName: "Bad", roomNumber: "1", checkIn: "2026-12-05", checkOut: "2026-12-05", nightlyRate: 100, status: "reserved" })).status, 400);
+  const patch = (id: string, body: Row) => call(`/collections/roomBookings/${id}`, body, "PATCH");
+  await expect(await patch(booking.id, { status: "checked out" }));
+  const sales = () => (getStore().collections.sales as Row[]).filter(s => s.bookingId === booking.id);
+  assert.equal(sales().length, 1);
+  const sale = sales()[0];
+  assert.deepEqual([sale.invoiceNo, sale.date, sale.customer, sale.total, sale.tax, sale.status], [`BK-${booking.id}`, "2026-12-03", "Amna", "30000.00", "4358.97", "completed"]);
+  await expect(await patch(booking.id, { status: "checked out" }));
+  assert.equal(sales().length, 1); // saving again never creates a second sale
+  await expect(await patch(booking.id, { nightlyRate: 20000 }));
+  assert.equal(sales()[0].total, "40000.00");
+  // Once the sale has a payment, financial changes to the booking are refused.
+  const data = getStore(); (data.collections.financeTransactions as Row[]).push({ id: "booking-pay", organizationId: hotel.id, sourceCollection: "sales", sourceId: sale.id, status: "paid", amount: "1000.00", direction: "in", type: "income", currency: "SDG" }); saveStore(data);
+  assert.equal((await patch(booking.id, { nightlyRate: 1 })).status, 409);
+  assert.equal((await call(`/collections/roomBookings/${booking.id}`, undefined, "DELETE")).status, 409);
+  // A cancelled booking cancels its unpaid sale.
+  const other = (await expect(await call("/collections/roomBookings", { organizationId: hotel.id, guestName: "Omer", roomNumber: "101", checkIn: "2026-12-10", checkOut: "2026-12-11", nightlyRate: 10000, status: "checked out" }), 201)).item;
+  const otherSale = (getStore().collections.sales as Row[]).find(s => s.bookingId === other.id)!;
+  assert.equal(otherSale.status, "completed");
+  await expect(await patch(other.id, { status: "cancelled" }));
+  assert.equal((getStore().collections.sales as Row[]).find(s => s.id === otherSale.id)!.status, "cancelled");
+});

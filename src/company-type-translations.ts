@@ -1,6 +1,11 @@
 /** Arabic copy for company types, their tailored tools and the business-type registers. */
 export const companyTypeTranslations: Readonly<Record<string, string>> = {
   "Business tools": "أدوات النشاط",
+  "Nights": "الليالي",
+  "This booking has a sale in Finance. Cancel the booking instead of deleting it.": "لهذا الحجز عملية بيع في المالية. ألغِ الحجز بدلاً من حذفه.",
+  "This booking's sale already has payments. Record a correction in Finance instead of changing the booking.": "لعملية بيع هذا الحجز مدفوعات مسجلة. سجّل تصحيحاً في المالية بدلاً من تعديل الحجز.",
+  "Check-out must be after check-in.": "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول.",
+  "Enter a valid nightly rate for this currency.": "أدخل سعر ليلة صالحاً لهذه العملة.",
   "This company will open with these tools first. Every other tool stays available.": "ستفتح هذه الشركة بهذه الأدوات أولاً، وتبقى جميع الأدوات الأخرى متاحة.",
   "Service category": "فئة الخدمة",
   "Restaurant & café": "مطعم ومقهى",
@@ -33,7 +38,7 @@ export const companyTypeTranslations: Readonly<Record<string, string>> = {
   "Housekeeping tasks": "مهام التدبير الفندقي",
   "Assign cleaning and maintenance work to staff.": "إسناد أعمال التنظيف والصيانة للموظفين.",
   "Room revenue": "إيرادات الغرف",
-  "Record booking payments as sales and follow balances due.": "سجّل مدفوعات الحجوزات كمبيعات وتابع الأرصدة المستحقة.",
+  "Checked-out bookings become sales automatically; collect payments and follow balances due.": "تتحول الحجوزات المغادرة إلى مبيعات تلقائياً؛ حصّل المدفوعات وتابع الأرصدة المستحقة.",
   "Products & stock": "المنتجات والمخزون",
   "Items, prices, stock levels and reorder points.": "الأصناف والأسعار ومستويات المخزون ونقاط إعادة الطلب.",
   "Shop orders": "طلبات المتجر",

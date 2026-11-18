@@ -1,3 +1,4 @@
+import { prepareBooking, syncBookingSale } from "./hotel-bookings.js";
 import { validateInventoryImage } from "./routes/inventory-photos.js";
 import { applySmartTaskApproval, applyTaskManagementApproval, prepareTaskMutation } from "./operations.js";
 import { appendFinancialHistory, ledgerSummary, validateFinancialMutation } from "./finance-ledger.js";
@@ -119,6 +120,7 @@ function applyMutation(user: AuthenticatedUser, collection: string, action: Muta
   if(["workFiles","taskNotificationEvents"].includes(collection)||collection==="workActivity"&&targetId&&rows(collection).some(e=>e.id===targetId&&e.taskVersion===2))throw new Error("Use the secure task workflow. Task history and files are immutable.");
   protectPayrollMutation(collection, action, payload, targetId);
   payload = validateFinancialMutation(user, collection, action, payload, targetId ? rows(collection).find(row => row.id === targetId) : undefined);
+  if (collection === "roomBookings") payload = prepareBooking(action, payload, targetId ? rows(collection).find(row => row.id === targetId) : undefined);
   if (collection === "documents") throw new Error("Use the secure Documents workspace to manage HR documents.");
   if (sectionForCollection(collection) === "hr" && !canManageHr(user, action)) throw new Error("You do not have permission to manage HR records.");
   const data = getStore();
@@ -274,6 +276,7 @@ function performMutation(user: AuthenticatedUser, collection: string, action: Mu
     return { pending: true, request };
   }
   const item = applyMutation(user, collection, action, payload, targetId);
+  if (collection === "roomBookings" && action !== "delete") syncBookingSale(item);
   fireMutationAlerts(user, collection, action, payload, item);
   return { pending: false, item, credentials: takeEmployeeCredentials(item) };
 }
@@ -411,7 +414,8 @@ function decideRequest(user: AuthenticatedUser, requestId: string, approve: bool
     else if (request.collection === "documents") applyDocumentApproval(user, request);
     else {
     validateHierarchyMutation(user, request.collection, request.action, request.payload ?? {}, request.targetId ? rows(request.collection).find(row => row.id === request.targetId) : undefined);
-    applyMutation(user, request.collection, request.action, {...request.payload,...(request.section==="finance"?{approvedBy:user.id,approvedAt:timestamp()}:{})}, request.targetId);
+    const applied = applyMutation(user, request.collection, request.action, {...request.payload,...(request.section==="finance"?{approvedBy:user.id,approvedAt:timestamp()}:{})}, request.targetId);
+    if (request.collection === "roomBookings" && request.action !== "delete") syncBookingSale(applied);
     }
     data = getStore();
   }

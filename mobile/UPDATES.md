@@ -1,5 +1,14 @@
 # Mobile update history
 
+## 2026-11-18 - Hotel bookings become sales; company filter on record lists
+
+- **Booking amounts:** the server calculates nights and total (nights × nightly rate) and ignores client totals. Check-out must be after check-in.
+- **Sale on check-out:** checking a guest out creates one completed sale in Finance (invoice BK-…, dated check-out, customer = guest). Room rates count as VAT-inclusive when the company has a VAT rate.
+- **Editing:** changing the booking updates its unpaid sale, and cancelling or a no-show cancels it. Once the sale has payments, financial changes and deletion are refused, so the ledger only changes through Finance corrections. Closed periods are respected.
+- **Company filter:** record lists (rooms, bookings, menu, tables, services and other registers) gain a Company picker, and business-type tools open their company's list.
+
+Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Company types with tailored tools
 
 Creating or editing a company now shows a type picker: Restaurant & café, Hotel & accommodation, Shop & retail, Services (with a category: clinic, salon, workshop, office, school, transport, construction or other) and Mixed / other. A live preview shows the tools that type opens with.
