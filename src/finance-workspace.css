@@ -170,3 +170,12 @@ html[dir=rtl] .finance-page :is(.finance-metric-label>svg,.finance-shortcuts but
 .finance-category-bar{display:block;height:8px;border-radius:4px;background:rgba(127,127,127,.18);overflow:hidden}
 .finance-category-bar span{display:block;height:100%;background:#3b82f6}
 @media print{.finance-journal .inline-actions,.finance-segmented{display:none}}
+
+/* Financial statements: balance sheet, income statement, fixed asset register */
+.finance-statement-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.finance-statement caption{text-align:start;font-weight:700;padding:8px 0;font-size:1rem}
+.finance-statement td{text-align:end;font-variant-numeric:tabular-nums;white-space:nowrap}
+.finance-statement th[scope=row]{font-weight:500}
+.finance-statement-indent{padding-inline-start:24px!important}
+.finance-statement-total th,.finance-statement-total td{font-weight:700;border-top:2px solid rgba(127,127,127,.4)}
+.finance-muted{opacity:.6}

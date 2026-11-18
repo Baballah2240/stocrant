@@ -14,6 +14,7 @@ const entries: WorkspaceNavEntry[] = [
   { to: "/organizations", label: "Organizations", icon: "companies", section: "organizations", group: "workspace" },
   { to: "/locations", label: "Locations", icon: "locations", section: "locations", group: "workspace" },
   { to: "/hr", label: "Workforce & HR", icon: "people", section: "hr", group: "people" },
+  { to: "/hr/custody", label: "Financial custody", icon: "payslip", section: "hr", group: "people" },
   { to: "/me/attendance", label: "My attendance", icon: "attendance", group: "people", personalOnly: true },
   { to: "/me/leave", label: "My leave requests", icon: "leave", group: "people", personalOnly: true },
   { to: "/operations", label: "Operations", icon: "work", section: "operations", group: "operations" },
@@ -34,7 +35,8 @@ export function workspaceNavigationFor(user: Pick<AuthUser, "roleId" | "permissi
 }
 export function workspaceEntryActive(item: WorkspaceNavEntry, path: string): boolean {
   if (item.to === "/") return path === "/" || path === "/workspace";
-  if (item.to === "/hr") return (path === "/hr" || path.startsWith("/hr/")) && !path.startsWith("/hr/payroll");
+  if (item.to === "/hr") return (path === "/hr" || path.startsWith("/hr/")) && !path.startsWith("/hr/payroll") && !path.startsWith("/hr/custody") && !path.startsWith("/hr/employeeCustody");
+  if (item.to === "/hr/custody") return path.startsWith("/hr/custody") || path.startsWith("/hr/employeeCustody");
   if (item.to === "/organizations") return path === "/organizations" || path.startsWith("/organizations/") || path.startsWith("/organization/");
   if (item.to === "/warehouse") return ["/inventory", "/warehouse"].some(prefix => path === prefix || path.startsWith(prefix + "/"));
   if (item.to === "/locations") return ["/locations", "/stores", "/places", "/people"].includes(path) || path.startsWith("/locations/");

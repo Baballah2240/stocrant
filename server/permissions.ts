@@ -8,11 +8,11 @@ export type WorkspaceSection = "organizations" | "locations" | "hr" | "operation
 const COLLECTION_SECTIONS: Record<string, WorkspaceSection> = {
   organizations: "organizations",
   companies: "organizations",
-  departments: "hr", employees: "hr", attendance: "hr", shifts: "hr", leaveRequests: "hr", documents: "hr", contracts:"hr",employmentContracts:"hr",employeeHistory: "hr", performanceReviews: "hr",
+  departments: "hr", employees: "hr", attendance: "hr", shifts: "hr", leaveRequests: "hr", employeeCustody: "hr", documents: "hr", contracts:"hr",employmentContracts:"hr",employeeHistory: "hr", performanceReviews: "hr",
   companyNotes: "operations", tasks: "operations", workFiles:"operations", taskNotificationEvents:"operations", workItems: "operations", workActivity: "operations", suppliers: "operations", customers: "operations", products: "operations",
   customerAppointments: "customerService", customerQuestions: "customerService", customerReplies: "customerService",
   warehouses: "inventory", bins: "inventory", inventory: "inventory", inventoryItems: "inventory", stockMovements: "inventory", inventoryMovements: "inventory", stockTransfers: "inventory", warehouseOrders: "inventory",
-  payroll: "payroll", sales: "finance", expenses: "finance", taxes: "finance", purchases: "finance", returns: "finance", financeAccounts: "finance", financeTransactions: "finance", financeHistory: "finance",
+  payroll: "payroll", sales: "finance", expenses: "finance", taxes: "finance", purchases: "finance", returns: "finance", financeAccounts: "finance", fixedAssets: "finance", financeTransactions: "finance", financeHistory: "finance",
   accessRoles: "access", accessUsers: "access", approvalRules: "access", approvalRequests: "approvals", auditLog: "audit", locationUpdates: "locations", roles: "access", users: "access",
 };
 

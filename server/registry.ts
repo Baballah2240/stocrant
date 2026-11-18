@@ -531,3 +531,41 @@ registry.push(
     columns: ["name", "email", "role", "department", "status"],
   },
 );
+
+// Accounting registers: fixed assets with straight-line depreciation, and HR financial custody (العهدة).
+registry.push(
+  {
+    collection: "fixedAssets", label: "Fixed assets", singular: "Fixed asset",
+    module: "stores", permission: "stores.fixedAssets.read",
+    fields: [
+      { key: "name", label: "Asset name", type: "text", required: true },
+      { key: "category", label: "Category", type: "select", options: ["machinery", "vehicles", "equipment", "computers", "furniture", "buildings", "other"], required: true },
+      { key: "serialNumber", label: "Serial / tag number", type: "text" },
+      { key: "purchaseDate", label: "Purchase date", type: "date", required: true },
+      { key: "cost", label: "Purchase cost", type: "currency", min: 0, required: true },
+      { key: "salvageValue", label: "Salvage value", type: "currency", min: 0 },
+      { key: "usefulLifeYears", label: "Useful life (years)", type: "number", min: 1, max: 100, required: true },
+      { key: "location", label: "Location", type: "text" },
+      { key: "status", label: "Status", type: "select", options: ["in use", "idle", "disposed"], required: true },
+      { key: "notes", label: "Notes", type: "textarea" },
+    ],
+    columns: ["name", "category", "purchaseDate", "cost", "usefulLifeYears", "status"],
+  },
+  {
+    collection: "employeeCustody", label: "Financial custody", singular: "Custody item",
+    module: "hr", permission: "hr.custody.read",
+    fields: [
+      { key: "employee", label: "Employee", type: "text", required: true },
+      { key: "custodyType", label: "Custody type", type: "select", options: ["cash", "laptop", "phone", "vehicle", "tools", "equipment", "card", "other"], required: true },
+      { key: "description", label: "Description", type: "text", required: true },
+      { key: "value", label: "Value", type: "currency", min: 0, required: true },
+      { key: "issueDate", label: "Issue date", type: "date", required: true },
+      { key: "dueDate", label: "Settle by", type: "date" },
+      { key: "settledAmount", label: "Settled / returned amount", type: "currency", min: 0 },
+      { key: "settlementDate", label: "Settlement date", type: "date" },
+      { key: "status", label: "Status", type: "select", options: ["open", "partially settled", "settled", "returned", "lost"], required: true },
+      { key: "notes", label: "Notes", type: "textarea" },
+    ],
+    columns: ["employee", "custodyType", "description", "value", "issueDate", "status"],
+  },
+);

@@ -1,3 +1,4 @@
+import { erpTranslations } from "./erp-translations.ts";
 import { financeLayoutTranslations } from "./finance-layout-translations.ts";
 import { navigationTranslations } from "./navigation-translations.ts";
 import { inventoryTranslations } from "./inventory-translations.ts";
@@ -256,6 +257,7 @@ export const arabicTranslations: Readonly<Record<string, string>> = {
   ...notificationDetailsTranslations,
   ...financeTranslations,
   ...financeLayoutTranslations,
+  ...erpTranslations,
   ...operationsTranslations,
   ...documentTranslations,
   ...hrCommunicationTranslations,

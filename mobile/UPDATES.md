@@ -1,5 +1,14 @@
 # Mobile update history
 
+## 2026-11-18 - ERP financial statements and HR financial custody
+
+Finance adds a Financial statements group:
+- **Balance sheet:** assets (cash and bank, customer receivables, employee advances and custody, fixed assets at cost less accumulated depreciation) equal liabilities (suppliers and bills payable, salaries payable, loans payable) plus equity (paid-in capital and accumulated surplus or deficit).
+- **Income statement:** revenue less purchases, operating expenses, salaries and period depreciation gives the surplus or deficit.
+- **Fixed assets:** a register with straight-line depreciation, calculated as (cost minus salvage value) divided by useful life and charged daily from the purchase date.
+
+New movement types: Capital (owner contributions and withdrawals) and Fixed asset purchase. Neither is counted as income or expense. HR adds Financial custody (العهدة المالية) for cash, devices, vehicles and tools handed to employees, with outstanding value per employee and per company and overdue settlements. New registers: fixedAssets (Finance) and employeeCustody (HR). Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - Native keyboard handling
 
 The mobile app uses the Capacitor Keyboard plugin (@capacitor/keyboard 7.0.6). The app is built with Capacitor, not React Native, so this is its native-keyboard equivalent. The web view resizes with the keyboard (Android adjustResize, resizeOnFullScreen for edge-to-edge), the focused field scrolls into view clear of the header, and the bottom navigation hides while typing. Tapping outside a field closes the keyboard, and iOS shows the accessory bar. The browser website is unchanged. This native change needs a new APK; existing installs get it through Install update once a release is approved.

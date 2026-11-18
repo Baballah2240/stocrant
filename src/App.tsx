@@ -3,6 +3,7 @@ const CompanyReport = lazy(() => import("./components/CompanyReport"));
 const PayrollWorkspace = lazy(() => import("./components/PayrollWorkspace"));
 const CompanyProfile = lazy(() => import("./components/CompanyProfile"));
 const NotificationHistory = lazy(() => import("./components/NotificationHistory"));
+const HRCustody = lazy(() => import("./components/HRCustody"));
 const AppUpdates = lazy(() => import("./components/AppUpdates"));
 const HRCommunication = lazy(() => import("./components/HRCommunication"));
 const EmployeeInbox = lazy(() => import("./components/EmployeeInbox"));
@@ -90,6 +91,7 @@ const router = createBrowserRouter([
       { path: "hr/payroll/:id", element: <PayrollWorkspace /> },
       { path: "hr", element: <HRWorkspace /> },
       { path: "hr/attendance", element: <AttendanceWorkspace /> },
+      { path: "hr/custody", element: <HRCustody /> },
       { path: "hr/communication", element: <HRCommunication /> },
       { path: "employee-inbox", element: <EmployeeInbox /> },
       { path: "hr/documents", element: <DocumentsWorkspace /> },
