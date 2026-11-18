@@ -1,6 +1,7 @@
 import ShopOperationsSettings, {type ShopOperationSettings,type ShopPaymentAccount} from "./ShopOperationsSettings";
 import ShopOrderPayment, {type ShopPayment} from "./ShopOrderPayment";
 import { ShopOrderMessages } from "./StorefrontAlerts";
+import ShopStorefrontStats from "./ShopStorefrontStats";
 import ShopTransferReview, {type TransferOrder} from "./ShopTransferReview";
 import ShopStaffSettings from "./ShopStaffSettings";
 import ShopOrderProgress from "./ShopOrderProgress";
@@ -494,6 +495,7 @@ export default function ShopWorkspace() {
                 </nav>
               </section>
             )}
+            {tab==="dashboard"&&canConnect&&<ShopStorefrontStats companyId={companyId}/>}
             {tab==="dashboard"&&canConnect&&<ShopSalesDashboard companyId={companyId} report={data.report} orders={data.orders} products={data.products} canConfigure={Boolean(permits("shops","configure")&&permits("finance","approve"))} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}} openOrder={id=>{setSelectedOrder(id);setOrderFilter("all");setOrderSearch("");setTab("orders");}} print={id=>setLabel({id})}/>}
             {tab==="returns"&&canConnect&&<ShopReturns key={companyId} initialParent={reverseParent} openOrder={id=>{setSelectedOrder(id);setOrderFilter("all");setOrderSearch("");setTab("orders");}} companyId={companyId} orders={data.orders} returns={data.returns||[]} canManage={Boolean(permits("shops","configure")&&permits("finance","approve")&&permits("finance","create"))} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);window.dispatchEvent(new Event("stocrant:finance-changed"));}} print={(id,reference)=>setLabel({id,reference})}/>}
             {tab==="settings"&&canConnect&&<ShopOperationsSettings key={companyId} companyId={companyId} currency={c?.currency||""} settings={data.settings} accounts={data.paymentAccounts||[]} onSaved={async()=>{const result=await request<Snapshot>(base);if(renderGeneration===generation.current)setData(result);}}/>}

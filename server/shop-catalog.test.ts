@@ -70,3 +70,24 @@ describe("sizes, colours and discount codes", () => {
     assert.equal((await json(await req(config()))).settings.coupons[0].uses, 1);
   });
 });
+
+describe("shop figures", () => {
+  it("counts visitors once per day, builds the funnel, abandoned checkouts and best sellers", async () => {
+    const red = products.find(p => p.sku === "TEE-M-RED")!;
+    const event = (cookie: string, type: string, productId?: string) => req(api + "/events", "POST", { type, productId }, cookie);
+    // First guest (already visited and ordered above) repeats events: still one visitor.
+    for (const type of ["product", "product", "bag", "checkout"]) assert.equal((await event(guest, type, red.id)).status, 204);
+    assert.equal((await req(api + "/catalog", "GET", undefined, guest)).status, 200);
+    // Second guest browses to checkout but never orders.
+    const r = await req(api + "/catalog", "GET", undefined, ""); const other = r.headers.get("set-cookie")!.split(";")[0];
+    for (const type of ["product", "bag", "checkout"]) await event(other, type, red.id);
+    assert.equal((await event(other, "nonsense")).status, 400);
+    const { stats } = await json(await req(`/workspace/storefronts/${companyId}/stats?days=7`));
+    assert.equal(stats.totals.visitors, 2); assert.equal(stats.totals.productViews, 2); assert.equal(stats.totals.bagAdds, 2); assert.equal(stats.totals.checkouts, 2);
+    assert.equal(stats.totals.orders, 1); assert.equal(stats.totals.abandoned, 1); assert.equal(stats.totals.conversion, 50);
+    assert.equal(stats.totals.revenue, "28.80"); assert.equal(stats.series.length, 7); assert.equal(stats.series.at(-1).visitors, 2);
+    assert.equal(stats.bestSellers[0].name, "Tee · M · Red"); assert.equal(stats.mostViewed[0].views, 2);
+    const stored = JSON.stringify(getCollection("shopDailyStats"));
+    assert.ok(!stored.includes(guest.split("=")[1]), "raw session ids are not stored");
+  });
+});

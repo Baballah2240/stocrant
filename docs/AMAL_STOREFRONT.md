@@ -134,3 +134,11 @@ WhatsApp messages outside a 24-hour customer conversation need Twilio-approved t
 - **Quote and checkout:** both accept `coupon`. The quote returns `discount` and `coupon`, and the checkout stores `discount` and `couponCode` on the order.
 - **Use limit:** a use is an order with that code that is not cancelled or expired. The limit is rechecked inside the checkout transaction.
 - **Public catalog:** exposes only `hasCoupons`.
+
+## Shop figures
+
+- **Counting events:** `POST /api/storefront/:slug/events` takes `{ type: visit | product | bag | checkout, productId? }`. It is same-origin and rate limited, and counts only for published shops; a catalog load also counts as a visit.
+- **Storage:** counts go into `shopDailyStats`, one row per storefront and day, holding daily one-way visitor codes capped at 20,000 per list. Writes are batched (see `server/shop-stats.ts`).
+- **Reading figures:** `GET /api/workspace/storefronts/:companyId/stats?days=7|30|90` needs shop view permission. Money fields are blanked without finance view.
+- **Abandoned checkouts:** checkout-stage visitors for whom no storefront checkout exists from the same session that day.
+- **Data retention:** counts are kept indefinitely in the JSON store. Prune old rows if the store grows large.

@@ -411,6 +411,12 @@ export default function Shop() {
     return () => controller.abort();
   }, [path, apiBase, cart, method, refreshQuote, shop, coupon]);
   useEffect(() => {
+    if (!shop || shop.preview) return;
+    if (path.startsWith("/product/")) track("product", path.split("/")[2]);
+    else if (path === "/checkout") track("checkout");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, shop?.slug, shop?.preview]);
+  useEffect(() => {
     if (!path.startsWith("/order/") || !slug) return;
     const token = location.split("#")[1];
     setOrder(null);
@@ -478,6 +484,10 @@ export default function Shop() {
     );
     setQuote(null);
   }
+  function track(type: "product" | "bag" | "checkout", productId?: string) {
+    if (!shop || shop.preview) return;
+    void fetch(apiBase + "/events", { method: "POST", credentials: "same-origin", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, productId }) }).catch(() => undefined);
+  }
   function add(p: Product, q = 1) {
     const next = (cart.find((l) => l.productId === p.id)?.quantity || 0) + q;
     if (next > p.available || next > 99) {
@@ -485,6 +495,7 @@ export default function Shop() {
       return;
     }
     updateCart(p.id, next);
+    track("bag", p.id);
     setBagAdded(value => value + 1);
     setNotice("Added to your bag");
   }

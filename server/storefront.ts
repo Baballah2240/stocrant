@@ -1,5 +1,6 @@
 import express, { Router, type Request, type Response } from "express";
 import { alertsSchema, alertsFor, defaultAlerts, alertProvider, queueOrderUpdate, queueStaffAlert } from "./shop-alerts.js";
+import { recordShopEvent, shopStats, SHOP_EVENTS } from "./shop-stats.js";
 import { couponsSchema, couponsFor, couponDiscount, couponUses } from "./storefront-coupons.js";
 import { paymentsSchema, paymentsFor, defaultPayments, applyCheckoutPayment, receiptPayment, saveTransferProof, PROOF_LIMIT } from "./storefront-payments.js";
 import {
@@ -545,7 +546,8 @@ storefrontRouter.get("/:slug/catalog", (req, res) => {
   try {
     const s = storefront(req, true),
       { user, company } = context(s);
-    guest(req, res, true);
+    const visitor = guest(req, res, true);
+    if (s.published) recordShopEvent(s.id, visitor, "visit");
     const { connectorId, ownerId, organizationId, id, ...settings } = s;
     const products = catalog(s, user, company.currency), m = merchandisingFor(s);
     res.json({
@@ -792,6 +794,35 @@ storefrontRouter.post("/:slug/orders/:orderId/transfer-proof", express.raw({ typ
     if (!Buffer.isBuffer(req.body) || !req.body.length) fail("Choose a photo of the transfer receipt.");
     saveTransferProof(s, order, req.body, reference, user);
     res.status(201).json({ order: receipt(order, s) });
+  } catch (e) {
+    error(res, e);
+  }
+});
+
+/** Anonymous shop activity for the shop's own figures (same shop session, counted once per visitor per day). */
+storefrontRouter.post("/:slug/events", (req, res) => {
+  try {
+    const s = storefront(req);
+    if (!s.published) return res.status(204).end();
+    rate(req, "shop-events", 120);
+    const b = z.object({ type: z.enum(SHOP_EVENTS), productId: z.string().max(80).optional() }).strict().parse(req.body);
+    recordShopEvent(s.id, guest(req, res, true), b.type, b.productId);
+    res.status(204).end();
+  } catch (e) {
+    error(res, e);
+  }
+});
+storefrontAdminRouter.get("/:companyId/stats", (req, res) => {
+  try {
+    const user = req.auth!;
+    shopPermission(user, "view");
+    const c = shopCompany(user, String(req.params.companyId));
+    const s = rows("shopStorefronts").find((r) => r.organizationId === c.id);
+    const days = z.coerce.number().int().refine(v => [7, 30, 90].includes(v)).catch(30).parse(req.query.days);
+    if (!s) return res.json({ stats: null });
+    const stats = shopStats(s, c.currency, days);
+    if (!can(user, "finance", "view")) { stats.totals.revenue = ""; stats.totals.averageOrder = ""; stats.series = stats.series.map(d => ({ ...d, sales: "" })); stats.bestSellers = stats.bestSellers.map(b => ({ ...b, revenue: "" })); }
+    res.json({ stats });
   } catch (e) {
     error(res, e);
   }

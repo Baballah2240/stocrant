@@ -1,5 +1,19 @@
 # Mobile update history
 
+## 2026-11-19 - Shop figures
+
+Shops & orders > Dashboard now opens with **Shop figures** for 7, 30 or 90 days:
+- **Figure cards:** visitors, orders (cancelled and expired shown apart), conversion rate (orders per visitor), sales and average order, and abandoned checkouts (started checkout, no order).
+- **Visitors per day:** a chart with a hover or keyboard tooltip (date, visitors, orders, sales) and a table view.
+- **From visit to order:** visitors → viewed a product → added to bag → started checkout → ordered.
+- **Product lists:** best sellers (quantity and sales, per size and colour) and most viewed (views against units sold).
+
+**Privacy:** the shop counts page visits, product views, bag adds and checkout visits through its existing anonymous session. Each visitor counts once per day. Only a short one-way code per day is stored, never the session, IP address or personal data. Preview pages are not counted.
+
+**Access:** sales amounts are hidden from users without finance view permission.
+
+Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-19 - Product sizes and colours, and discount codes
 
 - **Sizes and colours:** products have optional **Product group**, **Size** and **Colour** fields. Products in the same group show as one card in the shop, with "From" the lowest price and the number of options. The product page has size and colour buttons, and combinations that don't exist or are sold out are crossed out. Each size or colour keeps its own SKU, price and stock, so stock, orders and Finance work as before. Order lines read like "Linen shirt · M · Red".
