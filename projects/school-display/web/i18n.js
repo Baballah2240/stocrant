@@ -19,7 +19,7 @@ export const arabic={
  'Assign each display, check its connection and see what is showing.':'حدد فصل كل شاشة وتحقق من اتصالها ومحتواها الحالي.',
  'Special days':'الأيام الخاصة',
  'Prepare exams, Ramadan timings, substitute teachers and cancellations.':'جهز جداول الاختبارات ورمضان والمعلمين البدلاء والحصص الملغاة.',
- 'System & recovery':'النظام والاستعادة',
+ 'System & recovery':'النظام والاستعادة','You have unsaved changes on this page. Leave and discard them?':'لديك تغييرات غير محفوظة في هذه الصفحة. هل تريد المغادرة وتجاهلها؟',
  'Backups, publishing checks and administrator-controlled updates.':'النسخ الاحتياطية وفحص النشر والتحديثات بإدارة المسؤول.',
  'Profile':'الملف الشخصي','Your account':'حسابك','Manage your sign-in details.':'إدارة بيانات تسجيل الدخول.',
  'Personalize your workspace':'خصص مساحة عملك','Theme & identity':'المظهر والهوية','Glass':'زجاجي',

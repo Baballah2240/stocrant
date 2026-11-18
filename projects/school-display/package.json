@@ -29,7 +29,8 @@
     "mobile:apk": "npm --prefix mobile run apk",
     "test:teacher": "node tests/teacher-app.mjs",
     "test:inbox": "node tests/teacher-inbox.mjs",
-    "test:requests": "node tests/teacher-requests.mjs"
+    "test:requests": "node tests/teacher-requests.mjs",
+    "test:leave": "node tests/leave-sections.mjs"
   },
   "dependencies": {
     "sql.js": "1.15.2"

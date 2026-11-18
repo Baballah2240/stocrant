@@ -6,6 +6,16 @@ An independent Windows classroom overlay with a local bilingual web control pane
 
 The complete school-project source, current 2.3.0 Windows packages, manager presentation and restoration instructions are preserved in `archives/Qatar-School-Time-Table-2.3.0-2026-10-28.zip`. Its adjacent SHA-256 file verifies the archive, and the internal manifest records each archived file's checksum. Archives and generated installers stay outside Git. See [Archive and restore](docs/ARCHIVE-AND-RESTORE.md) to resume development or run the packaged app. Old installers, unpacked build output and temporary QA files can be regenerated and have been cleaned; current installers and installed development dependencies are retained.
 
+## Clearer navigation and sign-in (2.5 work in progress)
+
+**Control panel.** A section is no longer locked by a password field: typing a confirmation password, or the browser filling one in, under **System & recovery** (or any other section) does not count as an unsaved change. Real unsaved changes now ask **Leave and discard them?** instead of blocking: choose to stay to keep them, or leave to discard them.
+
+**Faslii app.** The phone's Back button (and the browser's Back at `/teacher`) returns to the previous screen instead of closing the app. Password fields have **Show**. Sign-in says what to do about a forgotten password, and the invitation screen explains the parent code. The bottom tabs fit on small phones in both languages, and short messages appear at the top so they never cover a button.
+
+```powershell
+npm.cmd run test:leave     # Leaving sections, including System & recovery
+```
+
 ## Version 2.4: live timetable and teacher app
 
 **Control panel.** The overview has a live board showing what every class is doing now, with time left and what comes next. **Week board** is now a time grid: drag a lesson to a day and time and it snaps to five minutes, with a line marking the current time. Use **Show** to see one teacher's week across all classes. Teacher double bookings still block publishing. Lessons from different classes in the same room are highlighted and listed as warnings, but do not block publishing.

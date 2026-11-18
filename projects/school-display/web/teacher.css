@@ -158,3 +158,17 @@ html[dir=rtl] .bubble.mine{border-radius:18px 18px 18px 6px}
 .resource p.tag{display:block;margin:0;border-radius:10px;padding:6px 10px}
 .star{flex:none;min-width:44px;min-height:44px;font-size:1.35rem;color:var(--muted)}
 .star.on{color:#f5a524}
+
+/* 2.5: password show/hide, sign-in help, a tab bar that always fits, and messages that never cover buttons. */
+.password-wrap{position:relative;display:block}
+.password-wrap input{padding-inline-end:76px}
+.show-password{position:absolute;inset-block:6px;inset-inline-end:6px;min-width:60px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--accent,#0a84ff);font:inherit;font-size:.85rem;font-weight:600;cursor:pointer}
+.show-password:focus-visible{outline:2px solid var(--accent,#0a84ff);outline-offset:1px}
+.login .help{margin:10px 0 0;font-size:.85rem;text-align:center}
+.tabs button{min-width:0}
+.tabs button span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tabs[data-count="5"] button{font-size:.64rem;padding-inline:2px}
+#toast{top:calc(62px + env(safe-area-inset-top,0px));bottom:auto}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.tabs button span{font-size:.72rem;line-height:1.25}
+.tabs[data-count="5"] button span{font-size:.68rem}

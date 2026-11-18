@@ -38,7 +38,10 @@ try{
  assert.equal(await evaluate('document.activeElement.matches("[data-start-tour]")'),true);assert.equal(await evaluate('window.__writes'),0,'Tour must never write data');
  await click('[data-start-tour]');await click('[data-tour-next]');await click('[data-tour-open]');await until('Boolean(document.querySelector("#draft-status"))');assert.equal(await evaluate('Boolean(document.querySelector(".tour-target"))'),false);
  await click('[data-tab=settings]');await evaluate(`(()=>{const input=document.querySelector('[name=schoolEn]');input.value='Unsaved school';input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+ // Leaving with real unsaved changes asks first; choosing to stay keeps them.
+ await evaluate('window.__asked=0;window.confirm=()=>{__asked++;return false}');
  await click('[data-tab=overview]');assert.equal(await evaluate('document.querySelector("[name=schoolEn]").value'),'Unsaved school');
+ assert.equal(await evaluate('window.__asked'),1,'Leaving asks whether to discard unsaved changes.');
  await click('[data-start-tour]');await click('[data-tour-open]');assert.ok(await evaluate('document.querySelector("#app-tour .hint").textContent.includes("save your changes")'));await click('[data-tour-close]');
  assert.equal(await evaluate('document.querySelector("[name=schoolEn]").value'),'Unsaved school');assert.notEqual(app.store.get().settings.schoolEn,'Unsaved school');
  await evaluate('document.querySelector("#settings-form").requestSubmit()');await until('document.querySelector("#toast").textContent==="Saved successfully."');

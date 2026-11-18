@@ -60,6 +60,11 @@ try{
  await send('Network.enable');await send('Network.setBlockedURLs',{urls:['*/api/mobile/*']});await evaluate('document.dispatchEvent(new Event("visibilitychange"))');await until('Boolean(document.querySelector(".offline"))');assert.ok(await evaluate('Boolean(document.querySelector(".hero"))'));await shot('offline-arabic');await send('Network.setBlockedURLs',{urls:[]});
  assert.deepEqual(await evaluate('window.__cspErrors'),[],'The page must work under the server security policy.');
  await evaluate('document.dispatchEvent(new Event("visibilitychange"))');await until('!document.querySelector(".offline")');
+ // 2.5: Back returns to the previous screen instead of leaving the app; a password can be shown.
+ await click('[data-tab=today]');await click('[data-tab=messages]');await until('document.querySelector("main").dataset.view==="messages"');
+ await evaluate('history.back()');await until('document.querySelector("main").dataset.view==="today"');
+ await evaluate('history.forward()');await until('document.querySelector("main").dataset.view==="messages"');
  await click('[data-tab=settings]');await click('[data-action=logout]');await until('Boolean(document.querySelector("#login-form"))');assert.equal(await evaluate('localStorage.getItem("teacher-data")'),null,'Signing out removes the saved timetable.');assert.equal(app.store.get().mobileTokens.length,0);
- console.log('Teacher app checks passed: sign-in errors, today and week views, own-lesson filtering, Arabic RTL at phone width, live timetable changes, offline fallback and sign-out.');
+ await evaluate('document.querySelector("[data-show-password]").click()');assert.equal(await evaluate('document.querySelector("#login-form [name=password]").type'),'text','Show reveals the password.');
+ console.log('Teacher app checks passed: Back between screens, show password, sign-in errors, today and week views, own-lesson filtering, Arabic RTL at phone width, live timetable changes, offline fallback and sign-out.');
 }catch(error){if(browser)console.log(await browser.evaluate('document.body.innerText'));throw error;}finally{await browser?.close();await app.close();}
