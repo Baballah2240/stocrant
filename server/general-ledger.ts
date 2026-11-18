@@ -28,6 +28,7 @@ export const chartOfAccounts: LedgerAccount[] = [
   { code: "3100", name: "Opening balance equity", type: "equity" },
   { code: "4000", name: "Sales revenue", type: "revenue" },
   { code: "4100", name: "Sales returns & refunds", type: "revenue" },
+  { code: "4700", name: "Exchange gains", type: "revenue" },
   { code: "4800", name: "Gain on asset disposal", type: "revenue" },
   { code: "4900", name: "Other income", type: "revenue" },
   { code: "5000", name: "Purchases", type: "expense" },
@@ -36,6 +37,7 @@ export const chartOfAccounts: LedgerAccount[] = [
   { code: "6200", name: "Salaries & wages", type: "expense" },
   { code: "6300", name: "End-of-service benefits", type: "expense" },
   { code: "6500", name: "Depreciation expense", type: "expense" },
+  { code: "6700", name: "Exchange losses", type: "expense" },
   { code: "6800", name: "Loss on asset disposal", type: "expense" },
   { code: "6900", name: "Other expenses", type: "expense" },
 ];

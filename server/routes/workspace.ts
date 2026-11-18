@@ -2,6 +2,7 @@ import { inventoryImage, validateInventoryImage } from "./inventory-photos.js";
 import { taskOverdue, taskToday } from "../operations.js";
 import { reverseFinancialTransaction } from "../finance-ledger.js";
 import { buildJournal, chartOfAccounts, formatUnits, ledgerStatements, trialBalance } from "../general-ledger.js";
+import { translateJournal } from "../fx.js";
 import { attendanceDate as dateStamp, attendanceDate, settingsFor } from "../attendance.js";
 import { payrollCan } from "../payroll.js";
 import analyticsRouter from "./analytics.js";
@@ -430,7 +431,7 @@ router.get("/finance", requirePermission("finance", "view"), (req, res) => {
 
 /** Double-entry general ledger derived from the records this user may see. */
 router.get("/finance/ledger", requirePermission("finance", "view"), (req, res) => {
-  const query = z.object({ currency: z.string().regex(/^[A-Z]{3}$/), company: z.string().max(120).optional(), from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")), account: z.string().regex(/^\d{4}$/).optional() }).safeParse(req.query);
+  const query = z.object({ currency: z.string().regex(/^[A-Z]{3}$/), company: z.string().max(120).optional(), from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")), account: z.string().regex(/^\d{4}$/).optional(), reportIn: z.string().regex(/^[A-Z]{3}$/).optional().or(z.literal("")) }).safeParse(req.query);
   if (!query.success) return res.status(400).json({ error: "Choose a currency and valid dates." });
   const user = req.auth!, today = new Date().toISOString().slice(0, 10), to = query.data.to || today, from = query.data.from || undefined;
   const inScope = (list: Row[]) => list.filter(row => isWithinScope(user, row));
@@ -444,12 +445,17 @@ router.get("/finance/ledger", requirePermission("finance", "view"), (req, res) =
   const built = buildJournal({ companies: rows("companies"), accounts: scoped(req, summary.accounts, "financeAccounts"), transactions: scoped(req, summary.transactions, "financeTransactions"), sources: Object.fromEntries(["sales", "purchases", "expenses", "returns"].map(name => [name, inScope(rows(name))])), payrollEntries, payrollRuns: runs, fixedAssets: inScope(rows("fixedAssets")), custody: inScope(rows("employeeCustody")), employees: inScope(rows("employees")), salaries: rows("payrollSalaries"), asOf: to });
   const issues = built.issues;
   // Without payroll access the end-of-service provision is combined per company and month, so no individual entitlement shows.
-  const entries = payrollVisible ? built.entries : [...built.entries.filter(e => !e.id.startsWith("eos:")), ...Object.values(built.entries.filter(e => e.id.startsWith("eos:")).reduce((groups: Record<string, typeof built.entries[number]>, e) => { const key = `${e.organizationId}|${e.currency}|${e.date}`, group = groups[key] || { ...e, id: `eos:${key}`, memo: "End-of-service provision", sourceId: "", lines: [{ account: "6300", debit: 0n, credit: 0n }, { account: "2300", debit: 0n, credit: 0n }] }; for (const line of e.lines) { const target = group.lines.find(l => l.account === line.account)!; target.debit += line.debit; target.credit += line.credit; } groups[key] = group; return groups; }, {}))].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  const filter = { currency: query.data.currency, organizationId: query.data.company || undefined, from, to };
+  const baseEntries = payrollVisible ? built.entries : [...built.entries.filter(e => !e.id.startsWith("eos:")), ...Object.values(built.entries.filter(e => e.id.startsWith("eos:")).reduce((groups: Record<string, typeof built.entries[number]>, e) => { const key = `${e.organizationId}|${e.currency}|${e.date}`, group = groups[key] || { ...e, id: `eos:${key}`, memo: "End-of-service provision", sourceId: "", lines: [{ account: "6300", debit: 0n, credit: 0n }, { account: "2300", debit: 0n, credit: 0n }] }; for (const line of e.lines) { const target = group.lines.find(l => l.account === line.account)!; target.debit += line.debit; target.credit += line.credit; } groups[key] = group; return groups; }, {}))].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  // Report in another currency: translate every entry at its date's rate and revalue money balances at the closing rate.
+  // A company can choose which rate source it reports with (for example the central bank rate rather than the market rate).
+  const preferredSource = query.data.company ? String(rows("companies").find(c => c.id === query.data.company)?.exchangeRateSource || "") : "";
+  const reportIn = query.data.reportIn || "", translated = reportIn ? translateJournal(baseEntries, rows("exchangeRates").filter(rate => (!rate.organizationId || isWithinScope(user, rate)) && (!preferredSource || rate.rateSource === preferredSource)), reportIn, to) : null;
+  const entries = translated ? translated.entries : baseEntries;
+  const filter = { currency: reportIn || query.data.currency, organizationId: query.data.company || undefined, from, to };
   const tb = trialBalance(entries, filter), statements = ledgerStatements(entries, filter), money = (value: bigint) => formatUnits(value, filter.currency);
   const visible = entries.filter(e => e.currency === filter.currency && (!filter.organizationId || e.organizationId === filter.organizationId) && (!from || e.date >= from) && e.date <= to && (!query.data.account || e.lines.some(l => l.account === query.data.account)));
   res.json({
-    chart: chartOfAccounts, currency: filter.currency, from: from || "", to,
+    chart: chartOfAccounts, currency: filter.currency, reportIn, missingRates: translated?.missingRates || [], from: from || "", to,
     trialBalance: { balanced: tb.balanced, debit: money(tb.debit), credit: money(tb.credit), rows: tb.rows.map(r => ({ code: r.code, name: r.name, type: r.type, opening: money(r.opening), debit: money(r.debit), credit: money(r.credit), closing: money(r.closing) })) },
     income: { ...statements.income, revenue: money(statements.income.revenue), expenses: money(statements.income.expenses), surplus: money(statements.income.surplus), lines: statements.income.lines.map(l => ({ ...l, amount: money(l.amount) })) },
     balance: { ...statements.balance, totalAssets: money(statements.balance.totalAssets), totalLiabilities: money(statements.balance.totalLiabilities), totalEquity: money(statements.balance.totalEquity), assets: statements.balance.assets.map(l => ({ ...l, amount: money(l.amount) })), liabilities: statements.balance.liabilities.map(l => ({ ...l, amount: money(l.amount) })), equity: statements.balance.equity.map(l => ({ ...l, amount: money(l.amount) })) },

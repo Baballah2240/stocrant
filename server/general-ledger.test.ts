@@ -137,3 +137,47 @@ it("VAT, salary advance recovery, custody receipts, asset disposal and end-of-se
   assert.equal(-closing("2300"), owed - 5000n);
   assert.equal(gratuityLiability({ hireDate: "2026-06-01" }, sdg, 300000n, "2026-12-31"), 0n); // under the 1-year minimum
 });
+
+it("translates SDG books into USD at each entry's rate and revalues money balances at the closing rate", async () => {
+  const { convertUnits, rateOn, scaledRate, translateJournal } = await import("./fx.js");
+  const rates = [
+    { date: "2026-01-01", fromCurrency: "USD", toCurrency: "SDG", rate: "600", status: "active" },
+    { date: "2026-06-01", fromCurrency: "USD", toCurrency: "SDG", rate: "1000", status: "active" },
+    { date: "2026-03-01", fromCurrency: "USD", toCurrency: "SDG", rate: "9999", status: "inactive" },
+  ];
+  assert.equal(scaledRate("0"), null); assert.equal(scaledRate("abc"), null);
+  assert.equal(rateOn(rates, "SDG", "USD", "2025-12-31"), null);                      // no rate yet
+  assert.equal(convertUnits(60000n, "SDG", "USD", rateOn(rates, "SDG", "USD", "2026-02-01")!), 100n); // 600 SDG = 1 USD (inverse of USD→SDG)
+  assert.equal(convertUnits(100n, "USD", "SDG", rateOn(rates, "USD", "SDG", "2026-07-01")!), 100000n); // 1 USD = 1,000 SDG after June
+  const sdg = { id: "sd", currency: "SDG" };
+  const { entries } = buildJournal({ asOf: "2026-12-31", companies: [sdg], accounts: [{ id: "b", organizationId: "sd", currency: "SDG", openingBalance: "0" }],
+    transactions: [{ id: "cap", accountId: "b", organizationId: "sd", type: "capital", direction: "in", amount: "600000.00", currency: "SDG", status: "paid", date: "2026-01-10" }],
+    sources: {}, payrollEntries: [], payrollRuns: [], fixedAssets: [] });
+  const usd = translateJournal(entries, rates, "USD", "2026-12-31");
+  assert.deepEqual(usd.missingRates, []);
+  for (const entry of usd.entries) assert.equal(entry.lines.reduce((n, l) => n + l.debit - l.credit, 0n), 0n, entry.id);
+  const tb = trialBalance(usd.entries, { currency: "USD" }), closing = (code: string) => tb.rows.find(r => r.code === code)?.closing ?? 0n;
+  assert.equal(tb.balanced, true);
+  assert.equal(closing("3000"), -100000n);  // capital stays at the historical 1,000 USD
+  assert.equal(closing("1000"), 60000n);    // 600,000 SDG of cash is worth 600 USD at the closing rate
+  assert.equal(closing("6700"), 40000n);    // unrealised exchange loss of 400 USD
+  const statements = ledgerStatements(usd.entries, { currency: "USD", to: "2026-12-31" });
+  assert.equal(statements.balance.balanced, true);
+  assert.deepEqual(translateJournal(entries, [], "USD", "2026-12-31").missingRates, [{ pair: "SDG→USD", from: "2026-01-10" }]);
+});
+
+it("ledger endpoint reports SDG books in USD using the company's chosen rate source", async () => {
+  const data = getStore(), company = (data.collections.companies as Row[])[0];
+  Object.assign(company, { currency: "SDG", exchangeRateSource: "central bank" });
+  (data.collections.financeAccounts as Row[]).push({ id: "sdg-bank", organizationId: company.id, name: "SDG bank", type: "bank", currency: "SDG", openingBalance: "0" });
+  saveStore(data);
+  assert.equal((await call("/collections/exchangeRates", { date: "2026-01-01", fromCurrency: "USD", toCurrency: "SDG", rate: "600", rateSource: "central bank", status: "active" })).status, 201);
+  assert.equal((await call("/collections/exchangeRates", { date: "2026-01-01", fromCurrency: "USD", toCurrency: "SDG", rate: "2000", rateSource: "market", status: "active" })).status, 201);
+  assert.equal((await call("/collections/exchangeRates", { date: "2026-01-01", fromCurrency: "USD", toCurrency: "USD", rate: "1", rateSource: "manual", status: "active" })).status, 400);
+  assert.equal((await call("/collections/exchangeRates", { date: "2026-01-01", fromCurrency: "USD", toCurrency: "SDG", rate: "-5", rateSource: "manual", status: "active" })).status, 400);
+  assert.equal((await call("/workspace/finance/transactions", { accountId: "sdg-bank", type: "capital", direction: "in", amount: "60000.00", date: "2026-08-01", status: "paid", reference: "SDG-CAP", idempotencyKey: "sdg-capital-key" })).status, 201);
+  const ledger = await (await call(`/workspace/finance/ledger?currency=SDG&reportIn=USD&company=${company.id}`)).json() as Row;
+  assert.equal(ledger.currency, "USD");
+  assert.equal(ledger.trialBalance.balanced, true);
+  assert.equal(ledger.trialBalance.rows.find((r: Row) => r.code === "3000").closing, "-100.00"); // 60,000 SDG at the central bank rate of 600
+});

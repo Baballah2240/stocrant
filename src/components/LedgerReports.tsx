@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { request } from "../api";
 import { useLanguage } from "../language-context";
 import { formatDate } from "../util";
@@ -9,30 +10,32 @@ type Ledger = {
   trialBalance: { balanced: boolean; debit: string; credit: string; rows: { code: string; name: string; type: string; opening: string; debit: string; credit: string; closing: string }[] };
   income: { revenue: string; expenses: string; surplus: string; lines: Line[] };
   balance: { assets: Line[]; liabilities: Line[]; equity: Line[]; totalAssets: string; totalLiabilities: string; totalEquity: string; balanced: boolean };
+  reportIn: string; missingRates: { pair: string; from: string }[];
   entryCount: number; entries: { id: string; date: string; memo: string; source: string; lines: { account: string; debit: string; credit: string }[] }[];
   issues: { id: string; reason: string }[];
 };
 const sourceLabels: Record<string, string> = { financeAccounts: "Opening balance", financeTransactions: "Money movement", sales: "Sale", purchases: "Purchase", expenses: "Expense", returns: "Return", payrollEntries: "Payroll", fixedAssets: "Fixed asset" };
-type Filter = { currency: string; companyId: string; from: string; to: string };
+type Filter = { currency: string; companyId: string; from: string; to: string; reportIn?: string };
 
 function useLedger(filter: Filter, account = "") {
   const [data, setData] = useState<Ledger | null>(null), [error, setError] = useState("");
   useEffect(() => { let active = true; setError("");
-    const query = new URLSearchParams({ currency: filter.currency, ...(filter.companyId ? { company: filter.companyId } : {}), ...(filter.from ? { from: filter.from } : {}), ...(filter.to ? { to: filter.to } : {}), ...(account ? { account } : {}) });
+    const query = new URLSearchParams({ currency: filter.currency, ...(filter.companyId ? { company: filter.companyId } : {}), ...(filter.from ? { from: filter.from } : {}), ...(filter.to ? { to: filter.to } : {}), ...(account ? { account } : {}), ...(filter.reportIn ? { reportIn: filter.reportIn } : {}) });
     const load = () => void request<Ledger>(`/workspace/finance/ledger?${query}`).then(value => { if (active) setData(value); }).catch(err => { if (active) setError((err as Error).message); });
     load(); window.addEventListener("stocrant:finance-changed", load);
     return () => { active = false; window.removeEventListener("stocrant:finance-changed", load); };
-  }, [filter.currency, filter.companyId, filter.from, filter.to, account]);
+  }, [filter.currency, filter.companyId, filter.from, filter.to, filter.reportIn, account]);
   return { data, error };
 }
+function useReportMoney(filter: Filter) { return useMoney(filter.reportIn || filter.currency); }
 function useMoney(currency: string) { const { language } = useLanguage(); return (value: unknown) => new Intl.NumberFormat(language === "ar" ? "ar-QA" : "en-GB", { style: "currency", currency: currency || "SAR" }).format(Number(value || 0)); }
 function State({ error, loading }: { error: string; loading: boolean }) { const { t } = useLanguage(); return error ? <p className="alert alert--bad" role="alert">{t(error)}</p> : loading ? <p role="status">{t("Loading ledger…")}</p> : null; }
-function Issues({ data }: { data: Ledger }) { const { t } = useLanguage(); return data.issues.length ? <details className="finance-ledger-issues"><summary>{t("{count} records could not be posted exactly", { count: data.issues.length })}</summary><ul>{data.issues.map(i => <li key={i.id}><code>{i.id}</code> · {t(i.reason)}</li>)}</ul></details> : null; }
+function Issues({ data }: { data: Ledger }) { const { t } = useLanguage(); return <>{data.reportIn && <p className="hint">{t("Shown in {currency}: each entry at the rate on its date; cash, receivables, payables and other money balances revalued at the latest rate, with the difference as exchange gains or losses.", { currency: data.reportIn })}</p>}{data.missingRates.length > 0 && <p className="alert alert--bad" role="alert">{t("Missing exchange rates — these entries are not included:")} {data.missingRates.map(m => `${m.pair} (${t("from")} ${m.from})`).join(", ")}</p>}{data.issues.length ? <details className="finance-ledger-issues"><summary>{t("{count} records could not be posted exactly", { count: data.issues.length })}</summary><ul>{data.issues.map(i => <li key={i.id}><code>{i.id}</code> · {t(i.reason)}</li>)}</ul></details> : null}</>; }
 const Balanced = ({ ok }: { ok: boolean }) => { const { t } = useLanguage(); return <span className="finance-basis-label" data-balanced={ok}>{t(ok ? "Balanced" : "Not balanced")}</span>; };
 function Row({ label, value, strong = false, indent = false }: { label: string; value: string; strong?: boolean; indent?: boolean }) { return <tr className={strong ? "finance-statement-total" : ""}><th scope="row" className={indent ? "finance-statement-indent" : ""}>{label}</th><td className={Number(value.replace(/[^0-9.-]/g, "")) < 0 ? "finance-negative" : ""}>{value}</td></tr>; }
 
 export function LedgerBalanceSheet({ filter }: { filter: Filter }) {
-  const { t } = useLanguage(), format = useMoney(filter.currency), { data, error } = useLedger({ ...filter, from: "" });
+  const { t } = useLanguage(), format = useReportMoney(filter), { data, error } = useLedger({ ...filter, from: "" });
   if (!data) return <State error={error} loading />;
   const b = data.balance;
   return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("Balance sheet")}</h2><span className="finance-basis-label">{t("As of")} {formatDate(data.to)}</span><Balanced ok={b.balanced} /></div>
@@ -45,7 +48,7 @@ export function LedgerBalanceSheet({ filter }: { filter: Filter }) {
 }
 
 export function LedgerIncomeStatement({ filter, periodLabel, vatRate = 0 }: { filter: Filter; periodLabel: string; vatRate?: number }) {
-  const { t } = useLanguage(), format = useMoney(filter.currency), { data, error } = useLedger(filter);
+  const { t } = useLanguage(), format = useReportMoney(filter), { data, error } = useLedger(filter);
   if (!data) return <State error={error} loading />;
   const i = data.income, revenue = i.lines.filter(l => l.type === "revenue"), expenses = i.lines.filter(l => l.type === "expense");
   return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("Income statement")}</h2><span className="finance-basis-label">{t(periodLabel)}</span></div>
@@ -60,7 +63,7 @@ export function LedgerIncomeStatement({ filter, periodLabel, vatRate = 0 }: { fi
 }
 
 export function TrialBalance({ filter, periodLabel, onAccount }: { filter: Filter; periodLabel: string; onAccount: (code: string) => void }) {
-  const { t } = useLanguage(), format = useMoney(filter.currency), { data, error } = useLedger(filter);
+  const { t } = useLanguage(), format = useReportMoney(filter), { data, error } = useLedger(filter);
   if (!data) return <State error={error} loading />;
   const tb = data.trialBalance;
   return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("Trial balance")}</h2><span className="finance-basis-label">{t(periodLabel)}</span><Balanced ok={tb.balanced} /></div>
@@ -73,7 +76,7 @@ export function TrialBalance({ filter, periodLabel, onAccount }: { filter: Filte
 }
 
 export function GeneralLedger({ filter, periodLabel, account, onAccount }: { filter: Filter; periodLabel: string; account: string; onAccount: (code: string) => void }) {
-  const { t } = useLanguage(), format = useMoney(filter.currency), { data, error } = useLedger(filter, account);
+  const { t } = useLanguage(), format = useReportMoney(filter), { data, error } = useLedger(filter, account);
   if (!data) return <State error={error} loading />;
   const name = (code: string) => `${code} · ${t(data.chart.find(a => a.code === code)?.name || code)}`;
   return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("General ledger")}</h2><span className="finance-basis-label">{t(periodLabel)}</span></div>
@@ -87,7 +90,7 @@ export function GeneralLedger({ filter, periodLabel, account, onAccount }: { fil
 
 /** VAT return for the period from the ledger: VAT charged on sales less VAT paid on purchases and expenses. */
 export function VatReturn({ filter, periodLabel, vatNumber = "" }: { filter: Filter; periodLabel: string; vatNumber?: string }) {
-  const { t } = useLanguage(), format = useMoney(filter.currency), { data, error } = useLedger(filter);
+  const { t } = useLanguage(), format = useReportMoney(filter), { data, error } = useLedger(filter);
   if (!data) return <State error={error} loading />;
   const row = (code: string) => data.trialBalance.rows.find(r => r.code === code);
   const output = Number(row("2400")?.credit || 0), input = Number(row("1400")?.debit || 0), paid = Number(row("2400")?.debit || 0), net = output - input;
@@ -101,4 +104,17 @@ export function VatReturn({ filter, periodLabel, vatNumber = "" }: { filter: Fil
       <Row label={t("VAT paid to the tax authority in the period")} value={format(-paid)} indent />
     </tbody></table></div><Issues data={data} />
   </section>;
+}
+
+/** Exchange rate register summary: latest rate per currency pair and source. */
+export function ExchangeRates({ rates, canCreate }: { rates: { [key: string]: unknown }[]; canCreate: boolean }) {
+  const { t } = useLanguage();
+  const latest = new Map<string, { [key: string]: unknown }>();
+  for (const row of rates.filter(r => r.status !== "inactive").sort((a, b) => String(a.date).localeCompare(String(b.date)))) latest.set(`${row.fromCurrency}→${row.toCurrency}|${row.rateSource}`, row);
+  return <section className="card finance-statement"><div className="finance-card-heading"><h2>{t("Exchange rates")}</h2><div className="inline-actions">{canCreate && <Link className="primary-link" to="/stores/exchangeRates/new">{t("Add exchange rate")}</Link>}<Link to="/stores/exchangeRates">{t("All exchange rates")}</Link></div></div>
+    <p className="hint">{t("Enter rates as 1 unit of one currency in another, for example 1 USD = 600 SDG. Reports use the latest active rate on or before each date. Keep official and market rates as separate sources, and choose which one each company reports with in its company settings.")}</p>
+    <div className="table-wrap"><table className="table"><thead><tr><th>{t("Currency pair")}</th><th>{t("Rate")}</th><th>{t("Source")}</th><th>{t("Rate date")}</th></tr></thead><tbody>
+      {[...latest.values()].map(r => <tr key={String(r.id)}><td><strong dir="ltr">1 {String(r.fromCurrency)} = {String(r.rate)} {String(r.toCurrency)}</strong></td><td dir="ltr">{String(r.rate)}</td><td>{t(String(r.rateSource || ""))}</td><td>{formatDate(String(r.date))}</td></tr>)}
+      {!latest.size && <tr><td colSpan={4}>{t("No exchange rates yet. Add one to report SDG and USD books together.")}</td></tr>}
+    </tbody></table></div></section>;
 }

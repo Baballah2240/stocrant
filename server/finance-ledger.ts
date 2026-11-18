@@ -77,6 +77,7 @@ export function assertBooksOpen(organizationId: unknown, date: unknown) {
 }
 export function validateFinancialMutation(user: AuthenticatedUser, collection: string, action: string, payload: Row, current?: Row): Row {
   if (collection === "financeHistory") financialError("Financial audit history is immutable.");
+  if (collection === "exchangeRates" && action !== "delete") { const item = { ...current, ...payload }; if (!/^\d+(\.\d{1,12})?$/.test(String(item.rate ?? "").trim()) || Number(item.rate) <= 0) financialError("Enter a positive exchange rate with up to 12 decimal places."); if (item.fromCurrency === item.toCurrency) financialError("Choose two different currencies."); }
   const lockedField = lockedDateFields[collection];
   if (lockedField) for (const record of [current, action === "delete" ? undefined : { ...current, ...payload }]) if (record) assertBooksOpen(record.organizationId, record[lockedField]);
   if (sourceCollections.includes(collection)) {

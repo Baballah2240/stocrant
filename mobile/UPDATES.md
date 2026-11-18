@@ -1,5 +1,16 @@
 # Mobile update history
 
+## 2026-11-18 - Multi-currency reporting (SDG and USD)
+
+- **Exchange rates register:** Finance → Exchange rates, entered as 1 unit of one currency in another (for example 1 USD = 600 SDG), with a date and source: central bank, commercial bank, market or manual. Rates are validated as positive, two different currencies, up to 12 decimals. Each company chooses which rate source its reports use, keeping official and market rates apart.
+- **Show reports in:** a new Finance filter. Converts the general ledger, trial balance, balance sheet, income statement and VAT return into any currency:
+  - each entry at the rate on its own date;
+  - cash, receivables, payables, loans, VAT and provisions revalued at the latest rate, with the difference posted to Exchange gains or Exchange losses;
+  - fixed assets and capital kept at their original rates.
+  The converted books stay balanced. Entries without a rate are listed, not guessed.
+
+Shared source only; no native build, install or hosting deployment is claimed.
+
 ## 2026-11-18 - VAT, end-of-service, salary transfers and mobile money (Sudan and Africa ready)
 
 - **VAT:** sales Tax and the new VAT / input tax field on purchases and expenses post to VAT payable and VAT recoverable. A new Finance VAT return tab shows output VAT less input VAT and VAT paid in the period; record payments to the tax authority as a Tax movement with the category VAT.

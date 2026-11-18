@@ -83,6 +83,7 @@ registry.push({
     { key: "vatRate", label: "VAT rate %", type: "percent", min: 0, max: 100 },
     { key: "vatNumber", label: "VAT registration number", type: "text" },
     { key: "booksLockedUntil", label: "Books closed through", type: "date" },
+    { key: "exchangeRateSource", label: "Exchange rate used for reports", type: "select", options: ["central bank", "commercial bank", "market", "manual"] },
     { key: "gratuityDaysPerYear", label: "End-of-service: days of salary per year (first 5 years)", type: "number", min: 0, max: 90 },
     { key: "gratuityDaysAfterFiveYears", label: "End-of-service: days of salary per year after 5 years", type: "number", min: 0, max: 90 },
     { key: "gratuityMinimumYears", label: "End-of-service: minimum years of service", type: "number", min: 0, max: 10 },
@@ -590,3 +591,19 @@ registry.push(
     columns: ["employee", "custodyType", "description", "value", "issueDate", "status"],
   },
 );
+
+// Exchange rates for multi-currency reporting (for example SDG and USD, with official and market rates).
+registry.push({
+  collection: "exchangeRates", label: "Exchange rates", singular: "Exchange rate",
+  module: "stores", permission: "stores.exchangeRates.read",
+  fields: [
+    { key: "date", label: "Rate date", type: "date", required: true },
+    { key: "fromCurrency", label: "From currency (1 unit)", type: "select", options: ["USD", "EUR", "GBP", "SAR", "AED", "QAR", "KWD", "BHD", "OMR", "EGP", "SDG", "KRW"], required: true },
+    { key: "toCurrency", label: "To currency", type: "select", options: ["USD", "EUR", "GBP", "SAR", "AED", "QAR", "KWD", "BHD", "OMR", "EGP", "SDG", "KRW"], required: true },
+    { key: "rate", label: "Rate", type: "text", required: true, placeholder: "e.g. 600.5" },
+    { key: "rateSource", label: "Source", type: "select", options: ["central bank", "commercial bank", "market", "manual"], required: true },
+    { key: "status", label: "Status", type: "select", options: ["active", "inactive"], required: true },
+    { key: "notes", label: "Notes", type: "textarea" },
+  ],
+  columns: ["date", "fromCurrency", "toCurrency", "rate", "rateSource", "status"],
+});
