@@ -436,7 +436,7 @@ class _DashboardState extends State<Dashboard> {
             final columns = width >= 390 && !largeText ? 2 : 1;
             final padding = (constraints.maxWidth - width) / 2;
             return CustomScrollView(
-              scrollCacheExtent: const ScrollCacheExtent.pixels(0),
+              cacheExtent: 0,
               slivers: [
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(padding, 12, padding, 12),

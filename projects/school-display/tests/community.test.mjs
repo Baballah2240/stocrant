@@ -49,7 +49,7 @@ test('community membership, private photos, comments, notifications, and classwo
     assert.equal((await api('community/photo/'+postId,{token:teacher})).status,401);
     assert.deepEqual((await api('community/photo/'+postId,{admin:true})).payload,raster);
     assert.deepEqual((await api('community',{admin:true})).payload.recipients,{teacher:1,parent:1});
-    assert.equal((await api('mobile/community/photo/'+postId,{token:teacher})).status,403);
+    assert.deepEqual((await api('mobile/community/photo/'+postId,{token:teacher})).payload,raster,'Teachers see school posts in their app.');
     assert.deepEqual((await api('mobile/community/photo/'+postId,{token:parent})).payload,raster);
     for(let i=0;i<2;i++)assert.equal((await api('mobile/community/like',{token:parent,body:{postId,liked:true}})).status,200);
     assert.equal((await api('mobile/community/comment',{token:parent,body:{postId,text:'See you there'}})).status,200);
@@ -81,12 +81,15 @@ test('community membership, private photos, comments, notifications, and classwo
     assert.equal((await api('community/post/photo',{token:parent,body:attach})).status,401);
     assert.equal((await api('community/post/photo',{admin:true,body:{postId:existing,photo:''}})).status,400);
     assert.equal((await api('community/post/photo',{admin:true,body:attach})).status,200);
-    assert.equal((await api('community/post/photo',{admin:true,body:attach})).status,409);
+    assert.equal((await api('community/post/photo',{admin:true,body:attach})).status,200,'A post can hold several photos.');
     const updated=(await api('mobile/community',{token:parent})).payload.posts.find(row=>row.id===existing);
     assert.equal(updated.photo,true);
     assert.equal(updated.likeCount,1);
     assert.equal(updated.comments[0].text,'Keep this comment');
     assert.deepEqual((await api('mobile/community/photo/'+existing,{token:parent})).payload,largerPhoto);
+    assert.equal(updated.photoCount,2);
+    assert.deepEqual((await api('mobile/community/photo/'+existing+'?i=1',{token:parent})).payload,largerPhoto);
+    assert.equal((await api('mobile/community/photo/'+existing+'?i=2',{token:parent})).status,404);
     assert.equal((await api('community/settings',{admin:true,body:{...settings,showParentComments:false}})).status,200);
     assert.equal((await api('mobile/notifications',{token:teacher})).payload.items.length,0);
     const view=(await api('mobile/timetable?view=cards',{token:teacher})).payload;
@@ -98,7 +101,8 @@ test('community membership, private photos, comments, notifications, and classwo
     assert.equal(shared.status,200);
     const sharedPost=shared.payload.item.communityPostId;
     feed=(await api('mobile/community',{token:parent})).payload;
-    assert.match(feed.posts[0].text,/Grade 6[\s\S]*Practice fractions/);
+    assert.equal(feed.posts[0].title,'Practice fractions');
+    assert.match(feed.posts[0].text,/Grade 6[\s\S]*Due /);
     assert.equal(feed.items.length,2);
     const draftWork=(await api('mobile/work',{token:teacher,body:{...work,title:'Mistake'}})).payload.item;
     assert.ok((await api('mobile/community',{token:parent})).payload.posts.some(row=>row.id===draftWork.communityPostId));

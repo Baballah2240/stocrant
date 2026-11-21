@@ -35,6 +35,10 @@ Build each connected web app from mobile/flutter, preserving its base path:
     flutter build web --target lib/main_teacher.dart --base-href /faslii-teacher/ --output build/web-teacher --no-web-resources-cdn
     flutter build web --target lib/main_parent.dart --base-href /faslii-parent/ --output build/web-parent --no-web-resources-cdn
 
+Flutter 3.47.9 does not write `index.html` into these output folders. If `build/web-teacher/index.html` is missing after a build, create it from `web/index.html` with `$FLUTTER_BASE_HREF` replaced by `/faslii-teacher/` (and `/faslii-parent/` for the parent build). Without it the server answers "App build not found".
+
+The apps have three tabs. **Home** shows school and teacher posts; posts can hold up to six photos that swipe sideways and open full screen with pinch and double-tap zoom. Teachers publish posts with the **New post** button. **Lessons** shows the current or next lesson and the week. **Classwork** lets teachers post homework or exams (with photos) and open the files parents send; parents upload a file for their child, or add a child with the school's invitation code. The bell opens the notifications list.
+
 The dashboard and both apps then share http://127.0.0.1:4319 on the same computer. To connect physical devices, use the existing SCHOOL_NETWORK_ORIGIN and SCHOOL_TLS_CERT/SCHOOL_TLS_KEY configuration with a trusted certificate matching the LAN address or school hostname. Use that exact HTTPS origin as FASLII_SCHOOL_ORIGIN when building Android. Localhost addresses the phone itself when opened on a phone.
 
 The administrator selects recipients and notification categories in the community dashboard. The Flutter apps show the notification inbox and check for updates every 30 seconds while open. Native background delivery requires FCM registration for each Flutter app. Teacher classwork is shared with the school community only through the explicit publish form for an assigned, published class. Keep student names and grades out of that form and out of community posts.

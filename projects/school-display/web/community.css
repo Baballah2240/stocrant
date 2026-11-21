@@ -92,3 +92,30 @@ dialog::backdrop{background:#120812aa}
 .embedded-community .shell { width: auto; max-width: none; margin: 0; padding: 0 2px 4px; }
 .embedded-community .topbar { padding-block-start: 0; }
 .embedded-community .appearance, .embedded-community .hero h1, .embedded-community .hero p { display: none; }
+/* Inside the control-room dashboard the section uses the dashboard's own look. */
+.embedded-community{
+  --background:transparent;--surface:rgba(255,255,255,.8);--inner:#f8faff;--text:#16243b;--muted:#60718a;
+  --line:#dce4ef;--highlight:#007aff;--on-highlight:#fff;--focus:#007aff;--danger:#c0271c;
+  font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;
+}
+.embedded-community[data-theme=dark]{
+  color-scheme:dark;--surface:rgba(48,26,37,.86);--inner:#301d27;--text:#fff5f9;--muted:#dec3cf;
+  --line:rgba(247,212,226,.22);--on-highlight:#fff;--focus:#8fc2ff;--danger:#ffb4b4;
+}
+.embedded-community body{background:transparent}
+.embedded-community .shell{max-width:none;padding:0}
+.embedded-community .topbar,.embedded-community .hero{display:none}
+.embedded-community .tile{border:1px solid rgba(255,255,255,.88);border-radius:22px;box-shadow:0 6px 24px #233c650a;backdrop-filter:blur(24px)}
+.embedded-community[data-theme=dark] .tile{border-color:#ffffff20}
+.embedded-community h2{font-size:1.05rem}
+.embedded-community button:not(.secondary){box-shadow:0 5px 15px rgba(0,122,255,.2)}
+.app-links{margin-block-start:12px}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.thumb{inline-size:84px;block-size:84px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+.post h3{margin:6px 0 2px;font-size:1.05rem}
+.kind{font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--highlight) 14%,transparent);color:var(--text)}
+.kind-classwork{background:color-mix(in srgb,#f59e0b 22%,transparent)}
+.kind-announcement{background:color-mix(in srgb,#10b981 20%,transparent)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-block:10px}
+.gallery-item{display:block;border-radius:14px;overflow:hidden;aspect-ratio:4/3;background:var(--surface)}
+.gallery .photo{inline-size:100%;block-size:100%;max-height:none;margin:0;object-fit:cover;border-radius:0}

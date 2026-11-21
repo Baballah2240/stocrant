@@ -115,6 +115,8 @@ void main() {
 
       final settings = tester.element(find.text('الإعدادات'));
       expect(Theme.of(settings).colorScheme.onSurface, Colors.white);
+      // Reset inside the test body: Flutter checks debug values before tear-downs run.
+      debugDefaultTargetPlatformOverride = null;
     },
   );
 

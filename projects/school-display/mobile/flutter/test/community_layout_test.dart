@@ -33,7 +33,7 @@ void main() {
                 }),
                 arabic: true,
                 refresh: () async {},
-                photo: (_) async => throw StateError('This post has no image'),
+                photo: (_, _) async => throw StateError('This post has no image'),
                 like: (_, value) async {
                   liked = value;
                 },

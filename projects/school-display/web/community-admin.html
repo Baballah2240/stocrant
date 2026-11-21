@@ -62,6 +62,10 @@
       <p>يتيح رمز المدرسة التسجيل دون اسم الطالب.</p>
       <p lang="en" dir="ltr">Families join using a school code.</p>
       <button id="code" type="button">إنشاء رمز المدرسة / Generate school code</button>
+      <nav class="app-links" aria-label="تطبيقات المدرسة / School apps">
+        <a class="pill" href="/faslii-teacher/" target="_blank" rel="noopener">تطبيق المعلم <span lang="en">Teacher app</span></a>
+        <a class="pill" href="/faslii-parent/" target="_blank" rel="noopener">تطبيق ولي الأمر <span lang="en">Parent app</span></a>
+      </nav>
       <output id="new-code" aria-live="polite" hidden></output>
     </section>
     </div>
@@ -73,12 +77,13 @@
     <section class="tile">
       <h2>منشور جديد <span lang="en">New post</span></h2>
       <form id="post">
+        <label>العنوان (اختياري) / Title (optional) <input name="title" maxlength="120" dir="auto"></label>
         <label>المنشور / Caption <textarea name="text" required maxlength="1800" dir="auto"></textarea></label>
-        <label>صورة / Photo <input name="photo" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="photo-help"></label>
-        <p id="photo-help" class="muted">PNG, JPEG, WebP · 5 MB</p>
+        <label>الصور / Photos <input name="photo" type="file" multiple accept="image/png,image/jpeg,image/webp" aria-describedby="photo-help"></label>
+        <p id="photo-help" class="muted">حتى ٦ صور · Up to 6 photos · PNG, JPEG, WebP · 5 MB each</p>
         <p id="photo-error" class="photo-error" role="alert" hidden></p>
-        <button type="button" class="secondary" id="remove-photo" hidden>إلغاء اختيار الصورة / Clear photo selection</button>
-        <img id="photo-preview" class="photo" alt="معاينة الصورة المختارة / Selected photo preview" hidden>
+        <button type="button" class="secondary" id="remove-photo" hidden>إلغاء اختيار الصور / Clear photo selection</button>
+        <div id="photo-preview" class="thumbs" hidden></div>
         <label class="check"><input name="notify" type="checkbox" checked aria-describedby="post-notify-help"> إشعار الأهالي / Notify parents</label>
         <p id="post-notify-help" class="muted" hidden>إشعارات المنشورات معطّلة في الإعدادات. Post notifications are disabled in settings.</p>
         <button>نشر المنشور / Publish post</button>
@@ -86,7 +91,7 @@
     </section>
 
     <section class="tile history">
-      <h2>منشورات المدرسة <span lang="en">School posts</span></h2>
+      <h2>منشورات المدرسة والمعلمين <span lang="en">School and teacher posts</span></h2>
       <ul id="posts" class="records"></ul>
     </section>
   </div>

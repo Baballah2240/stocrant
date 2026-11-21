@@ -92,7 +92,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           if(!canAccess(actor,path))fail('Your role cannot perform this action.',403);
         }
         if(!(req.headers['content-type']||'').startsWith('application/json'))fail('JSON is required.',415);
-        const limit=['/api/mobile/requests','/api/mobile/requests/comment','/api/resources','/api/teacher-requests/comment'].includes(path)?22*1024*1024:(path==='/api/community/post'||path==='/api/community/post/photo')?7*1024*1024:path==='/api/videos'?11*1024*1024:path==='/api/images'?3*1024*1024:path==='/api/restore'?128*1024*1024:['/api/draft','/api/special-days'].includes(path)?6*1024*1024:256000;
+        const limit=['/api/mobile/requests','/api/mobile/requests/comment','/api/resources','/api/teacher-requests/comment'].includes(path)?22*1024*1024:['/api/community/post','/api/mobile/community/post','/api/mobile/work'].includes(path)?42*1024*1024:(path==='/api/community/post/photo'||path==='/api/mobile/work/submit')?8*1024*1024:path==='/api/videos'?11*1024*1024:path==='/api/images'?3*1024*1024:path==='/api/restore'?128*1024*1024:['/api/draft','/api/special-days'].includes(path)?6*1024*1024:256000;
         let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>limit)fail('Request too large.',413);chunks.push(chunk);}try{body=JSON.parse(Buffer.concat(chunks).toString());}catch{fail('Invalid JSON.');}
       }
       const token=(req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('school_session='))?.slice(15);
@@ -136,23 +136,34 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         const parentUser=mobileUser.role==='parent',teacherClasses=()=>new Set(teacherPayload(state,mobileUser).classes.map(row=>row.id)),staffOnly=()=>{if(parentUser)fail('Your role cannot perform this action.',403);},parentOnly=()=>{if(!parentUser)fail('Your role cannot perform this action.',403);};
         if(path==='/api/mobile/notifications'&&req.method==='GET')return reply({items:social.communityNotices(state,mobileUser.role)});
         if(path==='/api/mobile/community'&&req.method==='GET'){
-          parentOnly();
-          return reply({showComments:social.community(state).settings.showParentComments,posts:social.communityView(state,mobileUser),items:social.communityNotices(state,'parent'),
+          return reply({showComments:!parentUser||social.community(state).settings.showParentComments,posts:social.communityView(state,mobileUser,{staff:!parentUser}),items:social.communityNotices(state,parentUser?'parent':'teacher'),
             school:{nameEn:state.settings.schoolEn,nameAr:state.settings.schoolAr}});
         }
         if(path.startsWith('/api/mobile/community/photo/')&&req.method==='GET'){
-          parentOnly();
           const post=social.findCommunityPost(state,path.slice('/api/mobile/community/photo/'.length));
-          if(!post.photo)fail('Image not found.',404);
-          const image=communityImages.read(post.photo);
+          const ref=social.photosOf(post)[Number(url.searchParams.get('i')||0)];
+          if(!ref)fail('Image not found.',404);
+          const image=communityImages.read(ref);
           res.setHeader('Content-Type',image.type);res.end(image.bytes);return;
         }
+        if(path==='/api/mobile/community/post'&&req.method==='POST'){
+          staffOnly();throttle('community-post:'+mobileUser.id,30);
+          const post=social.addCommunityPost(state,{...body,kind:'announcement',classId:null,workId:null},communityImages.upload,mobileUser);
+          if(social.community(state).settings.posts){
+            const notice=social.addCommunityNotice(state,{title:(post.title||mobileUser.name).slice(0,100),text:post.text.slice(0,500),audience:'parent',type:'posts'});
+            notify({...notice,type:'posts'});
+          }
+          audit('Teacher community post published');store.save();return reply({id:post.id});
+        }
+        if(path==='/api/mobile/community/remove'&&req.method==='POST'){
+          staffOnly();social.removeOwnPost(state,mobileUser,body.postId);audit('Teacher community post removed');store.save();return reply({ok:true});
+        }
         if(path==='/api/mobile/community/like'&&req.method==='POST'){
-          parentOnly();throttle('community-like:'+mobileUser.id,120);
+          throttle('community-like:'+mobileUser.id,120);
           social.reactToPost(state,mobileUser,body);store.save();return reply({ok:true});
         }
         if(path==='/api/mobile/community/comment'&&req.method==='POST'){
-          parentOnly();throttle('community-comment:'+mobileUser.id,30);
+          throttle('community-comment:'+mobileUser.id,30);
           social.commentOnPost(state,mobileUser,body);store.save();return reply({ok:true});
         }
         if(path==='/api/mobile/timetable'&&req.method==='GET'){const payload=parentUser?parentPayload(state,mobileUser):teacherPayload(state,mobileUser);if(markDelivered(state,mobileUser))store.save();return reply(url.searchParams.get('view')==='cards'?mobileCards(payload,mobileUser):payload);}
@@ -179,8 +190,8 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           if(share){
             const group=state.publishedClasses.find(row=>row.id===item.classId);
             const label=[group.nameAr,group.nameEn].filter(Boolean).join(' · ');
-            const text=[label,item.title,item.dueDate,item.details].filter(Boolean).join('\n');
-            const post=social.addCommunityPost(state,{text},()=>null);
+            const text=[label,'التسليم · Due '+item.dueDate,item.details].filter(Boolean).join('\n');
+            let post;try{post=social.addCommunityPost(state,{text,title:item.title,kind:'classwork',classId:item.classId,workId:item.id,photos:Array.isArray(body.photos)?body.photos:[]},communityImages.upload,mobileUser);}catch(error){state.workItems=state.workItems.filter(row=>row!==item);throw error;}
             if(board.settings.classwork){
               const notice=social.addCommunityNotice(state,{title:'Classwork · أعمال الصف',text:item.title,audience:'parent',type:'classwork'});
               notify({...notice,type:'classwork'});
@@ -190,7 +201,26 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           }
           store.save();return reply({item});
         }
-        if(path==='/api/mobile/work/remove'&&req.method==='POST'){staffOnly();const removed=removeWork(state,mobileUser,body.id);if(removed.communityPostId){const board=social.community(state);board.posts=board.posts.filter(row=>row.id!==removed.communityPostId);board.notices=board.notices.filter(row=>row.id!==removed.communityNoticeId);}store.save();return reply({ok:true});}
+        if(path==='/api/mobile/work/submit'&&req.method==='POST'){
+          parentOnly();throttle('work-submit:'+mobileUser.id,40);
+          const item=state.workItems.find(row=>row.id===body.workId);if(!item)fail('Classwork not found.',404);
+          const child=state.students.find(row=>row.id===body.studentId&&mobileUser.studentIds.includes(row.id));
+          if(!child||child.classId!==item.classId)fail('Choose your child in this class.',403);
+          const meta=fileStore.store(state,body.file,mobileUser,'submission');
+          state.submissions??=[];const old=state.submissions.filter(row=>row.workId===item.id&&row.studentId===child.id);
+          if(old.length)fileStore.remove(state,old.map(row=>row.fileId));
+          state.submissions=state.submissions.filter(row=>!old.includes(row)).concat({id:randomBytes(16).toString('hex'),workId:item.id,studentId:child.id,parentId:mobileUser.id,fileId:meta.id,at:meta.at});
+          audit('Classwork file submitted');store.save();return reply({ok:true});
+        }
+        if(path.startsWith('/api/mobile/submission/')&&req.method==='GET'){
+          const row=(state.submissions||[]).find(item=>item.id===path.slice('/api/mobile/submission/'.length));if(!row)fail('File not found.',404);
+          const item=state.workItems.find(work=>work.id===row.workId);
+          const allowed=parentUser?row.parentId===mobileUser.id:Boolean(item)&&teacherClasses().has(item.classId);
+          if(!allowed)fail('File not found.',404);
+          const {meta,bytes}=fileStore.read(state,row.fileId);
+          res.setHeader('Content-Type',meta.mime);res.setHeader('Content-Disposition',"attachment; filename*=UTF-8''"+encodeURIComponent(meta.name));res.setHeader('X-Content-Type-Options','nosniff');res.end(bytes);return;
+        }
+        if(path==='/api/mobile/work/remove'&&req.method==='POST'){staffOnly();const removed=removeWork(state,mobileUser,body.id);const dropped=(state.submissions||[]).filter(row=>row.workId===removed.id);if(dropped.length){fileStore.remove(state,dropped.map(row=>row.fileId));state.submissions=state.submissions.filter(row=>!dropped.includes(row));}if(removed.communityPostId){const board=social.community(state);board.posts=board.posts.filter(row=>row.id!==removed.communityPostId);board.notices=board.notices.filter(row=>row.id!==removed.communityNoticeId);}store.save();return reply({ok:true});}
         if(path==='/api/mobile/absence/decide'&&req.method==='POST'){staffOnly();decideAbsence(state,mobileUser,body,teacherClasses());audit('Absence request answered');store.save();return reply({ok:true});}
         if(path==='/api/mobile/logout'&&req.method==='POST'){unregisterPushToken(state,mobileUser,body.pushToken);revokeToken(state,req.headers.authorization);store.save();return reply({ok:true});}
         fail('Not found.',404);
@@ -260,8 +290,9 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           }
           if(path.startsWith('/api/community/photo/')&&req.method==='GET'){
             const post=social.findCommunityPost(state,path.slice('/api/community/photo/'.length));
-            if(!post.photo)fail('Image not found.',404);
-            const image=communityImages.read(post.photo);
+            const ref=social.photosOf(post)[Number(url.searchParams.get('i')||0)];
+            if(!ref)fail('Image not found.',404);
+            const image=communityImages.read(ref);
             res.setHeader('Content-Type',image.type);res.end(image.bytes);return;
           }
           if(path==='/api/community/code'&&req.method==='POST'){

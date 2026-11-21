@@ -24,7 +24,7 @@ void main() {
         expect(request.headers['authorization'], 'Bearer test-session');
         if (request.url.path.endsWith('/logout'))
           return http.Response('{"ok":true}', 200);
-        if (edition == Edition.teacher)
+        if (request.url.path.endsWith('/timetable'))
           expect(request.url.queryParameters['view'], 'cards');
         return http.Response(
           jsonEncode({
@@ -74,11 +74,11 @@ void main() {
         'Mathematics',
       ]);
       await api.signOut();
+      // Both apps load lessons and the school feed together.
       expect(requests, [
         '/api/mobile/login',
-        edition == Edition.teacher
-            ? '/api/mobile/timetable'
-            : '/api/mobile/community',
+        '/api/mobile/timetable',
+        '/api/mobile/community',
         '/api/mobile/logout',
       ]);
     });

@@ -37,14 +37,32 @@ export function saveCommunitySettings(state, body) {
   community(state).settings = Object.fromEntries(Object.keys(settings).map(key => [key, body[key] ?? settings[key]]));
 }
 
-export function addCommunityPost(state, body, uploadPhoto) {
+export const maxPostPhotos = 6;
+// Older posts stored one photo; newer posts keep a list.
+export const photosOf = post => post.photos || (post.photo ? [post.photo] : []);
+
+export function addCommunityPost(state, body, uploadPhoto, author = null) {
   const text = clean(body.text, 1800);
   if (!text) fail('Enter a post of up to 1,800 characters.');
+  const title = clean(body.title ?? '', 120);
+  const kind = ['announcement', 'classwork'].includes(body.kind) ? body.kind : 'post';
+  const list = Array.isArray(body.photos) ? body.photos : body.photo ? [body.photo] : [];
+  if (list.length > maxPostPhotos) fail('Add up to 6 photos to a post.');
   const board = community(state);
   if (board.posts.length >= 100) fail('Remove an older post before publishing another.', 409);
-  const photo = body.photo ? uploadPhoto(body.photo) : null;
-  const post = {id: id(), text, photo, at: new Date().toISOString(), likes: [], comments: []};
+  const photos = list.map(uploadPhoto);
+  const post = {id: id(), kind, title, text, photos, at: new Date().toISOString(), likes: [], comments: [],
+    authorId: author?.id || null, authorName: author?.name || '', authorRole: author?.role || 'school',
+    classId: typeof body.classId === 'string' ? body.classId : null, workId: body.workId || null};
   board.posts.unshift(post);
+  return post;
+}
+
+export function removeOwnPost(state, user, postId) {
+  const board = community(state);
+  const post = findCommunityPost(state, postId);
+  if (post.authorId !== user.id) fail('You can remove only your own posts.', 403);
+  board.posts = board.posts.filter(row => row !== post);
   return post;
 }
 
@@ -56,20 +74,24 @@ export function findCommunityPost(state, postId) {
 
 export function attachCommunityPhoto(state, body, uploadPhoto) {
   const post = findCommunityPost(state, body.postId);
-  if (post.photo) fail('This post already has a photo.', 409);
+  const photos = photosOf(post);
+  if (photos.length >= maxPostPhotos) fail('This post already has 6 photos.', 409);
   if (typeof body.photo !== 'string' || !body.photo) fail('Choose a photo before saving.');
-  post.photo = uploadPhoto(body.photo);
+  post.photos = [...photos, uploadPhoto(body.photo)];
+  delete post.photo;
   return post;
 }
 
-export function communityView(state, user, {administrator = false} = {}) {
-  const visible = administrator || community(state).settings.showParentComments;
-  return community(state).posts.map(({id, text, photo, at, likes, comments}) => ({
-    id, text, at, photo: Boolean(photo), liked: likes.includes(user.id), likeCount: likes.length,
+export function communityView(state, user, {administrator = false, staff = false} = {}) {
+  const visible = administrator || staff || community(state).settings.showParentComments;
+  return community(state).posts.map(post => ({...post, photoCount: photosOf(post).length})).map(({id, kind, title, text, photoCount, at, likes, comments, authorId, authorName, authorRole, classId}) => ({
+    id, kind: kind || 'post', title: title || '', text, at, photo: photoCount > 0, photoCount,
+    author: authorName || '', authorRole: authorRole || 'school', classId: classId || null, mine: Boolean(authorId) && authorId === user.id,
+    liked: likes.includes(user.id), likeCount: likes.length,
     commentCount: comments.length,
     // Families see staff names, but other parents only as "Parent".
     comments: visible ? comments.map(({id, author, authorId, authorRole, text, at}) => ({id, text, at,
-      author: administrator || authorId === user.id || (authorRole && authorRole !== 'parent') ? author : 'ولي أمر · Parent'})) : [],
+      author: administrator || staff || authorId === user.id || (authorRole && authorRole !== 'parent') ? author : 'ولي أمر · Parent'})) : [],
   }));
 }
 

@@ -1,7 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'compose_post.dart';
+import 'pick_files.dart';
 import 'school_api.dart';
 
+/// Teachers post homework or an exam. It appears in Classwork and as a post on Home.
 class ClassworkForm extends StatefulWidget {
   const ClassworkForm({
     super.key,
@@ -25,6 +28,8 @@ class _ClassworkFormState extends State<ClassworkForm> {
   final title = TextEditingController();
   final details = TextEditingController();
   late DateTime date = DateTime.parse(widget.today);
+  String type = 'homework';
+  List<PickedFile> photos = [];
   bool saving = false;
 
   String tr(String en, String ar) => widget.arabic ? ar : en;
@@ -42,27 +47,24 @@ class _ClassworkFormState extends State<ClassworkForm> {
     setState(() => saving = true);
     final saved = await widget.submit({
       'classId': widget.classId,
-      'type': 'homework',
+      'type': type,
       'title': title.text.trim(),
       'details': details.text.trim(),
       'dueDate': dueDate,
+      'photos': photos.map((photo) => photo.data).toList(),
     });
     if (!mounted) return;
     setState(() => saving = false);
     if (saved) {
       title.clear();
       details.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            tr(
-              'Posted to the parent community.',
-              'نُشر في مجتمع أولياء الأمور.',
-            ),
-          ),
-        ),
-      );
+      setState(() => photos = []);
     }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(saved
+          ? tr('Posted. Families see it in Classwork and on Home.', 'تم النشر. يراه أولياء الأمور في أعمال الصف وفي الرئيسية.')
+          : tr('Not posted. Check your connection and try again.', 'لم يُنشر. تحقق من الاتصال وحاول مرة أخرى.')),
+    ));
   }
 
   Future<void> chooseDate() async {
@@ -82,56 +84,54 @@ class _ClassworkFormState extends State<ClassworkForm> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(
-          Icons.edit_note_outlined,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          tr('Post classwork', 'انشر أعمال الصف'),
-          style: Theme.of(context).textTheme.titleLarge,
+        Row(
+          children: [
+            Icon(Icons.edit_note_outlined, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(child: Text(tr('Post classwork', 'انشر أعمال الصف'), style: Theme.of(context).textTheme.titleLarge)),
+          ],
         ),
         const SizedBox(height: 6),
         Text(
-          tr(
-            'Families in the school community can see this post. Leave out student names and grades.',
-            'يرى أعضاء مجتمع المدرسة هذا المنشور. تجنّب ذكر أسماء الطلاب ودرجاتهم.',
-          ),
+          tr('Families in the school community can see this post. Leave out student names and grades.',
+              'يرى أعضاء مجتمع المدرسة هذا المنشور. تجنّب ذكر أسماء الطلاب ودرجاتهم.'),
+        ),
+        const SizedBox(height: 12),
+        SegmentedButton<String>(
+          segments: [
+            ButtonSegment(value: 'homework', label: Text(tr('Homework', 'واجب')), icon: const Icon(Icons.menu_book_outlined)),
+            ButtonSegment(value: 'exam', label: Text(tr('Exam', 'اختبار')), icon: const Icon(Icons.quiz_outlined)),
+          ],
+          selected: {type},
+          onSelectionChanged: saving ? null : (value) => setState(() => type = value.first),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: title,
           maxLength: 120,
-          decoration: InputDecoration(
-            labelText: tr('Title', 'العنوان'),
-            border: const OutlineInputBorder(),
-          ),
-          validator: (value) => value == null || value.trim().isEmpty
-              ? tr('Required', 'مطلوب')
-              : null,
+          enabled: !saving,
+          decoration: InputDecoration(labelText: tr('Title', 'العنوان'), border: const OutlineInputBorder()),
+          validator: (value) => value == null || value.trim().isEmpty ? tr('Required', 'مطلوب') : null,
         ),
         TextFormField(
           controller: details,
           maxLength: 1000,
           minLines: 2,
           maxLines: 4,
-          decoration: InputDecoration(
-            labelText: tr('Instructions', 'التعليمات'),
-            border: const OutlineInputBorder(),
-          ),
+          enabled: !saving,
+          decoration: InputDecoration(labelText: tr('Instructions', 'التعليمات'), border: const OutlineInputBorder()),
         ),
+        PhotoPickerRow(photos: photos, arabic: widget.arabic, enabled: !saving, onChanged: (list) => setState(() => photos = list)),
+        const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: saving ? null : chooseDate,
           icon: const Icon(Icons.event),
           label: Text('${tr('Due', 'التسليم')} · $dueDate'),
         ),
+        const SizedBox(height: 8),
         FilledButton(
           onPressed: saving ? null : save,
-          child: Text(
-            saving
-                ? tr('Posting…', 'جارٍ النشر…')
-                : tr('Publish classwork', 'نشر أعمال الصف'),
-          ),
+          child: Text(saving ? tr('Posting…', 'جارٍ النشر…') : tr('Publish classwork', 'نشر أعمال الصف')),
         ),
       ],
     ),

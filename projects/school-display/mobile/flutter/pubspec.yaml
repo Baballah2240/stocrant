@@ -13,6 +13,7 @@ dependencies:
   web: ^1.1.1
   local_auth: ^3.0.2
   shared_preferences: ^2.5.0
+  file_picker: ^13.4.1
 dev_dependencies:
   local_auth_platform_interface: ^1.1.0
   shared_preferences_platform_interface: ^2.4.2

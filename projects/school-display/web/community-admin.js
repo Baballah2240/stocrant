@@ -16,6 +16,11 @@ let editing = null;
 let saving = false;
 let photoVersion = 0;
 let attachingPost;
+const kinds = {
+  post: 'منشور المدرسة / School post',
+  announcement: 'إعلان معلم / Teacher announcement',
+  classwork: 'أعمال الصف / Classwork',
+};
 
 const theme = byId('theme');
 try {
@@ -148,17 +153,34 @@ function renderNotices() {
 
 function renderPosts() {
   byId('posts').replaceChildren(...(state.posts.length ? state.posts.map(post => {
-    const item = node('li', undefined, 'record');
-    item.append(node('p',post.text), node('p', dateLabel(post.at) + ' · ♥ ' + post.likeCount,'muted'));
-    if (post.photo) {
-      const photo = node('img', undefined, 'photo');
-      photo.alt = 'صورة المنشور / Post photo';
-      photo.loading = 'lazy';
-      photo.src = '/api/community/photo/' + encodeURIComponent(post.id);
-      item.append(photo);
+    const item = node('li', undefined, 'record post');
+    const head = node('div', undefined, 'record-head');
+    head.append(node('span', kinds[post.kind] || kinds.post, 'kind kind-' + (post.kind || 'post')),
+      node('strong', post.author || 'المدرسة / School'),
+      node('span', dateLabel(post.at), 'muted'));
+    item.append(head);
+    if (post.title) item.append(node('h3', post.title));
+    item.append(node('p', post.text));
+    const count = post.photoCount ?? (post.photo ? 1 : 0);
+    if (count) {
+      const gallery = node('div', undefined, 'gallery');
+      for (let index = 0; index < count; index++) {
+        const link = node('a', undefined, 'gallery-item');
+        link.href = '/api/community/photo/' + encodeURIComponent(post.id) + '?i=' + index;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        const photo = node('img', undefined, 'photo');
+        photo.alt = 'صورة ' + (index + 1) + ' من ' + count + ' / Photo ' + (index + 1) + ' of ' + count;
+        photo.loading = 'lazy';
+        photo.src = link.href;
+        link.append(photo);
+        gallery.append(link);
+      }
+      item.append(gallery);
     }
+    item.append(node('p', '♥ ' + post.likeCount + ' · 💬 ' + post.commentCount, 'muted'));
     const actions = node('div',undefined,'actions');
-    if (!post.photo) actions.append(button('إضافة صورة / Add photo', () => openAttachment(post)));
+    if (count < maxPhotos) actions.append(button('إضافة صورة / Add photo', () => openAttachment(post)));
     actions.append(removeButton('إزالة المنشور / Remove post','/moderate',{postId:post.id}));
     item.append(actions);
     if (post.comments.length) {
@@ -241,21 +263,32 @@ function photoData(file) {
   });
 }
 
+const maxPhotos = 6;
+async function photoList(input) {
+  const files = [...input.files];
+  if (files.length > maxPhotos) throw Error('اختر ٦ صور كحد أقصى. Choose up to 6 photos.');
+  return Promise.all(files.map(photoData));
+}
 function resetPhoto() {
   photoVersion++;
   setPhotoError(postForm.elements.photo,byId('photo-error'),'');
   byId('remove-photo').hidden = !postForm.elements.photo.files.length;
-  const image = byId('photo-preview');
-  image.hidden = true;
-  image.removeAttribute('src');
+  const preview = byId('photo-preview');
+  preview.hidden = true;
+  preview.replaceChildren();
 }
 postForm.elements.photo.onchange = async () => {
   resetPhoto();
   const version = photoVersion;
   try {
-    const data = await photoData(postForm.elements.photo.files[0]);
-    if (data && version === photoVersion) {
-      byId('photo-preview').src = data;
+    const list = await photoList(postForm.elements.photo);
+    if (list.length && version === photoVersion) {
+      byId('photo-preview').replaceChildren(...list.map((src, index) => {
+        const image = node('img', undefined, 'thumb');
+        image.src = src;
+        image.alt = 'الصورة ' + (index + 1) + ' / Photo ' + (index + 1);
+        return image;
+      }));
       byId('photo-preview').hidden = false;
     }
   } catch (error) {
@@ -319,9 +352,9 @@ noticeForm.onsubmit = event => {
 };
 postForm.onsubmit = event => {
   event.preventDefault();
-  const {text,notify,photo} = postForm.elements;
+  const {title,text,notify,photo} = postForm.elements;
   return act(event.submitter, async () => {
-    await endpoint('/post', {text:text.value, notify:notify.checked && !notify.disabled, photo:await photoData(photo.files[0])});
+    await endpoint('/post', {title:title.value, text:text.value, notify:notify.checked && !notify.disabled, photos:await photoList(photo)});
     postForm.reset();
     resetPhoto();
   });
@@ -349,6 +382,8 @@ if (new URLSearchParams(location.search).get('embed') === '1' && window.parent !
     if (event.origin !== location.origin || event.source !== window.parent) return;
     const mode = event.data?.schoolCommunityTheme;
     if (mode === 'light' || mode === 'dark') document.documentElement.dataset.theme = mode;
+    const accent = event.data?.schoolCommunityAccent;
+    if (typeof accent === 'string' && /^#[0-9a-f]{3,8}$/i.test(accent)) document.documentElement.style.setProperty('--highlight', accent);
   });
   const shell = document.querySelector('.shell');
   new ResizeObserver(() => {

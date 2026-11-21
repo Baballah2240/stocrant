@@ -16,6 +16,10 @@ abstract final class SchoolLayout {
         borderRadius: BorderRadius.all(Radius.circular(controlRadius)),
       ),
     ),
-    textStyle: WidgetStatePropertyAll(TextStyle(fontSize: labelSize)),
+    // Button text replaces the theme's text style, so it needs the Arabic
+    // fallback itself; without it the web app shows empty boxes for Arabic.
+    textStyle: WidgetStatePropertyAll(
+      TextStyle(fontSize: labelSize, fontFamilyFallback: ['Noto Sans Arabic']),
+    ),
   );
 }

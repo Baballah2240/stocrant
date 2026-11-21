@@ -56,7 +56,7 @@ class SchoolApi {
     final response = await _client
         .send(request)
         .then(http.Response.fromStream)
-        .timeout(const Duration(seconds: 12));
+        .timeout(Duration(seconds: body == null ? 12 : 90));
     if (response.statusCode != 200)
       throw SchoolApiException(response.statusCode);
     return response;
@@ -100,16 +100,66 @@ class SchoolApi {
 
   Future<SchoolRow> schoolName() => _request('school');
 
+  /// Lessons, classwork and the school feed in one snapshot.
   Future<SchoolData> refresh() async {
-    if (edition == Edition.parent)
-      return SchoolData(await _request('community'));
-    final result = await _request('timetable?view=cards');
-    if (result['role'] != edition.name) throw const SchoolApiException(403);
-    return SchoolData(result);
+    final results = await Future.wait([
+      _request('timetable?view=cards'),
+      _request('community'),
+    ]);
+    final cards = results[0], feed = results[1];
+    if (cards['role'] != edition.name) throw const SchoolApiException(403);
+    return SchoolData({
+      ...cards,
+      'posts': feed['posts'],
+      'items': feed['items'],
+      'showComments': feed['showComments'],
+      'school': {
+        ...?(cards['school'] as SchoolRow?),
+        ...?(feed['school'] as SchoolRow?),
+      },
+    });
   }
 
-  Future<Uint8List> photo(String id) async =>
-      (await _send('community/photo/${Uri.encodeComponent(id)}')).bodyBytes;
+  Future<Uint8List> photo(String id, [int index = 0]) async => (await _send(
+    'community/photo/${Uri.encodeComponent(id)}?i=$index',
+  )).bodyBytes;
+
+  /// A teacher announcement for the school feed, with up to six photos.
+  Future<void> postAnnouncement({
+    required String title,
+    required String text,
+    required List<String> photos,
+  }) async => _request(
+    'community/post',
+    body: {'title': title, 'text': text, 'photos': photos},
+  );
+
+  Future<void> removePost(String id) async =>
+      _request('community/remove', body: {'postId': id});
+
+  /// A parent attaches a file to a classwork item for one child.
+  Future<void> submitWork({
+    required String workId,
+    required String studentId,
+    required String name,
+    required String data,
+  }) async => _request(
+    'work/submit',
+    body: {
+      'workId': workId,
+      'studentId': studentId,
+      'file': {'name': name, 'data': data},
+    },
+  );
+
+  Future<Uint8List> submission(String id) async =>
+      (await _send('submission/${Uri.encodeComponent(id)}')).bodyBytes;
+
+  Future<void> linkChild(String code) async =>
+      _request('parent/link', body: {'code': code.trim()});
+
+  Future<void> removeWork(String id) async =>
+      _request('work/remove', body: {'id': id});
 
   Future<void> like(String id, bool liked) async =>
       _request('community/like', body: {'postId': id, 'liked': liked});
