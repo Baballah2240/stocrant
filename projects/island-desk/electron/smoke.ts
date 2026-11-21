@@ -91,7 +91,27 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.expanded = state().mode === "expanded" && state().rect.width * state().rect.height > compact;
   results.keyboardFocus = window.isFocused() && (await window.webContents.executeJavaScript("document.hasFocus()")) === true;
   await window.webContents.executeJavaScript("document.querySelector('button[aria-label=Settings]').click()"); await wait(400);
-  results.settingsVisible = await window.webContents.executeJavaScript("(()=>{const c=document.querySelector('.content'),p=document.querySelector('.atmosphere'),r=c.getBoundingClientRect(),s=p.getBoundingClientRect();return r.height>120&&s.top>=r.top-2&&s.top<r.bottom&&c.scrollHeight>c.clientHeight&&!!document.querySelector('.preferences');})()");
+  const settingsLayout = await window.webContents.executeJavaScript(`(() => {
+    const content = document.querySelector(".settings-content");
+    const cards = document.querySelectorAll(".settings-grid > section");
+    const pane = content.getBoundingClientRect();
+    const first = cards[0].getBoundingClientRect(), second = cards[1].getBoundingClientRect();
+    const wide = pane.height > 120 && first.top >= pane.top && first.top < pane.bottom &&
+      Math.abs(first.top - second.top) < 1 && first.right < second.left && content.clientWidth >= content.scrollWidth;
+    const data = document.querySelector(".settings-data");
+    content.scrollTop = content.scrollHeight;
+    const dataReachable = content.scrollTop > 0 && data.getBoundingClientRect().bottom <= pane.bottom;
+    content.scrollTop = 0;
+    content.style.maxWidth = "420px";
+    const narrowFirst = cards[0].getBoundingClientRect(), narrowSecond = cards[1].getBoundingClientRect();
+    const narrow = Math.abs(narrowFirst.left - narrowSecond.left) < 1 &&
+      narrowFirst.bottom < narrowSecond.top && content.clientWidth >= content.scrollWidth;
+    content.style.removeProperty("max-width");
+    return { wide, narrow, dataReachable };
+  })()`);
+  results.settingsVisible = settingsLayout.wide;
+  results.settingsStackWithoutOverflow = settingsLayout.narrow;
+  results.settingsDataReachable = settingsLayout.dataReachable;
   await window.webContents.executeJavaScript("(()=>{const s=document.querySelector('.atmosphere select');s.value='light';s.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait(200);
   results.lightAppearance = await window.webContents.executeJavaScript("document.documentElement.dataset.appearance==='light'&&getComputedStyle(document.querySelector('.island')).color==='rgb(21, 32, 57)'");
   if(process.env.ISLAND_DESK_QA_SCREENSHOT)writeFileSync(process.env.ISLAND_DESK_QA_SCREENSHOT,(await window.webContents.capturePage()).toPNG());
