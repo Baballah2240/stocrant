@@ -34,3 +34,10 @@ Verification: packaged desktop tests pass for synthetic audio energy/capture sto
 The four small bars rise/fall independently while the island and labels remain stationary. Focus uses smooth staggered waveform motion; local/system audio uses four measured frequency bands. Paused and reduced-motion states stay quiet. Local audio keeps a waveform visible in compact mode even without a Windows media session.
 
 Verified in the packaged app: waveform bar transforms change over time while the island translation stays none. Native Windows topmost mode is reapplied after restacking; float-on and float-off checks pass.
+
+## Liquid Glass refresh - 2026-11-21
+
+- Added tinted glass navigation, clearer text colors, visible keyboard focus and reduced-motion support to the React phone companion and Android launcher.
+- Refreshed shared desktop appearance and simplified workspace labels and empty states.
+
+Source update for the React and Capacitor apps. No Android APK was built or installed.

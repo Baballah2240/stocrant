@@ -342,3 +342,64 @@ button,input,select,textarea{font-family:var(--font-body)}
 .island.compact:has(.island-battery):not(.live){width:280px}
 .compact-face .compact-track{flex:1;min-width:0}
 .top-actions>.island-battery{margin-inline-end:8px}
+/* Glass belongs to the shell and controls. Reading surfaces keep a steady tint. */
+:root {
+  --island-surface: #132034ed;
+  --island-muted: #c2cede;
+  --island-field: #90b4e015;
+  --muted: #bbc9da;
+}
+:root[data-appearance=light] {
+  --island-surface: #eef5ffed;
+  --island-muted: #43536c;
+  --muted: #43536c;
+  --glass-edge: #56769657;
+  --glass-glint: #ffffff;
+  --glass-shade: #45648935;
+  --glass-tint: linear-gradient(155deg, #ffffffef, transparent 53%, #a8d9e33c);
+  --glass-panel: linear-gradient(155deg, #ffffff, #edf5ff);
+  --glass-control: #e5eef9;
+  --glass-active: #cddff4;
+  --glass-focus: #245b9a;
+}
+.island {
+  background: var(--glass-tint), var(--island-surface) !important;
+  border-color: var(--glass-edge);
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+  backdrop-filter: blur(28px) saturate(155%);
+  box-shadow: inset 0 1px 0 var(--glass-glint), inset 0 -1px 0 var(--glass-shade), 0 14px 42px #020a1938;
+}
+.island.live { border-color: var(--glass-focus); }
+.island .workspace :is(.tabs, .segmented, .task-capture, .search) {
+  background: var(--glass-control);
+  border-color: var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}
+.island .workspace :is(.tabs, .segmented, .task-filters) button.active {
+  background: var(--glass-active);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 var(--glass-glint);
+}
+.island :is(.note-card, .note-editor, .task-item, .tool-card, .shortcut-card, .focus-sidebar, .calc-history, .settings-grid section, .translation-panel) {
+  background: var(--glass-panel);
+  border-color: var(--glass-edge);
+}
+.island :is(.workspace-intro .eyebrow, .micro, .list-empty, .note-card small, .timer-caption, .compact-label, .compact-track) {
+  color: var(--muted);
+}
+.island .eyebrow { letter-spacing: .065em; }
+.workspace-intro h1 { line-height: 1.16; }
+.island :is(input, textarea)::placeholder { opacity: 1; }
+.island :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--glass-focus);
+  outline-offset: 2px;
+}
+:root[data-appearance=light] .island :is(.tabs, .segmented, .task-filters) button.active {
+  background: var(--glass-active);
+  color: var(--text);
+}
+:root[data-appearance=light] .island :is(.note-card, .note-editor, .tool-card, .shortcut-card, .focus-sidebar, .calc-history, .settings-grid section, .translation-panel) {
+  background: var(--glass-panel);
+  border-color: var(--glass-edge);
+}
+.island .note-card.active { box-shadow: inset 3px 0 var(--mint); }

@@ -8,3 +8,14 @@
   --ease-in:cubic-bezier(.4,0,1,1);        /* quick exits */
   --t-press:110ms;--t-fast:160ms;--t-base:260ms;--t-open:420ms;
   --lift:translateY(-1px)}
+/* Keep type readable over the changing colors behind the island. */
+:root {
+  --glass-edge: #b7d8ff52;
+  --glass-glint: #e5f4ff69;
+  --glass-shade: #03091585;
+  --glass-tint: linear-gradient(155deg, #b8d4ff30, transparent 52%, #6bcfc01c);
+  --glass-panel: linear-gradient(155deg, #54739a36, #101d2b19), #182537;
+  --glass-control: #263b53;
+  --glass-active: #354f69;
+  --glass-focus: #a5d3ff;
+}

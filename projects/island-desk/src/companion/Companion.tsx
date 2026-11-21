@@ -244,7 +244,7 @@ function NewsCard({ now, say }: { now: number; say: (text: string) => void }) {
 function PairCard({ onPair }: { onPair: (pairing: Pairing) => void }) {
   const [link, setLink] = useState(""), [error, setError] = useState("");
   return <div className="c-card pair-card">
-    <span className="eyebrow">CONNECT TO YOUR COMPUTER</span>
+    <span className="eyebrow">Desktop pairing</span>
     <p className="muted">Optional. Everything works on this phone alone. To sync with Island Desk on your computer, turn on Settings → Phone companion there, scan its QR code with this phone, then tap "Open in Island Launcher". Or paste the link here:</p>
     <div className="row"><input placeholder="http://192.168…:47820/#code" value={link} onChange={event => { setLink(event.target.value); setError(""); }}/><button className="round small on" aria-label="Connect" onClick={() => { const next = parsePairLink(link.trim()); if (next) onPair(next); else setError("That doesn't look like an Island Desk link."); }}><Icon name="arrow" size={16}/></button></div>
     {error && <small className="late">{error}</small>}
@@ -416,7 +416,7 @@ function LauncherLink() {
   let token = ""; try { token = JSON.parse(localStorage.getItem("island-desk-token") || '""'); } catch { /* ignore */ }
   if (!token) return null;
   const href = `islanddesk://pair?u=${encodeURIComponent(location.origin + "/")}&t=${encodeURIComponent(token)}`;
-  return <a className="c-card launcher-link" href={href}><span className="eyebrow">HAVE ISLAND LAUNCHER?</span><strong>Open in Island Launcher</strong><p className="muted">Pairs the installed app with this computer in one tap.</p></a>;
+  return <a className="c-card launcher-link" href={href}><span className="eyebrow">Android app</span><strong>Open in Island Launcher</strong><p className="muted">Pairs the installed app with this computer in one tap.</p></a>;
 }
 
 /* ───────────── Alarms (launcher) ───────────── */

@@ -34,7 +34,7 @@ export function Translation({ state, message }: { state: ReturnType<typeof useTr
   const direction = (code: string) => translationLanguages.find(l => l.code === code && "rtl" in l) ? "rtl" : "ltr";
   const options = translationLanguages.map(l => <option key={l.code} value={l.code}>{l.label}</option>);
   return <form className="translation" onSubmit={event => { event.preventDefault(); void translate(); }}>
-    <div className="section-row"><div><span className="eyebrow">A little less lost in translation</span><h2>Find the right words.</h2></div><span className="translation-online"><Icon name="globe" size={14}/>Online tool</span></div>
+    <div className="section-row"><div><h2>Translate text</h2></div><span className="translation-online"><Icon name="globe" size={14}/>Online</span></div>
     <div className="translation-languages">
       <label htmlFor="translation-from">From<select id="translation-from" value={draft.from} onChange={e => change({ from: e.target.value, to: e.target.value === "en" ? "ar" : "en" })}>{options}</select></label>
       <button type="button" className="translation-swap" aria-label="Swap languages" title="Swap languages" onClick={() => change({ from: draft.to, to: draft.from, text: output || draft.text })}><Icon name="swap" size={20}/></button>
