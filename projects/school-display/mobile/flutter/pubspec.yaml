@@ -1,0 +1,28 @@
+name: faslii_layout
+description: Flutter layout preview for Faslii.
+publish_to: none
+version: 0.2.1+4
+environment:
+  sdk: '>=3.13.0 <4.0.0'
+  flutter: '>=3.47.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  material_ui: ^1.11.1
+  http: ^1.5.0
+  web: ^1.1.1
+  local_auth: ^3.0.2
+  shared_preferences: ^2.5.0
+dev_dependencies:
+  local_auth_platform_interface: ^1.1.0
+  shared_preferences_platform_interface: ^2.4.2
+  flutter_test:
+    sdk: flutter
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/faslii-icon.png
+  fonts:
+    - family: Noto Sans Arabic
+      fonts:
+        - asset: assets/fonts/NotoSansArabic.ttf

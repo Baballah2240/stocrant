@@ -19,3 +19,4 @@ mobile/www/
 mobile/android/app/google-services.json
 *firebase-admin*.json
 *adminsdk*.json
+output/

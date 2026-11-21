@@ -1,7 +1,7 @@
 {
   "name": "school-display",
   "productName": "Qatar School Time Table",
-  "version": "2.4.0",
+  "version": "2.4.9",
   "private": true,
   "description": "Bilingual school timetable and Windows classroom overlay",
   "author": "Qatar School Time Table",
@@ -30,7 +30,8 @@
     "test:teacher": "node tests/teacher-app.mjs",
     "test:inbox": "node tests/teacher-inbox.mjs",
     "test:requests": "node tests/teacher-requests.mjs",
-    "test:leave": "node tests/leave-sections.mjs"
+    "test:leave": "node tests/leave-sections.mjs",
+    "test:community": "node tests/community-admin-browser.mjs workflow && node tests/community-admin-browser.mjs layout"
   },
   "dependencies": {
     "sql.js": "1.15.2"
@@ -55,7 +56,9 @@
       "!**/*.pfx",
       "!**/*.p12",
       "!**/*.pem",
-      "!**/*.key"
+      "!**/*.key",
+      "mobile/flutter/build/web-teacher/**/*",
+      "mobile/flutter/build/web-parent/**/*"
     ],
     "asarUnpack": [
       "node_modules/sql.js/dist/*.wasm"

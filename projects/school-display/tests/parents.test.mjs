@@ -32,6 +32,25 @@ test('parents: invitation, own children only, attendance, work and absence, with
   const view=(await api('mobile/timetable',{bearer:parentToken})).data;
   assert.equal(view.role,'parent');assert.deepEqual(view.children.map(row=>row.id),[ali.id]);assert.deepEqual(view.students.map(row=>row.id),[ali.id],'Classmates are hidden.');assert.deepEqual(view.schedule.map(row=>row.id),['a1']);assert.deepEqual(view.classes.map(row=>row.id),[a.id]);assert.ok(!JSON.stringify(view).includes('Huda')&&!JSON.stringify(view).includes('Noor'));
 
+  // New editions are role-bound and use the same published school week.
+  const countBeforeWrongRole=app.store.get().mobileTokens.length;
+  assert.equal((await api('mobile/login',{body:{email:'parent@home.test',password,audience:'teacher'}})).status,403);
+  assert.equal((await api('mobile/login',{body:{email:'sara@school.test',password,audience:'parent'}})).status,403);
+  assert.equal(app.store.get().mobileTokens.length,countBeforeWrongRole);
+  const parentEdition=await api('mobile/login',{body:{email:'parent@home.test',password,audience:'parent'}});
+  assert.equal(parentEdition.status,200);
+  assert.equal(parentEdition.cookie,undefined);
+  const parentCards=(await api('mobile/timetable?view=cards',{bearer:parentEdition.data.token})).data;
+  assert.equal(parentCards.days[0].date,qatarDate());
+  assert.equal(parentCards.days.length,7);
+  assert.deepEqual(parentCards.days.flatMap(day=>day.rows.map(row=>row.id)),['a1']);
+  assert.deepEqual(parentCards.students.map(row=>row.id),[ali.id]);
+  const teacherEdition=await api('mobile/login',{body:{email:'sara@school.test',password,audience:'teacher'}});
+  assert.equal(teacherEdition.status,200);
+  const teacherCards=(await api('mobile/timetable?view=cards',{bearer:teacherEdition.data.token})).data;
+  assert.equal(teacherCards.days.flatMap(day=>day.rows)[0].mine,true);
+  assert.deepEqual(teacherCards.students.map(row=>row.id).sort(),[ali.id,noor.id].sort());
+
   // Parents use only the app and cannot perform teacher actions.
   assert.equal((await api('login',{body:{email:'parent@home.test',password}})).status,401,'Parents cannot open the control panel.');
   assert.equal((await api('mobile/attendance',{body:{classId:a.id,date:qatarDate(),entries:[{studentId:ali.id,status:'present'}]},bearer:parentToken})).status,403);

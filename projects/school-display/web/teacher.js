@@ -71,11 +71,15 @@ const sendState=item=>`<span class="send-state ${item.state}">${t(item.state==='
 function clearAccount(){token=null;data=null;tab='today';selectedDay=0;lastKey='';childId=null;classId=null;marks={};threadId=null;for(const key of ['teacher-token','teacher-data','teacher-offset','teacher-read-messages','teacher-notified-messages','parent-child','teacher-outbox'])write(key,null);scheduleReminders();}
 function applyData(fresh){data=fresh;offset=fresh.serverTime-Date.now();write('teacher-data',JSON.stringify(fresh));write('teacher-offset',String(offset));write('teacher-synced',new Date().toISOString());if(/^#[a-f0-9]{6}$/i.test(fresh.school.accent))document.documentElement.style.setProperty('--accent',fresh.school.accent);pruneOutbox();}
 const softRender=()=>{if(!root.querySelector('form[data-dirty]'))render();};
+// The timetable plus the notifications the school posts from the control panel's community section.
+async function loadData(){const [fresh,board]=await Promise.all([api('timetable'),api('notifications').catch(error=>error.status===401?Promise.reject(error):null)]);fresh.communityNotices=board?board.items||[]:data?.communityNotices||[];return fresh;}
+let syncAgain=false;
 async function sync(announce=false){
- if(!token||syncing)return;syncing=true;
- try{await flush(false);const fresh=await api('timetable');const changed=JSON.stringify({...fresh,serverTime:0})!==JSON.stringify({...data,serverTime:0});applyData(fresh);const was=online;online=true;if(tab==='messages')markRead();if(changed||!was)softRender();if(changed){await scheduleReminders();await announce_();}if(announce)toast('Updated.');}
+ if(!token)return;if(syncing){syncAgain=true;return;}syncing=true;syncAgain=false;
+ try{await flush(false);const fresh=await loadData();const changed=JSON.stringify({...fresh,serverTime:0})!==JSON.stringify({...data,serverTime:0});applyData(fresh);const was=online;online=true;if(tab==='messages')markRead();if(changed||!was)softRender();if(changed){await scheduleReminders();await announce_();}if(announce)toast('Updated.');}
  catch(error){if(error.status===401){clearAccount();render();toast('Your account was signed out. Sign in again.',true);}else{const was=online;online=false;if(was)softRender();if(announce)toast('Could not update. The saved timetable is still available.',true);}}
  finally{syncing=false;}
+ if(syncAgain&&token){syncAgain=false;await sync();}
 }
 
 // ---------- Phone notifications ----------
@@ -233,7 +237,9 @@ function feed(){
  for(const row of notices())items.push({key:'n'+row.id,kind:'notice',category:'change',priority:'important',title:noticeTitle(row),text:datesLabel(row),at:row.at,unread:!isRead(row),row});
  for(const row of data.requests||[])if(row.status!=='pending'&&row.statusAt)items.push({key:'q'+row.id,kind:'request',category:'message',priority:'normal',title:`${t('Request answered')}: ${row.title}`,text:t({approved:'Approved',rejected:'Rejected',completed:'Completed'}[row.status]),at:row.statusAt,unread:!localRead().has('q'+row.id+row.status),row});
  for(const row of data.resources||[])if(row.important&&row.version>1)items.push({key:'d'+row.id,kind:'resource',category:'announcement',priority:'important',title:`${t('Document updated')}: ${row.title}`,text:row.changeNote||t('A new version is available.'),at:row.updatedAt,unread:!localRead().has('d'+row.id+'v'+row.version),row});
- for(const row of data.announcements||[])items.push({key:'a'+row.id,kind:'announcement',category:'announcement',priority:'normal',title:t('School announcement'),text:pick(row,'text'),at:row.expiresAt,unread:!localRead().has(row.id),row});
+ for(const row of data.announcements||[])items.push({key:'a'+row.id,kind:'announcement',category:'announcement',priority:'normal',title:t('School announcement'),text:pick(row,'text'),at:row.createdAt||row.expiresAt,unread:!localRead().has(row.id),row});
+ // Notifications the school posts from the control panel's community section.
+ for(const row of data.communityNotices||[])items.push({key:'c'+row.id,kind:'announcement',category:'announcement',priority:'normal',title:row.title,text:row.text,at:row.at,unread:!localRead().has(row.id),row});
  return items.sort((a,b)=>String(b.at).localeCompare(String(a.at)));
 }
 function lessonDetails(row){return row?`<dl class="mini"><dt>${t('Subject')}</dt><dd>${e(pick(row,'subject'))}</dd><dt>${t('Time')}</dt><dd>${e(row.start)} – ${e(row.end)}</dd><dt>${t('Class')}</dt><dd>${e(className(row.classId))}</dd><dt>${t('Room')}</dt><dd>${e(row.room||'—')}</dd>${row.substituteFor?`<dt>${t('Cover for')}</dt><dd>${e(row.substituteFor)}</dd>`:''}</dl>`:`<p class="muted">—</p>`;}
@@ -417,7 +423,7 @@ root.addEventListener('change',async event=>{
   write('teacher-reminder',value);savePrefs({reminderMinutes:Number(value)});toast('Reminders saved.');
  }
 });
-async function enter(issued){token=issued.token;write('teacher-token',token);applyData(await api('timetable'));markNotified();online=true;tab='today';render();await scheduleReminders();setupPush();}
+async function enter(issued){token=issued.token;write('teacher-token',token);applyData(await loadData());markNotified();online=true;tab='today';render();await scheduleReminders();setupPush();}
 root.addEventListener('submit',async event=>{
  const form=event.target,values=Object.fromEntries(new FormData(form));event.preventDefault();
  const submit=form.querySelector('button.primary,button.secondary');if(submit)submit.disabled=true;

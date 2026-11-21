@@ -1,3 +1,4 @@
+import {communityNotices} from './community.mjs';
 import {readFileSync} from 'node:fs';
 import {createSign,createHash,randomBytes} from 'node:crypto';
 import {schoolClock} from '../shared/schedule.mjs';
@@ -83,6 +84,12 @@ export async function deliverPush(state,sender,now=Date.now(),limit=50){
  for(const job of state.pushJobs.filter(row=>(row.status==='queued'||row.status==='retry'||row.status==='held')&&row.nextAt<=now).slice(0,limit)){
   const user=users.get(job.userId),prefs=user?preferencesOf(user):null;
   if(!user||user.active===false){job.status='skipped';job.error='Account inactive';summary.skipped++;continue;}
+  const noticeId=job.data?.communityNotice||(job.key.startsWith(job.userId+':community:')?job.key.slice((job.userId+':community:').length):null);
+  if(noticeId){
+   const notice=communityNotices(state,user.role).find(row=>row.id===noticeId);
+   if(!notice){job.status='skipped';job.error='School notification unavailable';summary.skipped++;continue;}
+   job.text=(notice.title+': '+notice.text).slice(0,240);
+  }
   if(prefs.categories[job.category]===false&&!(job.priority==='urgent'&&policy.urgentBypassQuiet)){job.status='skipped';job.error='Turned off by the teacher';summary.skipped++;continue;}
   const until=job.priority==='urgent'&&policy.urgentBypassQuiet?null:quietUntil(prefs,state.settings.timezone,now);
   if(until){job.status='held';job.nextAt=until;job.error='Quiet hours';summary.held++;continue;}

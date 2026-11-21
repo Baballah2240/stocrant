@@ -54,7 +54,14 @@ const cache='school-display-cache:'+token;
 try{const saved=JSON.parse(localStorage.getItem(cache));if(saved?.data&&!params.has('draft')){data=saved.data;offset=Number(saved.offset)||0;lastSync=Number(saved.lastSync)||0;}}catch{}
 const label=key=>data?.settings.language==='ar'?(arabic[key]||key):data?.settings.language==='both'?`${key} · ${arabic[key]||key}`:key;
 function text(row,en,ar){const mode=data.settings.language;if(mode==='ar')return e(row[ar]||row[en]);if(mode==='en')return e(row[en]||row[ar]);return `${e(row[en]||row[ar])}${row[ar]&&row[ar]!==row[en]?`<span class="secondary-language" dir="rtl">${e(row[ar])}</span>`:''}`;}
-const duration=seconds=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(Math.max(0,seconds)%60).padStart(2,'0')}`;
+function duration(seconds) {
+ const total = Math.max(0, Math.floor(seconds));
+ const hours = Math.floor(total / 3600);
+ const minutes = Math.floor(total / 60) % 60;
+ const parts = [minutes, total % 60].map(value => String(value).padStart(2, '0'));
+ if (hours) parts.unshift(String(hours));
+ return parts.join(':');
+}
 let audioContext=null;
 const unlockAudio=()=>{if(window.schoolDesktop||!data?.settings.sound||audioContext)return;try{audioContext=new AudioContext();audioContext.resume().catch(()=>{});}catch{}};
 window.addEventListener('pointerdown',unlockAudio);window.addEventListener('keydown',unlockAudio);

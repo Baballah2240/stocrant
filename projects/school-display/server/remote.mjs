@@ -1,4 +1,4 @@
-import {imageRefs} from '../shared/media.mjs';
+import {imageRefs,validVideoPath,videoMaxBytes} from '../shared/media.mjs';
 import {existsSync,readFileSync,writeFileSync,renameSync,unlinkSync} from 'node:fs';
 import {join} from 'node:path';
 
@@ -25,8 +25,9 @@ export function createRemote({directory,images,validate,onChange=async()=>{},fet
   for(const ref of imageRefs(next.settings,next.schedule,next.settings.specialDays)){
    if(!ref.startsWith('/api/images/'))continue;
    try{images.read(ref);continue;}catch{}
-   const bytes=await bounded(await fetcher(connection.origin+ref+'?token='+connection.token,{redirect:'error',signal:AbortSignal.timeout(10000)}),2*1024*1024);
-   const type=ref.endsWith('.jpg')?'jpeg':ref.split('.').at(-1),saved=images.upload('data:image/'+type+';base64,'+bytes.toString('base64'));
+   const bytes=await bounded(await fetcher(connection.origin+ref+'?token='+connection.token,{redirect:'error',signal:AbortSignal.timeout(10000)}),validVideoPath(ref)?videoMaxBytes:2*1024*1024);
+   const type=ref.endsWith('.jpg')?'jpeg':ref.split('.').at(-1),encoded='data:'+(validVideoPath(ref)?'video/':'image/')+type+';base64,'+bytes.toString('base64');
+   const saved=validVideoPath(ref)?images.uploadVideo(encoded):images.upload(encoded);
    if(saved!==ref)throw Error('The school image checksum does not match.');
   }
   return next;

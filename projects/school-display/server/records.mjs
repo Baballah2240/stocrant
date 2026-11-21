@@ -71,6 +71,7 @@ export function removeWork(state,user,id){
  const row=state.workItems.find(item=>item.id===id);if(!row)fail('Item not found.',404);
  if(user.role==='teacher'&&row.byId!==user.id)fail('You can remove only what you posted.',403);
  state.workItems=state.workItems.filter(item=>item!==row);
+ return row;
 }
 export function requestAbsence(state,parent,body,now=Date.now()){
  if(!parent.studentIds.includes(body.studentId))fail('Student not found.',404);

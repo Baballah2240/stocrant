@@ -4,7 +4,7 @@ An independent Windows classroom overlay with a local bilingual web control pane
 
 ## Archived project checkpoint
 
-The complete school-project source, current 2.3.0 Windows packages, manager presentation and restoration instructions are preserved in `archives/Qatar-School-Time-Table-2.3.0-2026-10-28.zip`. Its adjacent SHA-256 file verifies the archive, and the internal manifest records each archived file's checksum. Archives and generated installers stay outside Git. See [Archive and restore](docs/ARCHIVE-AND-RESTORE.md) to resume development or run the packaged app. Old installers, unpacked build output and temporary QA files can be regenerated and have been cleaned; current installers and installed development dependencies are retained.
+The complete school-project source is preserved in `archives/School-Display-20261121-132740Z.zip` (21 November 2026), which replaces all earlier archives. Its adjacent SHA-256 file verifies the archive. Archives, installers and the generated presentation video (`output/`) stay outside Git. See [Archive and restore](docs/ARCHIVE-AND-RESTORE.md) to resume development.
 
 ## Clearer navigation and sign-in (2.5 work in progress)
 

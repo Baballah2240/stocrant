@@ -1,3 +1,5 @@
+import * as social from './community.mjs';
+import {mobileCards} from './mobile.mjs';
 import {createServer} from 'node:http';
 import {createServer as createSecureServer} from 'node:https';
 import {createHmac} from 'node:crypto';
@@ -20,7 +22,7 @@ import {randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
 import {openStore,defaultSettings} from './store.mjs';
 import {defaultClasses,validateClasses,validateClassSchedule} from './classes.mjs';
 import {createImages,validPhotoPath} from './images.mjs';
-import {imageRefs} from '../shared/media.mjs';
+import {imageRefs,validVideoPath,videoSettings} from '../shared/media.mjs';
 import {validateSchedule,sampleSchedule} from '../shared/schedule.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 const hash=(password,salt)=>scryptSync(password,salt,64);
@@ -37,11 +39,12 @@ export function validateSettings(input) {
   if(!/^#[a-f0-9]{6}$/i.test(s.themeAccent)||!['light','dark','system'].includes(s.themeMode)||!['neutral','accent'].includes(s.panelTheme)||!Number.isInteger(s.panelOpacity)||s.panelOpacity<40||s.panelOpacity>95||!Number.isInteger(s.popupSeconds)||s.popupSeconds<3||s.popupSeconds>15||!Number.isInteger(s.notificationSeconds)||s.notificationSeconds<3||s.notificationSeconds>15||!['single','double'].includes(s.soundStyle))fail('Check theme and notification settings.');
   if(!['left','right'].includes(s.lessonDockSide)||!Number.isInteger(s.lessonLeadSeconds)||s.lessonLeadSeconds<0||s.lessonLeadSeconds>120||['lessonStartSeconds','lessonFinishSeconds'].some(key=>!Number.isInteger(s[key])||s[key]<0||s[key]>60))fail('Check lesson screen durations and clock position.');
   for(const key of ['breakImage','returnImage','logoImage','lessonStartImage','lessonFinishImage','eventImage'])if(!validPhotoPath(s[key]))fail('Upload the selected image before saving settings.');
+  for(const key of videoSettings)if(s[key]!==''&&!validVideoPath(s[key]))fail('Upload the selected video before saving settings.');
   if(!Array.isArray(s.holidays)||s.holidays.length>200||s.holidays.some(d=>typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d)||Number.isNaN(Date.parse(d))||new Date(d).toISOString().slice(0,10)!==d))fail('Use valid holiday dates.');
   return Object.fromEntries(Object.keys(defaultSettings()).map(key=>[key,s[key]]));
 }
 export async function startServer({directory,port=4318,desktop=null,host='127.0.0.1',publicOrigin=null,tls=null,trustedProxy=false,setupKey=null,updateEnv=process.env,remoteOptions={},pushSender}={}) {
-  const store=await openStore(directory),images=createImages(directory),fileStore=createFiles(directory),push=pushSender!==undefined?pushSender:fcmSender(),sessions=new Map(),attempts=new Map();let origin;
+  const store=await openStore(directory),images=createImages(directory,{allowVideo:true}),communityImages=createImages(join(directory,'community'),{maxMegabytes:5}),fileStore=createFiles(directory),push=pushSender!==undefined?pushSender:fcmSender(),sessions=new Map(),attempts=new Map();let origin;
   if((host!=='127.0.0.1'||publicOrigin)&&(!(tls||trustedProxy)||!publicOrigin?.startsWith('https://')||new URL(publicOrigin).origin!==publicOrigin))throw Error('Network mode requires TLS and an exact HTTPS public origin.');
   if(trustedProxy&&(tls||typeof setupKey!=='string'||setupKey.length<32))throw Error('Proxy mode requires a private setup key and upstream HTTPS termination.');
   const version=JSON.parse(await readFile(join(root,'package.json'),'utf8')).version;
@@ -65,7 +68,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
   function throttle(key,limit=10){const now=Date.now();const a=(attempts.get(key)||[]).filter(t=>now-t<15*60000);if(a.length>=limit)fail('Too many attempts. Try again in 15 minutes.',429);a.push(now);attempts.set(key,a);}
   const handler=async(req,res)=>{
     const reply=(data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));};
-    res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action 'self'; object-src 'none'");
+    res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action 'self'; object-src 'none'");
     try {
       if(req.url==='/health'&&req.method==='GET')return reply({ok:true});
       if(req.headers.host!==new URL(origin).host)fail('Invalid host.',403);
@@ -89,7 +92,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           if(!canAccess(actor,path))fail('Your role cannot perform this action.',403);
         }
         if(!(req.headers['content-type']||'').startsWith('application/json'))fail('JSON is required.',415);
-        const limit=['/api/mobile/requests','/api/mobile/requests/comment','/api/resources','/api/teacher-requests/comment'].includes(path)?22*1024*1024:path==='/api/images'?3*1024*1024:path==='/api/restore'?128*1024*1024:['/api/draft','/api/special-days'].includes(path)?6*1024*1024:256000;
+        const limit=['/api/mobile/requests','/api/mobile/requests/comment','/api/resources','/api/teacher-requests/comment'].includes(path)?22*1024*1024:(path==='/api/community/post'||path==='/api/community/post/photo')?7*1024*1024:path==='/api/videos'?11*1024*1024:path==='/api/images'?3*1024*1024:path==='/api/restore'?128*1024*1024:['/api/draft','/api/special-days'].includes(path)?6*1024*1024:256000;
         let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>limit)fail('Request too large.',413);chunks.push(chunk);}try{body=JSON.parse(Buffer.concat(chunks).toString());}catch{fail('Invalid JSON.');}
       }
       const token=(req.headers.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith('school_session='))?.slice(15);
@@ -99,9 +102,30 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
       const authenticated=Boolean(user&&session.expires>Date.now());
       const publicUser=u=>({id:u.id,name:u.name,email:u.email,active:u.active!==false,owner:u===state.admin,role:u.role,classIds:u.classIds,teacherName:u.teacherName||''});
       if(session&&!authenticated)sessions.delete(token);
+      function notify({id,title,text,audience,type}, targets=users) {
+        const board=social.community(state);
+        if(type&&!board.settings[type])return;
+        const enabled=social.enabledCommunityRoles(board.settings,audience);
+        const recipients=targets.filter(row=>row.active!==false&&enabled.includes(row.role)).map(row=>row.id);
+        enqueuePush(state,recipients,{key:'community:'+id,category:'announcement',kind:'announcement',text:title+': '+text,data:{tab:'community',communityNotice:id}});
+        schedulePush();
+      }
       if(mobile){
-        if(path==='/api/mobile/login'&&req.method==='POST'){throttle('login-all',300);if(typeof body.email!=='string'||body.email.length>180)fail('Email or password is incorrect.',401);const email=body.email.trim().toLowerCase();throttle('login:'+email);const account=users.find(u=>u.active!==false&&u.email===email);if(!account||!verify(body.password,account))fail('Email or password is incorrect.',401);const issued=issueToken(state,account);audit('Teacher app signed in: '+account.email);store.save();return reply(issued);}
+        if(path==='/api/mobile/school'&&req.method==='GET')return reply({nameEn:state.settings.schoolEn,nameAr:state.settings.schoolAr});
+        if(path==='/api/mobile/community/register'&&req.method==='POST'){
+          if(body.audience!==undefined&&body.audience!=='parent')fail('Use the parent app to register.',403);
+          throttle('community-register-all',300);throttle('community-register:'+String(body.email||'').trim().toLowerCase().slice(0,180));
+          social.checkCommunityCode(state,body.code);
+          const details=credentials(body);
+          if(users.some(row=>row.email===details.email))fail('This email already has an account.',409);
+          const parent={...details,id:randomBytes(16).toString('hex'),active:true,role:'parent',classIds:[],studentIds:[]};
+          state.users.push(parent);
+          const issued=issueToken(state,parent);
+          audit('School community member joined');store.save();return reply(issued);
+        }
+        if(path==='/api/mobile/login'&&req.method==='POST'){throttle('login-all',300);if(typeof body.email!=='string'||body.email.length>180)fail('Email or password is incorrect.',401);const email=body.email.trim().toLowerCase();throttle('login:'+email);const account=users.find(u=>u.active!==false&&u.email===email);if(!account||!verify(body.password,account))fail('Email or password is incorrect.',401);if(body.audience!==undefined&&(!['parent','teacher'].includes(body.audience)||(body.audience==='parent')!==(account.role==='parent')))fail('This account cannot use this app.',403);const issued=issueToken(state,account);audit('Mobile app signed in: '+account.email);store.save();return reply(issued);}
         if(path==='/api/mobile/parent/register'&&req.method==='POST'){
+          if(body.audience!==undefined&&body.audience!=='parent')fail('Use the parent app to register.',403);
           throttle('invite-all',300);const invite=findInvite(state,body.code),details=credentials(body);throttle('login:'+details.email);
           let parent=users.find(u=>u.email===details.email);
           if(parent&&(parent.role!=='parent'||parent.active===false||!verify(body.password,parent)))fail('This email already has an account. Enter its password to add this child.',409);
@@ -110,7 +134,28 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         }
         const mobileUser=tokenUser(state,users,req.headers.authorization);if(!mobileUser)fail('Sign in to the app.',401);
         const parentUser=mobileUser.role==='parent',teacherClasses=()=>new Set(teacherPayload(state,mobileUser).classes.map(row=>row.id)),staffOnly=()=>{if(parentUser)fail('Your role cannot perform this action.',403);},parentOnly=()=>{if(!parentUser)fail('Your role cannot perform this action.',403);};
-        if(path==='/api/mobile/timetable'&&req.method==='GET'){const payload=parentUser?parentPayload(state,mobileUser):teacherPayload(state,mobileUser);if(markDelivered(state,mobileUser))store.save();return reply(payload);}
+        if(path==='/api/mobile/notifications'&&req.method==='GET')return reply({items:social.communityNotices(state,mobileUser.role)});
+        if(path==='/api/mobile/community'&&req.method==='GET'){
+          parentOnly();
+          return reply({showComments:social.community(state).settings.showParentComments,posts:social.communityView(state,mobileUser),items:social.communityNotices(state,'parent'),
+            school:{nameEn:state.settings.schoolEn,nameAr:state.settings.schoolAr}});
+        }
+        if(path.startsWith('/api/mobile/community/photo/')&&req.method==='GET'){
+          parentOnly();
+          const post=social.findCommunityPost(state,path.slice('/api/mobile/community/photo/'.length));
+          if(!post.photo)fail('Image not found.',404);
+          const image=communityImages.read(post.photo);
+          res.setHeader('Content-Type',image.type);res.end(image.bytes);return;
+        }
+        if(path==='/api/mobile/community/like'&&req.method==='POST'){
+          parentOnly();throttle('community-like:'+mobileUser.id,120);
+          social.reactToPost(state,mobileUser,body);store.save();return reply({ok:true});
+        }
+        if(path==='/api/mobile/community/comment'&&req.method==='POST'){
+          parentOnly();throttle('community-comment:'+mobileUser.id,30);
+          social.commentOnPost(state,mobileUser,body);store.save();return reply({ok:true});
+        }
+        if(path==='/api/mobile/timetable'&&req.method==='GET'){const payload=parentUser?parentPayload(state,mobileUser):teacherPayload(state,mobileUser);if(markDelivered(state,mobileUser))store.save();return reply(url.searchParams.get('view')==='cards'?mobileCards(payload,mobileUser):payload);}
         if(path==='/api/mobile/read'&&req.method==='POST'){if(markRead(state,mobileUser,body))store.save();return reply({ok:true});}
         if(path==='/api/mobile/ack'&&req.method==='POST'){staffOnly();const item=acknowledge(state,mobileUser,body);store.save();return reply({ackAt:item.ackAt});}
         if(path==='/api/mobile/reply'&&req.method==='POST'){staffOnly();throttle('reply:'+mobileUser.id,120);const row=replyAsTeacher(state,mobileUser,body);store.save();return reply({id:row.id,at:row.at});}
@@ -124,8 +169,28 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/mobile/parent/link'&&req.method==='POST'){parentOnly();throttle('invite-all',300);consumeInvite(state,findInvite(state,body.code),mobileUser);audit('Parent added a child with an invitation code');store.save();return reply({ok:true});}
         if(path==='/api/mobile/absence'&&req.method==='POST'){parentOnly();const request=requestAbsence(state,mobileUser,body);store.save();return reply({request});}
         if(path==='/api/mobile/attendance'&&req.method==='POST'){staffOnly();const count=markAttendance(state,mobileUser,body,teacherClasses());store.save();return reply({count});}
-        if(path==='/api/mobile/work'&&req.method==='POST'){staffOnly();const item=addWork(state,mobileUser,body,teacherClasses());store.save();return reply({item});}
-        if(path==='/api/mobile/work/remove'&&req.method==='POST'){staffOnly();removeWork(state,mobileUser,body.id);store.save();return reply({ok:true});}
+        if(path==='/api/mobile/work'&&req.method==='POST'){
+          staffOnly();
+          const share=body.community===true;
+          const allowed=share?new Set(mobileUser.classIds.filter(id=>state.publishedClasses.some(row=>row.id===id))):teacherClasses();
+          const board=social.community(state);
+          if(share&&board.posts.length>=100)fail('Ask an administrator to remove an older community post.',409);
+          const item=addWork(state,mobileUser,body,allowed);
+          if(share){
+            const group=state.publishedClasses.find(row=>row.id===item.classId);
+            const label=[group.nameAr,group.nameEn].filter(Boolean).join(' · ');
+            const text=[label,item.title,item.dueDate,item.details].filter(Boolean).join('\n');
+            const post=social.addCommunityPost(state,{text},()=>null);
+            if(board.settings.classwork){
+              const notice=social.addCommunityNotice(state,{title:'Classwork · أعمال الصف',text:item.title,audience:'parent',type:'classwork'});
+              notify({...notice,type:'classwork'});
+              item.communityNoticeId=notice.id;
+            }
+            item.communityPostId=post.id;
+          }
+          store.save();return reply({item});
+        }
+        if(path==='/api/mobile/work/remove'&&req.method==='POST'){staffOnly();const removed=removeWork(state,mobileUser,body.id);if(removed.communityPostId){const board=social.community(state);board.posts=board.posts.filter(row=>row.id!==removed.communityPostId);board.notices=board.notices.filter(row=>row.id!==removed.communityNoticeId);}store.save();return reply({ok:true});}
         if(path==='/api/mobile/absence/decide'&&req.method==='POST'){staffOnly();decideAbsence(state,mobileUser,body,teacherClasses());audit('Absence request answered');store.save();return reply({ok:true});}
         if(path==='/api/mobile/logout'&&req.method==='POST'){unregisterPushToken(state,mobileUser,body.pushToken);revokeToken(state,req.headers.authorization);store.save();return reply({ok:true});}
         fail('Not found.',404);
@@ -134,7 +199,21 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
       if(path.startsWith('/api/images/')&&req.method==='GET'){
         if(!authenticated&&!displayAccess(url.searchParams.get('token')))fail('Invalid display access.',403);
         if(!authenticated||user.role==='teacher'){const access=displayAccess(url.searchParams.get('token')),ids=new Set(access?[access.classId]:user.classIds),value=remote?.snapshot();const rows=state.published.filter(row=>ids.has(row.classId||'default')),specials=state.publishedSpecialDays.filter(row=>ids.has(row.classId));const allowed=imageRefs(state.settings,rows,specials);if(url.searchParams.get('token')===state.displayToken&&value)allowed.push(...imageRefs(value.settings,value.schedule,value.settings.specialDays));if(!allowed.includes(path))fail('Image not found.',404);}
-        const image=images.read(path);res.setHeader('Content-Type',image.type);res.end(image.bytes);return;
+        const media=images.read(path);
+        res.setHeader('Content-Type',media.type);
+        if(validVideoPath(path)){
+          const length=media.bytes.length, range=req.headers.range;
+          res.setHeader('Accept-Ranges','bytes');
+          if(range){
+            const match=/^bytes=(\d+)-(\d*)$/.exec(range);
+            const start=match?Number(match[1]):length, end=match?.[2]?Math.min(Number(match[2]),length-1):length-1;
+            if(start>=length||end<start){res.writeHead(416,{'Content-Range':'bytes */'+length});res.end();return;}
+            res.writeHead(206,{'Content-Range':'bytes '+start+'-'+end+'/'+length,'Content-Length':end-start+1});
+            res.end(media.bytes.subarray(start,end+1));return;
+          }
+          res.setHeader('Content-Length',length);
+        }
+        res.end(media.bytes);return;
       }
       if(path==='/api/status'&&req.method==='GET')return reply({setup:!state.admin,setupKeyRequired:trustedProxy&&!state.admin,authenticated,admin:authenticated?publicUser(user):null,desktop:Boolean(desktop)});
       if(path==='/api/setup'&&req.method==='POST') {if(state.admin)fail('The administrator already exists.',409);throttle('setup');if(trustedProxy){if(typeof body.setupKey!=='string'||body.setupKey.length>256||!timingSafeEqual(hash(body.setupKey,'setup'),hash(setupKey,'setup')))fail('Enter the private hosting setup key.',403);}else if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress))fail('Create the initial administrator on the server computer.',403);state.admin={...credentials(body),role:'admin',classIds:[],id:randomBytes(16).toString('hex'),active:true};audit('Administrator created');store.save();return reply({ok:true});}
@@ -170,8 +249,57 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           await desktop?.applyDevices?.(next);state.devices=next;audit('Screen assignment updated');store.save();return reply({device:deviceStates().find(d=>d.id===device.id)});
         }
         if(path==='/api/special-days'&&req.method==='PUT'){const specials=validateSpecialDays(body.specialDays,state.classes);images.check(state.settings,new Set(),[...state.draft,...state.published],[...specials,...state.publishedSpecialDays]);state.specialDays=specials;audit('Special-day draft saved');store.save();return reply({ok:true});}
-        if(path==='/api/announcements'&&req.method==='POST'){const notice={...validateAnnouncement(body,state.publishedClasses),id:randomBytes(16).toString('hex')};state.announcements=state.announcements.filter(n=>Date.parse(n.expiresAt)>Date.now()).slice(-49).concat(notice);audit('Class announcement sent');store.save();return reply({ok:true});}
+        if(path==='/api/announcements'&&req.method==='POST'){const notice={...validateAnnouncement(body,state.publishedClasses),id:randomBytes(16).toString('hex'),createdAt:new Date().toISOString()};state.announcements=state.announcements.filter(n=>Date.parse(n.expiresAt)>Date.now()).slice(-49).concat(notice);audit('Class announcement sent');store.save();return reply({ok:true});}
         if(path==='/api/teacher-messages'&&req.method==='GET'){const report=deliveryReport(state);report.channels.push=Boolean(push);for(const batch of report.batches)for(const recipient of batch.recipients)recipient.push=pushStatus(state,recipient.userId,'msg:'+recipient.threadId,Boolean(push));return reply(report);}
+        if(path.startsWith('/api/community')){
+          requireAdmin(user);
+          const board=social.community(state);
+          if(path==='/api/community'&&req.method==='GET'){
+            const recipients=Object.fromEntries(['teacher','parent'].map(role=>[role,users.filter(row=>row.role===role&&row.active!==false).length]));
+            return reply({settings:board.settings,recipients,timezone:state.settings.timezone,hasCode:Boolean(board.joinHash),posts:social.communityView(state,user,{administrator:true}),notices:board.notices});
+          }
+          if(path.startsWith('/api/community/photo/')&&req.method==='GET'){
+            const post=social.findCommunityPost(state,path.slice('/api/community/photo/'.length));
+            if(!post.photo)fail('Image not found.',404);
+            const image=communityImages.read(post.photo);
+            res.setHeader('Content-Type',image.type);res.end(image.bytes);return;
+          }
+          if(path==='/api/community/code'&&req.method==='POST'){
+            const code=social.rotateCommunityCode(state);audit('Community code rotated');store.save();return reply({code});
+          }
+          if(path==='/api/community/settings'&&req.method==='POST'){
+            social.saveCommunitySettings(state,body);audit('App notification settings changed');store.save();return reply({ok:true});
+          }
+          if(path==='/api/community/post'&&req.method==='POST'){
+            const post=social.addCommunityPost(state,body,communityImages.upload);
+            if(body.notify===true&&board.settings.posts){
+              const notice=social.addCommunityNotice(state,{title:'School post · منشور المدرسة',text:post.text.slice(0,500),audience:'parent',type:'posts'});
+              notify({...notice,type:'posts'});
+            }
+            audit('School community post published');store.save();return reply({id:post.id});
+          }
+          if(path==='/api/community/post/photo'&&req.method==='POST'){
+            const post=social.attachCommunityPhoto(state,body,communityImages.upload);
+            audit('Photo attached to community post');store.save();return reply({id:post.id});
+          }
+          if(path==='/api/community/notice'&&req.method==='POST'){
+            if(['teacher','parent','both'].includes(body.audience)&&!social.enabledCommunityRoles(board.settings,body.audience).length)fail('Enable notifications for the selected audience.',409);
+            const notice=social.addCommunityNotice(state,{title:body.title,text:body.text,audience:body.audience});notify(notice);
+            audit('App notification published');store.save();return reply({id:notice.id});
+          }
+          if(path==='/api/community/notice/edit'&&req.method==='POST'){
+            const notice=social.editCommunityNotice(state,body);
+            audit('App notification edited');store.save();return reply({id:notice.id});
+          }
+          if(path==='/api/community/moderate'&&req.method==='POST'){
+            social.moderateCommunityPost(state,body);audit('Community content moderated');store.save();return reply({ok:true});
+          }
+          if(path==='/api/community/notice/remove'&&req.method==='POST'){
+            board.notices=board.notices.filter(row=>row.id!==body.id);
+            audit('App notification removed');store.save();return reply({ok:true});
+          }
+          fail('Not found.',404);
+        }
         if(path==='/api/teacher-requests'&&req.method==='GET')return reply({requests:allRequests(state)});
         if(path==='/api/teacher-requests/decide'&&req.method==='POST'){const decided=decideRequest(state,user,body);enqueuePush(state,[decided.userId],{key:`request:${decided.id}:${decided.status}:${decided.statusAt}`,category:'message',priority:'normal',kind:'request',text:decided.title,data:{tab:'request',request:decided.id}});schedulePush();audit('Teacher request answered');store.save();return reply({ok:true});}
         if(path==='/api/teacher-requests/comment'&&req.method==='POST'){commentRequest(state,fileStore,user,body,true);store.save();return reply({ok:true});}
@@ -212,6 +340,7 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
           for(const [key,value] of sessions)if(value.userId===target.id)sessions.delete(key);revokeUserTokens(state,target.id);
           audit((target.active?'Administrator enabled: ':'Administrator disabled: ')+target.email);store.save();return reply({ok:true});
         }
+        if(path==='/api/videos'&&req.method==='POST'){const video=images.uploadVideo(body.data);audit('Display video uploaded');store.save();return reply({video});}
         if(path==='/api/images'&&req.method==='POST'){const image=images.upload(body.data);audit('Display image uploaded');store.save();return reply({image});}
         if(path==='/api/logout'&&req.method==='POST'){sessions.delete(token);res.setHeader('Set-Cookie','school_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return reply({ok:true});}
         if(path==='/api/state'&&req.method==='GET'){
@@ -230,7 +359,21 @@ export async function startServer({directory,port=4318,desktop=null,host='127.0.
         if(path==='/api/exit'&&req.method==='POST'){throttle('sensitive');if(!verify(body.password,user))fail('Administrator password is incorrect.',403);if(!desktop)fail('The desktop app is not running.',409);audit('Desktop exit authorized');store.save();reply({ok:true});setTimeout(()=>desktop.exit(),250);return;}
         fail('Not found.',404);
       }
-      const files={'/':'web/index.html','/control':'web/index.html','/display':'web/display.html','/app.js':'web/app.js','/tour.js':'web/tour.js','/tour.css':'web/tour.css','/display.js':'web/display.js','/message-report.js':'web/message-report.js','/staff-tools.js':'web/staff-tools.js','/i18n.js':'web/i18n.js','/styles.css':'web/styles.css','/display.css':'web/display.css','/teacher':'web/teacher.html','/teacher.js':'web/teacher.js','/teacher.css':'web/teacher.css','/teacher-i18n.js':'web/teacher-i18n.js','/teacher-plan.mjs':'shared/teacher-plan.mjs','/teachers.mjs':'shared/teachers.mjs','/schedule.mjs':'shared/schedule.mjs','/media.mjs':'shared/media.mjs','/lesson-flow.mjs':'shared/lesson-flow.mjs','/lesson-options.js':'web/lesson-options.js','/lesson-screen.js':'web/lesson-screen.js','/theme.js':'web/theme.js','/workspace.js':'web/workspace.js','/ios.css':'web/ios.css','/remote.js':'web/remote.js','/icon.svg':'assets/icon.svg','/images/student-break.png':'assets/student-break.png','/images/student-return.png':'assets/student-return.png'};
+      const flutter=/^\/faslii-(teacher|parent)\/([A-Za-z0-9_./-]*)$/.exec(path);
+      if(req.method==='GET'&&flutter){
+        const [,edition,relative]=flutter, asset=relative||'index.html';
+        if(asset.split('/').some(part=>!part||part==='.'||part==='..'))fail('Not found.',404);
+        const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
+          '.json':'application/json','.wasm':'application/wasm','.png':'image/png','.svg':'image/svg+xml',
+          '.ttf':'font/ttf','.otf':'font/otf','.woff2':'font/woff2','.bin':'application/octet-stream','.frag':'application/octet-stream','.ico':'image/x-icon',
+          '.jpg':'image/jpeg','.webp':'image/webp','':'text/plain; charset=utf-8'};
+        const type=types[extname(asset)];
+        if(!type)fail('Not found.',404);
+        const bytes=await readFile(join(root,'mobile','flutter','build','web-'+edition,asset)).catch(()=>fail('App build not found.',404));
+        res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'");
+        res.setHeader('Content-Type',type);res.end(bytes);return;
+      }
+      const files={'/community-admin':'web/community-admin.html','/community-admin.js':'web/community-admin.js','/community.css':'web/community.css','/':'web/index.html','/control':'web/index.html','/display':'web/display.html','/app.js':'web/app.js','/tour.js':'web/tour.js','/tour.css':'web/tour.css','/display.js':'web/display.js','/message-report.js':'web/message-report.js','/staff-tools.js':'web/staff-tools.js','/i18n.js':'web/i18n.js','/styles.css':'web/styles.css','/layout-standards.css':'web/layout-standards.css','/display.css':'web/display.css','/teacher':'web/teacher.html','/teacher.js':'web/teacher.js','/teacher.css':'web/teacher.css','/teacher-i18n.js':'web/teacher-i18n.js','/teacher-plan.mjs':'shared/teacher-plan.mjs','/teachers.mjs':'shared/teachers.mjs','/schedule.mjs':'shared/schedule.mjs','/media.mjs':'shared/media.mjs','/lesson-flow.mjs':'shared/lesson-flow.mjs','/lesson-options.js':'web/lesson-options.js','/lesson-screen.js':'web/lesson-screen.js','/theme.js':'web/theme.js','/workspace.js':'web/workspace.js','/ios.css':'web/ios.css','/remote.js':'web/remote.js','/icon.svg':'assets/icon.svg','/images/student-break.png':'assets/student-break.png','/images/student-return.png':'assets/student-return.png'};
       if(req.method!=='GET'||!files[path])fail('Not found.',404);
       const data=await readFile(join(root,files[path]));res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'})[extname(files[path])]);res.end(data);
     }catch(error){reply({error:error.status?error.message:error.message?.includes('overlap')||error.message?.includes('time')||error.message?.includes('teacher')||error.message?.includes('timetable')||error.message?.includes('class')?error.message:'Could not complete the request.'},error.status||400);}

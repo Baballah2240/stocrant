@@ -82,3 +82,83 @@ html[data-theme=dark] ::-webkit-scrollbar{width:10px;height:10px}html[data-theme
 .resource-form{display:grid;gap:12px;margin-bottom:16px}
 .status-tag{font-size:10px;padding:3px 8px;border-radius:999px;background:var(--field);border:1px solid var(--hairline)}
 .status-tag.approved,.status-tag.completed{color:#1f8f3a}.status-tag.rejected{color:#c0271c}.status-tag.pending{color:#b45309}
+
+/* Match the classroom and Faslii sign-in surfaces while preserving the school accent. */
+:root{
+ --school-glass-glint:rgba(255,255,255,.76);
+ --school-glass-edge:rgba(184,132,103,.12);
+}
+html[data-theme=dark]{
+ --ink:#fff5f9;--muted:#dec3cf;--page:#190e14;
+ --surface:rgba(48,26,37,.86);--field:#301d27;
+ --stroke:rgba(247,212,226,.22);--hairline:rgba(247,212,226,.14);
+ --school-glass-glint:rgba(255,230,241,.13);
+ --school-glass-edge:rgba(192,101,139,.13);
+}
+html[data-theme=dark] body{
+ background:radial-gradient(900px 600px at 78% -5%,rgba(154,64,104,.30),transparent 66%),
+            radial-gradient(900px 620px at 10% 106%,rgba(111,49,74,.22),transparent 62%),var(--page);
+}
+.sidebar,.topbar,.panel,.metric,.auth-main,.auth-story{
+ background-image:linear-gradient(145deg,var(--school-glass-glint),transparent 48%),
+                  radial-gradient(ellipse at 100% 100%,var(--school-glass-edge),transparent 62%);
+ backdrop-filter:blur(24px) saturate(150%);
+ -webkit-backdrop-filter:blur(24px) saturate(150%);
+}
+@media(prefers-reduced-transparency:reduce){
+ .sidebar,.topbar,.panel,.metric,.auth-main,.auth-story{
+  background:var(--field);backdrop-filter:none;-webkit-backdrop-filter:none;
+ }
+}
+
+.dashboard-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.topbar .dashboard-theme button {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border-radius: 14px;
+  color: inherit;
+}
+.dashboard-theme button[aria-pressed="true"] {
+  background: rgba(var(--accent-rgb), .16);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .36);
+}
+.dashboard-theme svg, .school-back svg {
+  inline-size: 20px;
+  block-size: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.community-frame {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 260px;
+  border: 0;
+  background: transparent;
+}
+.dashboard-theme button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.workspace > .topbar {
+  position: sticky;
+  inset-block-start: max(8px, env(safe-area-inset-top));
+  z-index: 5;
+  height: auto;
+  min-height: 64px;
+  padding-block: 6px;
+}
+.workspace > .topbar > div {
+  flex-wrap: wrap;
+  justify-content: end;
+}
+@media (max-width: 760px) {
+  .workspace > .topbar { min-height: 54px; }
+}

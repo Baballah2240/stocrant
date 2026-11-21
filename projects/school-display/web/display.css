@@ -1,4 +1,4 @@
-﻿/* School monitor: iOS-inspired frosted glass. One token set drives the overlay,
+/* School monitor: iOS-inspired frosted glass. One token set drives the overlay,
    the control-panel preview and the full-screen display so they look identical.
    Sizes use container units of #display, so the preview is a true miniature. */
 
@@ -219,6 +219,8 @@ html[dir=rtl] .display-page .cinema-countdown>strong{text-align:right}
 .display-page .cinema-next .secondary-language{display:inline;margin-inline:.45em;color:var(--ds-muted)}
 .display-page .cinema-next>time{grid-column:2;grid-row:2/4;align-self:center;font-size:clamp(12px,1.1vw,17px);font-variant-numeric:tabular-nums;direction:ltr;padding:.35em .8em;border-radius:999px;background:var(--ds-fill);color:var(--ds-muted)}
 .display-page .cinema-photo{margin:0;min-height:240px;height:min(60vh,620px);border-radius:var(--ds-radius);overflow:hidden;border:1px solid var(--ds-stroke);box-shadow:var(--ds-shadow-lift);background:var(--ds-glass)}
+.display-page .cinema-photo video{width:100%;height:100%;object-fit:contain;display:block}
+.display-page .cinema-photo img[hidden]{display:none}
 .display-page .cinema-photo img{width:100%;height:100%;object-fit:cover;display:block}
 .display-page .cinema-photo img[src^="/icon.svg"]{object-fit:contain;padding:12%}
 .display-page.lesson-screen .cinema-photo img{object-fit:contain}
@@ -289,3 +291,56 @@ html[dir=ltr] .display-page .secondary-language{text-align:left}
 html[dir=rtl] .display-page .secondary-language{text-align:right}
 html[dir=ltr] .display-page .school-mark .secondary-language,html[dir=ltr] .display-page .class-name .secondary-language,html[dir=ltr] .display-page .activity p .secondary-language,html[dir=ltr] .display-page .next strong .secondary-language,html[dir=ltr] .display-page .cinema-next .secondary-language{margin:0 0 0 .5em}
 html[dir=rtl] .display-page .school-mark .secondary-language,html[dir=rtl] .display-page .class-name .secondary-language,html[dir=rtl] .display-page .activity p .secondary-language,html[dir=rtl] .display-page .next strong .secondary-language,html[dir=rtl] .display-page .cinema-next .secondary-language{margin:0 .5em 0 0}
+
+/* The Windows overlay is transparent, so the panel carries its own glass
+   highlights even on a plain desktop or an Electron window without backdrop data. */
+.display-page {
+ --ds-page:#180f14;
+ --ds-page-glow:rgba(157,82,112,.29);
+ --ds-stroke:rgba(255,223,234,.26);
+ --ds-glint:rgba(255,246,248,.21);
+ --ds-edge-glint:rgba(239,170,192,.13);
+ --ds-shadow:inset 0 1px 1px rgba(255,255,255,.28),inset 0 -1px 1px rgba(237,188,207,.09),0 8px 22px rgba(15,5,10,.38);
+ --ds-shadow-lift:inset 0 1px 1px rgba(255,255,255,.26),0 18px 42px rgba(15,5,10,.48);
+ --ds-glass-layer:linear-gradient(155deg,var(--ds-glint),transparent 48%),
+                  radial-gradient(ellipse at 100% 100%,var(--ds-edge-glint),transparent 62%);
+}
+html[data-theme=dark] .display-page {
+ --ds-glass-strong:rgba(43,24,33,.96);
+}
+html[data-theme=light] .display-page {
+ --ds-page:#f8f1ed;
+ --ds-page-glow:rgba(160,109,79,.23);
+ --ds-stroke:rgba(117,82,69,.25);
+ --ds-glint:rgba(255,255,255,.86);
+ --ds-edge-glint:rgba(193,150,126,.2);
+ --ds-shadow:inset 0 1px 1px rgba(255,255,255,.92),inset 0 -1px 1px rgba(145,89,65,.12),0 8px 22px rgba(72,49,40,.18);
+ --ds-shadow-lift:inset 0 1px 1px rgba(255,255,255,.95),0 18px 42px rgba(72,49,40,.23);
+}
+.display-page .ribbon,.display-page .empty-display,.display-page .cinema-copy {
+ background:var(--ds-glass-layer),var(--ds-glass);
+}
+html[data-theme=light] .display-page .ribbon {
+ background:var(--ds-glass-layer),linear-gradient(rgba(255,255,255,.58),rgba(255,255,255,.58)),rgba(var(--panel-rgb,255,255,255),.18);
+}
+.display-page #alert,.display-page .exit-fullscreen {
+ background:var(--ds-glass-layer),var(--ds-glass-strong);
+}
+.display-page .ribbon::before {
+ height:2px;
+ background:linear-gradient(90deg,transparent 4%,color-mix(in srgb,var(--tone) 70%,white) 50%,transparent 96%);
+}
+.display-page.clock-only .ribbon,.display-page.lesson-clock .ribbon {
+ background:var(--ds-glass-layer),var(--ds-glass);
+}
+.display-page.clock-only .idle-clock {
+ text-shadow:0 1px 2px rgba(25,9,17,.26);
+}
+html[data-theme=light] .display-page.clock-only .idle-clock {
+ text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+@media(prefers-reduced-transparency:reduce) {
+ .display-page .ribbon,.display-page .empty-display,.display-page #alert,.display-page .cinema-copy,.display-page .exit-fullscreen {
+  background:var(--ds-glass-strong)!important;
+ }
+}

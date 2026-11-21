@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مجتمع المدرسة والإشعارات | School community</title>
+  <link rel="stylesheet" href="/community.css">
+  <link rel="stylesheet" href="/layout-standards.css">
+  <script type="module" src="/community-admin.js"></script>
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <label class="appearance">المظهر <select id="theme" aria-label="المظهر / Appearance">
+      <option value="system">النظام / System</option><option value="light">فاتح / Light</option><option value="dark">داكن / Dark</option>
+    </select></label>
+  </header>
+  <section class="tile hero" aria-labelledby="heading">
+    <div><h1 id="heading">مجتمع المدرسة والإشعارات</h1><p lang="en" dir="ltr">School community &amp; notifications</p></div>
+    <nav aria-label="تطبيقات المدرسة / School apps">
+      <a class="pill" href="/faslii-teacher/" target="_top">تطبيق المعلم <span lang="en">Teacher</span></a>
+      <a class="pill" href="/faslii-parent/" target="_top">تطبيق ولي الأمر <span lang="en">Parent</span></a>
+    </nav>
+  </section>
+  <div id="loading" class="skeleton" role="status" aria-label="جارٍ التحميل / Loading"></div>
+  <p id="status" role="status"></p>
+  <button type="button" id="retry" hidden>إعادة المحاولة / Retry</button>
+  <div id="workspace" class="grid" hidden>
+    <section class="tile compose">
+      <h2>إشعار جديد <span lang="en">New notification</span></h2>
+      <form id="notice">
+        <label>المستلمون / Audience
+          <select name="audience"><option value="both">الجميع / Both apps</option><option value="teacher">المعلمون / Teachers</option><option value="parent">أولياء الأمور / Parents</option></select>
+        </label>
+        <p class="muted" id="audience-status"></p>
+        <label>العنوان / Title <input name="title" required maxlength="100" dir="auto"></label>
+        <label>الرسالة / Message <textarea name="text" required maxlength="500" dir="auto"></textarea></label>
+        <div class="preview" aria-label="معاينة الإشعار / Notification preview">
+          <span class="muted">معاينة في التطبيق / In-app preview</span>
+          <strong id="preview-title" dir="auto"></strong>
+          <p id="preview-text" dir="auto"></p>
+        </div>
+        <div class="actions"><button type="submit" id="send-notice">نشر الإشعار / Publish notification</button>
+          <button class="secondary" type="button" id="cancel-edit" hidden>إلغاء التعديل / Cancel edit</button>
+        </div>
+      </form>
+    </section>
+    <div class="side">
+    <section class="tile settings">
+      <h2>إعدادات الإشعارات <span lang="en">Notification settings</span></h2>
+      <form id="settings">
+        <label class="check"><input type="checkbox" name="teacher"> تطبيق المعلم / Teacher app</label>
+        <label class="check"><input type="checkbox" name="parent"> تطبيق ولي الأمر / Parent app</label>
+        <label class="check"><input type="checkbox" name="posts"> منشورات المدرسة / School posts</label>
+        <label class="check"><input type="checkbox" name="classwork"> أعمال الصف / Classwork</label>
+        <label class="check"><input type="checkbox" name="showParentComments" role="switch"> عرض نص التعليقات للأهالي / Show comment text to parents</label>
+        <button>حفظ الإعدادات / Save settings</button>
+      </form>
+    </section>
+    <section class="tile">
+      <h2>العضوية <span lang="en">Membership</span></h2>
+      <p>يتيح رمز المدرسة التسجيل دون اسم الطالب.</p>
+      <p lang="en" dir="ltr">Families join using a school code.</p>
+      <button id="code" type="button">إنشاء رمز المدرسة / Generate school code</button>
+      <output id="new-code" aria-live="polite" hidden></output>
+    </section>
+    </div>
+    <section class="tile history">
+      <h2>سجل الإشعارات <span lang="en">Notification history</span></h2>
+      <label>عرض / Filter <select id="notice-filter"><option value="">الكل / All</option><option value="teacher">تطبيق المعلم / Teacher</option><option value="parent">تطبيق ولي الأمر / Parent</option></select></label>
+      <ul id="notices" class="records"></ul>
+    </section>
+    <section class="tile">
+      <h2>منشور جديد <span lang="en">New post</span></h2>
+      <form id="post">
+        <label>المنشور / Caption <textarea name="text" required maxlength="1800" dir="auto"></textarea></label>
+        <label>صورة / Photo <input name="photo" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="photo-help"></label>
+        <p id="photo-help" class="muted">PNG, JPEG, WebP · 5 MB</p>
+        <p id="photo-error" class="photo-error" role="alert" hidden></p>
+        <button type="button" class="secondary" id="remove-photo" hidden>إلغاء اختيار الصورة / Clear photo selection</button>
+        <img id="photo-preview" class="photo" alt="معاينة الصورة المختارة / Selected photo preview" hidden>
+        <label class="check"><input name="notify" type="checkbox" checked aria-describedby="post-notify-help"> إشعار الأهالي / Notify parents</label>
+        <p id="post-notify-help" class="muted" hidden>إشعارات المنشورات معطّلة في الإعدادات. Post notifications are disabled in settings.</p>
+        <button>نشر المنشور / Publish post</button>
+      </form>
+    </section>
+
+    <section class="tile history">
+      <h2>منشورات المدرسة <span lang="en">School posts</span></h2>
+      <ul id="posts" class="records"></ul>
+    </section>
+  </div>
+  <dialog id="attach-dialog" aria-labelledby="attach-heading">
+    <form id="attach-form">
+      <h2 id="attach-heading">إضافة صورة للمنشور <span lang="en">Add a photo to this post</span></h2>
+      <p id="attach-caption" class="muted" dir="auto"></p>
+      <label>الصورة / Photo <input name="photo" type="file" required accept="image/png,image/jpeg,image/webp"></label>
+      <p class="muted">PNG, JPEG, WebP · 5 MB</p>
+      <p id="attach-error" class="photo-error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="submit">حفظ الصورة / Save photo</button>
+        <button type="button" class="secondary" id="cancel-attach">إلغاء / Cancel</button>
+      </div>
+    </form>
+  </dialog>
+</main>
+</body>
+</html>
