@@ -1,10 +1,10 @@
 # Qatar School Time Table - archive and restore
 
-Checkpoint: 21 November 2026 (`School-Display-20261121-132740Z`). This replaces all earlier archives, which were deleted.
+Checkpoint: 21 November 2026 (`School-Display-20261121-180528Z`). This replaces all earlier archives, which were deleted.
 
 ## What is preserved
 
-The archive `archives/School-Display-20261121-132740Z.zip` (about 7 MB) contains the complete independent school-project source: desktop app, server, web control panel, community dashboard, classroom display, the Faslii teacher and parent app (`web/teacher*`, `mobile/` and the Flutter source in `mobile/flutter/`), shared timetable logic, assets, tests, package lockfiles, build configuration, documentation and the presentation-video scripts.
+The archive `archives/School-Display-20261121-180528Z.zip` (about 7 MB) contains the complete independent school-project source: desktop app, server, web control panel, community dashboard, classroom display, the Faslii teacher and parent app (`web/teacher*`, `mobile/` and the Flutter source in `mobile/flutter/`), shared timetable logic, assets, tests, package lockfiles, build configuration, documentation and the presentation-video scripts.
 
 The ZIP's top level is the `projects/school-display` folder itself. Original Git history stays in the working repository; the archive is a source checkpoint, not a copy of the monorepo history.
 
@@ -35,7 +35,7 @@ Installed accounts, school settings and schedules are stored separately at `%APP
 
 ## العربية
 
-يحتوي الأرشيف `School-Display-20261121-132740Z.zip` على كود مشروع **Qatar School Time Table** كاملاً: لوحة التحكم وشاشة الفصل وتطبيق فصلي للمعلمين وأولياء الأمور. حُذفت الأرشيفات السابقة، ولا يحتوي هذا الأرشيف على ملفات التثبيت أو قواعد بيانات المدرسة أو كلمات المرور.
+يحتوي الأرشيف `School-Display-20261121-180528Z.zip` على كود مشروع **Qatar School Time Table** كاملاً: لوحة التحكم وشاشة الفصل وتطبيق فصلي للمعلمين وأولياء الأمور. حُذفت الأرشيفات السابقة، ولا يحتوي هذا الأرشيف على ملفات التثبيت أو قواعد بيانات المدرسة أو كلمات المرور.
 
 للعودة إلى التطوير: تحقق من الملف بأمر `Get-FileHash`، ثم فك الضغط في مجلد جديد وافتحه في VS Code، وثبت Node.js 24 ثم نفذ `npm.cmd ci` و`npm.cmd test` و`npm.cmd run desktop`. لإنشاء ملف التثبيت نفذ `npm.cmd run dist:win`.
 

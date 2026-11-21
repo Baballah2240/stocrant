@@ -4,7 +4,7 @@ An independent Windows classroom overlay with a local bilingual web control pane
 
 ## Archived project checkpoint
 
-The complete school-project source is preserved in `archives/School-Display-20261121-132740Z.zip` (21 November 2026), which replaces all earlier archives. Its adjacent SHA-256 file verifies the archive. Archives, installers and the generated presentation video (`output/`) stay outside Git. See [Archive and restore](docs/ARCHIVE-AND-RESTORE.md) to resume development.
+The complete school-project source is preserved in `archives/School-Display-20261121-180528Z.zip` (21 November 2026), which replaces all earlier archives. Its adjacent SHA-256 file verifies the archive. Archives, installers and the generated presentation video (`output/`) stay outside Git. See [Archive and restore](docs/ARCHIVE-AND-RESTORE.md) to resume development.
 
 ## Clearer navigation and sign-in (2.5 work in progress)
 
