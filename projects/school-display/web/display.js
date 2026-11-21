@@ -25,7 +25,7 @@ const escapeFullscreen=event=>{if(event.key==='Escape'&&document.body.classList.
 window.addEventListener('keydown',escapeFullscreen);
 function startPopup(){clearTimeout(popupTimer);popupUntil=performance.now()+(data?.settings.popupSeconds||5)*1000;popupTimer=setTimeout(()=>{popupUntil=0;popupTimer=null;render();},(data?.settings.popupSeconds||5)*1000);}
 const photoUrl=path=>path?.startsWith('/api/images/')?path+'?token='+encodeURIComponent(token):path;
-function setPresentation(value){presentation=value;const full=['break','lesson-start','lesson-finish','event'].includes(value);document.body.classList.toggle('cinematic',full);document.body.classList.toggle('lesson-screen',full&&value!=='break');document.body.classList.toggle('clock-only',value==='clock');document.body.classList.toggle('event-popup',value==='panel'&&performance.now()<popupUntil);cinema.hidden=!full;exitButton.hidden=!full;if(!full){cinema.textContent='';delete cinema.dataset.image;}}
+function setPresentation(value){presentation=value;const full=['break','lesson-start','lesson-finish','event'].includes(value);document.body.classList.toggle('cinematic',full);document.body.classList.toggle('lesson-screen',full&&value!=='break');document.body.classList.toggle('clock-only',value==='clock');document.body.classList.toggle('event-popup',value==='panel'&&performance.now()<popupUntil);cinema.hidden=!full;exitButton.hidden=!full||preview;if(!full){cinema.textContent='';delete cinema.dataset.image;}}
 const hoverMedia=matchMedia('(hover: hover) and (pointer: fine)');
 let hoverTimer=null,pointerInside=false,disposed=false,measureFrame=0;
 function setHovered(inside,native=false){
