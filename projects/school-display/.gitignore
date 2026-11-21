@@ -19,4 +19,8 @@ mobile/www/
 mobile/android/app/google-services.json
 *firebase-admin*.json
 *adminsdk*.json
-output/
+output/*
+!output/video/
+output/video/*
+!output/video/*.mjs
+!output/video/compose.html

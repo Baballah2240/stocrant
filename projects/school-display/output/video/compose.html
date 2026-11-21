@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Compose</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// Scenes use the real screens captured by capture.mjs. Times are seconds.
+const W=1920,H=1080,FPS=30;
+const ink='#0e2230',teal='#0b7a72',sand='#f3e6cf',maroon='#8a1538',paper='#f6f2ec';
+const scenes=[
+ {type:'title',dur:6},
+ {img:'overview',dur:8,chapter:'Control room',en:'One clear view of every lesson, teacher and break, live.',ar:'صورة مباشرة لكل حصة ومعلم وفسحة.',zoom:[[0,0,1],[0.25,0.38,1.25]]},
+ {img:'timetable',dur:8,chapter:'Timetable',en:'Plan the week by dragging lessons. Clashes are caught before publishing.',ar:'خطط الأسبوع بالسحب، وتُكتشف التعارضات قبل النشر.',zoom:[[0.15,0.1,1.1],[0.2,0.3,1.3]]},
+ {img:'cover',dur:7,chapter:'Cover an absent teacher',en:'Pick the absent teacher and date. Free colleagues are suggested for each lesson.',ar:'اختر المعلم الغائب والتاريخ، ويقترح النظام البدلاء المتاحين.',zoom:[[0.2,0.05,1.15],[0.22,0.12,1.25]]},
+ {img:'community-compose',dur:7,chapter:'Notifications & posts',en:'Write a notification once. Teachers and parents get it in the app.',ar:'اكتب الإشعار مرة واحدة ليصل إلى المعلمين وأولياء الأمور.',zoom:[[1,0.4,1.2],[1,0.62,1.3]]},
+ {img:'display',dur:9,chapter:'Classroom display',en:'Every classroom screen shows what is happening now and what comes next.',ar:'تعرض شاشة كل فصل ما يحدث الآن وما هو قادم.',zoom:[[0,0,1],[0.3,0.55,1.18]]},
+ {phone:'teacher-today',dur:7,chapter:'Faslii for teachers',en:'Teachers see their next lesson with a live countdown.',ar:'يرى المعلم حصته القادمة مع عدّ تنازلي مباشر.',title:'The school day,\nin every pocket.'},
+ {phone:'teacher-alerts',dur:8,chapter:'Faslii notifications',en:'Notifications from the control room arrive instantly.',ar:'تصل إشعارات غرفة التحكم فوراً.',title:'Every notice,\nright on time.'},
+ {phone:'teacher-messages',dur:6,chapter:'Messages',en:'Messages from the school, with replies and acknowledgements.',ar:'رسائل من المدرسة مع الرد والتأكيد.',title:'Clear messages,\nno lost notes.'},
+ {type:'end',dur:7},
+];
+const total=scenes.reduce((s,x)=>s+x.dur,0);
+const images={};
+const load=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src=src;});
+const c=document.getElementById('c'),g=c.getContext('2d');
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+function rr(x,y,w,h,r){g.beginPath();g.roundRect(x,y,w,h,r);}
+function bg(){const gr=g.createLinearGradient(0,0,W,H);gr.addColorStop(0,'#0b1d27');gr.addColorStop(1,'#123a3d');g.fillStyle=gr;g.fillRect(0,0,W,H);
+ g.globalAlpha=.18;g.fillStyle=teal;g.beginPath();g.arc(W*.85,H*.15,520,0,7);g.fill();g.fillStyle=maroon;g.beginPath();g.arc(W*.08,H*.95,420,0,7);g.fill();g.globalAlpha=1;}
+function text(str,x,y,size,color,weight=700,align='left',font='"Segoe UI",system-ui,sans-serif'){g.font=`${weight} ${size}px ${font}`;g.fillStyle=color;g.textAlign=align;g.direction=/[؀-ۿ]/.test(str)&&!/[a-z]/i.test(str)?'rtl':'ltr';g.fillText(str,x,y);g.direction='ltr';}
+function caption(s,a){if(!s.en)return;const y=H-150;g.globalAlpha=a;
+ const gr=g.createLinearGradient(0,y-80,0,H);gr.addColorStop(0,'rgba(5,15,20,0)');gr.addColorStop(.35,'rgba(5,15,20,.82)');gr.addColorStop(1,'rgba(5,15,20,.96)');g.fillStyle=gr;g.fillRect(0,y-120,W,H-y+120);
+ g.fillStyle=sand;rr(110,y-8,8,96,4);g.fill();
+ text(s.chapter.toUpperCase(),140,y+14,22,sand,700);text(s.en,140,y+58,40,'#fff',600);text(s.ar,140,y+104,30,'#cfe1dd',500,'left','"Segoe UI","Tahoma",sans-serif');g.globalAlpha=1;}
+function screen(s,p){const im=images[s.img];const [a,b]=s.zoom,k=ease(p);
+ const z=a[2]+(b[2]-a[2])*k,fx=a[0]+(b[0]-a[0])*k,fy=a[1]+(b[1]-a[1])*k;
+ const sw=im.width/z,sh=im.height/z,sx=(im.width-sw)*fx,sy=(im.height-sh)*fy;
+ g.drawImage(im,sx,sy,sw,sh,0,0,W,H);}
+function phone(s,p){bg();const im=images[s.phone];const ph=900,pw=ph*im.width/im.height,x=W-pw-260,y=(H-ph)/2-40+(1-ease(Math.min(1,p*3)))*60;
+ g.save();g.shadowColor='rgba(0,0,0,.55)';g.shadowBlur=80;g.shadowOffsetY=30;g.fillStyle='#05090c';rr(x-22,y-22,pw+44,ph+44,70);g.fill();g.restore();
+ g.save();rr(x,y,pw,ph,50);g.clip();g.drawImage(im,x,y,pw,ph);g.restore();
+ const lines=s.title.split('\n');lines.forEach((l,i)=>text(l,180,330+i*104,92,'#fff',800));
+ text('Faslii · فصلي',180,200,34,sand,700);}
+function title(p,end){bg();const a=Math.min(1,p*3);g.globalAlpha=a;
+ const ic=images.icon;if(ic)g.drawImage(ic,W/2-70,end?250:230,140,140);
+ if(!end){text('Qatar School Time Table',W/2,470,40,sand,600,'center');text('Every lesson. Every screen. On time.',W/2,580,84,'#fff',800,'center');text('كل حصة، على كل شاشة، في وقتها.',W/2,680,54,'#d7e6e2',600,'center');text('Control room  ·  Classroom display  ·  Faslii app',W/2,800,32,'#9fc0bb',500,'center');}
+ else{text('One timetable. Every classroom. Every family.',W/2,520,70,'#fff',800,'center');text('جدول واحد لكل فصل ولكل أسرة.',W/2,620,52,'#d7e6e2',600,'center');text('Qatar School Time Table  +  Faslii',W/2,740,36,sand,600,'center');}
+ g.globalAlpha=1;}
+function frame(t){let acc=0;
+ for(let i=0;i<scenes.length;i++){const s=scenes[i];if(t<acc+s.dur||i===scenes.length-1){const p=Math.min(1,(t-acc)/s.dur);
+  if(s.type==='title')title(p,false);else if(s.type==='end')title(p,true);else if(s.phone)phone(s,p);else screen(s,p);
+  caption(s,Math.min(1,(t-acc)/0.6,(acc+s.dur-t)/0.4));
+  const fin=Math.min(1,(t-acc)/0.5);if(fin<1){g.fillStyle=`rgba(5,12,16,${1-fin})`;g.fillRect(0,0,W,H);}
+  const fout=(acc+s.dur-t)/0.4;if(fout<1&&i<scenes.length-1){g.fillStyle=`rgba(5,12,16,${1-Math.max(0,fout)})`;g.fillRect(0,0,W,H);}
+  // progress line
+  g.fillStyle='rgba(255,255,255,.15)';g.fillRect(0,H-6,W,6);g.fillStyle=sand;g.fillRect(0,H-6,W*t/total,6);
+  return;}acc+=s.dur;}}
+window.record=async()=>{
+ for(const s of scenes){const n=s.img||s.phone;if(n)images[n]=await load('frames/'+n+'.jpg');}
+ images.icon=await load('icon.svg').catch(()=>null);
+ const stream=c.captureStream(FPS),rec=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:12e6});const chunks=[];
+ rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);const done=new Promise(r=>rec.onstop=r);
+ frame(0);rec.start(1000);const start=performance.now();
+ await new Promise(resolve=>{const id=setInterval(()=>{const t=(performance.now()-start)/1000;if(t>=total){clearInterval(id);frame(total-0.001);resolve();return;}frame(t);},1000/FPS);});
+ rec.stop();await done;const blob=new Blob(chunks,{type:'video/webm'});
+ await fetch('/save',{method:'POST',body:blob});return {size:blob.size,seconds:total};
+};
+window.preview=t=>{frame(t);};
+window.prep=async()=>{for(const s of scenes){const n=s.img||s.phone;if(n)images[n]=await load('frames/'+n+'.jpg');}images.icon=await load('icon.svg').catch(()=>null);return true;};
+</script>
