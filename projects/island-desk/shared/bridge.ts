@@ -2,7 +2,8 @@ import type { TranslationRequest, TranslationResult } from "./translation.js";
 import type { Note, Store, Settings, Snapshot, Mode, Timer, Shortcut } from "./model.js";
 export type ContentPatch = Partial<Pick<Store, "notes" | "tasks" | "calculations" | "shortcuts">>;
 export interface BatteryState { level: number; charging: boolean; onAC: boolean }
-export type DesktopEvent = { type: "battery"; battery: BatteryState | null } | { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState } | { type: "phone"; phone: PhoneFeed } | { type: "activity"; activity: Activity } | { type: "stats"; stats: Stats } | { type: "weather"; weather: Weather | null };
+export type CaptureKind = "note" | "task";
+export type DesktopEvent = { type: "capture"; kind: CaptureKind } | { type: "battery"; battery: BatteryState | null } | { type: "mode"; mode: Mode } | { type: "timer"; timer: Timer; completedPhase?: string } | { type: "replace"; snapshot: Snapshot } | { type: "saved" } | { type: "error"; message: string } | { type: "media"; media: MediaState } | { type: "phone"; phone: PhoneFeed } | { type: "activity"; activity: Activity } | { type: "stats"; stats: Stats } | { type: "weather"; weather: Weather | null };
 /** Notifications forwarded by the paired phone over Wi-Fi. Kept in memory only. */
 export interface Stats { cpu: number; ramUsed: number; ramTotal: number; disk: number | null; gpu: number | null; up: number | null; down: number | null }
 export interface Weather { temp: number; code: number; isDay: boolean; city: string; at: number }

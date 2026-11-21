@@ -43,11 +43,13 @@ export function usePocket(pairing: Pairing | null, onMoved?: (next: Pairing) => 
   const [status, setStatus] = useState<Status>(link ? "connecting" : web ? "unpaired" : "local");
   const [syncError, setSyncError] = useState("");
   const [initialQueue] = useState(() => web ? [] : read<QueuedAction[]>("island-queue", []).map(action => ({ ...action, requestId: action.requestId || newId() })));
+  const [pendingCount, setPendingCount] = useState(initialQueue.length);
   const queue = useRef<QueuedAction[]>(initialQueue), skew = useRef(0), busy = useRef(false), lastSearch = useRef(0);
   const stateRef = useRef(state); stateRef.current = state;
 
   const keep = (next: State) => { stateRef.current = next; setState(next); if (!web) write("island-pocket", { notes: next.notes, tasks: next.tasks, calculations: next.calculations, timer: next.timer, settings: next.settings }); };
   const persistQueue = () => {
+    setPendingCount(queue.current.length);
     if (!write("island-queue", queue.current)) {
       setSyncError("Phone storage is full. Keep the app open and free storage to save your pending edits.");
       throw Error("Could not save pending edits");
@@ -92,6 +94,7 @@ export function usePocket(pairing: Pairing | null, onMoved?: (next: Pairing) => 
 
   useEffect(() => {
     if (!link) return;
+    setStatus("connecting");
     if (web) {
       // Live push from the desktop over Server-Sent Events.
       let source: EventSource | undefined, retry: ReturnType<typeof setTimeout> | undefined, closed = false;
@@ -128,9 +131,9 @@ export function usePocket(pairing: Pairing | null, onMoved?: (next: Pairing) => 
     const current = stateRef.current; if (!current) return;
     for (const note of current.notes) queue.current.push(withIds({ type: "note-save", note }));
     for (const task of current.tasks) queue.current.push(withIds({ type: "task-save", task }));
-    write("island-queue", queue.current);
+    try { persistQueue(); } catch { /* The queue stays in memory and the error is shown. */ }
   }
-  return { state, status, run, skew, adoptLocalData, syncError };
+  return { state, status: link ? status : web ? "unpaired" as const : "local" as const, run, skew, adoptLocalData, syncError, pendingCount };
 }
 /** New items get their id on the phone, so a queued change and its later edits refer to the same item. */
 function withIds(input: Action): QueuedAction {

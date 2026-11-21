@@ -21,14 +21,13 @@ const views: { id: View; label: string; icon: IconName }[] = [
 
 export default function Companion() {
   const [pairing, setPairing] = useState<Pairing | null>(() => isLauncher ? loadPairing() : null);
-  const { state, status, run: send, skew, adoptLocalData, syncError } = usePocket(pairing, next => { savePairing(next); setPairing(next); });
+  const { state, status, run: send, skew, adoptLocalData, syncError, pendingCount } = usePocket(pairing, next => { savePairing(next); setPairing(next); });
   const [view, setView] = useState<View>(() => { if (isLauncher) return "clock"; try { return (localStorage.getItem("island-desk-view") as View) || "clock"; } catch { return "clock"; } });
   const [now, setNow] = useState(Date.now()), [toast, setToast] = useState(""), [openNote, setOpenNote] = useState<string | null>(null), [sheet, setSheet] = useState(false), [drawer, setDrawer] = useState(false);
   const viewRef = useRef(view); viewRef.current = view;
   // Survives the clock re-rendering several times a second during a swipe.
   const swipeRef = useRef({ x: 0, y: 0, t: 0, ok: false });
   const say = (text: string) => { setToast(text); setTimeout(() => setToast(""), 3500); };
-  useEffect(() => { if (syncError) say(syncError); }, [syncError]);
   useEffect(() => { try { localStorage.setItem("island-desk-view", view); } catch { /* ignore */ } }, [view]);
   useEffect(() => { const clock = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(clock); }, []);
   // Keep the screen awake on the clock view where supported (a bedside or desk clock).
@@ -43,7 +42,7 @@ export default function Companion() {
   // Launcher: pairing links, and a back button that steps back instead of leaving the home screen.
   useEffect(() => {
     if (!isLauncher) return;
-    const pair = (link: string) => { const next = parsePairLink(link); if (!next) return; adoptLocalData(); savePairing(next); setPairing(next); say("Connected to your computer."); };
+    const pair = (link: string) => { const next = parsePairLink(link); if (!next) return; adoptLocalData(); savePairing(next); setPairing(next); say("Connecting to your computer."); };
     void NativeApp.getLaunchUrl().then(result => { if (result?.url) pair(result.url); }).catch(() => undefined);
     const opened = NativeApp.addListener("appUrlOpen", event => pair(event.url));
     const back = NativeApp.addListener("backButton", () => { setSheet(false); setDrawer(false); setOpenNote(null); if (viewRef.current !== "clock") setView("clock"); });
@@ -61,21 +60,23 @@ export default function Companion() {
   const swipe = swipeRef.current;
   const onTouchStart = (event: React.TouchEvent) => { const target = event.target as HTMLElement, touch = event.touches[0]; swipe.x = touch.clientX; swipe.y = touch.clientY; swipe.t = Date.now(); swipe.ok = isLauncher && !drawer && !sheet && !target.closest("input, textarea, select, .app-drawer, .sheet, .feed"); };
   const onTouchEnd = (event: React.TouchEvent) => { if (!swipe.ok) return; const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y; if (dx > 90 && Math.abs(dy) < Math.abs(dx) * 0.6 && Date.now() - swipe.t < 700) setDrawer(true); };
-  const pillText = status === "live" ? "Connected" : status === "local" ? "On this phone" : status === "unpaired" ? "Pair again" : status === "offline" ? "Offline · saved on phone" : "Connecting…";
+  const statusLabel = status === "live" ? (pendingCount ? "Syncing" : "Synced") : status === "local" ? "On this phone" : status === "unpaired" ? "Pair again" : status === "offline" ? "Offline" : "Connecting…";
+  const syncLabel = status !== "local" && pendingCount > 0 ? statusLabel + " · " + pendingCount + (pendingCount === 1 ? " change waiting" : " changes waiting") : statusLabel;
   return <main className={`c-shell view-${view} ${isLauncher ? "launcher" : ""}`} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
     {!isLauncher && <header className="c-top">
       <button className={`c-pill ${state.timer.running ? "active" : ""}`} onClick={() => isLauncher && setSheet(true)}>
         <i className={`dot ${status === "live" || status === "local" ? "" : "off"}`}/>
         {state.timer.running ? <><span>{state.timer.phase === "work" ? "Focus" : "Break"}</span><b>{timeText(remaining(state.timer, serverNow))}</b></>
           : state.media.active ? <><span className="ellipsis">{state.media.title}</span><span className={`bars ${state.media.playing ? "on" : ""}`}><i/><i/><i/></span></>
-          : <span>{pillText}</span>}
+          : <span>Island Desk</span>}
       </button>
     </header>}
+    <div className="sync-status" data-status={status} role="status">{syncLabel}{syncError && <span>{syncError}</span>}</div>
     <section className="c-content" key={view}>
       {view === "clock" && (isLauncher ? <LauncherHome state={state} now={now} openAlarms={() => setView("focus")} openTasks={() => setView("tasks")} openNote={id => { setOpenNote(id); setView("notes"); }} say={say}/> : <ClockView state={state} now={now} run={run} openAlarms={() => setView("focus")}/>)}
       {view === "notes" && <NotesView notes={state.notes} run={run} openId={openNote} setOpenId={setOpenNote}/>}
       {view === "tasks" && <TasksView tasks={state.tasks} run={run}/>}
-      {view === "focus" && (isLauncher ? <ClockTab timer={state.timer} now={serverNow} run={run} synced={status === "live"} say={say}/> : <FocusView timer={state.timer} now={serverNow} run={run} synced={status === "live"}/>)}
+      {view === "focus" && (isLauncher ? <ClockTab timer={state.timer} now={serverNow} run={run} synced={status === "live" && pendingCount === 0} say={say}/> : <FocusView timer={state.timer} now={serverNow} run={run} synced={status === "live" && pendingCount === 0}/>)}
       {view === "calc" && <CalcView history={state.calculations} run={run}/>}
     </section>
     {state.media.active && view !== "clock" && <MiniPlayer media={state.media} run={run}/>}

@@ -324,3 +324,21 @@ body {
     transition-duration: .01ms !important;
   }
 }
+
+.sync-status {
+  align-self: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+}
+.sync-status[data-status="live"] { color: var(--mint); }
+.sync-status[data-status="offline"], .sync-status[data-status="unpaired"] { color: #ffcf9a; }
+.sync-status > span { color: #ffb4a8; }
+.launcher .home-modern, .launcher .calc-view { max-height: calc(100vh - 68px); }

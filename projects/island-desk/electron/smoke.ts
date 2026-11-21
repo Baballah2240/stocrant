@@ -2,11 +2,77 @@ import { BrowserWindow, screen, dialog } from "electron";
 import { createSocket } from "node:dgram";
 import { existsSync, writeFileSync } from "node:fs";
 import type { Mode, Store } from "../shared/model.js";
+import type { CaptureKind } from "../shared/bridge.js";
 import { translationSmoke } from "./translation-smoke.js";
 type State = () => { store: Store; mode: Mode; rect: { width: number; height: number }; ignoring: boolean; dataFile: string };
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function luminance(rgb: number[]) {
+  return rgb.reduce((sum, channel, index) => {
+    const level = channel / 255;
+    const linear = level <= 0.04045 ? level / 12.92 : ((level + 0.055) / 1.055) ** 2.4;
+    return sum + linear * [0.2126, 0.7152, 0.0722][index];
+  }, 0);
+}
+
+async function wallpaperContrast(window: BrowserWindow, setMode: (mode: Mode) => void) {
+  const contents = window.webContents;
+  await contents.executeJavaScript(`(() => {
+    const style = document.createElement("style");
+    style.id = "wallpaper-smoke";
+    style.textContent = ".island { transition: none !important; } .island > * { visibility: hidden !important; }";
+    document.head.append(style);
+  })()`);
+  let readable = true;
+  try {
+    for (const mode of ["compact", "expanded"] as const) {
+      setMode(mode);
+      await wait(120);
+      for (const appearance of ["dark", "light"] as const) {
+        for (const wallpaper of ["#fff", "#101822", "repeating-conic-gradient(#ffe06a 0% 25%, #17295e 0% 50%) 0 0 / 22px 22px"]) {
+          const { rect, ink, muted, viewport } = await contents.executeJavaScript(`(() => {
+            document.documentElement.dataset.appearance = ${JSON.stringify(appearance)};
+            document.querySelector(".canvas").style.background = ${JSON.stringify(wallpaper)};
+            const island = document.querySelector(".island");
+            const { x, y, width, height } = island.getBoundingClientRect();
+            const style = getComputedStyle(island);
+            const colors = [style.color, style.getPropertyValue("--island-muted")].map(value => {
+              const context = document.createElement("canvas").getContext("2d");
+              context.fillStyle = value.trim();
+              context.fillRect(0, 0, 1, 1);
+              return Array.from(context.getImageData(0, 0, 1, 1).data).slice(0, 3);
+            });
+            return { rect: { x: x + width / 4, y: y + height / 4, width: width / 2, height: height / 2 }, ink: colors[0], muted: colors[1], viewport: { width: innerWidth, height: innerHeight } };
+          })()`);
+          await wait(120);
+          const capture = await contents.capturePage();
+          const { width, height } = capture.getSize(1);
+          const pixels = capture.toBitmap({ scaleFactor: 1 });
+          readable &&= pixels.length > 0;
+          const foregrounds = [luminance(ink), luminance(muted)];
+          let minimum = Infinity;
+          const scaleX = width / viewport.width, scaleY = height / viewport.height;
+          for (let y = Math.ceil(rect.y * scaleY); y < (rect.y + rect.height) * scaleY; y += 4) {
+            for (let x = Math.ceil(rect.x * scaleX); x < (rect.x + rect.width) * scaleX; x += 4) {
+              const offset = (y * width + x) * 4;
+              const background = luminance([pixels[offset + 2], pixels[offset + 1], pixels[offset]]);
+              for (const foreground of foregrounds) minimum = Math.min(minimum, (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05));
+            }
+          }
+          console.log("DISPLAY contrast " + [mode, appearance, wallpaper, minimum.toFixed(2)].join(" "));
+          readable &&= Number.isFinite(minimum) && minimum >= 4.5;
+        }
+      }
+    }
+  } finally {
+    await contents.executeJavaScript(`document.querySelector("#wallpaper-smoke").remove();
+      document.querySelector(".canvas").style.removeProperty("background");
+      document.documentElement.dataset.appearance = "dark";`);
+  }
+  return readable;
+}
 /** Launch check: renders, expands, collapses, saves to disk, and keeps transparent area click-through. */
-export async function runSmoke(window: BrowserWindow, state: State, setMode: (m: Mode) => void, quit: () => void) {
+export async function runSmoke(window: BrowserWindow, state: State, setMode: (m: Mode) => void, quickCapture: (kind: CaptureKind) => void, quit: () => void) {
   const results: Record<string, boolean> = {};
   await wait(1500);
   results.rendered = (await window.webContents.executeJavaScript("document.querySelector('#root')?.children.length > 0")) as boolean;
@@ -30,6 +96,23 @@ export async function runSmoke(window: BrowserWindow, state: State, setMode: (m:
   results.lightAppearance = await window.webContents.executeJavaScript("document.documentElement.dataset.appearance==='light'&&getComputedStyle(document.querySelector('.island')).color==='rgb(21, 32, 57)'");
   if(process.env.ISLAND_DESK_QA_SCREENSHOT)writeFileSync(process.env.ISLAND_DESK_QA_SCREENSHOT,(await window.webContents.capturePage()).toPNG());
   await window.webContents.executeJavaScript("(()=>{const s=document.querySelector('.atmosphere select');s.value='dark';s.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait(100);
+
+  setMode("compact");
+  quickCapture("note");
+  await wait(500);
+  results.quickCaptureOpens = state().mode === "expanded" && await window.webContents.executeJavaScript("document.activeElement === document.querySelector('.capture-dialog input')");
+  async function submitCapture(text: string) {
+    for (const keyCode of text) window.webContents.sendInputEvent({ type: "char", keyCode });
+    await window.webContents.executeJavaScript("document.querySelector('.capture-dialog').requestSubmit()");
+    await wait(250);
+  }
+  await submitCapture("Quick note");
+  results.quickNoteSaved = state().store.notes.some(note => note.title === "Quick note");
+  quickCapture("task");
+  await wait(120);
+  await submitCapture("Quick task");
+  results.quickTaskSaved = state().store.tasks.some(task => task.text === "Quick task");
+  results.wallpaperContrast = await wallpaperContrast(window, setMode);
 
   await window.webContents.executeJavaScript("[...document.querySelectorAll(\"button\")].find(b => b.textContent.trim() === \"Calculator\").click()"); await wait(400);
   for (const ch of "7*6") window.webContents.sendInputEvent({ type: "char", keyCode: ch }); window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" }); window.webContents.sendInputEvent({ type: "char", keyCode: "\r" }); window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" }); await wait(500);

@@ -102,7 +102,9 @@ class _IslandDeskState extends State<IslandDesk> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    const mint = Color(0xffbce8c8);
+    const mint = Color(0xffa6e1c5);
+    const glassEdge = Color(0x52b7d8ff);
+    const surface = Color(0xff182537);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Island Desk Flutter',
@@ -110,23 +112,56 @@ class _IslandDeskState extends State<IslandDesk> with WidgetsBindingObserver {
         colorScheme: ColorScheme.fromSeed(
           seedColor: mint,
           brightness: Brightness.dark,
-          surface: const Color(0xff101113),
+          surface: surface,
+          onSurface: const Color(0xffedf2f7),
+          onSurfaceVariant: const Color(0xffbbc9da),
+          secondaryContainer: const Color(0xff354f69),
+          onSecondaryContainer: const Color(0xffedf2f7),
           primary: mint,
         ),
-        scaffoldBackgroundColor: const Color(0xff09090b),
+        scaffoldBackgroundColor: Colors.transparent,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xcc263b53),
+          foregroundColor: Color(0xffedf2f7),
+        ),
+        navigationRailTheme: const NavigationRailThemeData(
+          backgroundColor: Color(0xcc182537),
+        ),
+        navigationDrawerTheme: const NavigationDrawerThemeData(
+          backgroundColor: surface,
+        ),
         useMaterial3: true,
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xff18191c),
+          fillColor: const Color(0xff202f43),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: glassEdge),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xffa5d3ff), width: 2),
+          ),
         ),
         cardTheme: CardThemeData(
-          color: const Color(0xff17191c),
+          color: surface,
           elevation: 0,
           shape: RoundedRectangleBorder(
+            side: const BorderSide(color: glassEdge),
             borderRadius: BorderRadius.circular(18),
           ),
         ),
+      ),
+      builder: (context, child) => DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xff304963), Color(0xff132034), Color(0xff183038)],
+          ),
+        ),
+        child: child,
       ),
       home: Builder(
         builder: (context) {
@@ -145,7 +180,7 @@ class _IslandDeskState extends State<IslandDesk> with WidgetsBindingObserver {
                       children: [
                         const Icon(Icons.blur_on_rounded, color: mint),
                         const SizedBox(width: 12),
-                        const Text('island desk'),
+                        const Text('Island Desk'),
                         const Spacer(),
                         Text(TimeOfDay.now().format(context)),
                       ],
@@ -161,7 +196,7 @@ class _IslandDeskState extends State<IslandDesk> with WidgetsBindingObserver {
               return Scaffold(
                 appBar: AppBar(
                   title: const Text(
-                    'island desk',
+                    'Island Desk',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   actions: [
@@ -198,7 +233,7 @@ class _IslandDeskState extends State<IslandDesk> with WidgetsBindingObserver {
                         children: [
                           const Padding(
                             padding: EdgeInsets.all(24),
-                            child: Text('YOUR WORKSPACE'),
+                            child: Text('Workspace'),
                           ),
                           for (var i = 0; i < labels.length; i++)
                             NavigationDrawerDestination(

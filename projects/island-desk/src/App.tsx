@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon, type IconName } from "./icons";
 import { calculate } from "../shared/calculator";
 import { defaults, duration, localDate, remaining, timeText, type Mode, type Note, type Settings, type Shortcut, type Snapshot, type Store, type Tab, type Task } from "../shared/model";
-import type { Activity, CompanionInfo, ContentPatch, DisplayState, MediaState, PhoneFeed, Stats, Weather } from "../shared/bridge";
+import type { Activity, CaptureKind, CompanionInfo, ContentPatch, DisplayState, MediaState, PhoneFeed, Stats, Weather } from "../shared/bridge";
 
 const tabs: { id: Tab; label: string; icon: IconName }[] = [{ id: "notes", label: "Notes", icon: "notes" }, { id: "tasks", label: "Tasks", icon: "tasks" }, { id: "calculator", label: "Calculator", icon: "calculator" }, { id: "focus", label: "Focus", icon: "focus" }, { id: "tools", label: "Tools", icon: "tools" }, { id: "shortcuts", label: "Shortcuts", icon: "shortcuts" }, { id: "translation", label: "Translate", icon: "translate" }];
 const uid = () => crypto.randomUUID();
@@ -37,13 +37,18 @@ export default function App() {
     if (!next) { setActivity(null); activityTimer.current = null; return; }
     setActivity(next); activityTimer.current = setTimeout(() => { setActivity(null); activityTimer.current = setTimeout(playNext, 420); }, next.kind === "music" ? 3800 : 4800);
   }
+  const [capture, setCapture] = useState<CaptureKind | null>(null);
   const storeRef = useRef(store), modeRef = useRef(mode), island = useRef<HTMLElement>(null), hover = useRef<ReturnType<typeof setTimeout> | null>(null), toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   storeRef.current = store; modeRef.current = mode;
   function message(text: string) { setToast(text); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 5500); }
   useEffect(() => {
     if (!api) { setToast("Open Island Desk with the desktop launcher, not in a browser."); return; }
     const dispose = api.onEvent(event => {
-      if (event.type === "mode") setMode(event.mode);
+      if (event.type === "mode") {
+        setMode(event.mode);
+        if (event.mode !== "expanded") setCapture(null);
+      }
+      if (event.type === "capture") setCapture(event.kind);
       if (event.type === "timer") { setStore(current => ({ ...current, timer: event.timer })); if (event.completedPhase) { announce({ kind: "timer", title: event.completedPhase === "work" ? "Focus session done" : "Break over", text: event.completedPhase === "work" ? "Take a breather." : "Ready when you are." }); message(event.completedPhase === "work" ? "Session complete. Take a little breather." : "Break complete. Ready when you are."); if (storeRef.current.settings.sound) ping(); } }
       if (event.type === "replace") { setSnapshot(event.snapshot); setStore(event.snapshot.store); }
       if (event.type === "saved") setSaved(true);
@@ -73,8 +78,8 @@ export default function App() {
   }, []);
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { api?.mode("compact"); return; }
-      if ((event.ctrlKey || event.metaKey) && /^[1-7]$/.test(event.key)) { event.preventDefault(); setTab(tabs[Number(event.key) - 1].id); }
+      if (event.key === "Escape") { if (!event.defaultPrevented) api?.mode("compact"); return; }
+      if (!event.altKey && (event.ctrlKey || event.metaKey) && /^[1-7]$/.test(event.key)) { event.preventDefault(); setTab(tabs[Number(event.key) - 1].id); }
     };
     window.addEventListener("keydown", keyboard); return () => window.removeEventListener("keydown", keyboard);
   }, []);
@@ -84,6 +89,18 @@ export default function App() {
     if ((patch.tasks && patch.tasks.length > cur.tasks.length) || (patch.notes && patch.notes.length > cur.notes.length) || (patch.calculations && patch.calculations.length > cur.calculations.length)) celebrate();
     setSaved(false); setStore(current => ({ ...current, ...patch }));
     void api.save(patch).catch(error => message(error.message));
+  }
+  function saveCapture(kind: CaptureKind, text: string) {
+    const current = storeRef.current;
+    if (kind === "note") {
+      save({ notes: [{ id: uid(), title: text.slice(0, 300), body: "", pinned: false, checklist: false, updatedAt: Date.now() }, ...current.notes] });
+      setTab("notes");
+    } else {
+      save({ tasks: [{ id: uid(), text, priority: "medium", due: "", reminderAt: "", notified: false, done: false, createdAt: Date.now() }, ...current.tasks] });
+      setTab("tasks");
+    }
+    setCapture(null);
+    message(kind === "note" ? "Note added." : "Task added.");
   }
   async function changeSettings(patch: Partial<Settings>) {
     try { const settings = await api.settings(patch); setStore(current => ({ ...current, settings })); if(patch.workMinutes!==undefined||patch.breakMinutes!==undefined){celebrate();announce({kind:"timer",title:"Focus time updated",text:"Your next session is ready."});}return true; } catch (error) { message((error as Error).message); return false; }
@@ -113,7 +130,7 @@ export default function App() {
         <BatteryIndicator battery={battery}/>
       </button>
       {mode === "preview" && <Preview onSettings={() => { setTab("settings"); api?.mode("expanded"); }} weather={weather} phone={phone} media={media} now={now} clock={clockLabel} date={dateLabel} tasks={store.tasks} focus={focused ? `${timeText(timerMs)} · ${store.timer.phase === "work" ? "focus" : "break"}` : ""} message={message} onOpen={() => { setTab("tasks"); api?.mode("expanded"); }}/>}
-      <div className="workspace" aria-hidden={mode !== "expanded"} inert={mode !== "expanded"}>
+      <div className="workspace" aria-hidden={mode !== "expanded" || !!capture} inert={mode !== "expanded" || !!capture}>
         <header className="topbar"><div className="brand"><span className="brand-mark"><i/><i/></span><strong>island<span>desk</span></strong><span className="version">{snapshot ? `V${snapshot.version}` : ""}</span></div><div className="top-actions"><BatteryIndicator battery={battery}/><span className="time">{clockLabel}</span><button className={`icon-btn ${tab === "settings" ? "selected" : ""}`} title="Settings" aria-label="Settings" onClick={() => setTab("settings")}><Icon name="settings"/></button><button className="icon-btn" title="Collapse · Esc" aria-label="Collapse island" onClick={() => api.mode("compact")}><Icon name="close"/></button></div></header>
         <div className="workspace-intro"><div><span className="eyebrow">{dateLabel}</span><h1>{tab === "settings" ? "Settings" : tabs.find(item => item.id === tab)?.label ?? "Workspace"}</h1></div><span className="offline"><span/>{tab === "translation" ? "Internet required" : "Local workspace"}</span></div>
         <nav className="tabs" aria-label="Workspace">{tabs.map((item, index) => <button key={item.id} aria-current={tab === item.id ? "page" : undefined} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)} title={`${item.label} · Ctrl+${index + 1}`}><Icon name={item.icon} size={16}/>{item.label}{item.id === "tasks" && store.tasks.some(task => !task.done) && <span className="count">{store.tasks.filter(task => !task.done).length}</span>}</button>)}<button aria-current={tab === "settings" ? "page" : undefined} className={tab === "settings" ? "active" : ""} onClick={() => setTab("settings")}><Icon name="settings" size={16}/>Settings</button></nav>
@@ -129,9 +146,29 @@ export default function App() {
         </>}</div>
         <footer><span className={`save-status ${saved ? "" : "saving"}`}><span/>{tab === "translation" ? "Translation drafts are not saved" : saved ? "Saved on this device" : "Saving changes…"}</span><span>Less switching. More doing.<kbd>esc</kbd> to fold away</span></footer>
       </div>
+      {capture && mode === "expanded" && <QuickCapture key={capture} kind={capture} cancel={() => setCapture(null)} save={text => saveCapture(capture, text)} ready={ready}/>}
       {toastShown && mode === "expanded" && <div className={`toast ${toastLeaving ? "leaving" : ""}`} role="status"><span>{toastShown}</span><button className="icon-btn" aria-label="Dismiss message" onClick={() => setToast("")}><Icon name="close" size={14}/></button></div>}
     </section></div>
   </main>;
+}
+function QuickCapture({ kind, cancel, save, ready }: { kind: CaptureKind; cancel: () => void; save: (text: string) => void; ready: boolean }) {
+  const [text, setText] = useState("");
+  const label = kind === "note" ? "Note title" : "Task";
+  return <div className="capture-overlay" role="dialog" aria-modal="true" aria-labelledby="capture-title" onKeyDown={event => {
+    if (event.key === "Escape") { event.preventDefault(); cancel(); }
+    if (event.key === "Tab") {
+      const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("input, button:not(:disabled)"));
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+  }}>
+    <form className="capture-dialog" onSubmit={event => { event.preventDefault(); if (ready && text.trim()) save(text.trim()); }}>
+      <h2 id="capture-title">{kind === "note" ? "Quick note" : "Quick task"}</h2>
+      <label>{label}<input autoFocus value={text} onChange={event => setText(event.target.value)} maxLength={kind === "note" ? 300 : 2000}/></label>
+      <div><button type="button" className="text-btn" onClick={cancel}>Cancel</button><button className="primary" disabled={!ready || !text.trim()}>Add {kind}</button></div>
+    </form>
+  </div>;
 }
 function Empty({ icon, title, detail }: { icon: IconName; title: string; detail: string }) { return <div className="empty"><span className="empty-icon"><Icon name={icon} size={27}/></span><h2>{title}</h2><p>{detail}</p></div>; }
 function Notes({ notes, onChange }: { notes: Note[]; onChange: (notes: Note[]) => void }) {
@@ -212,7 +249,7 @@ function Shortcuts({ items, onChange, message }: { items: Shortcut[]; onChange: 
 function Preferences({ settings, snapshot, update, message }: { settings: Settings; snapshot: Snapshot; update: (patch: Partial<Settings>) => Promise<boolean>; message: (text: string) => void }) {
   const [shortcut, setShortcut] = useState(settings.globalShortcut);
   const toggle = (field: "alwaysOnTop" | "dimOnHover" | "companion" | "reducedMotion" | "launchAtStartup" | "sound" | "notifications", label: string, description: string, disabled = false) => <label className={`setting-toggle ${disabled ? "disabled" : ""}`}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" role="switch" checked={settings[field]} disabled={disabled} onChange={event => void update({ [field]: event.target.checked })}/></label>;
-  return <div className="preferences"><div className="settings-grid"><section><h2>Window behavior</h2>{toggle("alwaysOnTop", "Float above other windows", "Stay visible above ordinary windows without taking keyboard focus. Turn off to let other apps cover the island.")}<label className="setting-text"><span><strong>Weather city</strong><small>Leave empty to use your time zone. Weather by Open-Meteo.</small></span><input placeholder="Automatic" defaultValue={settings.weatherCity} maxLength={80} onBlur={event => { if (event.target.value.trim() !== settings.weatherCity) void update({ weatherCity: event.target.value.trim() }); }} onKeyDown={event => { if (event.key === "Enter") (event.target as HTMLInputElement).blur(); }}/></label><CompanionCard enabled={settings.companion} toggle={toggle("companion", "Phone companion", "Use your phone as a clock, notes, tasks and focus timer over your Wi-Fi.")} message={message}/>{toggle("dimOnHover", "Blur the background on hover", "Everything else softly goes out of focus while you use the island or a sticky note.")}{toggle("reducedMotion", "Gentler motion", "Skip spring transitions and animated details.")}{toggle("launchAtStartup", "Be here when I sign in", snapshot.startupSupported ? "Start Island Desk with Windows." : "Available after installing the Windows app.", !snapshot.startupSupported)}{toggle("sound", "A soft chime", "A little nudge when your session ends.")}{toggle("notifications", "Desktop reminders", "Task reminders and focus notifications.")}<div className="setting-field"><label htmlFor="global-shortcut">Global keyboard shortcut</label><div><input id="global-shortcut" value={shortcut} maxLength={100} onChange={event => setShortcut(event.target.value)}/><button onClick={() => void update({ globalShortcut: shortcut.trim() }).then(ok => { if (ok) message("Your new shortcut is ready."); })}>Apply</button></div><small>Example: Control+Alt+Space. A shortcut already in use stays unchanged.</small></div></section><section><span className="eyebrow">A PLACE ON YOUR DESKTOP</span><label className="setting-field">Display<select value={settings.displayId ?? "primary"} onChange={event => void update({ displayId: event.target.value === "primary" ? null : Number(event.target.value) })}><option value="primary">Follow primary display</option>{snapshot.displays.map(display => <option key={display.id} value={display.id}>{display.label} · {display.width} × {display.height}{display.primary ? " · primary" : ""}</option>)}</select></label><label className="setting-field">Island size <span>{Math.round(settings.scale * 100)}%</span><input type="range" aria-label="Island size" min="0.8" max="1.15" step="0.05" value={settings.scale} onChange={event => void update({ scale: Number(event.target.value) })}/></label><label className="setting-field">From top <span>{settings.offsetY}px</span><input type="range" aria-label="Vertical position" min="0" max="240" step="4" value={settings.offsetY} onChange={event => void update({ offsetY: Number(event.target.value) })}/></label><label className="setting-field">From center <span>{settings.offsetX}px</span><input type="range" aria-label="Horizontal position" min="-700" max="700" step="10" value={settings.offsetX} onChange={event => void update({ offsetX: Number(event.target.value) })}/></label><button className="text-btn" onClick={() => void update({ offsetX: 0, offsetY: 16, scale: 1, displayId: null })}><Icon name="reset" size={14}/>Back to center</button><div className="backup-card"><strong>Keep a little backup.</strong><p>Notes, tasks, history, shortcuts, and your settings. A file you own.</p><div><button onClick={() => void api.backupExport().then(ok => { if (ok) message("Backup exported."); }).catch(err => message(err.message))}><Icon name="download" size={15}/>Export</button><button onClick={() => void api.backupImport().then(ok => { if (ok) message("Backup restored."); }).catch(err => message(err.message))}><Icon name="upload" size={15}/>Import</button></div><button className="text-btn" onClick={() => void api.openData().catch(err => message(err.message))}><Icon name="folder" size={13}/>Open local data folder</button></div></section></div><div className="settings-bottom"><span>Island Desk {snapshot.version} · Offline by design. No account. No telemetry.</span><div><button className="text-btn" onClick={() => api.hide()}>Hide to tray</button><button className="text-btn danger" onClick={() => api.quit()}>Quit app</button></div></div></div>;
+  return <div className="preferences"><div className="settings-grid"><section><h2>Window behavior</h2>{toggle("alwaysOnTop", "Float above other windows", "Stay visible above ordinary windows without taking keyboard focus. Turn off to let other apps cover the island.")}<label className="setting-text"><span><strong>Weather city</strong><small>Leave empty to use your time zone. Weather by Open-Meteo.</small></span><input placeholder="Automatic" defaultValue={settings.weatherCity} maxLength={80} onBlur={event => { if (event.target.value.trim() !== settings.weatherCity) void update({ weatherCity: event.target.value.trim() }); }} onKeyDown={event => { if (event.key === "Enter") (event.target as HTMLInputElement).blur(); }}/></label><CompanionCard enabled={settings.companion} toggle={toggle("companion", "Phone companion", "Use your phone as a clock, notes, tasks and focus timer over your Wi-Fi.")} message={message}/>{toggle("dimOnHover", "Blur the background on hover", "Everything else softly goes out of focus while you use the island or a sticky note.")}{toggle("reducedMotion", "Gentler motion", "Skip spring transitions and animated details.")}{toggle("launchAtStartup", "Be here when I sign in", snapshot.startupSupported ? "Start Island Desk with Windows." : "Available after installing the Windows app.", !snapshot.startupSupported)}{toggle("sound", "A soft chime", "A little nudge when your session ends.")}{toggle("notifications", "Desktop reminders", "Task reminders and focus notifications.")}<div className="setting-field"><label htmlFor="global-shortcut">Global keyboard shortcut</label><div><input id="global-shortcut" value={shortcut} maxLength={100} onChange={event => setShortcut(event.target.value)}/><button onClick={() => void update({ globalShortcut: shortcut.trim() }).then(ok => { if (ok) message("Your new shortcut is ready."); })}>Apply</button></div><small>Example: Control+Alt+Space. A shortcut already in use stays unchanged.</small><small>Quick note: Ctrl+Alt+N. Quick task: Ctrl+Alt+T. Both are also in the tray menu.</small></div></section><section><span className="eyebrow">A PLACE ON YOUR DESKTOP</span><label className="setting-field">Display<select value={settings.displayId ?? "primary"} onChange={event => void update({ displayId: event.target.value === "primary" ? null : Number(event.target.value) })}><option value="primary">Follow primary display</option>{snapshot.displays.map(display => <option key={display.id} value={display.id}>{display.label} · {display.width} × {display.height}{display.primary ? " · primary" : ""}</option>)}</select></label><label className="setting-field">Island size <span>{Math.round(settings.scale * 100)}%</span><input type="range" aria-label="Island size" min="0.8" max="1.15" step="0.05" value={settings.scale} onChange={event => void update({ scale: Number(event.target.value) })}/></label><label className="setting-field">From top <span>{settings.offsetY}px</span><input type="range" aria-label="Vertical position" min="0" max="240" step="4" value={settings.offsetY} onChange={event => void update({ offsetY: Number(event.target.value) })}/></label><label className="setting-field">From center <span>{settings.offsetX}px</span><input type="range" aria-label="Horizontal position" min="-700" max="700" step="10" value={settings.offsetX} onChange={event => void update({ offsetX: Number(event.target.value) })}/></label><button className="text-btn" onClick={() => void update({ offsetX: 0, offsetY: 16, scale: 1, displayId: null })}><Icon name="reset" size={14}/>Back to center</button><div className="backup-card"><strong>Keep a little backup.</strong><p>Notes, tasks, history, shortcuts, and your settings. A file you own.</p><div><button onClick={() => void api.backupExport().then(ok => { if (ok) message("Backup exported."); }).catch(err => message(err.message))}><Icon name="download" size={15}/>Export</button><button onClick={() => void api.backupImport().then(ok => { if (ok) message("Backup restored."); }).catch(err => message(err.message))}><Icon name="upload" size={15}/>Import</button></div><button className="text-btn" onClick={() => void api.openData().catch(err => message(err.message))}><Icon name="folder" size={13}/>Open local data folder</button></div></section></div><div className="settings-bottom"><span>Island Desk {snapshot.version} · Offline by design. No account. No telemetry.</span><div><button className="text-btn" onClick={() => api.hide()}>Hide to tray</button><button className="text-btn danger" onClick={() => api.quit()}>Quit app</button></div></div></div>;
 }
 const priorityRank = { high: 0, medium: 1, low: 2 } as const;
 function Preview({ onSettings, weather, phone, media, now, clock, date, tasks, focus, message, onOpen }: { onSettings: () => void; weather: Weather | null; phone: PhoneFeed; media: MediaState; now: number; clock: string; date: string; tasks: Task[]; focus: string; message: (text: string) => void; onOpen: () => void }) {

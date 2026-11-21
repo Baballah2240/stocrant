@@ -85,9 +85,16 @@ function registerShortcut(accelerator: string) {
   if (currentShortcut) globalShortcut.unregister(currentShortcut);
   currentShortcut = accelerator;
 }
+function quickCapture(kind: "note" | "task") {
+  window.setFocusable(true);
+  setMode("expanded");
+  emit({ type: "capture", kind });
+}
 function trayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Open Island Desk", click: () => { window.setFocusable(true); setMode("expanded"); } },
+    { label: "Quick note", click: () => quickCapture("note") },
+    { label: "Quick task", click: () => quickCapture("task") },
     { label: window.isVisible() ? "Hide island" : "Show island", click: () => window.isVisible() ? hideIsland() : setMode("compact") },
     { type: "separator" }, { label: store.timer.running ? "Pause focus timer" : "Start focus timer", click: () => { timerAction(store, "toggle"); save(true); emit({ type: "timer", timer: store.timer }); trayMenu(); } },
     { label: "Always on top", type: "checkbox", checked: store.settings.alwaysOnTop, click: item => { store.settings.alwaysOnTop = item.checked; position(); for (const s of stickies.values()) if (!s.isDestroyed()) s.setAlwaysOnTop(item.checked); save(true); emit({ type: "replace", snapshot: snapshot() }); } },
@@ -329,12 +336,15 @@ else {
     const image = nativeImage.createFromDataURL("data:image/png;base64," + readFileSync(join(here, "../../dist/tray.png")).toString("base64"));
     tray = new Tray(image); tray.setToolTip("Island Desk · a little room for your day"); tray.on("click", toggle); trayMenu();
     try { registerShortcut(store.settings.globalShortcut); } catch (error) { setTimeout(() => emit({ type: "error", message: (error as Error).message + " Use the tray to open Settings." }), 1500); }
+    for (const [kind, accelerator] of [["note", "Control+Alt+N"], ["task", "Control+Alt+T"]] as const) {
+      try { globalShortcut.register(accelerator, () => quickCapture(kind)); } catch { /* Quick capture is also available from the tray. */ }
+    }
     screen.on("display-added", () => { resetOverlays(); position(); repositionStickies(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-removed", () => { resetOverlays(); position(); repositionStickies(); emit({ type: "replace", snapshot: snapshot() }); }); screen.on("display-metrics-changed", () => { resetOverlays(); position(); repositionStickies(); });
     const refreshBattery = () => { void getBattery().then(battery => emit({ type: "battery", battery })); };
     powerMonitor.on("on-ac", refreshBattery); powerMonitor.on("on-battery", refreshBattery); powerMonitor.on("resume", refreshBattery);
     powerMonitor.on("resume", tick); trayTimer = setInterval(tick, 1000); tick();
     app.on("second-instance", () => { window.setFocusable(true); setMode("expanded"); });
-    if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, () => { quitting = true; app.quit(); }));
+    if (testing && process.argv.includes("--smoke")) void import("./smoke.js").then(module => module.runSmoke(window, () => ({ store, mode, rect, ignoring, dataFile }), setMode, quickCapture, () => { quitting = true; app.quit(); }));
   }).catch(error => { dialog.showErrorBox("Island Desk could not start", String(error)); app.quit(); });
 }
 app.on("before-quit", () => { quitting = true; stopStats(); stopCompanion(); stopMedia(); resetOverlays(); clearInterval(hitTimer); clearInterval(trayTimer); try { if (dataFile) flush(); } catch { /* Keep the last successfully saved file. */ } globalShortcut.unregisterAll(); });

@@ -41,3 +41,11 @@ Verified in the packaged app: waveform bar transforms change over time while the
 - Refreshed shared desktop appearance and simplified workspace labels and empty states.
 
 Source update for the React and Capacitor apps. No Android APK was built or installed.
+
+## Capture and sync clarity - 2026-11-21
+
+- The phone companion shows its connection state and pending change count, including while the timer or music is active.
+- The Flutter preview uses the shared blue glass palette, brighter text, and clearer input outlines.
+- The Windows tray and global shortcuts open quick note and task capture.
+
+Source update. No Android APK was built or installed.
